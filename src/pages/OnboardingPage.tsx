@@ -1,611 +1,514 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronRight } from 'lucide-react'
-import { saveProfile } from '../db/profileStore'
+import { ChevronLeft, Check } from 'lucide-react'
 import { setSetting } from '../db'
+import { saveProfile } from '../db/profileStore'
 import './OnboardingPage.css'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Platform detection ───────────────────────────────────────────────────────
+
+function getPlatform(): 'ios' | 'android' | 'desktop' {
+  if (typeof navigator === 'undefined') return 'desktop'
+  const ua = navigator.userAgent
+  if (/iPad|iPhone|iPod/.test(ua)) return 'ios'
+  if (/Android/.test(ua)) return 'android'
+  return 'desktop'
+}
+
+// ─── Nutrition math ───────────────────────────────────────────────────────────
+
+function calcNutrition(goalWeightLbs: number, trainingDays: number) {
+  const proteinG = Math.round(goalWeightLbs * 0.82)
+  const multipliers = [12, 12, 12, 13.5, 14, 15, 16, 17]
+  const calories = Math.round(goalWeightLbs * (multipliers[trainingDays] ?? 14))
+  const proteinCal = proteinG * 4
+  const fatG = Math.round((calories - proteinCal) * 0.3 / 9)
+  const carbsG = Math.round((calories - proteinCal) * 0.7 / 4)
+  return { calories, proteinG, fatG, carbsG, waterMl: 3785 }
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const GOAL_OPTIONS = [
-  { id: 'visible-abs',    emoji: '💪', label: 'Visible abs' },
-  { id: 'fat-loss',       emoji: '🔥', label: 'Fat loss' },
-  { id: 'muscle-gain',    emoji: '🏋️', label: 'Muscle gain' },
-  { id: 'strength',       emoji: '⚡', label: 'Strength' },
-  { id: 'jump-higher',    emoji: '🏀', label: 'Jump higher / Dunk' },
-  { id: 'running',        emoji: '🏃', label: 'Running endurance' },
-  { id: 'general-health', emoji: '❤️', label: 'General health' },
+  { id: 'fat-loss',       emoji: '🔥', label: 'Lose fat'         },
+  { id: 'muscle-gain',    emoji: '💪', label: 'Build muscle'      },
+  { id: 'strength',       emoji: '🏋️', label: 'Get stronger'      },
+  { id: 'running',        emoji: '🏃', label: 'Improve endurance' },
+  { id: 'general-health', emoji: '🩺', label: 'Feel healthier'    },
 ]
 
-const EQUIPMENT_OPTIONS = [
-  { id: 'full-gym',         label: 'Full gym' },
-  { id: 'home-gym',         label: 'Home gym setup' },
-  { id: 'barbell',          label: 'Barbell + rack' },
-  { id: 'dumbbells',        label: 'Dumbbells only' },
-  { id: 'resistance-bands', label: 'Resistance bands' },
-  { id: 'bodyweight',       label: 'Bodyweight only' },
+const SOURCES_IOS = [
+  { id: 'apple-health', emoji: '❤️', name: 'Apple Health',    desc: 'Sleep, weight, heart rate, steps', status: 'import-ready' },
+  { id: 'strava',       emoji: '🧡', name: 'Strava',          desc: 'Runs, rides, workouts',            status: 'connect'      },
+  { id: 'garmin',       emoji: '⌚', name: 'Garmin Connect', desc: 'Watch data, HRV, workouts',        status: 'coming-soon'  },
+  { id: 'oura',         emoji: '💍', name: 'Oura Ring',       desc: 'Sleep, HRV, readiness',            status: 'coming-soon'  },
 ]
 
-const SOURCE_OPTIONS = [
-  { id: 'apple-health', icon: '🍎', name: 'Apple Health / Watch',  status: 'import-ready', desc: 'Export & import from the Health app' },
-  { id: 'renpho',       icon: '⚖️', name: 'RENPHO Scale',          status: 'import-ready', desc: 'Export CSV from the RENPHO app' },
-  { id: 'strava',       icon: '🚴', name: 'Strava',                status: 'connect',       desc: 'Connect via OAuth in Settings' },
-  { id: 'ringconn',     icon: '💍', name: 'RingConn',              status: 'via-health',    desc: 'Syncs to Apple Health automatically' },
-  { id: 'myfitnesspal', icon: '🥗', name: 'MyFitnessPal',          status: 'import-ready', desc: 'Export CSV from myfitnesspal.com' },
-  { id: 'garmin',       icon: '⌚', name: 'Garmin',               status: 'coming-soon',   desc: 'Use Garmin → Apple Health sync for now' },
-  { id: 'whoop',        icon: '⚡', name: 'WHOOP',                status: 'coming-soon',   desc: 'Use WHOOP → Apple Health sync for now' },
-  { id: 'oura',         icon: '🌙', name: 'Oura Ring',            status: 'coming-soon',   desc: 'Use Oura → Apple Health sync for now' },
+const SOURCES_ANDROID = [
+  { id: 'google-fit', emoji: '🟢', name: 'Google Fit',     desc: 'Steps, weight, heart rate', status: 'coming-soon' },
+  { id: 'strava',     emoji: '🧡', name: 'Strava',         desc: 'Runs, rides, workouts',     status: 'connect'     },
+  { id: 'garmin',     emoji: '⌚', name: 'Garmin Connect', desc: 'Watch data, HRV, workouts', status: 'coming-soon' },
+  { id: 'whoop',      emoji: '⚡', name: 'WHOOP',          desc: 'Strain, recovery, sleep',   status: 'coming-soon' },
 ]
 
-const STATUS_LABEL: Record<string, string> = {
-  'import-ready': 'Import ready',
-  'connect':      'Connect later',
-  'via-health':   'Via Apple Health',
-  'import-ready2':'CSV export',
-  'coming-soon':  'Coming soon',
-}
-const STATUS_COLOR: Record<string, string> = {
-  'import-ready': 'var(--green)',
-  'connect':      'var(--blue)',
-  'via-health':   'var(--teal)',
-  'coming-soon':  'var(--text-tertiary)',
+const SOURCES_DESKTOP = [
+  { id: 'strava',       emoji: '🧡', name: 'Strava',          desc: 'Runs, rides, workouts',         status: 'connect'      },
+  { id: 'apple-health', emoji: '❤️', name: 'Apple Health',    desc: 'Best imported from iPhone',     status: 'import-ready' },
+  { id: 'garmin',       emoji: '⌚', name: 'Garmin Connect', desc: 'Watch data, HRV, workouts',      status: 'coming-soon'  },
+  { id: 'whoop',        emoji: '⚡', name: 'WHOOP',           desc: 'Strain, recovery, sleep',        status: 'coming-soon'  },
+]
+
+const SOURCE_STATUS: Record<string, { text: string; color: string }> = {
+  'import-ready': { text: 'Ready to import', color: 'var(--green)'         },
+  'connect':      { text: 'Connect later',   color: 'var(--blue)'          },
+  'coming-soon':  { text: 'Coming soon',     color: 'var(--text-tertiary)' },
 }
 
-const TOTAL_STEPS = 8
-
-// ─── Data shape ───────────────────────────────────────────────────────────────
+// ─── Shared types ─────────────────────────────────────────────────────────────
 
 interface OBData {
   name: string
-  birthday: string
-  heightFt: string
-  heightIn: string
-  sex: string
   currentWeightLbs: string
   goalWeightLbs: string
-  bodyFatPct: string
-  restingHR: string
-  hrv: string
-  goals: string[]
+  heightFt: string
+  heightIn: string
+  age: string
   trainingDays: number
-  sessionMin: number
-  equipment: string[]
-  useRecommended: boolean
-  calories: string
-  protein: string
-  carbs: string
-  fat: string
+  goals: string[]
   intendToConnect: string[]
 }
 
-const DEFAULTS: OBData = {
-  name: '', birthday: '', heightFt: '5', heightIn: '10', sex: '',
-  currentWeightLbs: '', goalWeightLbs: '',
-  bodyFatPct: '', restingHR: '', hrv: '',
-  goals: ['fat-loss', 'muscle-gain'],
-  trainingDays: 4, sessionMin: 60,
-  equipment: ['full-gym'],
-  useRecommended: true, calories: '', protein: '', carbs: '', fat: '',
-  intendToConnect: [],
+interface StepProps {
+  data: OBData
+  patch: (u: Partial<OBData>) => void
+  onNext: () => void
+  onSkip: () => void
+  dir: 'fwd' | 'bwd'
 }
 
-// ─── Nutrition formula ────────────────────────────────────────────────────────
+// ─── Shared large input ───────────────────────────────────────────────────────
 
-function calcNutrition(goalWeightLbs: string, goals: string[]) {
-  const gw = parseFloat(goalWeightLbs) || 180
-  const isFatLoss = goals.includes('fat-loss') && !goals.includes('muscle-gain')
-  const protein = Math.round(gw * 0.8)
-  const calories = isFatLoss ? Math.round(gw * 12) : Math.round(gw * 15)
-  const fat = Math.round((calories * 0.25) / 9)
-  const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4))
-  return { calories: String(calories), protein: String(protein), carbs: String(carbs), fat: String(fat) }
-}
-
-// ─── Main page ───────────────────────────────────────────────────────────────
-
-export default function OnboardingPage() {
-  const navigate = useNavigate()
-  const [step, setStep]   = useState(1)
-  const [data, setData]   = useState<OBData>(DEFAULTS)
-  const [saving, setSaving] = useState(false)
-
-  function patch(updates: Partial<OBData>) {
-    setData(d => ({ ...d, ...updates }))
-  }
-
-  function toggle(key: 'goals' | 'equipment' | 'intendToConnect', val: string) {
-    setData(d => {
-      const arr = d[key]
-      return { ...d, [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] }
-    })
-  }
-
-  function next() { setStep(s => Math.min(s + 1, TOTAL_STEPS)) }
-  function back() { setStep(s => Math.max(s - 1, 1)) }
-
-  // Recalculate recommended nutrition when arriving at step 6
+function BigInput({
+  type = 'text', value, onChange, placeholder, unit, autoFocus = false,
+}: {
+  type?: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  unit?: string
+  autoFocus?: boolean
+}) {
+  const ref = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    if (step === 6 && data.useRecommended) {
-      const rec = calcNutrition(data.goalWeightLbs, data.goals)
-      setData(d => ({ ...d, ...rec }))
+    if (autoFocus) {
+      const t = setTimeout(() => ref.current?.focus(), 140)
+      return () => clearTimeout(t)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step])
-
-  async function skip() {
-    await setSetting('onboarding.completed', true)
-    navigate('/', { replace: true })
-  }
-
-  async function finish() {
-    setSaving(true)
-    try {
-      const totalIn   = parseFloat(data.heightFt) * 12 + parseFloat(data.heightIn)
-      const heightCm  = isNaN(totalIn) ? undefined : Math.round(totalIn * 2.54)
-      const startWt   = parseFloat(data.currentWeightLbs) / 2.205
-      const goalWt    = parseFloat(data.goalWeightLbs) / 2.205
-      const bf        = parseFloat(data.bodyFatPct)
-
-      await saveProfile({
-        name:             data.name || 'Athlete',
-        heightCm,
-        startDate:        new Date().toISOString().slice(0, 10),
-        startWeightKg:    isNaN(startWt) ? undefined : +startWt.toFixed(1),
-        goalWeightKg:     isNaN(goalWt)  ? undefined : +goalWt.toFixed(1),
-        startBodyFatPct:  isNaN(bf)      ? undefined : bf,
-        goalNotes:        data.goals.join(', '),
-      })
-
-      const nutrition = data.useRecommended
-        ? calcNutrition(data.goalWeightLbs, data.goals)
-        : { calories: data.calories, protein: data.protein, carbs: data.carbs, fat: data.fat }
-
-      await Promise.all([
-        setSetting('onboarding.completed', true),
-        setSetting('onboarding.goals', data.goals),
-        setSetting('onboarding.intendToConnect', data.intendToConnect),
-        setSetting('training.daysPerWeek', data.trainingDays),
-        setSetting('training.sessionMin', data.sessionMin),
-        setSetting('training.equipment', data.equipment),
-        setSetting('nutrition.targets', {
-          caloriesIn: parseInt(nutrition.calories) || 2200,
-          proteinG:   parseInt(nutrition.protein)  || 180,
-          carbsG:     parseInt(nutrition.carbs)    || 200,
-          fatG:       parseInt(nutrition.fat)      || 60,
-          waterMl:    3785,
-        }),
-      ])
-
-      navigate('/', { replace: true })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const progress = ((step - 1) / (TOTAL_STEPS - 1)) * 100
+  }, [autoFocus])
 
   return (
-    <div className="ob-page">
-      <header className="ob-header">
-        {step > 1
-          ? <button className="ob-nav-btn" onClick={back} aria-label="Back">←</button>
-          : <div className="ob-nav-btn" />
-        }
-        <div className="ob-progress-track">
-          <div className="ob-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-        <button className="ob-nav-btn ob-nav-btn--skip" onClick={skip}>Skip</button>
-      </header>
-
-      <div className="ob-body">
-        {step === 1 && <StepWelcome onNext={next} />}
-        {step === 2 && <StepProfile    data={data} patch={patch} onNext={next} />}
-        {step === 3 && <StepMetrics    data={data} patch={patch} onNext={next} />}
-        {step === 4 && <StepGoals      data={data} toggle={v => toggle('goals', v)} onNext={next} />}
-        {step === 5 && <StepTraining   data={data} patch={patch} toggle={v => toggle('equipment', v)} onNext={next} />}
-        {step === 6 && <StepNutrition  data={data} patch={patch} onNext={next} />}
-        {step === 7 && <StepSources    data={data} toggle={v => toggle('intendToConnect', v)} onNext={next} />}
-        {step === 8 && <StepFinish     data={data} saving={saving} onFinish={finish} />}
-      </div>
+    <div className="ob-big-field">
+      <input
+        ref={ref}
+        type={type}
+        inputMode={type === 'number' ? 'decimal' : 'text'}
+        className="ob-big-input"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {unit && <span className="ob-big-unit">{unit}</span>}
     </div>
   )
 }
 
-// ─── Step 1: Welcome ─────────────────────────────────────────────────────────
+// ─── Step shell with directional animation ────────────────────────────────────
 
-function StepWelcome({ onNext }: { onNext: () => void }) {
+function StepShell({ dir, children }: { dir: 'fwd' | 'bwd'; children: React.ReactNode }) {
   return (
-    <div className="ob-step ob-step--center">
-      <img src="/icon.svg" className="ob-logo" alt="" aria-hidden="true" />
-      <h1 className="ob-hero-title">Welcome to<br />Shakthi Journal</h1>
-      <p className="ob-hero-desc">Your personal health OS.<br />Private by default. Built for athletes.</p>
-      <div className="ob-spacer" />
-      <button className="ob-cta" onClick={onNext}>
-        Get Started <ChevronRight size={18} strokeWidth={2.5} />
-      </button>
-      <p className="ob-fine-print">Takes about 2 minutes · everything is optional</p>
+    <div className={`ob-step ${dir === 'bwd' ? 'ob-step--bwd' : ''}`}>
+      {children}
     </div>
   )
 }
 
-// ─── Step 2: Profile ─────────────────────────────────────────────────────────
+// ─── Steps 1–8 ───────────────────────────────────────────────────────────────
 
-function StepProfile({ data, patch, onNext }: {
-  data: OBData
-  patch: (u: Partial<OBData>) => void
-  onNext: () => void
-}) {
+function StepName({ data, patch, onNext, onSkip, dir }: StepProps) {
   return (
-    <div className="ob-step">
-      <h2 className="ob-step-title">About you</h2>
-      <p className="ob-step-subtitle">Used to personalize your recommendations.</p>
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What's your<br/>name?</h1>
+      </div>
+      <div className="ob-input-zone">
+        <BigInput value={data.name} onChange={v => patch({ name: v })} placeholder="First name" autoFocus />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!data.name.trim()}>Continue</button>
+        <button className="ob-skip" onClick={onSkip}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
 
-      <div className="ob-fields">
-        <label className="ob-label">Your name</label>
-        <input className="ob-input" type="text" placeholder="First name" autoComplete="given-name"
-          value={data.name} onChange={e => patch({ name: e.target.value })} />
+function StepCurrentWeight({ data, patch, onNext, onSkip, dir }: StepProps) {
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What's your<br/>current weight?</h1>
+        <p className="ob-q-sub">This is your starting point.</p>
+      </div>
+      <div className="ob-input-zone">
+        <BigInput type="number" value={data.currentWeightLbs} onChange={v => patch({ currentWeightLbs: v })} placeholder="185" unit="lbs" autoFocus />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!data.currentWeightLbs}>Continue</button>
+        <button className="ob-skip" onClick={onSkip}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
 
-        <label className="ob-label">Birthday <span className="ob-optional">(optional)</span></label>
-        <input className="ob-input" type="date" value={data.birthday}
-          onChange={e => patch({ birthday: e.target.value })} />
+function StepGoalWeight({ data, patch, onNext, onSkip, dir }: StepProps) {
+  const ph = data.currentWeightLbs
+    ? String(Math.max(100, Math.round(parseFloat(data.currentWeightLbs) - 10)))
+    : '175'
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">Where do you<br/>want to be?</h1>
+        <p className="ob-q-sub">Set a goal weight to track your progress.</p>
+      </div>
+      <div className="ob-input-zone">
+        <BigInput type="number" value={data.goalWeightLbs} onChange={v => patch({ goalWeightLbs: v })} placeholder={ph} unit="lbs" autoFocus />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!data.goalWeightLbs}>Continue</button>
+        <button className="ob-skip" onClick={onSkip}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
 
-        <label className="ob-label">Height</label>
-        <div className="ob-row-2">
-          <div className="ob-input-unit">
-            <input className="ob-input" type="number" min="4" max="8" placeholder="5"
-              value={data.heightFt} onChange={e => patch({ heightFt: e.target.value })} />
-            <span>ft</span>
-          </div>
-          <div className="ob-input-unit">
-            <input className="ob-input" type="number" min="0" max="11" placeholder="10"
-              value={data.heightIn} onChange={e => patch({ heightIn: e.target.value })} />
-            <span>in</span>
-          </div>
-        </div>
-
-        <label className="ob-label">Sex <span className="ob-optional">(optional)</span></label>
-        <div className="ob-pill-row">
-          {(['Male', 'Female', 'Other', 'Prefer not to say'] as const).map(s => {
-            const val = s === 'Prefer not to say' ? '' : s.toLowerCase()
-            return (
-              <button key={s}
-                className={`ob-pill ${data.sex === val ? 'ob-pill--on' : ''}`}
-                onClick={() => patch({ sex: val })}>
-                {s}
-              </button>
-            )
-          })}
+function StepHeight({ data, patch, onNext, onSkip, dir }: StepProps) {
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">How tall<br/>are you?</h1>
+      </div>
+      <div className="ob-input-zone">
+        <div className="ob-height-wrap">
+          <select className="ob-height-select" value={data.heightFt} onChange={e => patch({ heightFt: e.target.value })}>
+            <option value="">— ft</option>
+            {[4, 5, 6, 7, 8].map(f => <option key={f} value={String(f)}>{f} ft</option>)}
+          </select>
+          <select className="ob-height-select" value={data.heightIn} onChange={e => patch({ heightIn: e.target.value })}>
+            <option value="">— in</option>
+            {Array.from({ length: 12 }, (_, i) => i).map(i => <option key={i} value={String(i)}>{i} in</option>)}
+          </select>
         </div>
       </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!data.heightFt}>Continue</button>
+        <button className="ob-skip" onClick={onSkip}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
 
+function StepAge({ data, patch, onNext, onSkip, dir }: StepProps) {
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">How old<br/>are you?</h1>
+        <p className="ob-q-sub">Helps us personalize your baselines.</p>
+      </div>
+      <div className="ob-input-zone">
+        <BigInput type="number" value={data.age} onChange={v => patch({ age: v })} placeholder="27" unit="yrs" autoFocus />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!data.age}>Continue</button>
+        <button className="ob-skip" onClick={onSkip}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
+
+function StepTrainingDays({ data, patch, onNext, dir }: Omit<StepProps, 'onSkip'>) {
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">How many days<br/>do you train?</h1>
+        <p className="ob-q-sub">On average, per week.</p>
+      </div>
+      <div className="ob-input-zone">
+        <div className="ob-day-selector">
+          {[2, 3, 4, 5, 6, 7].map(d => (
+            <button
+              key={d}
+              className={`ob-day-tile ${data.trainingDays === d ? 'ob-day-tile--on' : ''}`}
+              onClick={() => patch({ trainingDays: d })}
+            >
+              <span className="ob-day-num">{d}</span>
+              <span className="ob-day-lbl">days</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
       </div>
-    </div>
+    </StepShell>
   )
 }
 
-// ─── Step 3: Current Metrics ─────────────────────────────────────────────────
-
-function StepMetrics({ data, patch, onNext }: {
-  data: OBData
-  patch: (u: Partial<OBData>) => void
-  onNext: () => void
-}) {
+function StepGoals({ data, patch, onNext, onSkip, dir }: StepProps) {
+  const toggle = (id: string) => {
+    const on = data.goals.includes(id)
+    patch({ goals: on ? data.goals.filter(g => g !== id) : [...data.goals, id] })
+  }
   return (
-    <div className="ob-step">
-      <h2 className="ob-step-title">Starting point</h2>
-      <p className="ob-step-subtitle">Fill in what you know — everything is optional.</p>
-
-      <div className="ob-fields">
-        <div className="ob-row-2">
-          <div>
-            <label className="ob-label">Current weight</label>
-            <div className="ob-input-unit">
-              <input className="ob-input" type="number" placeholder="185"
-                value={data.currentWeightLbs} onChange={e => patch({ currentWeightLbs: e.target.value })} />
-              <span>lbs</span>
-            </div>
-          </div>
-          <div>
-            <label className="ob-label">Goal weight</label>
-            <div className="ob-input-unit">
-              <input className="ob-input" type="number" placeholder="175"
-                value={data.goalWeightLbs} onChange={e => patch({ goalWeightLbs: e.target.value })} />
-              <span>lbs</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="ob-row-2">
-          <div>
-            <label className="ob-label">Body fat %</label>
-            <div className="ob-input-unit">
-              <input className="ob-input" type="number" placeholder="18"
-                value={data.bodyFatPct} onChange={e => patch({ bodyFatPct: e.target.value })} />
-              <span>%</span>
-            </div>
-          </div>
-          <div>
-            <label className="ob-label">Resting HR</label>
-            <div className="ob-input-unit">
-              <input className="ob-input" type="number" placeholder="60"
-                value={data.restingHR} onChange={e => patch({ restingHR: e.target.value })} />
-              <span>bpm</span>
-            </div>
-          </div>
-        </div>
-
-        <label className="ob-label">HRV (morning avg) <span className="ob-optional">optional</span></label>
-        <div className="ob-input-unit ob-input-unit--narrow">
-          <input className="ob-input" type="number" placeholder="55"
-            value={data.hrv} onChange={e => patch({ hrv: e.target.value })} />
-          <span>ms</span>
-        </div>
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What matters<br/>most to you?</h1>
+        <p className="ob-q-sub">Choose up to two.</p>
       </div>
-
-      <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Step 4: Goals ───────────────────────────────────────────────────────────
-
-function StepGoals({ data, toggle, onNext }: {
-  data: OBData
-  toggle: (id: string) => void
-  onNext: () => void
-}) {
-  return (
-    <div className="ob-step">
-      <h2 className="ob-step-title">Your goals</h2>
-      <p className="ob-step-subtitle">Select all that apply.</p>
-
-      <div className="ob-goal-grid">
+      <div className="ob-goal-list">
         {GOAL_OPTIONS.map(g => {
           const on = data.goals.includes(g.id)
           return (
-            <button key={g.id} className={`ob-goal-card ${on ? 'ob-goal-card--on' : ''}`} onClick={() => toggle(g.id)}>
+            <button key={g.id} className={`ob-goal-row ${on ? 'ob-goal-row--on' : ''}`} onClick={() => toggle(g.id)}>
               <span className="ob-goal-emoji">{g.emoji}</span>
-              <span className="ob-goal-label">{g.label}</span>
-              {on && <Check size={13} className="ob-goal-check" />}
+              <span className="ob-goal-lbl">{g.label}</span>
+              <span className={`ob-goal-dot ${on ? 'ob-goal-dot--on' : ''}`}><Check size={14} /></span>
             </button>
           )
         })}
       </div>
-
       <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={data.goals.length === 0}>
-          Continue {data.goals.length > 0 && `· ${data.goals.length} selected`}
-        </button>
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={data.goals.length === 0}>Continue</button>
+        <button className="ob-skip" onClick={onSkip}>Skip for now</button>
       </div>
-    </div>
+    </StepShell>
   )
 }
 
-// ─── Step 5: Training ────────────────────────────────────────────────────────
+function StepSources({ data, patch, onNext, dir }: Omit<StepProps, 'onSkip'>) {
+  const platform = getPlatform()
+  const sources = platform === 'ios' ? SOURCES_IOS : platform === 'android' ? SOURCES_ANDROID : SOURCES_DESKTOP
 
-function StepTraining({ data, patch, toggle, onNext }: {
-  data: OBData
-  patch: (u: Partial<OBData>) => void
-  toggle: (id: string) => void
-  onNext: () => void
-}) {
-  return (
-    <div className="ob-step">
-      <h2 className="ob-step-title">Training schedule</h2>
-      <p className="ob-step-subtitle">We'll tailor plans to fit your availability.</p>
-
-      <div className="ob-fields">
-        <label className="ob-label">Days per week</label>
-        <div className="ob-day-picker">
-          {[2, 3, 4, 5, 6, 7].map(d => (
-            <button key={d}
-              className={`ob-day-btn ${data.trainingDays === d ? 'ob-day-btn--on' : ''}`}
-              onClick={() => patch({ trainingDays: d })}>
-              {d}
-            </button>
-          ))}
-        </div>
-
-        <label className="ob-label">Session length</label>
-        <div className="ob-pill-row">
-          {[30, 45, 60, 75, 90].map(m => (
-            <button key={m}
-              className={`ob-pill ${data.sessionMin === m ? 'ob-pill--on' : ''}`}
-              onClick={() => patch({ sessionMin: m })}>
-              {m} min
-            </button>
-          ))}
-        </div>
-
-        <label className="ob-label">Equipment available</label>
-        <div className="ob-chip-grid">
-          {EQUIPMENT_OPTIONS.map(e => (
-            <button key={e.id}
-              className={`ob-chip ${data.equipment.includes(e.id) ? 'ob-chip--on' : ''}`}
-              onClick={() => toggle(e.id)}>
-              {e.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Step 6: Nutrition ───────────────────────────────────────────────────────
-
-function StepNutrition({ data, patch, onNext }: {
-  data: OBData
-  patch: (u: Partial<OBData>) => void
-  onNext: () => void
-}) {
-  function switchMode(rec: boolean) {
-    if (rec) {
-      const calc = calcNutrition(data.goalWeightLbs, data.goals)
-      patch({ useRecommended: true, ...calc })
-    } else {
-      patch({ useRecommended: false })
-    }
+  const toggle = (id: string) => {
+    const on = data.intendToConnect.includes(id)
+    patch({ intendToConnect: on ? data.intendToConnect.filter(s => s !== id) : [...data.intendToConnect, id] })
   }
 
   return (
-    <div className="ob-step">
-      <h2 className="ob-step-title">Nutrition targets</h2>
-      <p className="ob-step-subtitle">Daily macros. You can adjust these in Settings later.</p>
-
-      <div className="ob-toggle-pair">
-        <button className={`ob-toggle-btn ${data.useRecommended ? 'ob-toggle-btn--on' : ''}`}
-          onClick={() => switchMode(true)}>
-          Use recommended
-        </button>
-        <button className={`ob-toggle-btn ${!data.useRecommended ? 'ob-toggle-btn--on' : ''}`}
-          onClick={() => switchMode(false)}>
-          Set manually
-        </button>
-      </div>
-
-      <div className="ob-macro-grid">
-        {([
-          { key: 'calories', label: 'Calories', unit: 'kcal', color: 'var(--blue)',   placeholder: '2200' },
-          { key: 'protein',  label: 'Protein',  unit: 'g',    color: 'var(--green)',  placeholder: '180'  },
-          { key: 'carbs',    label: 'Carbs',    unit: 'g',    color: 'var(--orange)', placeholder: '200'  },
-          { key: 'fat',      label: 'Fat',      unit: 'g',    color: 'var(--yellow)', placeholder: '60'   },
-        ] as const).map(m => (
-          <div key={m.key} className="ob-macro-card">
-            <span className="ob-macro-label">{m.label}</span>
-            {data.useRecommended
-              ? <span className="ob-macro-val" style={{ color: m.color }}>{data[m.key] || '—'}</span>
-              : <input className="ob-macro-input" type="number" placeholder={m.placeholder}
-                  value={data[m.key]}
-                  onChange={e => patch({ [m.key]: e.target.value } as Partial<OBData>)} />
-            }
-            <span className="ob-macro-unit">{m.unit}</span>
-          </div>
-        ))}
-      </div>
-
-      {data.useRecommended && (
-        <p className="ob-nutrition-note">
-          Based on {data.goalWeightLbs ? `${data.goalWeightLbs} lbs goal weight` : 'estimated goal weight'}
-          {' '}· 0.8g protein per lb · {data.goals.includes('fat-loss') && !data.goals.includes('muscle-gain') ? 'fat loss deficit' : 'maintenance/growth'}
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What do<br/>you use?</h1>
+        <p className="ob-q-sub">
+          {platform === 'desktop'
+            ? 'Wearable connections are easiest from your phone.'
+            : "We'll help you connect when you're ready."}
         </p>
-      )}
-
-      <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
       </div>
-    </div>
-  )
-}
-
-// ─── Step 7: Sources ─────────────────────────────────────────────────────────
-
-function StepSources({ data, toggle, onNext }: {
-  data: OBData
-  toggle: (id: string) => void
-  onNext: () => void
-}) {
-  return (
-    <div className="ob-step">
-      <h2 className="ob-step-title">Connect your devices</h2>
-      <p className="ob-step-subtitle">Mark what you plan to use — you'll connect them after setup.</p>
-
       <div className="ob-source-list">
-        {SOURCE_OPTIONS.map(s => {
-          const on = data.intendToConnect.includes(s.id)
+        {sources.map(s => {
+          const isSoon = s.status === 'coming-soon'
+          const on = !isSoon && data.intendToConnect.includes(s.id)
+          const sl = SOURCE_STATUS[s.status]
           return (
-            <button key={s.id} className={`ob-source-row ${on ? 'ob-source-row--on' : ''}`}
-              onClick={() => toggle(s.id)}>
-              <span className="ob-source-icon">{s.icon}</span>
+            <button
+              key={s.id}
+              className={`ob-source-row ${on ? 'ob-source-row--on' : ''} ${isSoon ? 'ob-source-row--soon' : ''}`}
+              onClick={() => !isSoon && toggle(s.id)}
+              disabled={isSoon}
+            >
+              <span className="ob-source-icon">{s.emoji}</span>
               <div className="ob-source-info">
                 <span className="ob-source-name">{s.name}</span>
                 <span className="ob-source-desc">{s.desc}</span>
               </div>
-              <span className="ob-source-status" style={{ color: STATUS_COLOR[s.status] ?? 'var(--text-tertiary)' }}>
-                {STATUS_LABEL[s.status] ?? s.status}
-              </span>
-              {on && <Check size={14} className="ob-source-check" />}
+              {on
+                ? <span className="ob-source-check"><Check size={16} /></span>
+                : <span className="ob-source-status" style={{ color: sl.color }}>{sl.text}</span>
+              }
             </button>
           )
         })}
       </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext}>
+          {data.intendToConnect.length > 0 ? 'Continue' : 'Skip for now'}
+        </button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Finish screen ────────────────────────────────────────────────────────────
+
+function StepFinish({ data, onFinish, loading }: { data: OBData; onFinish: () => void; loading: boolean }) {
+  const goalLbs = parseFloat(data.goalWeightLbs)
+  const nutrition = !isNaN(goalLbs) && goalLbs > 0 ? calcNutrition(goalLbs, data.trainingDays) : null
+  const goalLabels = GOAL_OPTIONS.filter(g => data.goals.includes(g.id)).map(g => g.label)
+
+  return (
+    <div className="ob-step ob-step--center">
+      <div className="ob-finish-icon"><Check size={34} strokeWidth={3} /></div>
+      <h1 className="ob-finish-title">
+        {data.name.trim() ? `You're all set,\n${data.name.trim()}.` : "You're all set."}
+      </h1>
+      <p className="ob-finish-sub">Here's what we've set up for you.</p>
+
+      <div className="ob-finish-card">
+        {data.goalWeightLbs && (
+          <div className="ob-finish-row">
+            <span className="ob-finish-key">Goal weight</span>
+            <span className="ob-finish-val">{data.goalWeightLbs} lbs</span>
+          </div>
+        )}
+        {goalLabels.length > 0 && (
+          <div className="ob-finish-row">
+            <span className="ob-finish-key">Focus</span>
+            <span className="ob-finish-val">{goalLabels.join(' · ')}</span>
+          </div>
+        )}
+        <div className="ob-finish-row">
+          <span className="ob-finish-key">Training</span>
+          <span className="ob-finish-val">{data.trainingDays}× per week</span>
+        </div>
+        {nutrition && (
+          <div className="ob-finish-row">
+            <span className="ob-finish-key">Daily targets</span>
+            <span className="ob-finish-val">{nutrition.calories} kcal · {nutrition.proteinG}g protein</span>
+          </div>
+        )}
+      </div>
 
       <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-        <p className="ob-fine-print">Connect or import via Settings → Connected Accounts</p>
+        <button className="ob-cta ob-cta--full" onClick={onFinish} disabled={loading}>
+          {loading ? 'Setting up…' : 'Enter Shakthi Journal'}
+        </button>
+        <p className="ob-fine-print">Everything can be adjusted in Settings anytime.</p>
       </div>
     </div>
   )
 }
 
-// ─── Step 8: Finish ──────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-function StepFinish({ data, saving, onFinish }: {
-  data: OBData
-  saving: boolean
-  onFinish: () => void
-}) {
+const TOTAL_STEPS = 8
+
+export default function OnboardingPage() {
+  const navigate = useNavigate()
+  const [step, setStep] = useState(0)
+  const [dir, setDir] = useState<'fwd' | 'bwd'>('fwd')
+  const [loading, setLoading] = useState(false)
+  const [data, setData] = useState<OBData>({
+    name: '',
+    currentWeightLbs: '',
+    goalWeightLbs: '',
+    heightFt: '5',
+    heightIn: '10',
+    age: '',
+    trainingDays: 4,
+    goals: [],
+    intendToConnect: [],
+  })
+
+  function patch(u: Partial<OBData>) { setData(prev => ({ ...prev, ...u })) }
+
+  function go(next: number) {
+    setDir(next > step ? 'fwd' : 'bwd')
+    setStep(next)
+  }
+
+  async function skipAll() {
+    await setSetting('onboarding.completed', true)
+    navigate('/', { replace: true })
+  }
+
+  async function handleFinish() {
+    setLoading(true)
+    try {
+      const ft = parseInt(data.heightFt)
+      const heightCm = !isNaN(ft) && ft > 0 ? Math.round(ft * 30.48 + (parseInt(data.heightIn) || 0) * 2.54) : undefined
+      const today = new Date().toISOString().split('T')[0]
+
+      if (data.name.trim()) {
+        await saveProfile({
+          name: data.name.trim(),
+          heightCm,
+          startDate: today,
+          startWeightKg: data.currentWeightLbs ? +(parseFloat(data.currentWeightLbs) / 2.20462).toFixed(1) : undefined,
+          goalWeightKg:  data.goalWeightLbs    ? +(parseFloat(data.goalWeightLbs)    / 2.20462).toFixed(1) : undefined,
+          goalNotes: data.goals.join(', ') || undefined,
+        })
+      }
+
+      const goalLbs = parseFloat(data.goalWeightLbs)
+      if (!isNaN(goalLbs) && goalLbs > 0) {
+        const nut = calcNutrition(goalLbs, data.trainingDays)
+        await setSetting('nutrition-goals', { ...nut, macroFirstMode: false })
+        await setSetting('nutrition.targets', { caloriesIn: nut.calories, proteinG: nut.proteinG, carbsG: nut.carbsG, fatG: nut.fatG, waterMl: nut.waterMl })
+      }
+
+      await setSetting('onboarding.completed', true)
+      await setSetting('onboarding.goals', data.goals)
+      await setSetting('onboarding.intendToConnect', data.intendToConnect)
+      await setSetting('training.daysPerWeek', data.trainingDays)
+
+      navigate('/', { replace: true })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const showHeader = step > 0 && step < 9
+  const progressPct = step > 0 ? Math.round(((step - 1) / TOTAL_STEPS) * 100) : 0
+  const sp: StepProps = { data, patch, onNext: () => go(step + 1), onSkip: () => go(step + 1), dir }
+
   return (
-    <div className="ob-step ob-step--center">
-      <div className="ob-finish-emoji">🎯</div>
-      <h2 className="ob-hero-title">
-        You're set{data.name ? `, ${data.name}` : ''}!
-      </h2>
-      <p className="ob-hero-desc">Your health OS is ready. Start by logging today or importing your Apple Health data.</p>
+    <div className="ob-page">
 
-      <div className="ob-summary">
-        {data.goals.length > 0 && (
-          <div className="ob-summary-row">
-            <span className="ob-summary-key">Goals</span>
-            <span className="ob-summary-val">
-              {data.goals
-                .map(id => GOAL_OPTIONS.find(o => o.id === id)?.label)
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
+      {showHeader && (
+        <header className="ob-header">
+          {step > 1 && (
+            <button className="ob-back-btn" onClick={() => go(step - 1)} aria-label="Go back">
+              <ChevronLeft size={22} />
+            </button>
+          )}
+          <div className="ob-progress-track">
+            <div className="ob-progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
-        )}
-        {data.goalWeightLbs && (
-          <div className="ob-summary-row">
-            <span className="ob-summary-key">Goal weight</span>
-            <span className="ob-summary-val">{data.goalWeightLbs} lbs</span>
+        </header>
+      )}
+
+      {step === 0 && (
+        <div className="ob-step ob-step--center">
+          <div className="ob-welcome-mark">S</div>
+          <h1 className="ob-welcome-title">Shakthi Journal</h1>
+          <p className="ob-welcome-sub">Let's personalize your experience.</p>
+          <div className="ob-spacer" />
+          <div className="ob-footer">
+            <button className="ob-cta ob-cta--full" onClick={() => go(1)}>Get started</button>
+            <button className="ob-skip" onClick={skipAll}>Continue as guest</button>
           </div>
-        )}
-        {data.protein && (
-          <div className="ob-summary-row">
-            <span className="ob-summary-key">Daily protein</span>
-            <span className="ob-summary-val">{data.protein}g · {data.calories} kcal</span>
-          </div>
-        )}
-        <div className="ob-summary-row">
-          <span className="ob-summary-key">Training</span>
-          <span className="ob-summary-val">{data.trainingDays}× / week · {data.sessionMin} min</span>
         </div>
-        {data.intendToConnect.length > 0 && (
-          <div className="ob-summary-row">
-            <span className="ob-summary-key">Plan to connect</span>
-            <span className="ob-summary-val">
-              {data.intendToConnect
-                .map(id => SOURCE_OPTIONS.find(s => s.id === id)?.name)
-                .filter(Boolean)
-                .join(', ')}
-            </span>
-          </div>
-        )}
-      </div>
+      )}
 
-      <div className="ob-spacer" />
-      <button className="ob-cta ob-cta--full" onClick={onFinish} disabled={saving}>
-        {saving ? 'Saving…' : 'Enter Shakthi Journal →'}
-      </button>
+      {step === 1 && <StepName          key={1} {...sp} />}
+      {step === 2 && <StepCurrentWeight key={2} {...sp} />}
+      {step === 3 && <StepGoalWeight    key={3} {...sp} />}
+      {step === 4 && <StepHeight        key={4} {...sp} />}
+      {step === 5 && <StepAge           key={5} {...sp} />}
+      {step === 6 && <StepTrainingDays  key={6} data={data} patch={patch} onNext={() => go(7)} dir={dir} />}
+      {step === 7 && <StepGoals         key={7} {...sp} />}
+      {step === 8 && <StepSources       key={8} data={data} patch={patch} onNext={() => go(9)} dir={dir} />}
+      {step === 9 && <StepFinish data={data} onFinish={handleFinish} loading={loading} />}
+
     </div>
   )
 }

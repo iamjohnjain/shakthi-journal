@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Sparkles, TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Download, ArrowLeftRight } from 'lucide-react'
+import { Sparkles, TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Download, ArrowLeftRight, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { GOALS, kgToLbs, getGreeting, formatDate, recoveryColor } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useCoachNotes } from '../hooks/useCoachNotes'
 import { useDashboardCards } from '../hooks/useDashboardCards'
+import { useNutritionSettings } from '../hooks/useNutritionSettings'
 import { useApp } from '../context/AppContext'
+import { getProfile } from '../db/profileStore'
 import { MockModeBanner } from '../components/DataBadge'
 import DataBadge from '../components/DataBadge'
 import GoalRing from '../components/GoalRing'
@@ -107,7 +109,7 @@ function MetricCard({
 
 // ─── Daily Brief Card ────────────────────────────────────────────────────────
 
-function DailyBriefCard({ today, yesterday, todayStatus, coachNotes, isMock, onWorkout, onNutrition }: {
+function DailyBriefCard({ today, yesterday, todayStatus, coachNotes, isMock, onWorkout, onNutrition, proteinGoal, stepsGoal }: {
   today: DailySnapshot
   yesterday: DailySnapshot
   todayStatus: TodayStatus | null
@@ -115,6 +117,8 @@ function DailyBriefCard({ today, yesterday, todayStatus, coachNotes, isMock, onW
   isMock: boolean
   onWorkout: () => void
   onNutrition: () => void
+  proteinGoal: number
+  stepsGoal: number
 }) {
   const [animated, setAnimated] = useState(false)
   useEffect(() => { const t = setTimeout(() => setAnimated(true), 120); return () => clearTimeout(t) }, [])
@@ -130,12 +134,12 @@ function DailyBriefCard({ today, yesterday, todayStatus, coachNotes, isMock, onW
   const weightDelta   = weightLbs != null && prevWeightLbs != null ? +(weightLbs - prevWeightLbs).toFixed(1) : null
 
   const yProtein    = yesterday.proteinG
-  const proteinHit  = yProtein != null && yProtein >= GOALS.proteinG * 0.9
+  const proteinHit  = yProtein != null && yProtein >= proteinGoal * 0.9
 
   const priority = coachNotes.find(n => n.severity === 'action' || n.severity === 'warning') ?? coachNotes[0]
 
-  const proteinPct = todayStatus ? Math.min(100, (todayStatus.proteinTotal / GOALS.proteinG) * 100) : 0
-  const stepsPct   = todayStatus ? Math.min(100, (todayStatus.stepsToday / GOALS.steps) * 100) : 0
+  const proteinPct = todayStatus ? Math.min(100, (todayStatus.proteinTotal / proteinGoal) * 100) : 0
+  const stepsPct   = todayStatus ? Math.min(100, (todayStatus.stepsToday / stepsGoal) * 100) : 0
 
   return (
     <section className="daily-brief">
@@ -200,7 +204,7 @@ function DailyBriefCard({ today, yesterday, todayStatus, coachNotes, isMock, onW
               {yProtein != null ? `${Math.round(yProtein)}g` : isMock ? '198g' : '—'}
             </span>
             <span className="brief-stat-sub">
-              {yProtein != null ? (proteinHit ? '✓ Goal hit' : `/ ${GOALS.proteinG}g goal`) : isMock ? '✓ Goal hit' : ''}
+              {yProtein != null ? (proteinHit ? '✓ Goal hit' : `/ ${proteinGoal}g goal`) : isMock ? '✓ Goal hit' : ''}
             </span>
           </div>
         </div>
@@ -342,6 +346,36 @@ function CoachNotesCard({ notes }: { notes: ReturnType<typeof useCoachNotes>['no
   )
 }
 
+// ─── Today's Focus (first-time empty state) ───────────────────────────────────
+
+function TodaysFocus() {
+  const navigate = useNavigate()
+  const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const items = [
+    { emoji: '⚖️', text: 'Record today\'s weight',  path: '/log'                   },
+    { emoji: '🥗', text: 'Log your first meal',     path: '/nutrition'              },
+    { emoji: '💪', text: 'Log a workout',           path: '/workouts'               },
+    isIos
+      ? { emoji: '❤️', text: 'Import Apple Health', path: '/import/apple-health'   }
+      : { emoji: '🔌', text: 'Connect a data source', path: '/connected-accounts'  },
+  ]
+  return (
+    <div className="dash-focus-card">
+      <div className="dash-focus-header">
+        <span className="dash-focus-title">Today's focus</span>
+        <span className="dash-focus-sub">Start building your baseline.</span>
+      </div>
+      {items.map((item, i) => (
+        <button key={i} className="dash-focus-item" onClick={() => navigate(item.path)}>
+          <span className="dash-focus-emoji">{item.emoji}</span>
+          <span className="dash-focus-text">{item.text}</span>
+          <ChevronRight size={15} className="dash-focus-arrow" />
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -350,6 +384,9 @@ export default function Dashboard() {
   const { today, yesterday, dataSource, nutritionSource, hasNutritionLog } = useDashboardData()
   const { notes: coachNotes, status: todayStatus } = useCoachNotes(today, dataSource)
   const { isVisible } = useDashboardCards()
+  const { goals: nutritionGoals } = useNutritionSettings()
+  const [userName, setUserName] = useState<string | null>(null)
+  useEffect(() => { getProfile().then(p => { if (p?.name) setUserName(p.name) }) }, [])
 
   // isMock: user intentionally has mock mode ON → show fake numbers + banner
   // isEmpty: no real data yet, but mock mode is OFF → show empty states
@@ -374,9 +411,9 @@ export default function Dashboard() {
   const water     = today.waterMl
   const steps     = today.steps
 
-  const proteinPct  = protein   ? Math.round((protein / GOALS.proteinG) * 100) : 0
-  const caloriePct  = calories  ? Math.round((calories / GOALS.caloriesIn) * 100) : 0
-  const waterPct    = water     ? Math.round((water / GOALS.waterMl) * 100) : 0
+  const proteinPct  = protein   ? Math.round((protein / nutritionGoals.proteinG) * 100) : 0
+  const caloriePct  = calories  ? Math.round((calories / nutritionGoals.calories) * 100) : 0
+  const waterPct    = water     ? Math.round((water / nutritionGoals.waterMl) * 100) : 0
   const stepsPct    = steps     ? Math.round((steps / GOALS.steps) * 100) : 0
 
   // ── Source badges ──
@@ -392,12 +429,7 @@ export default function Dashboard() {
       {isVisible('import-status') && isMock && (
         <MockModeBanner onGoToSettings={() => navigate('/connected-accounts')} />
       )}
-      {isVisible('import-status') && isEmpty && (
-        <div className="dash-empty-banner">
-          <span>👋 No data yet — log your first entry or import Apple Health to get started.</span>
-          <button onClick={() => navigate('/import/apple-health')}>Import →</button>
-        </div>
-      )}
+      {isVisible('import-status') && isEmpty && <TodaysFocus />}
       {isVisible('import-status') && !isMock && !isEmpty && (
         <div className="imported-data-banner">
           <DataBadge mode={dataSource === 'manual' ? 'manual' : 'imported'} />
@@ -413,7 +445,7 @@ export default function Dashboard() {
       {/* ── Greeting ── */}
       <header className="dash-header">
         <div>
-          <h1 className="dash-greeting">{getGreeting()}, John.</h1>
+          <h1 className="dash-greeting">{getGreeting()}{userName ? `, ${userName}` : ''}.</h1>
           <p className="dash-date">{formatDate()}</p>
         </div>
       </header>
@@ -436,6 +468,8 @@ export default function Dashboard() {
           isMock={isMock}
           onWorkout={() => navigate('/workouts')}
           onNutrition={() => navigate('/nutrition')}
+          proteinGoal={nutritionGoals.proteinG}
+          stepsGoal={GOALS.steps}
         />
       )}
 
@@ -494,7 +528,7 @@ export default function Dashboard() {
           label="Steps"
           value={steps ? steps.toLocaleString() : (isMock ? (9842).toLocaleString() : undefined)}
           unit="steps"
-          sub={steps ? `${stepsPct}% of ${GOALS.steps.toLocaleString()} goal` : undefined}
+          sub={steps ? `${stepsPct}% of ${GOALS.steps.toLocaleString()} step goal` : undefined}
           trend={stepsPct >= 100 ? 'up' : 'neutral'}
           trendLabel={stepsPct >= 100 ? 'Goal hit' : steps ? `${100 - stepsPct}% left` : undefined}
           progress={steps ?? (isMock ? 9842 : 0)}
@@ -537,34 +571,34 @@ export default function Dashboard() {
             <MetricCard
               label="Protein"
               value={protein ?? (isMock ? 198 : undefined)}
-              unit={`/ ${GOALS.proteinG}g`}
+              unit={`/ ${nutritionGoals.proteinG}g`}
               sub={protein ? `${proteinPct}% of daily goal` : undefined}
               trend={proteinPct >= 100 ? 'up' : 'neutral'}
-              trendLabel={proteinPct >= 100 ? 'Goal hit' : protein ? `${GOALS.proteinG - protein}g left` : undefined}
+              trendLabel={proteinPct >= 100 ? 'Goal hit' : protein ? `${nutritionGoals.proteinG - protein}g left` : undefined}
               trendPositive={true}
               progress={protein ?? (isMock ? 198 : 0)}
-              progressMax={GOALS.proteinG}
+              progressMax={nutritionGoals.proteinG}
               progressColor="var(--green)"
               accentColor="var(--green)"
             />
             <MetricCard
               label="Calories In"
               value={calories ? calories.toLocaleString() : (isMock ? '2,180' : undefined)}
-              unit={`/ ${GOALS.caloriesIn.toLocaleString()}`}
+              unit={`/ ${nutritionGoals.calories.toLocaleString()}`}
               sub={calories ? `${caloriePct}% of budget` : undefined}
               progress={calories ?? (isMock ? 2180 : 0)}
-              progressMax={GOALS.caloriesIn}
+              progressMax={nutritionGoals.calories}
               progressColor="var(--blue)"
             />
             <MetricCard
               label="Hydration"
               value={water ? (water / 1000).toFixed(1) : (isMock ? '2.8' : undefined)}
-              unit={`/ ${GOALS.waterMl / 1000}L`}
+              unit={`/ ${(nutritionGoals.waterMl / 1000).toFixed(1)}L`}
               sub={water ? `${waterPct}% of target` : undefined}
               trend={waterPct >= 100 ? 'up' : 'neutral'}
-              trendLabel={waterPct >= 100 ? 'Goal hit' : water ? `${((GOALS.waterMl - water) / 1000).toFixed(1)}L left` : undefined}
+              trendLabel={waterPct >= 100 ? 'Goal hit' : water ? `${((nutritionGoals.waterMl - water) / 1000).toFixed(1)}L left` : undefined}
               progress={water ?? (isMock ? 2800 : 0)}
-              progressMax={GOALS.waterMl}
+              progressMax={nutritionGoals.waterMl}
               progressColor="var(--teal)"
               accentColor="var(--teal)"
             />

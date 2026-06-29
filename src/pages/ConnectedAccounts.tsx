@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -440,14 +440,29 @@ export default function ConnectedAccounts() {
   const importReadyCount = accounts.filter(a => a.status === 'import_ready').length
   const needsSetupCount = accounts.filter(a => a.status === 'needs_setup').length
 
+  const deviceHint = useMemo(() => {
+    if (typeof navigator === 'undefined') return null
+    const ua = navigator.userAgent
+    if (/iPad|iPhone|iPod/.test(ua)) return { emoji: '📱', text: 'You\'re on iPhone — Apple Health is your best first integration.' }
+    if (/Android/.test(ua)) return { emoji: '🤖', text: 'You\'re on Android — Google Fit or Strava are your best starting points.' }
+    return { emoji: '💻', text: 'On desktop, file imports work great. For live wearable sync, visit from your phone.' }
+  }, [])
+
   return (
     <div className="connected-accounts-page">
       <header className="page-header">
-        <h1 className="page-title">Connected Accounts</h1>
+        <h1 className="page-title">Data Sources</h1>
         <p className="page-subtitle">
-          All health data sources — what's real, what's mocked, and what needs your action.
+          What's connected, what needs your action, and what's coming soon.
         </p>
       </header>
+
+      {deviceHint && (
+        <div className="accounts-device-hint">
+          <span>{deviceHint.emoji}</span>
+          <span>{deviceHint.text}</span>
+        </div>
+      )}
 
       {/* Status summary bar */}
       <div className="accounts-summary">
