@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Heart, User, Footprints, Clock, Download } from 'lucide-react'
 
+import { AuthProvider } from './context/AuthContext'
+import AuthGate from './components/AuthGate'
 import Layout from './layout/Layout'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
@@ -27,13 +29,21 @@ import WorkoutProgressPage from './pages/WorkoutProgressPage'
 import WorkoutTemplatesPage from './pages/WorkoutTemplatesPage'
 import RecoveryPage from './pages/RecoveryPage'
 import BackupRestorePage from './pages/BackupRestorePage'
+import AuthPage from './pages/AuthPage'
+import MergeDialog from './pages/MergeDialog'
 
 import './styles/globals.css'
 
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
+        <MergeDialog />
       <Routes>
+        {/* Auth routes — outside Layout shell */}
+        <Route path="/auth" element={<AuthGate><AuthPage /></AuthGate>} />
+        <Route path="/auth/callback" element={<AuthGate><AuthPage /></AuthGate>} />
+
         {/* OAuth callbacks live outside the main Layout shell */}
         <Route path="/oauth/strava/callback" element={<StravaCallback />} />
 
@@ -81,6 +91,7 @@ export default function App() {
           <Route path="/import2" element={<ComingSoon icon={Download} title="Import Data" description="" />} />
         </Route>
       </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

@@ -4,8 +4,11 @@ import {
   Link2, History, Download as DownloadIcon, Upload,
   FlaskConical, Database, Shield, ShieldCheck, ChevronRight, Trash2,
   ToggleLeft, ToggleRight, Smartphone, LayoutDashboard, Ruler,
+  Cloud, LogOut, RefreshCw, User,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
+import { useSync, syncStatusLabel } from '../hooks/useSync'
 import { clearSyncHistory } from '../db'
 import { clearImportedMetrics } from '../db/healthStore'
 import { useUnits } from '../hooks/useUnits'
@@ -86,11 +89,20 @@ function SettingsToggleRow({
 
 export default function Settings() {
   const { mockMode, setMockMode, dbStatus, appVersion } = useApp()
+  const { mode: authMode, user, signOut, isSupabaseConfigured: sbConfigured } = useAuth()
+  const { status: syncStatus, syncNow } = useSync()
   const { system, setSystem } = useUnits()
   const navigate = useNavigate()
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [exportNote, setExportNote] = useState('')
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    await signOut()
+    setSigningOut(false)
+  }
 
   async function handleDeleteImported() {
     if (!deleteConfirm) { setDeleteConfirm(true); return }
@@ -157,6 +169,50 @@ export default function Settings() {
           value="Cards on/off"
           onClick={() => navigate('/dashboard-settings')}
         />
+      </SettingsSection>
+
+      {/* ── Cloud Account ── */}
+      <SettingsSection title="Cloud Account">
+        {!sbConfigured ? (
+          <div className="settings-cloud-notice">
+            Cloud sync is not configured — add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable.
+          </div>
+        ) : authMode === 'authenticated' && user ? (
+          <>
+            <SettingsRow
+              icon={User}
+              label="Signed in as"
+              value={user.email ?? user.displayName ?? 'Account'}
+            />
+            <SettingsRow
+              icon={Cloud}
+              label="Sync status"
+              value={syncStatusLabel(syncStatus)}
+            />
+            <SettingsRow
+              icon={RefreshCw}
+              label="Sync now"
+              onClick={syncNow}
+            />
+            <SettingsRow
+              icon={LogOut}
+              label={signingOut ? 'Signing out…' : 'Sign out'}
+              onClick={handleSignOut}
+              destructive
+            />
+          </>
+        ) : (
+          <>
+            <div className="settings-cloud-notice">
+              Sign in to sync your data across devices automatically.
+            </div>
+            <SettingsRow
+              icon={Cloud}
+              label="Sign in / Create account"
+              onClick={() => navigate('/auth')}
+            />
+          </>
+        )}
       </SettingsSection>
 
       {/* ── Data Safety ── */}

@@ -3,6 +3,8 @@ import {
   LayoutDashboard, Heart, Zap, Apple, Dumbbell,
   Target, TrendingUp, UserCircle, Settings,
 } from 'lucide-react'
+import SyncStatus from '../components/SyncStatus'
+import { useAuth } from '../context/AuthContext'
 import './Sidebar.css'
 
 type NavItem = { path: string; label: string; icon: React.ElementType; end?: boolean }
@@ -23,13 +25,19 @@ const BOTTOM_NAV: NavItem[] = [
 ]
 
 export default function Sidebar() {
+  const { mode, user } = useAuth()
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
         <div className="sidebar-avatar">S</div>
         <div className="sidebar-brand">
           <span className="sidebar-name">Shakthi Journal</span>
-          <span className="sidebar-tagline">Health OS</span>
+          <span className="sidebar-tagline">
+            {mode === 'authenticated' && user?.email
+              ? user.email.split('@')[0]
+              : 'Health OS'}
+          </span>
         </div>
       </div>
 
@@ -58,6 +66,11 @@ export default function Sidebar() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        {mode === 'authenticated' && (
+          <div className="sidebar-sync">
+            <SyncStatus />
+          </div>
+        )}
       </div>
     </aside>
   )

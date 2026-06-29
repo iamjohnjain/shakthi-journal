@@ -1,0 +1,38 @@
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+
+.sync-status:not(:disabled):hover {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.sync-status:disabled { cursor: default; }
+
+.sync-status--synced   { color: var(--green); }
+.sync-status--syncing  { color: var(--blue); }
+.sync-status--offline  { color: var(--text-tertiary); }
+.sync-status--error    { color: var(--red); }
+
+.sync-icon { flex-shrink: 0; }
+.sync-icon--ok      { color: var(--green); }
+.sync-icon--error   { color: var(--red); }
+.sync-icon--offline { color: var(--text-tertiary); }
+.sync-icon--muted   { color: var(--text-tertiary); opacity: .5; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.sync-icon--spin { animation: spin .9s linear infinite; color: var(--blue); }
+
+.sync-status-label { line-height: 1; }

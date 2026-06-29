@@ -181,3 +181,9 @@
     display: none;
   }
 }
+
+.sidebar-sync {
+  padding: 6px 8px 4px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+}

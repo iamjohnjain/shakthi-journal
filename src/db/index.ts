@@ -182,6 +182,20 @@ export interface NutritionGoals {
   macroFirstMode: boolean
 }
 
+// ─── Sync queue ───────────────────────────────────────────────────────────────
+
+export interface SyncQueueEntry {
+  id: string           // uuid
+  store: string        // which IndexedDB store
+  operation: 'upsert' | 'delete'
+  recordId: string     // the record's local primary key
+  data: unknown        // snapshot of the record
+  userId: string       // Supabase auth user id
+  createdAt: number    // unix ms
+  attempts: number
+  lastError?: string
+}
+
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 export interface ShakthiDB extends DBSchema {
@@ -293,12 +307,21 @@ export interface ShakthiDB extends DBSchema {
       'by-name': string
     }
   }
+
+  sync_queue: {
+    key: string           // entry id
+    value: SyncQueueEntry
+    indexes: {
+      'by-user': string
+      'by-store': string
+    }
+  }
 }
 
 // ─── Database singleton ───────────────────────────────────────────────────────
 
 const DB_NAME = 'shakthi-journal'
-const DB_VERSION = 5
+const DB_VERSION = 6
 
 let _db: IDBPDatabase<ShakthiDB> | null = null
 
@@ -353,6 +376,13 @@ export async function getDB(): Promise<IDBPDatabase<ShakthiDB>> {
       if (oldVersion < 5) {
         const tmpl = db.createObjectStore('workout_templates', { keyPath: 'id' })
         tmpl.createIndex('by-name', 'name')
+      }
+
+      // v5 → v6: cloud sync queue
+      if (oldVersion < 6) {
+        const q = db.createObjectStore('sync_queue', { keyPath: 'id' })
+        q.createIndex('by-user', 'userId')
+        q.createIndex('by-store', 'store')
       }
     },
   })

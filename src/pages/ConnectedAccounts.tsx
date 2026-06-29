@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import {
   CheckCircle, AlertCircle, Clock, XCircle, RefreshCw,
   ChevronRight, Info, ExternalLink, Unlink,
@@ -39,7 +40,7 @@ interface Account {
   permissions?: string[]
   setupInstructions?: string[]
   importNote?: string
-  availability: 'now' | 'phase2' | 'phase6'
+  availability: 'now' | 'phase2' | 'phase6' | 'coming_soon'
 }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -203,6 +204,10 @@ export default function ConnectedAccounts() {
   const stravaConnected = !!loadStravaToken()
   const stravaAccount = stravaConnectedAccount()
   const credentialsSet = stravaCredentialsConfigured()
+  const { user, mode: authMode } = useAuth()
+
+  const googleConnected = authMode === 'authenticated' && user?.provider === 'google'
+  const appleConnected  = authMode === 'authenticated' && user?.provider === 'apple'
 
   const [accounts, setAccounts] = useState<Account[]>([
     {
@@ -310,6 +315,90 @@ export default function ConnectedAccounts() {
         'Open MFP app → More → Apps & Devices → Apple Health',
         'Enable "Nutrition" to sync daily totals to Apple Health, OR',
         'Go to myfitnesspal.com → Settings → Diary Settings → Export',
+      ],
+    },
+    {
+      id: 'google',
+      availability: 'now' as const,
+      name: 'Google',
+      shortName: 'Google',
+      icon: '🔵',
+      status: googleConnected ? 'connected' : 'needs_setup',
+      method: 'OAuth 2.0 · via Supabase',
+      dataTypes: ['Account identity', 'Cloud sync'],
+      description: 'Sign in with Google to enable cloud sync across devices. Requires Google OAuth configured in Supabase dashboard.',
+      accountName: googleConnected ? user?.email ?? undefined : undefined,
+      setupInstructions: [
+        'In Supabase Dashboard → Authentication → Providers → Google',
+        'Create a Google OAuth app at console.cloud.google.com',
+        'Add Client ID and Secret to Supabase',
+        'Then use Settings → Sign in with Google',
+      ],
+    },
+    {
+      id: 'apple_id',
+      availability: 'now' as const,
+      name: 'Apple ID',
+      shortName: 'Apple ID',
+      icon: '🍏',
+      status: appleConnected ? 'connected' : 'needs_setup',
+      method: 'OAuth 2.0 · via Supabase',
+      dataTypes: ['Account identity', 'Cloud sync'],
+      description: 'Sign in with Apple for private cloud sync. Requires Apple Developer account and Supabase Apple provider configuration.',
+      accountName: appleConnected ? user?.email ?? undefined : undefined,
+      setupInstructions: [
+        'Requires Apple Developer Program membership ($99/yr)',
+        'In Supabase Dashboard → Authentication → Providers → Apple',
+        'Create a Services ID at developer.apple.com',
+        'Add Key ID, Team ID, and Private Key to Supabase',
+      ],
+    },
+    {
+      id: 'garmin',
+      name: 'Garmin Connect',
+      shortName: 'Garmin',
+      icon: '⌚',
+      status: 'coming_soon',
+      method: 'Garmin Health API · requires partnership',
+      dataTypes: ['GPS', 'Heart Rate', 'VO2 Max', 'Stress', 'Body Battery'],
+      description: 'Garmin data (from Garmin watches) can be imported via Apple Health if the Garmin Connect app syncs to Apple Health on iPhone.',
+      availability: 'phase6' as const,
+      setupInstructions: [
+        'Open Garmin Connect app → More → Connected Apps → Apple Health',
+        'Enable all data categories',
+        'Garmin data will appear in your next Apple Health export',
+      ],
+    },
+    {
+      id: 'whoop',
+      name: 'WHOOP',
+      shortName: 'WHOOP',
+      icon: '⚡',
+      status: 'coming_soon',
+      method: 'WHOOP API · invite-only',
+      dataTypes: ['Recovery', 'Strain', 'HRV', 'Sleep', 'Respiratory Rate'],
+      description: 'WHOOP data is available via Apple Health sync from the WHOOP app. A direct API integration would require WHOOP developer access.',
+      availability: 'phase6' as const,
+      setupInstructions: [
+        'Open WHOOP app → More → Integrations → Apple Health',
+        'Enable data sync',
+        'Import via Apple Health export',
+      ],
+    },
+    {
+      id: 'oura',
+      name: 'Oura Ring',
+      shortName: 'Oura',
+      icon: '💍',
+      status: 'coming_soon',
+      method: 'Oura API v2 · available',
+      dataTypes: ['Sleep Score', 'Readiness', 'HRV', 'Temperature', 'Activity'],
+      description: 'Oura has a public API (oura.com/oauth/authorize). A direct integration would pull readiness, sleep, and HRV scores automatically.',
+      availability: 'phase6' as const,
+      setupInstructions: [
+        'Oura API integration is planned for a future phase',
+        'For now: enable Oura → Apple Health sync in the Oura app',
+        'Then import via Apple Health export',
       ],
     },
   ])
