@@ -1,0 +1,46 @@
+.app-shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg);
+  position: relative;
+  /* Smooth momentum scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Page entry animation applied to the first child of each route */
+.page-content > * {
+  animation: page-enter 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Mobile ──────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .page-content {
+    /* Reserve space for bottom nav + safe area */
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom));
+    /* Reserve top for iPhone status bar in standalone mode */
+    padding-top: var(--safe-top);
+  }
+}

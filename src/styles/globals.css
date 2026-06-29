@@ -1,0 +1,149 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Backgrounds */
+  --bg: #000000;
+  --bg-elevated: #0c0c0e;
+  --bg-card: rgba(255, 255, 255, 0.045);
+  --bg-card-hover: rgba(255, 255, 255, 0.075);
+  --bg-sidebar: rgba(12, 12, 14, 0.92);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.055);
+  --border: rgba(255, 255, 255, 0.095);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.58);
+  --text-tertiary: rgba(255, 255, 255, 0.32);
+  --text-quaternary: rgba(255, 255, 255, 0.16);
+
+  /* Accent */
+  --blue: #0A84FF;
+  --blue-dim: rgba(10, 132, 255, 0.14);
+  --green: #30D158;
+  --green-dim: rgba(48, 209, 88, 0.14);
+  --yellow: #FFD60A;
+  --yellow-dim: rgba(255, 214, 10, 0.14);
+  --orange: #FF9F0A;
+  --orange-dim: rgba(255, 159, 10, 0.14);
+  --red: #FF453A;
+  --red-dim: rgba(255, 69, 58, 0.12);
+  --purple: #BF5AF2;
+  --purple-dim: rgba(191, 90, 242, 0.14);
+  --teal: #5AC8F5;
+  --teal-dim: rgba(90, 200, 245, 0.14);
+  --pink: #FF375F;
+  --pink-dim: rgba(255, 55, 95, 0.14);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --bottom-nav-height: 72px;
+  --page-padding: 32px;
+  --page-padding-mobile: 20px;
+
+  /* Accent alias */
+  --accent: var(--blue);
+
+  /* Background aliases (referenced by Phase 4 CSS) */
+  --bg-secondary: #0c0c0e;
+  --bg-tertiary:  #111114;
+  --card-bg:      var(--bg-card);
+
+  /* Safe area insets (non-zero on iPhone notch/home bar) */
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+
+  /* Radius */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.2);
+  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
+}
+
+html, body, #root {
+  height: 100%;
+  /* Prevent overscroll bounce on iOS while keeping scroll within content */
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.45;
+}
+
+button, input, textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ─── Shared page layout ──────────────────────────────────────────────────── */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  font-family: -apple-system, 'SF Pro Display', sans-serif;
+  line-height: 1.1;
+}
+
+.page-subtitle {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}

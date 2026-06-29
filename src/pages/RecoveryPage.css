@@ -1,0 +1,183 @@
+.recovery-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+/* ─── Hero ────────────────────────────────────────────────────── */
+
+.recovery-hero {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.recovery-ring-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.recovery-ring-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.recovery-hero-metrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ─── Metric card ─────────────────────────────────────────────── */
+
+.recovery-metric-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+}
+
+.recovery-metric-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.recovery-metric-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+}
+
+.recovery-metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.recovery-metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.recovery-metric-unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-left: 3px;
+}
+
+.recovery-metric-missing {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.recovery-metric-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* ─── Empty state ─────────────────────────────────────────────── */
+
+.recovery-empty {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.recovery-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.recovery-empty-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0;
+}
+
+/* ─── Coming soon section ─────────────────────────────────────── */
+
+.recovery-coming-section {
+  margin-top: 28px;
+}
+
+.recovery-coming-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 10px;
+}
+
+.recovery-coming-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.recovery-coming-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ─── Mobile ──────────────────────────────────────────────────── */
+
+@media (max-width: 540px) {
+  .recovery-hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px 16px;
+  }
+
+  .recovery-ring-wrap {
+    align-self: center;
+  }
+
+  .recovery-coming-grid {
+    grid-template-columns: 1fr;
+  }
+}

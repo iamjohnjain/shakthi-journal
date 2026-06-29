@@ -1,0 +1,113 @@
+/* ─── Data source badge ───────────────────────────────────────────────────── */
+
+.data-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--r-full);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  white-space: nowrap;
+  font-family: -apple-system, 'SF Mono', 'Menlo', monospace;
+  cursor: default;
+}
+
+.data-badge--sm { padding: 2px 7px; font-size: 8.5px; }
+.data-badge--md { padding: 4px 10px; font-size: 10px; }
+
+.data-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.data-badge-source {
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+/* Colors per mode */
+.data-badge--mock {
+  background: rgba(255, 214, 10, 0.12);
+  color: #FFD60A;
+  border: 1px solid rgba(255, 214, 10, 0.25);
+}
+.data-badge--mock .data-badge-dot { background: #FFD60A; }
+
+.data-badge--imported {
+  background: rgba(10, 132, 255, 0.12);
+  color: #0A84FF;
+  border: 1px solid rgba(10, 132, 255, 0.25);
+}
+.data-badge--imported .data-badge-dot { background: #0A84FF; }
+
+.data-badge--live {
+  background: rgba(48, 209, 88, 0.12);
+  color: #30D158;
+  border: 1px solid rgba(48, 209, 88, 0.25);
+}
+.data-badge--live .data-badge-dot { background: #30D158; }
+
+.data-badge--local {
+  background: rgba(90, 200, 245, 0.12);
+  color: #5AC8F5;
+  border: 1px solid rgba(90, 200, 245, 0.25);
+}
+.data-badge--local .data-badge-dot { background: #5AC8F5; }
+
+.data-badge--manual {
+  background: rgba(191, 90, 242, 0.12);
+  color: #BF5AF2;
+  border: 1px solid rgba(191, 90, 242, 0.25);
+}
+.data-badge--manual .data-badge-dot { background: #BF5AF2; }
+
+/* ─── Mock mode banner ─────────────────────────────────────────────────────── */
+
+.mock-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 214, 10, 0.08);
+  border: 1px solid rgba(255, 214, 10, 0.22);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  margin-bottom: 24px;
+  font-size: 12px;
+  color: rgba(255, 214, 10, 0.9);
+}
+
+.mock-mode-banner-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #FFD60A;
+  flex-shrink: 0;
+  animation: pulse-yellow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-yellow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.mock-mode-banner-text { flex: 1; line-height: 1.4; }
+.mock-mode-banner-text strong { font-weight: 700; }
+
+.mock-mode-banner-btn {
+  background: rgba(255, 214, 10, 0.15);
+  border: 1px solid rgba(255, 214, 10, 0.3);
+  color: #FFD60A;
+  border-radius: var(--r-full);
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.mock-mode-banner-btn:hover { background: rgba(255, 214, 10, 0.25); }

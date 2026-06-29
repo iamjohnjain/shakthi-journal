@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Shakthi Journal</title>
+
+    <!-- Prevent white flash before React loads -->
+    <style>
+      html, body { background: #000; margin: 0; }
+      #root { min-height: 100dvh; }
+    </style>
+
+    <!-- PWA manifest + theme -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Shakthi" />
+    <!-- PNG required for iOS home screen icon (SVG is ignored) -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+
+    <!-- App meta -->
+    <meta name="description" content="Shakthi Journal — personal health OS. Track workouts, nutrition, recovery, and daily readiness. Local-first, private by default." />
+    <meta name="application-name" content="Shakthi Journal" />
+    <meta name="keywords" content="health, fitness, workouts, nutrition, recovery, journal" />
+
+    <!-- Open Graph (social preview) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Shakthi Journal" />
+    <meta property="og:description" content="Personal health OS — track workouts, nutrition, recovery, and daily readiness. Local-first, private by default." />
+    <meta property="og:image" content="/og-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Shakthi Journal" />
+    <meta name="twitter:description" content="Personal health OS — track workouts, nutrition, recovery, and daily readiness." />
+    <meta name="twitter:image" content="/og-preview.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

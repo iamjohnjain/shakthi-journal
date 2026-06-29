@@ -1,0 +1,215 @@
+/* ─── Settings page ──────────────────────────────────────────────────────── */
+
+.settings-page { max-width: 560px; }
+
+/* Notice banner */
+.settings-notice {
+  background: rgba(48, 209, 88, 0.1);
+  border: 1px solid rgba(48, 209, 88, 0.25);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--green);
+  margin-bottom: 20px;
+}
+
+/* Section */
+.settings-section {
+  margin-bottom: 28px;
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  padding: 0 4px;
+  margin-bottom: 6px;
+}
+
+.settings-section-body {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+/* Row */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: default;
+  color: var(--text-primary);
+}
+
+.settings-row:last-child { border-bottom: none; }
+
+.settings-row--clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.settings-row--clickable:hover { background: var(--bg-card-hover); }
+
+.settings-row--destructive .settings-row-label { color: var(--red); }
+
+.settings-row--toggle {
+  cursor: default;
+}
+
+.settings-row-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.settings-row-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-row-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.settings-row-description {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.settings-row-value {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.settings-row-chevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* Toggle */
+.settings-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+.settings-toggle--on { color: var(--green); }
+
+/* Inline note */
+.settings-inline-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 4px 16px 8px;
+}
+
+/* Privacy note */
+.settings-privacy-note {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ─── Install guide ──────────────────────────────────────── */
+
+.settings-install-guide {
+  padding: 14px 16px;
+  background: rgba(10, 132, 255, 0.05);
+  border: 1px solid rgba(10, 132, 255, 0.15);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-install-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.settings-install-steps {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-install-steps li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.settings-install-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.settings-install-note code {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+/* ─── Units section ───────────────────────────────────────────── */
+.settings-units-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0;
+}
+.settings-unit-toggle { display: flex; gap: 4px; flex-shrink: 0; margin-left: auto; }
+.su-btn {
+  background: var(--bg-tertiary); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.su-btn--on {
+  border-color: var(--blue); color: var(--blue); background: var(--blue-dim);
+}
+.settings-units-detail {
+  font-size: 12px; color: var(--text-tertiary);
+  padding: 6px 12px 10px; line-height: 1.4;
+}
+
+/* ─── Safety notice ──────────────────────────────────────────── */
+.settings-safety-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--blue-dim);
+  border: 1px solid rgba(10,132,255,.18);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 2px;
+}
+
+.settings-safety-notice svg { color: var(--blue); flex-shrink: 0; margin-top: 1px; }

@@ -1,0 +1,27 @@
+# Cloudflare Pages HTTP headers
+
+# HTML — never cache so deploys are instant
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Root HTML (served as index.html for SPA routes)
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Hashed JS/CSS assets — safe to cache forever (Vite adds content hash)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# PWA manifest — short cache so installs pick up changes quickly
+/manifest.json
+  Cache-Control: public, max-age=3600
+
+# Icons — medium cache
+/icon*.png
+  Cache-Control: public, max-age=86400
+/icon.svg
+  Cache-Control: public, max-age=86400
+
+# Service worker (if added later) — no cache
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate

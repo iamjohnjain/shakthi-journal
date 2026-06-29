@@ -1,0 +1,121 @@
+.ds-page {
+  padding: var(--page-padding);
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: fadeUp 0.35s ease both;
+}
+
+/* ─── Preset buttons ─────────────────────────────────────── */
+
+.ds-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ds-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+
+.ds-preset-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* ─── Group ──────────────────────────────────────────────── */
+
+.ds-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ds-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+  padding: 0 4px;
+  margin-bottom: 8px;
+}
+
+.ds-card-list {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+/* ─── Card row ───────────────────────────────────────────── */
+
+.ds-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.14s;
+}
+
+.ds-card-row:last-child { border-bottom: none; }
+.ds-card-row:hover { background: rgba(255,255,255,0.025); }
+
+.ds-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.ds-card-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ds-card-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+/* ─── Toggle ─────────────────────────────────────────────── */
+
+.ds-toggle {
+  color: var(--text-quaternary);
+  transition: color 0.18s;
+  flex-shrink: 0;
+}
+
+.ds-toggle--on {
+  color: var(--green);
+}
+
+/* ─── Footer ─────────────────────────────────────────────── */
+
+.ds-footer-note {
+  font-size: 12px;
+  color: var(--text-quaternary);
+  text-align: center;
+  padding: 0 20px;
+}
+
+@media (max-width: 768px) {
+  .ds-page { padding: var(--page-padding-mobile) var(--page-padding-mobile) 100px; }
+}

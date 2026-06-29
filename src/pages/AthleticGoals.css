@@ -1,0 +1,84 @@
+.athletic-goals-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+.goals-loading {
+  text-align: center; padding: 60px; color: var(--text-tertiary); font-size: 14px;
+}
+
+/* ─── Filter bar ─────────────────────────────────────────────── */
+.goals-filter {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none; margin-bottom: 20px;
+}
+.goals-filter::-webkit-scrollbar { display: none; }
+.goals-filter-btn {
+  flex: 0 0 auto;
+  background: var(--bg-tertiary); border: 1.5px solid var(--border);
+  color: var(--text-secondary); border-radius: 20px;
+  padding: 6px 16px; font-size: 13px; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.goals-filter-btn.active { border-color: var(--accent); color: var(--accent); }
+
+/* ─── Goals grid ─────────────────────────────────────────────── */
+.goals-grid { display: flex; flex-direction: column; gap: 12px; }
+
+/* ─── Goal card ──────────────────────────────────────────────── */
+.goal-card {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px 20px;
+}
+
+.goal-card-header {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px;
+}
+.goal-emoji { font-size: 26px; line-height: 1; flex: 0 0 auto; }
+.goal-header-text { flex: 1; min-width: 0; }
+.goal-title    { margin: 0 0 2px; font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.goal-category { font-size: 11px; color: var(--text-tertiary); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+
+.goal-current { text-align: right; }
+.goal-current-label { display: block; font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px; }
+.goal-current-value { font-size: 17px; font-weight: 700; color: var(--accent); }
+
+.goal-description { font-size: 13px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.4; }
+
+/* ─── Progress bar ───────────────────────────────────────────── */
+.goal-progress-wrap { margin-bottom: 12px; }
+.goal-progress-track {
+  height: 6px; background: var(--bg-tertiary); border-radius: 3px;
+  overflow: hidden; margin-bottom: 5px;
+}
+.goal-progress-fill {
+  height: 100%; border-radius: 3px;
+  background: var(--accent);
+  transition: width .4s ease;
+}
+.goal-progress-labels {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; color: var(--text-tertiary);
+}
+.goal-target-label { font-weight: 600; color: var(--text-secondary); }
+
+/* ─── Status + action ────────────────────────────────────────── */
+.goal-status {
+  font-size: 13px; color: var(--text-secondary);
+  background: var(--bg-tertiary); border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 10px; line-height: 1.4;
+}
+
+.goal-next-action {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 12px; color: var(--accent); line-height: 1.4; margin-bottom: 12px;
+}
+.goal-next-action span { flex: 1; }
+
+/* ─── Related metrics ────────────────────────────────────────── */
+.goal-metrics { display: flex; gap: 5px; flex-wrap: wrap; }
+.goal-metric-chip {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px; font-size: 10px; color: var(--text-tertiary);
+}

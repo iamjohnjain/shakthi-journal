@@ -1,0 +1,91 @@
+.workout-progress-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+.wpr-search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  position: relative; margin-bottom: 14px;
+}
+.wpr-search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-tertiary); pointer-events: none;
+}
+.wpr-search {
+  flex: 1; background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 12px;
+  padding: 10px 12px 10px 34px; font-size: 14px; box-sizing: border-box;
+}
+.wpr-search-btn {
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 10px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+
+.wpr-quick-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.wpr-quick-chip {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; font-size: 13px;
+  color: var(--text-secondary); cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.wpr-quick-chip:hover { border-color: var(--blue); color: var(--blue); }
+
+.wpr-loading { color: var(--text-tertiary); font-size: 14px; padding: 20px; }
+
+.wpr-card {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.wpr-card-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.wpr-card-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+.wpr-card-sessions { font-size: 13px; color: var(--text-tertiary); }
+.wpr-improvement {
+  font-size: 14px; font-weight: 700; border-radius: 8px; padding: 4px 10px;
+}
+.wpr-improvement--up   { background: var(--green-dim); color: var(--green); }
+.wpr-improvement--down { background: var(--orange-dim);color: var(--orange);}
+
+.wpr-pr-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,214,10,.08); border: 1px solid rgba(255,214,10,.2);
+  border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #FFD700;
+}
+.wpr-pr-icon { color: #FFD700; flex-shrink: 0; }
+
+.wpr-history { display: flex; flex-direction: column; gap: 8px; }
+.wpr-session-row {
+  display: grid; grid-template-columns: 90px 1fr 60px 60px;
+  align-items: center; gap: 8px; font-size: 12px;
+}
+.wpr-session-date { color: var(--text-tertiary); }
+.wpr-session-e1rm { text-align: right; font-weight: 600; font-size: 13px; }
+.wpr-session-vol  { text-align: right; color: var(--text-tertiary); }
+
+.wpr-bar-track { height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+.wpr-bar-fill  { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+.wpr-suggestion {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--blue-dim); border: 1px solid rgba(10,132,255,.2);
+  border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--blue);
+  line-height: 1.4;
+}
+.wpr-sugg-icon { flex-shrink: 0; margin-top: 1px; }
+
+.wpr-empty {
+  text-align: center; padding: 40px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.wpr-empty-hint { font-size: 13px; color: var(--text-tertiary); }
+
+.wpr-prompt {
+  text-align: center; padding: 60px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  color: var(--text-secondary); font-size: 14px; line-height: 1.5;
+}
+.wpr-prompt-icon { color: var(--text-tertiary); }
