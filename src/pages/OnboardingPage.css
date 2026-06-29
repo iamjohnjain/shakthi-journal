@@ -1,0 +1,545 @@
+/* ─── Page shell ─────────────────────────────────────────────────────────── */
+
+.ob-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+
+.ob-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  flex-shrink: 0;
+}
+
+.ob-nav-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-nav-btn:hover { background: rgba(255,255,255,0.06); }
+.ob-nav-btn--skip { font-size: 13px; font-weight: 600; color: var(--text-tertiary); }
+
+.ob-progress-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ob-progress-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Body ────────────────────────────────────────────────────────────────── */
+
+.ob-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Step wrapper ────────────────────────────────────────────────────────── */
+
+.ob-step {
+  display: flex;
+  flex-direction: column;
+  padding: 32px 24px 40px;
+  min-height: calc(100dvh - 72px);
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 0px) + 24px);
+  animation: ob-enter 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.ob-step--center {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+}
+
+@keyframes ob-enter {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Welcome / Finish heroes ─────────────────────────────────────────────── */
+
+.ob-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  margin-bottom: 24px;
+}
+
+.ob-finish-emoji {
+  font-size: 64px;
+  margin-bottom: 20px;
+  line-height: 1;
+}
+
+.ob-hero-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+.ob-hero-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+.ob-spacer { flex: 1; min-height: 32px; }
+
+.ob-fine-print {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 10px;
+}
+
+/* ─── Step header ─────────────────────────────────────────────────────────── */
+
+.ob-step-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 6px;
+}
+
+.ob-step-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* ─── Form fields ─────────────────────────────────────────────────────────── */
+
+.ob-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.ob-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ob-optional {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.ob-input {
+  width: 100%;
+  padding: 13px 14px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 16px;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+}
+
+.ob-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.ob-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ob-input-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-input-unit input { flex: 1; min-width: 0; }
+.ob-input-unit span  { font-size: 13px; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0; }
+.ob-input-unit--narrow { max-width: 160px; }
+
+/* ─── Pill row ────────────────────────────────────────────────────────────── */
+
+.ob-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob-pill {
+  padding: 8px 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+
+.ob-pill--on {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+/* ─── Goal grid ──────────────────────────────────────────────────────────── */
+
+.ob-goal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+  align-content: start;
+  margin-bottom: 24px;
+}
+
+.ob-goal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.12s;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-goal-card--on {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+}
+
+.ob-goal-emoji { font-size: 28px; line-height: 1; }
+.ob-goal-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-align: center; }
+.ob-goal-card--on .ob-goal-label { color: var(--blue); }
+
+.ob-goal-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--blue);
+}
+
+/* ─── Day picker ─────────────────────────────────────────────────────────── */
+
+.ob-day-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.ob-day-btn {
+  flex: 1;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-day-btn--on {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+/* ─── Chip grid (equipment) ──────────────────────────────────────────────── */
+
+.ob-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob-chip {
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-chip--on {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+/* ─── Nutrition toggle ───────────────────────────────────────────────────── */
+
+.ob-toggle-pair {
+  display: flex;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  margin-bottom: 24px;
+}
+
+.ob-toggle-btn {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-toggle-btn--on {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* ─── Macro grid ─────────────────────────────────────────────────────────── */
+
+.ob-macro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ob-macro-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.ob-macro-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+.ob-macro-val   { font-size: 28px; font-weight: 700; line-height: 1.1; }
+.ob-macro-unit  { font-size: 12px; color: var(--text-tertiary); }
+
+.ob-macro-input {
+  font-size: 28px;
+  font-weight: 700;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: center;
+  width: 100%;
+  padding: 0;
+  -webkit-appearance: none;
+}
+
+.ob-macro-input:focus { outline: none; }
+.ob-macro-input::placeholder { color: var(--text-quaternary); }
+
+.ob-nutrition-note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* ─── Source list ─────────────────────────────────────────────────────────── */
+
+.ob-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  margin-bottom: 4px;
+}
+
+.ob-source-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-source-row--on {
+  border-color: var(--blue);
+  background: rgba(10, 132, 255, 0.06);
+}
+
+.ob-source-icon { font-size: 22px; flex-shrink: 0; }
+
+.ob-source-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ob-source-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.ob-source-desc { font-size: 11px; color: var(--text-tertiary); }
+
+.ob-source-status {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ob-source-check { color: var(--blue); flex-shrink: 0; }
+
+/* ─── Summary (finish step) ──────────────────────────────────────────────── */
+
+.ob-summary {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 28px;
+}
+
+.ob-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ob-summary-row:last-child { border-bottom: none; }
+
+.ob-summary-key {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.ob-summary-val {
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: right;
+  line-height: 1.4;
+}
+
+/* ─── Footer + CTA ───────────────────────────────────────────────────────── */
+
+.ob-footer {
+  margin-top: auto;
+  padding-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 32px;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+
+.ob-cta--full { width: 100%; }
+.ob-cta:hover:not(:disabled) { opacity: 0.88; }
+.ob-cta:active:not(:disabled) { transform: scale(0.98); }
+.ob-cta:disabled { opacity: 0.45; cursor: default; }
+
+/* ─── Desktop refinements ─────────────────────────────────────────────────── */
+
+@media (min-width: 640px) {
+  .ob-step {
+    max-width: 480px;
+    margin: 0 auto;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+
+  .ob-header {
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .ob-hero-title { font-size: 38px; }
+}
+
+/* ─── Reduced motion ──────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-step { animation: none; }
+  .ob-progress-fill { transition: none; }
+}

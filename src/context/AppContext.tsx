@@ -13,14 +13,14 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue>({
-  mockMode: true,
+  mockMode: false,
   setMockMode: async () => {},
   dbStatus: 'loading',
   appVersion: '0.2.0',
 })
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [mockMode, setMockModeState] = useState(true)
+  const [mockMode, setMockModeState] = useState(false)
   const [dbStatus, setDbStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [dbError, setDbError] = useState<string>()
   const appVersion = import.meta.env.VITE_APP_VERSION ?? '0.2.0'
@@ -28,8 +28,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function init() {
       try {
-        await getDB()  // Initialize and verify DB opens cleanly
-        const saved = await getSetting<boolean>('mockMode', true)
+        await getDB()
+        const saved = await getSetting<boolean>('mockMode', false)
         setMockModeState(saved)
         setDbStatus('ready')
       } catch (e) {

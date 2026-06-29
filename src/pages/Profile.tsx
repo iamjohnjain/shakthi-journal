@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
-  TrendingDown, Target, Flame, Calendar, Dumbbell,
+  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings,
 } from 'lucide-react'
 import { USER, kgToLbs, GOALS } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -203,6 +204,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Profile() {
+  const navigate = useNavigate()
   const { today } = useDashboardData()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [editing,     setEditing]     = useState(false)
@@ -280,6 +282,14 @@ export default function Profile() {
           onSave={handleSave}
         />
       )}
+
+      {/* ── Mobile settings shortcut (hidden on desktop where sidebar has it) ── */}
+      <div className="profile-mobile-header">
+        <button className="profile-settings-btn" onClick={() => navigate('/settings')} aria-label="Settings">
+          <Settings size={20} />
+          <span>Settings</span>
+        </button>
+      </div>
 
       {/* ── Hero ── */}
       <section className="profile-hero">

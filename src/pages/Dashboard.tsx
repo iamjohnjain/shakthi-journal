@@ -5,6 +5,7 @@ import { GOALS, kgToLbs, getGreeting, formatDate, recoveryColor } from '../data/
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useCoachNotes } from '../hooks/useCoachNotes'
 import { useDashboardCards } from '../hooks/useDashboardCards'
+import { useApp } from '../context/AppContext'
 import { MockModeBanner } from '../components/DataBadge'
 import DataBadge from '../components/DataBadge'
 import GoalRing from '../components/GoalRing'
@@ -345,11 +346,15 @@ function CoachNotesCard({ notes }: { notes: ReturnType<typeof useCoachNotes>['no
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { mockMode } = useApp()
   const { today, yesterday, dataSource, nutritionSource, hasNutritionLog } = useDashboardData()
   const { notes: coachNotes, status: todayStatus } = useCoachNotes(today, dataSource)
   const { isVisible } = useDashboardCards()
 
-  const isMock = dataSource === 'mock'
+  // isMock: user intentionally has mock mode ON → show fake numbers + banner
+  // isEmpty: no real data yet, but mock mode is OFF → show empty states
+  const isMock  = dataSource === 'mock' && mockMode
+  const isEmpty = dataSource === 'mock' && !mockMode
 
   // ── Body ──
   const weightLbs     = today.weight ? kgToLbs(today.weight) : undefined
@@ -383,11 +388,17 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
 
-      {/* ── Import/mock banner ── */}
+      {/* ── Banners ── */}
       {isVisible('import-status') && isMock && (
         <MockModeBanner onGoToSettings={() => navigate('/connected-accounts')} />
       )}
-      {isVisible('import-status') && !isMock && (
+      {isVisible('import-status') && isEmpty && (
+        <div className="dash-empty-banner">
+          <span>👋 No data yet — log your first entry or import Apple Health to get started.</span>
+          <button onClick={() => navigate('/import/apple-health')}>Import →</button>
+        </div>
+      )}
+      {isVisible('import-status') && !isMock && !isEmpty && (
         <div className="imported-data-banner">
           <DataBadge mode={dataSource === 'manual' ? 'manual' : 'imported'} />
           <span>

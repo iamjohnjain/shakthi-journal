@@ -587,3 +587,35 @@
 
   .profile-edit-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── Mobile Settings shortcut ───────────────────────────────────────────── */
+
+.profile-mobile-header {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .profile-mobile-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 20px 0;
+  }
+
+  .profile-settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s;
+  }
+
+  .profile-settings-btn:hover { background: var(--bg-card-hover); }
+}

@@ -31,6 +31,7 @@ import RecoveryPage from './pages/RecoveryPage'
 import BackupRestorePage from './pages/BackupRestorePage'
 import AuthPage from './pages/AuthPage'
 import MergeDialog from './pages/MergeDialog'
+import OnboardingPage from './pages/OnboardingPage'
 
 import './styles/globals.css'
 
@@ -43,6 +44,9 @@ export default function App() {
         {/* Auth routes — outside Layout shell */}
         <Route path="/auth" element={<AuthGate><AuthPage /></AuthGate>} />
         <Route path="/auth/callback" element={<AuthGate><AuthPage /></AuthGate>} />
+
+        {/* Onboarding — outside Layout shell so the redirect loop can't fire */}
+        <Route path="/onboarding" element={<OnboardingPage />} />
 
         {/* OAuth callbacks live outside the main Layout shell */}
         <Route path="/oauth/strava/callback" element={<StravaCallback />} />
