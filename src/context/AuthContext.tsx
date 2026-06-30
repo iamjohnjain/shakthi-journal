@@ -2,7 +2,7 @@ import {
   createContext, useContext, useEffect, useState, useCallback,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, assertProviderEnabled } from '../lib/supabase'
 import { syncEngine } from '../db/syncEngine'
 import { clearQueueForUser } from '../db/syncQueue'
 import { getSetting, setSetting, getDB } from '../db'
@@ -185,6 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async (redirectTo?: string) => {
     if (!supabase) throw new Error('Supabase not configured')
+    await assertProviderEnabled('google')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: redirectTo ?? `${window.location.origin}/auth/callback` },
@@ -194,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithApple = useCallback(async (redirectTo?: string) => {
     if (!supabase) throw new Error('Supabase not configured')
+    await assertProviderEnabled('apple')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: { redirectTo: redirectTo ?? `${window.location.origin}/auth/callback` },
