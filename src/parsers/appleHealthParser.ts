@@ -80,7 +80,10 @@ export function normalizeSourceId(sourceName: string): string {
   const s = sourceName.toLowerCase()
   if (s.includes('watch'))        return 'apple_watch'
   if (s.includes('renpho'))       return 'renpho'
-  if (s.includes('ringconn'))     return 'ringconn'
+  if (s.includes('ringconn') || s.includes('ring conn')) return 'ringconn'
+  if (s.includes('whoop'))        return 'whoop'
+  if (s.includes('oura'))         return 'oura'
+  if (s.includes('garmin'))       return 'garmin'
   if (s.includes('myfitnesspal')) return 'myfitnesspal'
   if (s.includes('strava'))       return 'strava'
   return 'apple_health'

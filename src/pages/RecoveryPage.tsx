@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { Zap, Moon, Heart, Activity, TrendingUp } from 'lucide-react'
 import { useDashboardData } from '../hooks/useDashboardData'
+import { getMetricHistory } from '../db/timelineStore'
 import './RecoveryPage.css'
 
 function MetricCard({
@@ -69,8 +71,28 @@ function RecoveryRing({ score }: { score?: number | null }) {
   )
 }
 
+function useBaseline(metricType: string, currentValue?: number | null) {
+  const [baseline, setBaseline] = useState<number | null>(null)
+
+  useEffect(() => {
+    getMetricHistory(metricType, 30).then(pts => {
+      if (pts.length < 5) return
+      const avg = pts.reduce((s, p) => s + p.value, 0) / pts.length
+      setBaseline(avg)
+    })
+  }, [metricType])
+
+  if (!baseline || !currentValue) return null
+  const pct = Math.round(((currentValue - baseline) / baseline) * 100)
+  if (Math.abs(pct) < 2) return null
+  return { pct, above: pct > 0 }
+}
+
 export default function RecoveryPage() {
   const { today, loading } = useDashboardData()
+  const hrvBaseline   = useBaseline('hrv', today.hrv)
+  const sleepBaseline = useBaseline('sleepHours', today.sleepHours)
+  const hrBaseline    = useBaseline('restingHeartRate', today.restingHeartRate)
 
   if (loading) return <div className="recovery-page"><p style={{ color: 'var(--text-tertiary)', padding: 24 }}>Loading…</p></div>
 
@@ -93,7 +115,11 @@ export default function RecoveryPage() {
             value={today.sleepHours}
             unit="hrs"
             color="var(--purple)"
-            note={today.sleepScore != null ? `Score ${Math.round(today.sleepScore)}` : undefined}
+            note={
+              sleepBaseline
+                ? `${Math.abs(sleepBaseline.pct)}% ${sleepBaseline.above ? 'above' : 'below'} your normal`
+                : today.sleepScore != null ? `Score ${Math.round(today.sleepScore)}` : undefined
+            }
           />
           <MetricCard
             icon={Activity}
@@ -101,6 +127,11 @@ export default function RecoveryPage() {
             value={today.hrv}
             unit="ms"
             color="var(--teal)"
+            note={
+              hrvBaseline
+                ? `${Math.abs(hrvBaseline.pct)}% ${hrvBaseline.above ? 'above' : 'below'} your normal`
+                : undefined
+            }
           />
           <MetricCard
             icon={Heart}
@@ -108,6 +139,11 @@ export default function RecoveryPage() {
             value={today.restingHeartRate}
             unit="bpm"
             color="var(--red)"
+            note={
+              hrBaseline
+                ? `${Math.abs(hrBaseline.pct)}% ${hrBaseline.above ? 'above' : 'below'} your normal`
+                : undefined
+            }
           />
         </div>
       </div>
@@ -125,7 +161,7 @@ export default function RecoveryPage() {
       )}
 
       <div className="recovery-coming-section">
-        <p className="recovery-coming-label">COMING IN PHASE 8</p>
+        <p className="recovery-coming-label">Coming soon</p>
         <div className="recovery-coming-grid">
           {[
             { icon: TrendingUp, text: '7-day HRV trend' },

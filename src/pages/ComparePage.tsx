@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { TrendingUp, TrendingDown, Minus, ArrowRightLeft, Star, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { kgToLbs, GOALS, USER } from '../data/config'
+import { kgToLbs } from '../data/config'
 import { useApp } from '../context/AppContext'
 import { getSetting, setSetting } from '../db'
 import { mockDailySnapshots } from '../data/mock'
@@ -39,13 +39,12 @@ interface MetricDef {
 
 // ─── Metric registry ──────────────────────────────────────────────────────────
 
-const H = USER.heightCm / 100  // meters
-
-const ALL_METRICS: MetricDef[] = [
+function buildMetrics(heightM: number, proteinGoalG = 200): MetricDef[] {
+  return [
   // Body
   { id: 'weight',     label: 'Weight',         group: 'Body',      unit: 'lbs',      higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => s.weight ? kgToLbs(s.weight) : undefined },
   { id: 'bodyFat',    label: 'Body Fat',        group: 'Body',      unit: '%',        higherIsBetter: false, color: 'var(--teal)',   format: v => v.toFixed(1),                   get: s => s.bodyFatPct },
-  { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => s.weight ? +(s.weight / (H * H)).toFixed(1) : undefined },
+  { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => (s.weight && heightM > 0) ? +(s.weight / (heightM * heightM)).toFixed(1) : undefined },
   { id: 'leanMass',   label: 'Lean Mass',       group: 'Body',      unit: 'lbs',      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => s.muscleMassKg ? kgToLbs(s.muscleMassKg) : undefined },
   { id: 'fatFree',    label: 'Fat-Free Mass',   group: 'Body',      unit: 'lbs',      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => (s.weight && s.bodyFatPct != null) ? kgToLbs(s.weight * (1 - s.bodyFatPct / 100)) : undefined },
   { id: 'visceralFat',label: 'Visceral Fat',    group: 'Body',      unit: 'level',    higherIsBetter: false, color: 'var(--orange)',format: v => v.toFixed(0),                   get: _s => undefined },
@@ -60,18 +59,19 @@ const ALL_METRICS: MetricDef[] = [
   // Training
   { id: 'workouts',   label: 'Workouts',        group: 'Training',  unit: 'sessions', higherIsBetter: true,  color: 'var(--blue)',  format: v => Math.round(v).toString(),       get: s => s._workoutCount },
   // Nutrition
-  { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${GOALS.proteinG}g`, higherIsBetter: true, color: 'var(--orange)', format: v => Math.round(v).toString(), get: s => s.proteinG },
+  { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${proteinGoalG}g`, higherIsBetter: true, color: 'var(--orange)', format: v => Math.round(v).toString(), get: s => s.proteinG },
   { id: 'caloriesIn', label: 'Calories Eaten',  group: 'Nutrition', unit: 'kcal',     higherIsBetter: false, color: 'var(--yellow)',format: v => Math.round(v).toLocaleString(), get: s => s.caloriesIn },
   { id: 'water',      label: 'Water',           group: 'Nutrition', unit: 'oz',       higherIsBetter: true,  color: 'var(--blue)',  format: v => Math.round(v).toString(),       get: s => s.waterMl ? +(s.waterMl / 29.574).toFixed(0) : undefined },
   // Athletic (manual only — no data yet)
   { id: 'vertJump',   label: 'Vertical Jump',   group: 'Athletic',  unit: 'in',       higherIsBetter: true,  color: 'var(--yellow)',format: v => v.toFixed(1),                   get: _s => undefined },
   { id: 'pullups',    label: 'Pull-ups',        group: 'Athletic',  unit: 'reps',     higherIsBetter: true,  color: 'var(--yellow)',format: v => Math.round(v).toString(),       get: _s => undefined },
   { id: 'runPace',    label: 'Running Pace',    group: 'Athletic',  unit: 'min/mi',   higherIsBetter: false, color: 'var(--green)', format: v => v.toFixed(2),                   get: _s => undefined },
-]
+]}
 
 const DEFAULT_SELECTED = ['weight', 'bodyFat', 'leanMass', 'steps', 'sleep', 'hrv', 'protein']
 const METRICS_SETTINGS_KEY = 'compare-metrics'
-const GROUPS = Array.from(new Set(ALL_METRICS.map(m => m.group)))
+const ALL_GROUPS = buildMetrics(1.75).map(m => m.group)
+const GROUPS = Array.from(new Set(ALL_GROUPS))
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -185,15 +185,25 @@ export default function ComparePage() {
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set(DEFAULT_SELECTED))
   const [metricsLoaded, setMetricsLoaded] = useState(false)
   const [showAllGroups, setShowAllGroups] = useState(false)
+  const [heightM,      setHeightM]      = useState(1.75)  // fallback until profile loads
+  const [proteinGoalG, setProteinGoalG] = useState(200)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load saved metric preferences
+  // Load profile height for BMI, metric prefs
   useEffect(() => {
+    getProfile().then(p => {
+      if (p?.heightCm) setHeightM(p.heightCm / 100)
+    })
+    getSetting<{ proteinG?: number } | null>('nutrition-goals', null).then(ng => {
+      if (ng?.proteinG) setProteinGoalG(ng.proteinG)
+    })
     getSetting<string[]>(METRICS_SETTINGS_KEY, DEFAULT_SELECTED).then(saved => {
       setSelectedMetrics(new Set(saved))
       setMetricsLoaded(true)
     })
   }, [])
+
+  const allMetrics = buildMetrics(heightM, proteinGoalG)
 
   // Load result when deps change (debounced)
   const doCompare = useCallback(async (a: string, b: string) => {
@@ -244,7 +254,7 @@ export default function ComparePage() {
 
   async function applyStartPreset() {
     const profile = await getProfile()
-    const startDate = profile?.startDate ?? USER.startDate
+    const startDate = profile?.startDate ?? daysAgo(90)
     const today = daysAgo(0)
     setDateA(startDate)
     setDateB(today)
@@ -301,7 +311,7 @@ export default function ComparePage() {
     await setSetting(METRICS_SETTINGS_KEY, Array.from(next))
   }
 
-  const visibleMetrics = ALL_METRICS.filter(m => selectedMetrics.has(m.id))
+  const visibleMetrics = allMetrics.filter(m => selectedMetrics.has(m.id))
 
   // Wins & Focus Areas
   const wins: string[] = []
@@ -393,7 +403,7 @@ export default function ComparePage() {
           <div key={group} className="cmp-chip-group">
             <span className="cmp-chip-group-label">{group}</span>
             <div className="cmp-chip-row">
-              {ALL_METRICS.filter(m => m.group === group).map(m => {
+              {allMetrics.filter(m => m.group === group).map(m => {
                 const on = selectedMetrics.has(m.id)
                 return (
                   <button
@@ -467,7 +477,7 @@ export default function ComparePage() {
 
           {mockMode && (
             <p className="cmp-mock-note">
-              Showing mock data.{' '}
+              Showing sample data (dev mode).{' '}
               <button onClick={() => navigate('/import/apple-health')}>Import Apple Health</button>
               {' '}or{' '}
               <button onClick={() => navigate('/log')}>log manually</button>

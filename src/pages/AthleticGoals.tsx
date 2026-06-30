@@ -1,10 +1,23 @@
-import { useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowRight, Target, Plus, X, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useDashboardData } from '../hooks/useDashboardData'
-import { kgToLbs, GOALS } from '../data/config'
+import { getProfile } from '../db/profileStore'
+import { getSetting } from '../db'
+import type { ProfileData, NutritionGoals } from '../db'
+import { getUserGoals, saveUserGoal, deleteUserGoal } from '../db/goalStore'
+import type { UserGoal, GoalCategory } from '../db/goalStore'
+import { kgToLbs } from '../data/config'
 import './AthleticGoals.css'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Data-driven goal types ───────────────────────────────────────────────────
+
+interface GoalStatus {
+  current: string | null
+  progress: number     // 0–100
+  statusText: string
+  nextAction: string
+}
 
 interface GoalConfig {
   id: string
@@ -12,186 +25,177 @@ interface GoalConfig {
   title: string
   category: string
   description: string
-  unit: string
   target: string
-  getStatus: (data: ReturnType<typeof useDashboardData>) => {
-    current: string | null
-    progress: number     // 0–100
-    statusText: string
-    nextAction: string
-  }
+  getStatus: (
+    data: ReturnType<typeof useDashboardData>,
+    profile: ProfileData | null,
+    nutGoals: Pick<NutritionGoals, 'proteinG' | 'calories'>,
+  ) => GoalStatus
   relatedMetrics: string[]
 }
 
-// ─── Goal Definitions ─────────────────────────────────────────────────────────
+// ─── Preset quick-add goals ───────────────────────────────────────────────────
 
-const GOAL_CONFIGS: GoalConfig[] = [
-  {
-    id: 'abs',
-    emoji: '💪',
-    title: 'Visible Abs',
-    category: 'Body Composition',
-    description: 'Get to sub-12% body fat while maintaining muscle mass.',
-    unit: '% body fat',
-    target: '≤ 12% body fat',
-    getStatus: (d) => {
-      const bf = d.today.bodyFatPct
-      if (bf == null) return {
-        current: null,
-        progress: 0,
-        statusText: 'No body fat data — import Apple Health or log manually.',
-        nextAction: 'Import Apple Health to see your current body fat %.',
+const PRESET_GOALS: Array<{ emoji: string; title: string; category: GoalCategory }> = [
+  { emoji: '🏃', title: 'Run first marathon', category: 'cardio' },
+  { emoji: '🏋️', title: 'Bench 225 lbs', category: 'strength' },
+  { emoji: '⚖️', title: 'Lose 25 lbs', category: 'weight' },
+  { emoji: '😴', title: 'Sleep 8 hours every night', category: 'habit' },
+  { emoji: '🗓️', title: 'Train 4x per week', category: 'habit' },
+  { emoji: '💧', title: 'Drink 1 gallon of water daily', category: 'nutrition' },
+  { emoji: '🏊', title: 'Finish an Ironman', category: 'milestone' },
+  { emoji: '🎯', title: '5% body fat reduction', category: 'weight' },
+]
+
+// ─── Data-driven goal factory ─────────────────────────────────────────────────
+
+function makeGoals(profile: ProfileData | null): GoalConfig[] {
+  const goals: GoalConfig[] = []
+
+  if (profile?.goalWeightKg) {
+    const goalLbs  = Math.round(kgToLbs(profile.goalWeightKg))
+    const startLbs = profile.startWeightKg ? Math.round(kgToLbs(profile.startWeightKg)) : null
+    goals.push({
+      id: 'weight',
+      emoji: '⚖️',
+      title: 'Body Weight Goal',
+      category: 'Body Composition',
+      description: `Reach and maintain ${goalLbs} lbs.`,
+      target: `${goalLbs} lbs`,
+      relatedMetrics: ['Daily weight', 'Calories', 'Protein intake'],
+      getStatus: (d) => {
+        const w = d.today.weight
+        if (!w) return {
+          current: null, progress: 0,
+          statusText: 'No weight data — import Apple Health or log your weight daily.',
+          nextAction: 'Weigh yourself every morning. Log it via Daily Log.',
+        }
+        const wLbs = Math.round(kgToLbs(w) * 10) / 10
+        const start = startLbs ?? (wLbs + 10)
+        const range = start - goalLbs
+        const pct   = range > 0 ? Math.max(0, Math.min(100, Math.round((start - wLbs) / range * 100))) : 100
+        const diff  = +(wLbs - goalLbs).toFixed(1)
+        return {
+          current: `${wLbs} lbs`,
+          progress: pct,
+          statusText: diff <= 0
+            ? `At goal weight of ${goalLbs} lbs — great work!`
+            : `${diff} lbs above ${goalLbs} lbs goal.`,
+          nextAction: diff <= 0
+            ? 'Maintain current weight within ±2 lbs by tracking weekly average.'
+            : 'Aim for 0.5–1 lb/week change via a moderate calorie adjustment and high protein.',
+        }
+      },
+    })
+  }
+
+  if (profile?.goalBodyFatPct) {
+    const goalBF  = profile.goalBodyFatPct
+    const startBF = profile.startBodyFatPct ?? null
+    goals.push({
+      id: 'bodyfat',
+      emoji: '💪',
+      title: 'Body Fat Goal',
+      category: 'Body Composition',
+      description: `Reach ${goalBF}% body fat while maintaining muscle mass.`,
+      target: `≤ ${goalBF}% body fat`,
+      relatedMetrics: ['Body fat %', 'Weight', 'Lean mass'],
+      getStatus: (d) => {
+        const bf = d.today.bodyFatPct
+        if (bf == null) return {
+          current: null, progress: 0,
+          statusText: 'No body fat data — import Apple Health or log manually.',
+          nextAction: 'Import Apple Health data with body composition metrics to track body fat.',
+        }
+        const start = startBF ?? (bf + 5)
+        const range = start - goalBF
+        const pct   = range > 0 ? Math.max(0, Math.min(100, Math.round((start - bf) / range * 100))) : 100
+        const diff  = +(bf - goalBF).toFixed(1)
+        return {
+          current: `${bf.toFixed(1)}%`,
+          progress: pct,
+          statusText: diff <= 0
+            ? `At or below your ${goalBF}% target — goal reached!`
+            : `${diff}% above ${goalBF}% goal. Maintain a moderate calorie deficit and high protein.`,
+          nextAction: diff <= 0
+            ? 'Maintain current habits and monitor weekly.'
+            : 'Track body fat weekly. Focus on calorie deficit and high protein.',
+        }
+      },
+    })
+  }
+
+  goals.push({
+    id: 'protein',
+    emoji: '🥩',
+    title: 'Daily Protein',
+    category: 'Nutrition',
+    description: 'Consistently hit your daily protein target to support muscle building and recovery.',
+    target: 'Your protein goal',
+    relatedMetrics: ['Protein logged', 'Total calories', 'Meal frequency'],
+    getStatus: (d, _p, ng) => {
+      const protein = d.today.proteinG
+      if (protein == null) return {
+        current: null, progress: 0,
+        statusText: 'No protein data logged today.',
+        nextAction: 'Log your meals via the Nutrition tab or Daily Log to track protein intake.',
       }
-      const pct = Math.max(0, Math.min(100, Math.round((30 - bf) / (30 - 12) * 100)))
-      const diff = +(bf - 12).toFixed(1)
+      const pct  = Math.min(100, Math.round((protein / ng.proteinG) * 100))
+      const diff = ng.proteinG - protein
       return {
-        current: `${bf.toFixed(1)}%`,
+        current: `${Math.round(protein)}g`,
         progress: pct,
         statusText: diff <= 0
-          ? 'Goal reached! You\'re at or below 12% body fat.'
-          : `${diff}% away from goal. Maintain a 300–500 kcal deficit and 200g+ protein daily.`,
+          ? `Protein goal hit — ${Math.round(protein)}g logged!`
+          : `${Math.round(protein)}g of ${ng.proteinG}g target. ${Math.round(diff)}g to go.`,
         nextAction: diff <= 0
-          ? 'Maintain current habits and monitor weekly.'
-          : `Track body fat weekly. Focus on calorie deficit and high protein to lose fat while preserving muscle.`,
+          ? 'Strong day. Keep this habit consistent across the week.'
+          : `Log meals consistently. A shake (~25g), chicken (~50g), or Greek yogurt (~17g) helps close the gap.`,
       }
     },
-    relatedMetrics: ['Body fat %', 'Weight', 'Lean mass'],
-  },
+  })
 
-  {
-    id: 'pullups',
-    emoji: '🏋️',
-    title: 'Pull-up Strength',
-    category: 'Strength',
-    description: 'Work toward 20+ strict pull-ups in one set.',
-    unit: 'reps',
-    target: '20+ reps',
-    getStatus: () => ({
-      current: null,
-      progress: 0,
-      statusText: 'Log pull-up workouts to track progress toward 20 reps.',
-      nextAction: 'Log a "Pull-ups" exercise set in your next workout to start tracking.',
-    }),
-    relatedMetrics: ['Pull-up sets', 'Back workout frequency', 'Body weight'],
-  },
-
-  {
-    id: 'vertical',
-    emoji: '🏀',
-    title: 'Vertical Jump',
-    category: 'Athleticism',
-    description: 'Improve vertical leap for basketball and volleyball.',
-    unit: 'inches',
-    target: '30+ inch vertical',
-    getStatus: () => ({
-      current: null,
-      progress: 0,
-      statusText: 'Manual entry needed — measure your standing vertical periodically.',
-      nextAction: 'Include plyometric training: box jumps, broad jumps, depth drops. Measure monthly.',
-    }),
-    relatedMetrics: ['Bulgarian split squats', 'Leg press', 'Body weight'],
-  },
-
-  {
-    id: 'dunk',
-    emoji: '🏆',
-    title: 'Dunk',
-    category: 'Athleticism',
-    description: 'Touch the rim, then work toward a clean dunk.',
-    unit: '',
-    target: 'Dunk on 10-ft rim',
-    getStatus: () => ({
-      current: null,
-      progress: 0,
-      statusText: 'Combine vertical training with weight management. Higher vertical = closer to a dunk.',
-      nextAction: 'Track your reach + vertical progress. Plyometrics 2x/week. Optimize body weight.',
-    }),
-    relatedMetrics: ['Vertical jump', 'Leg power workouts', 'Body weight'],
-  },
-
-  {
-    id: 'running',
+  goals.push({
+    id: 'activity',
     emoji: '🏃',
-    title: 'Running Endurance',
+    title: 'Daily Activity',
     category: 'Cardio',
-    description: 'Run a 5K without stopping, then build to 10K.',
-    unit: '',
-    target: '5K without stopping',
+    description: 'Build a consistent movement base through daily steps and cardio.',
+    target: '10,000 steps / day',
+    relatedMetrics: ['Daily steps', 'Active calories', 'Resting HR'],
     getStatus: (d) => {
       const steps = d.today.steps
       if (!steps) return {
-        current: null,
-        progress: 0,
-        statusText: 'No step data. Import Apple Health to track daily distance.',
-        nextAction: 'Start with 3x20-min jogs per week. Increase duration 10% each week.',
+        current: null, progress: 0,
+        statusText: 'No step data. Import Apple Health to track daily movement.',
+        nextAction: 'Connect Apple Health to see your daily steps and cardio activity here.',
       }
+      const pct = Math.min(100, Math.round(steps / 10_000 * 100))
       return {
-        current: `${steps.toLocaleString()} steps today`,
-        progress: Math.min(100, Math.round(steps / 10000 * 100)),
-        statusText: `${steps.toLocaleString()} steps today. Cardio base is building.`,
-        nextAction: 'Add 2–3 running sessions per week. Track each run and gradually extend distance.',
-      }
-    },
-    relatedMetrics: ['Daily steps', 'Running sessions', 'Resting HR'],
-  },
-
-  {
-    id: 'weight',
-    emoji: '⚖️',
-    title: 'Body Weight Goal',
-    category: 'Body Composition',
-    description: 'Reach and maintain target weight of 190 lbs.',
-    unit: 'lbs',
-    target: `${GOALS.targetWeightLbs} lbs`,
-    getStatus: (d) => {
-      const w = d.today.weight
-      if (!w) return {
-        current: null,
-        progress: 0,
-        statusText: 'No weight data. Import Apple Health or log your weight daily.',
-        nextAction: 'Weigh yourself every morning after waking, before eating. Log it daily.',
-      }
-      const wLbs = kgToLbs(w)
-      const start = 215
-      const target = GOALS.targetWeightLbs
-      const pct = Math.max(0, Math.min(100, Math.round((start - wLbs) / (start - target) * 100)))
-      const diff = +(wLbs - target).toFixed(1)
-      return {
-        current: `${wLbs} lbs`,
+        current: `${steps.toLocaleString()} steps`,
         progress: pct,
-        statusText: diff <= 0
-          ? `At goal weight of ${target} lbs!`
-          : `${diff} lbs above ${target} lbs goal.`,
-        nextAction: diff <= 0
-          ? 'Maintain current weight within ±2 lbs by tracking weekly average.'
-          : 'Aim for 0.5–1 lb/week loss via moderate calorie deficit and high protein.',
+        statusText: pct >= 100
+          ? `${steps.toLocaleString()} steps — daily goal hit!`
+          : `${steps.toLocaleString()} steps so far. ${(10_000 - steps).toLocaleString()} to goal.`,
+        nextAction: pct >= 100
+          ? 'Strong movement day. Rest or add a light recovery walk.'
+          : 'A 25-min walk after dinner adds ~2,500 steps. Aim for consistent daily movement.',
       }
     },
-    relatedMetrics: ['Daily weight', 'Calories', 'Protein intake'],
-  },
+  })
 
-  {
-    id: 'shoulders',
-    emoji: '🔱',
-    title: 'Shoulder & Arm Growth',
-    category: 'Strength',
-    description: 'Build broader shoulders and more defined arms.',
-    unit: '',
-    target: 'Shoulder press + lateral raise volume',
-    getStatus: () => ({
-      current: null,
-      progress: 0,
-      statusText: 'Log shoulder and arm workouts to track volume over time.',
-      nextAction: 'Hit shoulders 2x/week: shoulder press + lateral raises + face pulls. Track total weekly volume.',
-    }),
-    relatedMetrics: ['Shoulder press sets', 'Lateral raises volume', 'Weekly push sessions'],
-  },
-]
+  return goals
+}
 
-// ─── Goal Card ────────────────────────────────────────────────────────────────
+// ─── Data-driven goal card ────────────────────────────────────────────────────
 
-function GoalCard({ goal, data }: { goal: GoalConfig; data: ReturnType<typeof useDashboardData> }) {
-  const status = goal.getStatus(data)
+function GoalCard({ goal, data, profile, nutGoals }: {
+  goal: GoalConfig
+  data: ReturnType<typeof useDashboardData>
+  profile: ProfileData | null
+  nutGoals: Pick<NutritionGoals, 'proteinG' | 'calories'>
+}) {
+  const status = goal.getStatus(data, profile, nutGoals)
 
   return (
     <div className="goal-card">
@@ -211,7 +215,6 @@ function GoalCard({ goal, data }: { goal: GoalConfig; data: ReturnType<typeof us
 
       <p className="goal-description">{goal.description}</p>
 
-      {/* Progress bar */}
       <div className="goal-progress-wrap">
         <div className="goal-progress-track">
           <div className="goal-progress-fill" style={{ width: `${status.progress}%` }} />
@@ -223,16 +226,13 @@ function GoalCard({ goal, data }: { goal: GoalConfig; data: ReturnType<typeof us
         </div>
       </div>
 
-      {/* Status */}
       <div className="goal-status">{status.statusText}</div>
 
-      {/* Next action */}
       <div className="goal-next-action">
         <ArrowRight size={13} />
         <span>{status.nextAction}</span>
       </div>
 
-      {/* Related metrics */}
       <div className="goal-metrics">
         {goal.relatedMetrics.map(m => (
           <span key={m} className="goal-metric-chip">{m}</span>
@@ -242,41 +242,320 @@ function GoalCard({ goal, data }: { goal: GoalConfig; data: ReturnType<typeof us
   )
 }
 
+// ─── User-created goal card ───────────────────────────────────────────────────
+
+function UserGoalCard({ goal, onDelete }: { goal: UserGoal; onDelete: () => void }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const daysLeft = goal.targetDate
+    ? Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null
+
+  const isOverdue = daysLeft != null && daysLeft < 0
+  const catLabel = goal.category.charAt(0).toUpperCase() + goal.category.slice(1)
+
+  return (
+    <div className={`goal-card goal-card--user ${goal.completed ? 'goal-card--completed' : ''}`}>
+      <div className="goal-card-header">
+        <span className="goal-emoji">{goal.emoji}</span>
+        <div className="goal-header-text">
+          <h3 className="goal-title">{goal.title}</h3>
+          <span className="goal-category">{catLabel}</span>
+        </div>
+        <div className="goal-user-actions">
+          {!confirmDelete ? (
+            <button
+              className="goal-delete-btn"
+              onClick={() => setConfirmDelete(true)}
+              aria-label="Delete goal"
+            >
+              <Trash2 size={14} />
+            </button>
+          ) : (
+            <div className="goal-delete-confirm">
+              <button onClick={onDelete} className="goal-delete-confirm-yes">Delete</button>
+              <button onClick={() => setConfirmDelete(false)} className="goal-delete-confirm-no">Keep</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {goal.description && <p className="goal-description">{goal.description}</p>}
+
+      {daysLeft != null && (
+        <div className={`goal-deadline ${isOverdue ? 'goal-deadline--overdue' : ''}`}>
+          📅 {isOverdue
+            ? `${Math.abs(daysLeft)} days overdue`
+            : daysLeft === 0 ? 'Due today'
+            : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
+          }
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Add goal modal ───────────────────────────────────────────────────────────
+
+function AddGoalModal({ onSave, onClose }: {
+  onSave: (goal: Omit<UserGoal, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onClose: () => void
+}) {
+  const [emoji,       setEmoji]       = useState('🎯')
+  const [title,       setTitle]       = useState('')
+  const [description, setDescription] = useState('')
+  const [category,    setCategory]    = useState<GoalCategory>('milestone')
+  const [targetDate,  setTargetDate]  = useState('')
+
+  function applyPreset(p: typeof PRESET_GOALS[0]) {
+    setEmoji(p.emoji)
+    setTitle(p.title)
+    setCategory(p.category)
+  }
+
+  function handleSave() {
+    const trimmed = title.trim()
+    if (!trimmed) return
+    onSave({
+      emoji,
+      title: trimmed,
+      description: description.trim() || undefined,
+      category,
+      targetDate: targetDate || undefined,
+    })
+  }
+
+  return (
+    <div className="goal-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Add a goal">
+      <div className="goal-modal" onClick={e => e.stopPropagation()}>
+        <div className="goal-modal-header">
+          <h2 className="goal-modal-title">Add a Goal</h2>
+          <button className="goal-modal-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="goal-presets">
+          <p className="goal-presets-label">Quick add</p>
+          <div className="goal-presets-list">
+            {PRESET_GOALS.map(p => (
+              <button
+                key={p.title}
+                className={`goal-preset-btn ${title === p.title ? 'goal-preset-btn--active' : ''}`}
+                onClick={() => applyPreset(p)}
+              >
+                {p.emoji} {p.title}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="goal-modal-divider">or write your own</div>
+
+        <div className="goal-form">
+          <div className="goal-form-emoji-row">
+            <input
+              className="goal-emoji-input"
+              value={emoji}
+              onChange={e => setEmoji(e.target.value.slice(-2) || '🎯')}
+              maxLength={4}
+              aria-label="Goal emoji"
+            />
+            <input
+              className="goal-title-input"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Goal title (e.g. Run first 5K)"
+              aria-label="Goal title"
+              autoFocus
+            />
+          </div>
+
+          <textarea
+            className="goal-desc-input"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Description — why this goal matters (optional)"
+            rows={2}
+            aria-label="Goal description"
+          />
+
+          <div className="goal-form-row">
+            <select
+              className="goal-category-select"
+              value={category}
+              onChange={e => setCategory(e.target.value as GoalCategory)}
+              aria-label="Goal category"
+            >
+              <option value="strength">💪 Strength</option>
+              <option value="weight">⚖️ Weight</option>
+              <option value="nutrition">🥗 Nutrition</option>
+              <option value="cardio">🏃 Cardio</option>
+              <option value="habit">🔄 Habit</option>
+              <option value="milestone">🏆 Milestone</option>
+            </select>
+
+            <div className="goal-date-wrap">
+              <label className="goal-date-label" htmlFor="goal-date">Target date</label>
+              <input
+                id="goal-date"
+                type="date"
+                className="goal-date-input"
+                value={targetDate}
+                onChange={e => setTargetDate(e.target.value)}
+                aria-label="Target date (optional)"
+              />
+            </div>
+          </div>
+
+          <button
+            className="goal-save-btn"
+            onClick={handleSave}
+            disabled={!title.trim()}
+          >
+            Add Goal
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Empty data-driven state ──────────────────────────────────────────────────
+
+function NoGoalsCard({ onSetup }: { onSetup: () => void }) {
+  return (
+    <div className="goal-empty-card">
+      <Target size={32} style={{ opacity: 0.25, marginBottom: 12 }} />
+      <p className="goal-empty-title">No profile goals set</p>
+      <p className="goal-empty-desc">
+        Complete your profile to set a goal weight and body fat target.
+        Your progress goals will appear here once configured.
+      </p>
+      <button className="goal-empty-btn" onClick={onSetup}>Set up profile</button>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AthleticGoals() {
+  const navigate = useNavigate()
   const data = useDashboardData()
+  const [profile,      setProfile]      = useState<ProfileData | null>(null)
+  const [nutGoals,     setNutGoals]     = useState<Pick<NutritionGoals, 'proteinG' | 'calories'>>({ proteinG: 200, calories: 2300 })
+  const [userGoals,    setUserGoals]    = useState<UserGoal[]>([])
+  const [showAddModal, setShowAddModal] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
 
-  const categories = ['All', ...Array.from(new Set(GOAL_CONFIGS.map(g => g.category)))]
-  const filtered = activeCategory === 'All'
-    ? GOAL_CONFIGS
-    : GOAL_CONFIGS.filter(g => g.category === activeCategory)
+  useEffect(() => {
+    getProfile().then(setProfile)
+    getSetting<NutritionGoals | null>('nutrition-goals', null).then(ng => {
+      if (ng) setNutGoals({ proteinG: ng.proteinG, calories: ng.calories })
+    })
+    getUserGoals().then(setUserGoals)
+  }, [])
 
   if (data.loading) return <div className="goals-loading">Loading…</div>
+
+  const goalConfigs  = makeGoals(profile)
+  const categories   = ['All', ...Array.from(new Set(goalConfigs.map(g => g.category)))]
+  const filteredData = activeCategory === 'All'
+    ? goalConfigs
+    : goalConfigs.filter(g => g.category === activeCategory)
+
+  async function handleAddGoal(goal: Omit<UserGoal, 'id' | 'createdAt' | 'updatedAt'>) {
+    const saved = await saveUserGoal(goal)
+    setUserGoals(prev => [saved, ...prev])
+    setShowAddModal(false)
+  }
+
+  async function handleDeleteGoal(id: string) {
+    await deleteUserGoal(id)
+    setUserGoals(prev => prev.filter(g => g.id !== id))
+  }
 
   return (
     <div className="athletic-goals-page">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Athletic Goals</h1>
+          <h1 className="page-title">Goals</h1>
           <p className="page-subtitle">Your targets and what to do next</p>
         </div>
+        <button
+          className="goal-add-btn"
+          onClick={() => setShowAddModal(true)}
+          aria-label="Add a goal"
+        >
+          <Plus size={16} />
+          Add Goal
+        </button>
       </header>
 
-      <div className="goals-filter">
-        {categories.map(c => (
-          <button key={c} className={`goals-filter-btn ${activeCategory === c ? 'active' : ''}`} onClick={() => setActiveCategory(c)}>
-            {c}
-          </button>
-        ))}
-      </div>
+      {/* ── Data-driven progress goals ── */}
+      {goalConfigs.length > 0 && (
+        <section>
+          <h2 className="goals-section-title">Your Progress</h2>
 
-      <div className="goals-grid">
-        {filtered.map(g => (
-          <GoalCard key={g.id} goal={g} data={data} />
-        ))}
-      </div>
+          {categories.length > 2 && (
+            <div className="goals-filter">
+              {categories.map(c => (
+                <button
+                  key={c}
+                  className={`goals-filter-btn ${activeCategory === c ? 'active' : ''}`}
+                  onClick={() => setActiveCategory(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="goals-grid">
+            {filteredData.map(g => (
+              <GoalCard key={g.id} goal={g} data={data} profile={profile} nutGoals={nutGoals} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {goalConfigs.length === 0 && userGoals.length === 0 && (
+        <NoGoalsCard onSetup={() => navigate('/onboarding?edit=1')} />
+      )}
+
+      {/* ── User-created custom goals ── */}
+      {userGoals.length > 0 && (
+        <section>
+          <h2 className="goals-section-title">Your Goals</h2>
+          <div className="goals-grid">
+            {userGoals.map(g => (
+              <UserGoalCard
+                key={g.id}
+                goal={g}
+                onDelete={() => handleDeleteGoal(g.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Add goal hint when list is short ── */}
+      {goalConfigs.length > 0 && userGoals.length === 0 && (
+        <div className="goal-add-hint">
+          <button className="goal-add-hint-btn" onClick={() => setShowAddModal(true)}>
+            <Plus size={14} />
+            Add a personal goal — marathon, bench 225, sleep 8h…
+          </button>
+        </div>
+      )}
+
+      {/* ── Add goal modal ── */}
+      {showAddModal && (
+        <AddGoalModal
+          onSave={handleAddGoal}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
     </div>
   )
 }

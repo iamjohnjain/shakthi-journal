@@ -58,8 +58,9 @@
 .ob-step {
   display: flex;
   flex-direction: column;
+  flex: 1;          /* always fills remaining space in .ob-page, with or without header */
   padding: 40px 24px max(40px, calc(env(safe-area-inset-bottom) + 24px));
-  min-height: calc(100dvh - 72px);
+  min-height: 0;    /* let flex control height; prevent content from overflowing parent */
   animation: ob-enter-fwd 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
@@ -110,6 +111,25 @@
   flex-direction: column;
   align-items: flex-start;
   flex: 1;
+}
+
+.ob-input-zone--avatar {
+  align-items: center;
+  width: 100%;
+}
+
+.ob-avatar-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.ob-avatar-preview-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 /* ─── Big number / text input ─────────────────────────────────────────────── */
@@ -544,3 +564,452 @@
   .ob-step, .ob-finish-icon { animation: none; }
   .ob-progress-fill { transition: none; }
 }
+
+/* ─── Spinner ─────────────────────────────────────────────────────────────── */
+
+@keyframes ob-spin { to { transform: rotate(360deg); } }
+.ob-spin { animation: ob-spin 0.8s linear infinite; }
+
+/* ─── Auth step ───────────────────────────────────────────────────────────── */
+
+.ob-auth-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none;
+  color: var(--text-tertiary); font-size: 14px; font-weight: 500;
+  cursor: pointer; padding: 0 0 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.ob-auth-back:hover { color: var(--text-secondary); }
+
+.ob-auth-form { display: flex; flex-direction: column; width: 100%; flex: 1; }
+
+.ob-auth-providers {
+  display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 4px;
+}
+
+.ob-auth-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card); color: var(--text-primary);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: border-color 0.12s; width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.ob-auth-btn:hover:not(:disabled) { border-color: rgba(255,255,255,0.25); }
+.ob-auth-btn:disabled { opacity: 0.45; cursor: default; }
+
+.ob-auth-provider-icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+.ob-auth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 8px 0; color: var(--text-tertiary); font-size: 12px;
+}
+.ob-auth-divider::before, .ob-auth-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.ob-auth-field {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
+}
+.ob-auth-field label {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+}
+.ob-auth-field-input {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 12px; color: var(--text-primary);
+  font-size: 16px; padding: 12px 14px;
+  width: 100%; box-sizing: border-box; transition: border-color 0.15s;
+}
+.ob-auth-field-input:focus { outline: none; border-color: var(--blue); }
+
+.ob-auth-pw-wrap { position: relative; }
+.ob-auth-pw-wrap .ob-auth-field-input { padding-right: 46px; }
+.ob-auth-pw-toggle {
+  position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px;
+}
+
+.ob-auth-error {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255, 69, 58, 0.10); border: 1px solid rgba(255, 69, 58, 0.22);
+  border-radius: 10px; padding: 10px 14px;
+  color: var(--red); font-size: 13px; margin-bottom: 14px;
+}
+.ob-auth-success {
+  background: rgba(48, 209, 88, 0.10); border: 1px solid rgba(48, 209, 88, 0.22);
+  border-radius: 10px; padding: 10px 14px;
+  color: var(--green); font-size: 13px; margin-bottom: 14px;
+}
+
+.ob-auth-switch {
+  font-size: 13px; color: var(--text-tertiary); text-align: center;
+}
+.ob-auth-switch button {
+  background: none; border: none; color: var(--blue);
+  font-size: 13px; font-weight: 600; cursor: pointer; padding: 0;
+}
+
+.ob-auth-sync-note {
+  font-size: 13px; color: var(--text-tertiary);
+  text-align: center; line-height: 1.5; max-width: 320px; margin: 0 auto;
+}
+
+.ob-auth-config-note {
+  font-size: 13px; color: var(--text-tertiary);
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; text-align: center;
+  margin-bottom: 16px; line-height: 1.5;
+}
+
+.ob-auth-loading {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 60px 24px;
+  color: var(--text-secondary); font-size: 15px;
+}
+
+/* ─── Profile form ────────────────────────────────────────────────────────── */
+
+.ob-form {
+  width: 100%; display: flex; flex-direction: column; flex: 1;
+}
+
+.ob-form-group { margin-bottom: 32px; }
+
+.ob-form-group-title {
+  font-size: 11px; font-weight: 700; color: var(--text-tertiary);
+  letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 12px;
+}
+
+.ob-form-row {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;
+}
+.ob-form-row--row { flex-direction: row; align-items: flex-end; gap: 10px; }
+.ob-form-row--row .ob-field-input { flex: 1; }
+
+.ob-field-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+.ob-field-input {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 12px; color: var(--text-primary);
+  font-size: 16px; font-weight: 500; padding: 12px 14px;
+  width: 100%; box-sizing: border-box; transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.ob-field-input:focus { outline: none; border-color: var(--blue); }
+
+.ob-field-select {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  padding-right: 36px; cursor: pointer;
+}
+
+.ob-field-hint { font-size: 11px; color: var(--text-tertiary); }
+
+.ob-segment {
+  display: flex; gap: 8px;
+}
+.ob-segment-btn {
+  flex: 1; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: 10px; background: var(--bg-card);
+  color: var(--text-secondary); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ob-segment-btn--on {
+  border-color: var(--blue); background: var(--blue-dim);
+  color: var(--blue); font-weight: 700;
+}
+
+.ob-activity-list { display: flex; flex-direction: column; gap: 8px; }
+
+.ob-activity-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 16px; border-radius: 12px;
+  border: 1.5px solid var(--border); background: var(--bg-card);
+  cursor: pointer; text-align: left; transition: all 0.12s; width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.ob-activity-row--on { border-color: var(--blue); background: var(--blue-dim); }
+
+.ob-activity-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ob-activity-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.ob-activity-desc  { font-size: 12px; color: var(--text-tertiary); }
+
+.ob-activity-radio {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border); transition: all 0.12s;
+}
+.ob-activity-radio--on {
+  border-color: var(--blue); background: var(--blue);
+  box-shadow: inset 0 0 0 3px var(--bg-card);
+}
+
+/* ─── Health data step ────────────────────────────────────────────────────── */
+
+.ob-health-options {
+  display: flex; flex-direction: column; gap: 12px; flex: 1;
+}
+
+.ob-health-platform-note {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 16px;
+  font-size: 13px; color: var(--text-secondary); line-height: 1.55;
+}
+.ob-health-platform-note strong { color: var(--text-primary); }
+.ob-health-platform-note code {
+  background: rgba(255,255,255,0.08); border-radius: 4px;
+  padding: 1px 5px; font-family: 'SF Mono', monospace; font-size: 12px;
+}
+
+.ob-health-option {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 16px; background: var(--bg-card);
+  border: 1.5px solid var(--border); border-radius: 14px;
+}
+.ob-health-option--info { cursor: default; }
+
+.ob-health-option-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+.ob-health-option-info { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.ob-health-option-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.ob-health-option-desc { font-size: 12px; color: var(--text-tertiary); line-height: 1.45; }
+
+.ob-url-box {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.ob-url-text {
+  flex: 1; font-size: 14px; font-weight: 600; color: var(--text-primary);
+  word-break: break-all;
+}
+.ob-url-copy {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-secondary); cursor: pointer;
+  padding: 6px 12px; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  transition: all 0.12s;
+}
+.ob-url-copy:hover { border-color: var(--blue); color: var(--blue); }
+.ob-url-copy--copied { border-color: var(--green); color: var(--green); }
+
+/* ─── Goals step ──────────────────────────────────────────────────────────── */
+
+.ob-macro-rows { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+
+.ob-macro-row {
+  display: flex; align-items: center; gap: 14px;
+}
+.ob-macro-label {
+  min-width: 72px; font-size: 14px; font-weight: 600; color: var(--text-secondary);
+}
+.ob-macro-input {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 10px; color: var(--text-primary);
+  font-size: 22px; font-weight: 700; padding: 10px 12px;
+  width: 100px; text-align: right; transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+.ob-macro-input::-webkit-inner-spin-button,
+.ob-macro-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.ob-macro-input:focus { outline: none; border-color: var(--blue); }
+
+.ob-macro-unit { font-size: 13px; color: var(--text-tertiary); font-weight: 500; }
+
+.ob-goals-auto-note {
+  font-size: 12px; color: var(--text-tertiary); line-height: 1.5;
+  padding: 10px 14px; background: var(--bg-card);
+  border-radius: 10px; border: 1px solid var(--border);
+}
+
+/* ─── Review step ─────────────────────────────────────────────────────────── */
+
+.ob-review-list {
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1; width: 100%; max-width: 480px; margin-bottom: 8px;
+}
+
+.ob-review-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  overflow: hidden;
+}
+
+.ob-review-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);
+}
+
+.ob-review-card-title {
+  font-size: 11px; font-weight: 700; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+
+.ob-review-edit-btn {
+  background: none; border: none; color: var(--blue);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 2px 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ob-review-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 9px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ob-review-row:last-child { border-bottom: none; }
+
+.ob-review-key { font-size: 13px; color: var(--text-tertiary); flex-shrink: 0; }
+.ob-review-val { font-size: 13px; font-weight: 500; color: var(--text-primary); text-align: right; }
+
+/* ─── Profile photo picker ────────────────────────────────────────────────── */
+
+.ob-photo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0 4px;
+}
+
+.ob-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ob-photo-preview {
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: opacity 0.15s;
+}
+
+.ob-photo-preview:hover { opacity: 0.85; }
+
+.ob-photo-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.ob-photo-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  width: 100%;
+}
+
+.ob-photo-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.ob-photo-btn--on {
+  background: var(--blue-dim);
+  border-color: rgba(10,132,255,0.3);
+  color: var(--blue);
+}
+
+/* ─── Health data step redesign ───────────────────────────────────────────── */
+
+.ob-health-limitation-card {
+  display: flex;
+  gap: 12px;
+  background: rgba(10,132,255,0.08);
+  border: 1px solid rgba(10,132,255,0.18);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+
+.ob-health-limitation-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ob-health-limitation-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+}
+
+.ob-health-limitation-body {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.ob-health-steps {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ob-health-steps-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+
+.ob-health-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ob-health-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(10,132,255,0.15);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ob-health-step-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  flex: 1;
+}
+
+/* ─── Desktop overrides ───────────────────────────────────────────────────── */
+
+@media (min-width: 640px) {
+  .ob-activity-list { max-width: 440px; }
+  .ob-macro-rows { max-width: 380px; }
+  .ob-auth-providers { max-width: 400px; margin: 0 auto 8px; }
+  .ob-review-list { max-width: 440px; }
+  .ob-photo-btns { flex-direction: row; flex-wrap: wrap; }
+  .ob-photo-btn { width: auto; flex: 1; min-width: 90px; }
+}
+
+/* ─── Reduced motion (combined) ───────────────────────────────────────────── */

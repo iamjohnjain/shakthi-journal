@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Check, Dumbbell } from 'lucide-react'
-import { kgToLbs, GOALS } from '../data/config'
+import { kgToLbs } from '../data/config'
 import { saveLog, getLog } from '../db/logStore'
 import type { DailyLog } from '../db/logStore'
 import DataBadge from '../components/DataBadge'
@@ -128,6 +128,7 @@ export default function DailyLog() {
   const [dirty, setDirty] = useState(false)
   const [existing, setExisting] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   // form state
   const [weightLbs, setWeightLbs] = useState<number | undefined>()
@@ -176,26 +177,32 @@ export default function DailyLog() {
 
   async function handleSave() {
     setSaving(true)
-    await saveLog({
-      date,
-      weightKg:         weightLbs != null ? +(weightLbs / 2.20462).toFixed(2) : undefined,
-      caloriesIn:       calories,
-      proteinG:         protein,
-      carbsG:           carbs,
-      fatG:             fat,
-      waterMl:          water != null ? +(water * 1000) : undefined,
-      workoutCompleted: workout,
-      workoutNotes:     workoutNotes || undefined,
-      mood,
-      energyLevel:      energy,
-      sleepQuality:     sleepQ,
-      notes:            notes || undefined,
-    })
-    setSaving(false)
-    setDirty(false)
-    setSaved(true)
-    setExisting(true)
-    setTimeout(() => setSaved(false), 3000)
+    setSaveError('')
+    try {
+      await saveLog({
+        date,
+        weightKg:         weightLbs != null ? +(weightLbs / 2.20462).toFixed(2) : undefined,
+        caloriesIn:       calories,
+        proteinG:         protein,
+        carbsG:           carbs,
+        fatG:             fat,
+        waterMl:          water != null ? +(water * 1000) : undefined,
+        workoutCompleted: workout,
+        workoutNotes:     workoutNotes || undefined,
+        mood,
+        energyLevel:      energy,
+        sleepQuality:     sleepQ,
+        notes:            notes || undefined,
+      })
+      setDirty(false)
+      setSaved(true)
+      setExisting(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch {
+      setSaveError('Could not save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const isToday = date === todayStr()
@@ -240,36 +247,7 @@ export default function DailyLog() {
         <NumberField label="Weight" value={weightLbs} onChange={v => { setWeightLbs(v); markDirty() }} unit="lbs" step={0.1} min={50} max={500} placeholder={String(199)} />
       </LogSection>
 
-      {/* ── Nutrition ── */}
-      <LogSection title="Nutrition">
-        <div className="log-grid-2">
-          <NumberField label="Calories eaten" value={calories} onChange={v => { setCalories(v); markDirty() }} unit="kcal" placeholder={String(GOALS.caloriesIn)} />
-          <NumberField label="Protein"         value={protein}  onChange={v => { setProtein(v);  markDirty() }} unit="g"    placeholder={String(GOALS.proteinG)} />
-          <NumberField label="Carbs"           value={carbs}    onChange={v => { setCarbs(v);    markDirty() }} unit="g"    placeholder="280" />
-          <NumberField label="Fat"             value={fat}      onChange={v => { setFat(v);      markDirty() }} unit="g"    placeholder="65" />
-        </div>
-        <NumberField
-          label="Water"
-          value={water}
-          onChange={v => { setWater(v); markDirty() }}
-          unit={`/ ${GOALS.waterMl / 1000}L`}
-          step={0.1}
-          min={0}
-          max={10}
-          placeholder={(GOALS.waterMl / 1000).toFixed(1)}
-        />
-        {protein != null && (
-          <div className="log-progress-bar">
-            <div className="log-progress-track">
-              <div
-                className="log-progress-fill"
-                style={{ width: `${Math.min((protein / GOALS.proteinG) * 100, 100)}%`, background: 'var(--green)' }}
-              />
-            </div>
-            <span className="log-progress-label">{protein}g / {GOALS.proteinG}g protein</span>
-          </div>
-        )}
-      </LogSection>
+      {/* Nutrition is logged via /nutrition — removed from daily log to avoid dual-entry confusion */}
 
       {/* ── Workout ── */}
       <LogSection title="Workout">
@@ -324,6 +302,9 @@ export default function DailyLog() {
       </LogSection>
 
       {/* ── Save ── */}
+      {saveError && (
+        <p style={{ color: 'var(--red)', fontSize: '0.84rem', padding: '0 24px 8px' }}>{saveError}</p>
+      )}
       <div className="log-save-bar">
         {dirty && <span className="log-dirty-label">Unsaved changes</span>}
         <button

@@ -107,6 +107,56 @@
   color: var(--green);
 }
 
+/* ─── Group sub-label ────────────────────────────────────── */
+
+.ds-group-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+/* ─── Order controls ─────────────────────────────────────── */
+
+.ds-card-row--order {
+  gap: 10px;
+}
+
+.ds-card-row--hidden {
+  opacity: 0.45;
+}
+
+.ds-order-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ds-order-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.ds-order-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.07);
+  color: var(--text-primary);
+}
+
+.ds-order-btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
 /* ─── Footer ─────────────────────────────────────────────── */
 
 .ds-footer-note {

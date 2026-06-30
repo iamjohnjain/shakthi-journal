@@ -1,0 +1,66 @@
+.trend-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trend-chart-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.trend-chart-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.trend-chart-delta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.trend-chart-delta.down { color: var(--green); }
+.trend-chart-delta.up   { color: var(--red); }
+
+.trend-svg {
+  display: block;
+  overflow: visible;
+}
+
+.trend-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* ─── Period selector ────────────────────────── */
+
+.period-selector {
+  display: flex;
+  gap: 4px;
+}
+
+.period-btn {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.period-btn:hover { background: var(--bg-card-hover); color: var(--text-secondary); }
+
+.period-btn--active {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}

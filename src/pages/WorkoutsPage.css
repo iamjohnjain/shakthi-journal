@@ -17,12 +17,21 @@
 
 .log-workout-btn {
   display: flex; align-items: center; gap: 6px;
+  background: var(--bg-card); color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 9px 14px; font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.log-workout-btn:hover { background: var(--bg-card-hover); }
+
+.start-workout-btn {
+  display: flex; align-items: center; gap: 6px;
   background: var(--accent); color: #fff;
   border: none; border-radius: 10px;
   padding: 9px 16px; font-size: 14px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
 }
-.log-workout-btn:hover { opacity: .88; }
+.start-workout-btn:hover { opacity: .88; }
 
 /* ─── Calendar strip ──────────────────────────────────────────── */
 .workout-cal-strip {
@@ -131,6 +140,41 @@
   padding: 10px 20px; font-size: 14px; font-weight: 600;
   cursor: pointer; margin-top: 4px;
 }
+
+/* ─── First-time empty state ───────────────────────────────────── */
+.workouts-first-empty {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 48px 24px 40px; gap: 0;
+}
+.workouts-first-empty-icon {
+  width: 80px; height: 80px; border-radius: 24px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); margin-bottom: 20px;
+}
+.workouts-first-empty-title {
+  font-size: 20px; font-weight: 700; color: var(--text-primary);
+  margin: 0 0 10px; letter-spacing: -0.3px;
+}
+.workouts-first-empty-desc {
+  font-size: 14px; color: var(--text-secondary); line-height: 1.55;
+  margin: 0 0 28px; max-width: 320px;
+}
+.workouts-first-empty-cta {
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 12px;
+  padding: 13px 28px; font-size: 15px; font-weight: 600;
+  cursor: pointer; margin-bottom: 10px; width: 220px;
+}
+.workouts-first-empty-cta:active { opacity: 0.85; }
+.workouts-first-empty-secondary {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 12px;
+  padding: 11px 28px; font-size: 14px; font-weight: 500;
+  cursor: pointer; width: 220px;
+}
+.workouts-first-empty-secondary:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ─── Log Modal ───────────────────────────────────────────────── */
 .log-modal-overlay {

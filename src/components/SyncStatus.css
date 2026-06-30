@@ -21,14 +21,17 @@
 
 .sync-status:disabled { cursor: default; }
 
-.sync-status--synced   { color: var(--green); }
-.sync-status--syncing  { color: var(--blue); }
-.sync-status--offline  { color: var(--text-tertiary); }
-.sync-status--error    { color: var(--red); }
+.sync-status--synced            { color: var(--green); }
+.sync-status--syncing           { color: var(--blue); }
+.sync-status--offline           { color: var(--text-tertiary); }
+.sync-status--error             { color: var(--red); }
+.sync-status--needs_attention   { color: var(--yellow); }
+.sync-status--local_only        { color: var(--text-tertiary); }
 
 .sync-icon { flex-shrink: 0; }
 .sync-icon--ok      { color: var(--green); }
 .sync-icon--error   { color: var(--red); }
+.sync-icon--warn    { color: var(--yellow); }
 .sync-icon--offline { color: var(--text-tertiary); }
 .sync-icon--muted   { color: var(--text-tertiary); opacity: .5; }
 
@@ -36,3 +39,40 @@
 .sync-icon--spin { animation: spin .9s linear infinite; color: var(--blue); }
 
 .sync-status-label { line-height: 1; }
+
+/* ─── Inline row (Settings / Profile) ─────────────────────────────────────── */
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  transition: color .12s;
+}
+.sync-row:not(:disabled):hover { color: var(--text-primary); }
+.sync-row:disabled { cursor: default; }
+
+.sync-row-label { flex: 1; }
+
+.sync-row-action {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+.sync-row-action--warn { color: var(--yellow); font-weight: 600; }
+
+.sync-row--synced           { }
+.sync-row--syncing          { color: var(--blue); }
+.sync-row--error            { color: var(--red); }
+.sync-row--needs_attention  { color: var(--yellow); }
+.sync-row--offline          { color: var(--text-tertiary); }
+.sync-row--local_only       { color: var(--text-tertiary); }

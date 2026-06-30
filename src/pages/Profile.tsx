@@ -2,26 +2,18 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
-  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings,
+  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut,
 } from 'lucide-react'
-import { USER, kgToLbs, GOALS } from '../data/config'
+import { kgToLbs } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { getProfile, saveProfile } from '../db/profileStore'
 import { getDBStats } from '../db'
 import type { ProfileData } from '../db/profileStore'
+import { AvatarDisplay, AvatarPicker } from '../components/Avatar'
+import { useAuth } from '../context/AuthContext'
 import './Profile.css'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const GOALS_LIST = [
-  'Lean athletic physique · visible abs year-round',
-  'Dunk a basketball',
-  'Complete a marathon',
-  'Reach 12% body fat while maintaining muscle',
-  'Increase vertical jump by 6"',
-]
-
-const ACTIVITIES = ['Lifting', 'Basketball', 'Volleyball', 'Running', 'Walking', 'StairMaster', 'Cycling', 'Mobility']
 
 const DEVICES = [
   { name: 'Apple Watch', sub: 'Heart rate · steps · workouts · sleep', icon: Watch, status: 'via Apple Health' },
@@ -32,7 +24,8 @@ const DEVICES = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function daysSince(dateStr?: string) {
-  const start = new Date(dateStr ?? USER.startDate)
+  if (!dateStr) return null
+  const start = new Date(dateStr)
   const now = new Date()
   return Math.max(0, Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
 }
@@ -88,39 +81,46 @@ interface EditModalProps {
 
 function EditModal({ initial, onClose, onSave }: EditModalProps) {
   const fileRef = useRef<HTMLInputElement>(null)
-  const [name,           setName]           = useState(initial.name ?? USER.name)
-  const [heightCm,       setHeightCm]       = useState(initial.heightCm ?? USER.heightCm)
-  const [startDate,      setStartDate]      = useState(initial.startDate ?? USER.startDate)
-  const [startWeightLbs, setStartWeightLbs] = useState(initial.startWeightKg ? kgToLbs(initial.startWeightKg) : 212)
-  const [startBF,        setStartBF]        = useState(initial.startBodyFatPct ?? 19)
-  const [goalWeightLbs,  setGoalWeightLbs]  = useState(initial.goalWeightKg ? kgToLbs(initial.goalWeightKg) : 185)
-  const [goalBF,         setGoalBF]         = useState(initial.goalBodyFatPct ?? 12)
+  const [name,           setName]           = useState(initial.name ?? '')
+  const [heightCm,       setHeightCm]       = useState<number | ''>(initial.heightCm ?? '')
+  const [startDate,      setStartDate]      = useState(initial.startDate ?? '')
+  const [startWeightLbs, setStartWeightLbs] = useState<number | ''>(initial.startWeightKg ? kgToLbs(initial.startWeightKg) : '')
+  const [startBF,        setStartBF]        = useState<number | ''>(initial.startBodyFatPct ?? '')
+  const [goalWeightLbs,  setGoalWeightLbs]  = useState<number | ''>(initial.goalWeightKg ? kgToLbs(initial.goalWeightKg) : '')
+  const [goalBF,         setGoalBF]         = useState<number | ''>(initial.goalBodyFatPct ?? '')
   const [goalNotes,      setGoalNotes]      = useState(initial.goalNotes ?? '')
-  const [bio,            setBio]            = useState(initial.bio ?? 'Athlete in progress. Building toward a marathon, a dunk, and visible abs.')
+  const [bio,            setBio]            = useState(initial.bio ?? '')
   const [photo,          setPhoto]          = useState(initial.photoDataUrl ?? '')
+  const [avatarId,       setAvatarId]       = useState<string | undefined>(initial.avatarId)
   const [saving,         setSaving]         = useState(false)
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => setPhoto(ev.target?.result as string)
+    reader.onload = ev => { setPhoto(ev.target?.result as string); setAvatarId(undefined) }
     reader.readAsDataURL(file)
+  }
+
+  function handleAvatarSelect(id: string | undefined) {
+    setAvatarId(id)
+    if (id) setPhoto('') // animal avatar overrides photo
   }
 
   async function handleSave() {
     setSaving(true)
     await onSave({
-      name,
-      heightCm,
-      startDate,
-      startWeightKg: +(startWeightLbs / 2.20462).toFixed(2),
-      startBodyFatPct: startBF,
-      goalWeightKg: +(goalWeightLbs / 2.20462).toFixed(2),
-      goalBodyFatPct: goalBF,
+      name: name.trim() || 'User',
+      heightCm: heightCm !== '' ? Number(heightCm) : undefined,
+      startDate: startDate || undefined,
+      startWeightKg: startWeightLbs !== '' ? +(Number(startWeightLbs) / 2.20462).toFixed(2) : undefined,
+      startBodyFatPct: startBF !== '' ? Number(startBF) : undefined,
+      goalWeightKg: goalWeightLbs !== '' ? +(Number(goalWeightLbs) / 2.20462).toFixed(2) : undefined,
+      goalBodyFatPct: goalBF !== '' ? Number(goalBF) : undefined,
       goalNotes,
       bio,
       photoDataUrl: photo || undefined,
+      avatarId,
     })
     setSaving(false)
     onClose()
@@ -135,19 +135,25 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
         </div>
 
         <div className="profile-modal-body">
+          {/* Avatar / Photo selection */}
           <div className="profile-edit-photo-row">
             <div className="profile-edit-avatar" onClick={() => fileRef.current?.click()}>
               {photo
                 ? <img src={photo} alt="Profile" className="profile-edit-avatar-img" />
-                : <span className="profile-edit-avatar-letter">{name[0]?.toUpperCase()}</span>
+                : <AvatarDisplay name={name} avatarId={avatarId} size="lg" />
               }
               <div className="profile-edit-avatar-overlay"><Camera size={18} /></div>
             </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
-            {photo && (
-              <button className="profile-edit-remove-photo" onClick={() => setPhoto('')}>Remove photo</button>
-            )}
+            <div className="profile-edit-photo-actions">
+              <button className="profile-edit-upload-btn" onClick={() => fileRef.current?.click()}>Upload photo</button>
+              {(photo || avatarId) && (
+                <button className="profile-edit-remove-photo" onClick={() => { setPhoto(''); setAvatarId(undefined) }}>Remove</button>
+              )}
+            </div>
           </div>
+
+          <AvatarPicker selectedId={avatarId} onSelect={handleAvatarSelect} />
 
           <div className="profile-edit-grid">
             <div className="profile-edit-field">
@@ -156,7 +162,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
             </div>
             <div className="profile-edit-field">
               <label>Height (cm)</label>
-              <input type="number" value={heightCm} onChange={e => setHeightCm(Number(e.target.value))} />
+              <input type="number" value={heightCm} onChange={e => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Tracking since</label>
@@ -164,19 +170,19 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
             </div>
             <div className="profile-edit-field">
               <label>Starting weight (lbs)</label>
-              <input type="number" step="0.1" value={startWeightLbs} onChange={e => setStartWeightLbs(Number(e.target.value))} />
+              <input type="number" step="0.1" value={startWeightLbs} onChange={e => setStartWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Starting body fat %</label>
-              <input type="number" step="0.1" min="3" max="60" value={startBF} onChange={e => setStartBF(Number(e.target.value))} />
+              <input type="number" step="0.1" min="3" max="60" value={startBF} onChange={e => setStartBF(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Goal weight (lbs)</label>
-              <input type="number" step="0.1" value={goalWeightLbs} onChange={e => setGoalWeightLbs(Number(e.target.value))} />
+              <input type="number" step="0.1" value={goalWeightLbs} onChange={e => setGoalWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Goal body fat %</label>
-              <input type="number" step="0.1" min="3" max="60" value={goalBF} onChange={e => setGoalBF(Number(e.target.value))} />
+              <input type="number" step="0.1" min="3" max="60" value={goalBF} onChange={e => setGoalBF(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
           </div>
 
@@ -205,6 +211,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 
 export default function Profile() {
   const navigate = useNavigate()
+  const { mode, signOut } = useAuth()
   const { today } = useDashboardData()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [editing,     setEditing]     = useState(false)
@@ -221,31 +228,32 @@ export default function Profile() {
     setProfileData(updated)
   }
 
-  const name     = profileData?.name ?? USER.name
-  const bio      = profileData?.bio ?? 'Athlete in progress. Building toward a marathon, a dunk, and visible abs.'
-  const heightCm = profileData?.heightCm ?? USER.heightCm
+  const name     = profileData?.name ?? 'Guest'
+  const bio      = profileData?.bio ?? ''
+  const heightCm = profileData?.heightCm
   const photo    = profileData?.photoDataUrl
+  const avatarId = profileData?.avatarId
   const days     = daysSince(profileData?.startDate)
 
-  const startWeightLbs = profileData?.startWeightKg ? kgToLbs(profileData.startWeightKg) : 212
-  const startBF        = profileData?.startBodyFatPct ?? 19
-  const goalWeightLbs  = profileData?.goalWeightKg ? kgToLbs(profileData.goalWeightKg) : GOALS.targetWeightLbs
-  const goalBF         = profileData?.goalBodyFatPct ?? GOALS.targetBodyFatPct
+  const startWeightLbs = profileData?.startWeightKg ? kgToLbs(profileData.startWeightKg) : null
+  const startBF        = profileData?.startBodyFatPct ?? null
+  const goalWeightLbs  = profileData?.goalWeightKg ? kgToLbs(profileData.goalWeightKg) : null
+  const goalBF         = profileData?.goalBodyFatPct ?? null
   const goalNotes      = profileData?.goalNotes
 
   const currentWeightLbs = today.weight ? kgToLbs(today.weight) : undefined
   const currentBF        = today.bodyFatPct
 
-  const weightLost = currentWeightLbs != null ? +(startWeightLbs - currentWeightLbs).toFixed(1) : null
-  const bfLost     = currentBF != null ? +(startBF - currentBF).toFixed(1) : null
+  const weightLost = (currentWeightLbs != null && startWeightLbs != null) ? +(startWeightLbs - currentWeightLbs).toFixed(1) : null
+  const bfLost     = (currentBF != null && startBF != null) ? +(startBF - currentBF).toFixed(1) : null
 
   const milestones = [
-    {
+    ...(days != null ? [{
       icon: Calendar,
       color: 'var(--blue)',
       label: `${days} days tracked`,
-      sub: `Since ${new Date((profileData?.startDate ?? USER.startDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
-    },
+      sub: `Since ${new Date(profileData!.startDate! + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
+    }] : []),
     ...(weightLost != null && weightLost > 0 ? [{
       icon: TrendingDown,
       color: 'var(--green)',
@@ -283,12 +291,23 @@ export default function Profile() {
         />
       )}
 
-      {/* ── Mobile settings shortcut (hidden on desktop where sidebar has it) ── */}
+      {/* ── Mobile header bar: Settings + auth (hidden on desktop where sidebar has it) ── */}
       <div className="profile-mobile-header">
         <button className="profile-settings-btn" onClick={() => navigate('/settings')} aria-label="Settings">
           <Settings size={20} />
           <span>Settings</span>
         </button>
+        {mode === 'guest' ? (
+          <button className="profile-settings-btn profile-auth-btn" onClick={() => navigate('/auth')} aria-label="Sign in">
+            <LogIn size={20} />
+            <span>Sign in</span>
+          </button>
+        ) : mode === 'authenticated' ? (
+          <button className="profile-settings-btn profile-auth-btn profile-auth-btn--out" onClick={() => signOut()} aria-label="Sign out">
+            <LogOut size={20} />
+            <span>Sign out</span>
+          </button>
+        ) : null}
       </div>
 
       {/* ── Hero ── */}
@@ -296,21 +315,16 @@ export default function Profile() {
         <div className="profile-hero-bg" />
         <div className="profile-hero-content">
           <div className="profile-avatar-wrap">
-            {photo
-              ? <img src={photo} alt={name} className="profile-avatar profile-avatar--photo" />
-              : <div className="profile-avatar">{name[0]?.toUpperCase()}</div>
-            }
+            <AvatarDisplay name={name} avatarId={avatarId} photoDataUrl={photo} size="lg" />
             <button className="profile-avatar-edit-btn" onClick={() => setEditing(true)}>
               <Camera size={14} />
             </button>
           </div>
           <h1 className="profile-name">{name}</h1>
-          <p className="profile-bio">{bio}</p>
+          {bio && <p className="profile-bio">{bio}</p>}
           <div className="profile-meta-row">
-            <span className="profile-meta-chip">{cmToFeet(heightCm)}</span>
+            {heightCm && <span className="profile-meta-chip">{cmToFeet(heightCm)}</span>}
             {currentWeightLbs && <span className="profile-meta-chip">{currentWeightLbs} lbs</span>}
-            <span className="profile-meta-chip">{USER.gender}</span>
-            <span className="profile-meta-chip">Age {new Date().getFullYear() - USER.birthYear}</span>
           </div>
         </div>
         <button className="profile-edit-btn" onClick={() => setEditing(true)}>
@@ -340,7 +354,7 @@ export default function Profile() {
         {/* ── Progress toward goals ── */}
         <section className="profile-card">
           <h2 className="profile-card-title">Progress Toward Goals</h2>
-          {currentWeightLbs != null && (
+          {currentWeightLbs != null && startWeightLbs != null && goalWeightLbs != null && (
             <ProgressBar
               label="Weight"
               from={startWeightLbs}
@@ -351,7 +365,7 @@ export default function Profile() {
               colorGood="var(--blue)"
             />
           )}
-          {currentBF != null && (
+          {currentBF != null && startBF != null && goalBF != null && (
             <ProgressBar
               label="Body Fat"
               from={startBF}
@@ -369,49 +383,71 @@ export default function Profile() {
         </section>
 
         {/* ── Baseline ── */}
+        {(startWeightLbs != null || startBF != null || goalWeightLbs != null || goalBF != null) && (
         <section className="profile-card">
           <h2 className="profile-card-title">Starting Baseline</h2>
           <div className="profile-baseline-grid">
-            <div className="profile-baseline-item">
-              <span className="profile-baseline-val">{startWeightLbs} lbs</span>
-              <span className="profile-baseline-label">Start weight</span>
-            </div>
-            <div className="profile-baseline-item">
-              <span className="profile-baseline-val">{startBF}%</span>
-              <span className="profile-baseline-label">Start body fat</span>
-            </div>
-            <div className="profile-baseline-item">
-              <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalWeightLbs} lbs</span>
-              <span className="profile-baseline-label">Goal weight</span>
-            </div>
-            <div className="profile-baseline-item">
-              <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalBF}%</span>
-              <span className="profile-baseline-label">Goal body fat</span>
-            </div>
+            {startWeightLbs != null && (
+              <div className="profile-baseline-item">
+                <span className="profile-baseline-val">{startWeightLbs} lbs</span>
+                <span className="profile-baseline-label">Start weight</span>
+              </div>
+            )}
+            {startBF != null && (
+              <div className="profile-baseline-item">
+                <span className="profile-baseline-val">{startBF}%</span>
+                <span className="profile-baseline-label">Start body fat</span>
+              </div>
+            )}
+            {goalWeightLbs != null && (
+              <div className="profile-baseline-item">
+                <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalWeightLbs} lbs</span>
+                <span className="profile-baseline-label">Goal weight</span>
+              </div>
+            )}
+            {goalBF != null && (
+              <div className="profile-baseline-item">
+                <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalBF}%</span>
+                <span className="profile-baseline-label">Goal body fat</span>
+              </div>
+            )}
           </div>
         </section>
+        )}
 
         {/* ── Primary Goals ── */}
-        <section className="profile-card">
-          <h2 className="profile-card-title">Primary Goals</h2>
-          <ul className="profile-goals-list">
-            {GOALS_LIST.map(g => (
-              <li key={g} className="profile-goal-item">
-                <CheckCircle2 size={15} className="profile-goal-icon" />
-                <span>{g}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {(goalNotes || profileData?.activityLevel) && (
+          <section className="profile-card">
+            <h2 className="profile-card-title">Goals &amp; Activity</h2>
+            {goalNotes && (
+              <ul className="profile-goals-list">
+                {goalNotes.split(',').map(g => g.trim()).filter(Boolean).map(g => (
+                  <li key={g} className="profile-goal-item">
+                    <CheckCircle2 size={15} className="profile-goal-icon" />
+                    <span style={{ textTransform: 'capitalize' }}>{g.replace(/-/g, ' ')}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {profileData?.activityLevel && (
+              <p className="profile-no-data" style={{ marginTop: goalNotes ? 10 : 0 }}>
+                Activity level: <strong style={{ color: 'var(--text-primary)' }}>
+                  {profileData.activityLevel.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                </strong>
+              </p>
+            )}
+          </section>
+        )}
 
-        {/* ── Activities ── */}
+        {/* ── Setup ── */}
         <section className="profile-card">
-          <h2 className="profile-card-title">Favorite Activities</h2>
-          <div className="profile-activity-chips">
-            {ACTIVITIES.map(a => (
-              <span key={a} className="profile-activity-chip">{a}</span>
-            ))}
-          </div>
+          <button
+            className="profile-setup-again-btn"
+            onClick={() => navigate('/onboarding?edit=1')}
+          >
+            <Settings size={16} />
+            Run Setup Again
+          </button>
         </section>
 
         {/* ── Connected Devices ── */}

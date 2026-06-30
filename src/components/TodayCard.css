@@ -1,0 +1,124 @@
+.today-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xl);
+  padding: 22px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fadeIn 0.35s ease both;
+}
+
+.today-card-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.today-card-headline {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+
+/* Insight chips ───────────────────────────────────────────── */
+
+.today-insights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.today-insight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--r-lg);
+  padding: 8px 12px 8px 10px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  text-align: left;
+  min-width: 0;
+}
+
+.today-insight:hover {
+  opacity: 0.82;
+  transform: translateY(-1px);
+}
+
+.today-insight:active {
+  transform: translateY(0);
+  opacity: 0.7;
+}
+
+.today-insight-emoji {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.today-insight-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.today-insight-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  line-height: 1.2;
+}
+
+.today-insight-value {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status variants ─────────────────────────────────────────── */
+
+.today-insight--excellent {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--green);
+}
+
+.today-insight--good {
+  background: color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--blue);
+}
+
+.today-insight--warning {
+  background: color-mix(in srgb, var(--orange) 14%, transparent);
+  color: var(--orange);
+}
+
+.today-insight--action {
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  color: var(--red);
+}
+
+.today-insight--neutral {
+  background: var(--bg-card-hover);
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-card,
+  .today-insight {
+    animation: none;
+    transition: none;
+  }
+}

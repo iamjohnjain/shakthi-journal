@@ -4,8 +4,6 @@ import type {
   ExerciseLibraryEntry, WorkoutSession, CardioEntry,
 } from './index'
 import { getRecentWorkouts } from './workoutStore'
-import { USER } from '../data/config'
-
 export type { TrainingProfile, WorkoutPlan, WorkoutPlanDay, ExerciseLibraryEntry, CardioEntry }
 
 // ─── Calorie estimation ───────────────────────────────────────────────────────
@@ -52,6 +50,7 @@ export function estimateWorkoutCalories(
     distanceKm?: number
     importedCalories?: number
     manualCalories?: number
+    ageYears?: number
   } = {}
 ): CalorieEstimate {
   if (opts.manualCalories) {
@@ -61,8 +60,8 @@ export function estimateWorkoutCalories(
     return { calories: Math.round(opts.importedCalories), confidence: 'high', method: 'imported', source: 'Apple Health', label: 'IMPORTED' }
   }
   if (opts.avgHeartRate && opts.avgHeartRate > 50) {
-    // Keytel formula for males
-    const age = new Date().getFullYear() - USER.birthYear
+    // Keytel formula for males — use provided age or 30 as a generic athletic adult default
+    const age = opts.ageYears ?? 30
     const kcal = ((-55.0969 + 0.6309 * opts.avgHeartRate + 0.1988 * bodyWeightKg + 0.2017 * age) / 4.184) * durationMin
     return { calories: Math.round(Math.max(kcal, 0)), confidence: 'high', method: 'heart-rate', source: 'Apple Watch', label: 'IMPORTED' }
   }

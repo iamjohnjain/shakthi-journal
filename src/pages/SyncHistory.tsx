@@ -7,59 +7,6 @@ import './SyncHistory.css'
 
 type SyncEntry = ShakthiDB['sync_history']['value']
 
-// ─── Seeded mock history so the page isn't empty ──────────────────────────────
-
-const MOCK_HISTORY: SyncEntry[] = [
-  {
-    id: 'mock-1',
-    sourceId: 'apple_health',
-    sourceName: 'Apple Health',
-    status: 'success',
-    recordCount: 842,
-    dataTypes: ['Steps', 'Heart Rate', 'HRV', 'Sleep', 'Workouts'],
-    dataMode: 'mock',
-    startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    completedAt: new Date(Date.now() - 2 * 60 * 60 * 1000 + 1200).toISOString(),
-    durationMs: 1200,
-  },
-  {
-    id: 'mock-2',
-    sourceId: 'renpho',
-    sourceName: 'RENPHO',
-    status: 'success',
-    recordCount: 4,
-    dataTypes: ['Weight', 'Body Fat', 'Muscle Mass', 'BMI'],
-    dataMode: 'mock',
-    startedAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-    completedAt: new Date(Date.now() - 26 * 60 * 60 * 1000 + 480).toISOString(),
-    durationMs: 480,
-  },
-  {
-    id: 'mock-3',
-    sourceId: 'myfitnesspal',
-    sourceName: 'MyFitnessPal',
-    status: 'success',
-    recordCount: 5,
-    dataTypes: ['Calories In', 'Protein', 'Carbs', 'Fat'],
-    dataMode: 'mock',
-    startedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    completedAt: new Date(Date.now() - 5 * 60 * 60 * 1000 + 600).toISOString(),
-    durationMs: 600,
-  },
-  {
-    id: 'mock-4',
-    sourceId: 'renpho',
-    sourceName: 'RENPHO',
-    status: 'failed',
-    recordCount: 0,
-    dataTypes: ['Weight'],
-    dataMode: 'mock',
-    startedAt: new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString(),
-    completedAt: new Date(Date.now() - 50 * 60 * 60 * 1000 + 200).toISOString(),
-    durationMs: 200,
-    error: 'File format invalid — expected CSV, received XLSX',
-  },
-]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -191,7 +138,7 @@ function SyncRow({ entry }: { entry: SyncEntry }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 type StatusFilter = 'all' | 'success' | 'failed'
-type ModeFilter   = 'all' | 'imported' | 'mock' | 'manual' | 'live'
+type ModeFilter   = 'all' | 'imported' | 'manual' | 'live'
 type SourceFilter = 'all' | string
 
 const ALL_SOURCES = [
@@ -210,15 +157,13 @@ export default function SyncHistory() {
   const [clearing,     setClearing]     = useState(false)
 
   useEffect(() => {
-    getSyncHistory().then(real => {
-      setEntries(real.length > 0 ? real : MOCK_HISTORY)
-    })
+    getSyncHistory().then(setEntries)
   }, [])
 
   async function handleClear() {
     setClearing(true)
     await clearSyncHistory()
-    setEntries(MOCK_HISTORY)
+    setEntries([])
     setClearing(false)
   }
 
@@ -232,7 +177,6 @@ export default function SyncHistory() {
   const successCount = entries.filter(e => e.status === 'success').length
   const failedCount  = entries.filter(e => e.status === 'failed').length
   const totalRecords = entries.filter(e => e.status === 'success').reduce((n, e) => n + e.recordCount, 0)
-  const mockCount    = entries.filter(e => e.dataMode === 'mock').length
 
   return (
     <div className="sync-history-page">
@@ -261,21 +205,7 @@ export default function SyncHistory() {
           <span className="sync-stat-num">{totalRecords.toLocaleString()}</span>
           <span className="sync-stat-label">Records imported</span>
         </div>
-        {mockCount > 0 && (
-          <div className="sync-stat">
-            <span className="sync-stat-num" style={{ color: 'var(--yellow)' }}>{mockCount}</span>
-            <span className="sync-stat-label">Mock entries</span>
-          </div>
-        )}
       </div>
-
-      {/* Mock note */}
-      {mockCount > 0 && (
-        <div className="sync-mock-note">
-          <DataBadge mode="mock" />
-          <span>These entries are simulated — no real sync has occurred. They'll be replaced when you import real data.</span>
-        </div>
-      )}
 
       {/* Status filter */}
       <div className="sync-filters">
@@ -305,7 +235,7 @@ export default function SyncHistory() {
         ))}
 
         <span className="sync-filter-label sync-filter-label--mode">Mode:</span>
-        {(['all', 'imported', 'manual', 'mock'] as ModeFilter[]).map(m => (
+        {(['all', 'imported', 'manual'] as ModeFilter[]).map(m => (
           <button key={m} className={`sync-filter-btn ${modeFilter === m ? 'active' : ''}`} onClick={() => setModeFilter(m)}>
             {m.charAt(0).toUpperCase() + m.slice(1)}
           </button>
@@ -322,16 +252,23 @@ export default function SyncHistory() {
       </div>
 
       {/* Rows */}
-      <div className="sync-rows">
-        {filtered.length === 0 ? (
-          <div className="sync-empty">
-            <RefreshCw size={24} style={{ color: 'var(--text-tertiary)' }} />
-            <p>No matching sync entries.</p>
-          </div>
-        ) : (
-          filtered.map(e => <SyncRow key={e.id} entry={e} />)
-        )}
-      </div>
+      {entries.length === 0 ? (
+        <div className="sync-empty">
+          <RefreshCw size={28} style={{ color: 'var(--text-tertiary)', opacity: 0.4 }} />
+          <p>No import history yet.</p>
+          <span>Import Apple Health data to see your sync history here.</span>
+        </div>
+      ) : (
+        <div className="sync-rows">
+          {filtered.length === 0 ? (
+            <div className="sync-empty">
+              <p>No entries match the current filters.</p>
+            </div>
+          ) : (
+            filtered.map(e => <SyncRow key={e.id} entry={e} />)
+          )}
+        </div>
+      )}
     </div>
   )
 }

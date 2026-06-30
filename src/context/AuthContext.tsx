@@ -42,8 +42,8 @@ interface AuthContextValue {
 
   signInWithEmail:    (email: string, password: string) => Promise<void>
   signUpWithEmail:    (email: string, password: string) => Promise<void>
-  signInWithGoogle:   () => Promise<void>
-  signInWithApple:    () => Promise<void>
+  signInWithGoogle:   (redirectTo?: string) => Promise<void>
+  signInWithApple:    (redirectTo?: string) => Promise<void>
   signOut:            () => Promise<void>
   continueAsGuest:    () => void
   resolveMerge:       (choice: MergeChoice) => Promise<void>
@@ -134,8 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
-      // No Supabase → always guest
       setMode('guest')
+      syncEngine.markLocalOnly()
       return
     }
 
@@ -183,20 +183,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }, [])
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (redirectTo?: string) => {
     if (!supabase) throw new Error('Supabase not configured')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: redirectTo ?? `${window.location.origin}/auth/callback` },
     })
     if (error) throw error
   }, [])
 
-  const signInWithApple = useCallback(async () => {
+  const signInWithApple = useCallback(async (redirectTo?: string) => {
     if (!supabase) throw new Error('Supabase not configured')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: redirectTo ?? `${window.location.origin}/auth/callback` },
     })
     if (error) throw error
   }, [])

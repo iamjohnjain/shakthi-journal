@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Upload, CheckCircle, AlertCircle, Loader, ChevronRight,
   Calendar, Hash, Database, FileText, Info, ArrowLeft,
+  Heart, Share2,
 } from 'lucide-react'
 import { parseAppleHealthFile, type ParsePreview } from '../parsers/appleHealthParser'
 import { storeMetrics } from '../db/healthStore'
@@ -222,15 +223,9 @@ function DoneScreen({ preview, onImportAnother }: { preview: ParsePreview; onImp
       <p className="done-sub">
         {preview.metrics.length.toLocaleString()} records imported from {preview.fileName}
       </p>
-      <div className="done-note">
-        Turn off <strong>Mock Data Mode</strong> in Settings to see your real data on the Dashboard.
-      </div>
       <div className="done-actions">
         <button className="btn-confirm" onClick={() => navigate('/')}>
           View Dashboard
-        </button>
-        <button className="btn-back" onClick={() => navigate('/settings')}>
-          Go to Settings
         </button>
         <button className="btn-text" onClick={onImportAnother}>
           Import another file
@@ -314,22 +309,45 @@ export default function ImportAppleHealth() {
         </div>
       </header>
 
-      {/* How to export — always visible */}
-      <div className="import-ah-instructions">
-        <h3>How to export from your iPhone</h3>
-        <ol>
-          <li>Open the <strong>Health</strong> app on your iPhone</li>
-          <li>Tap your profile photo (top right)</li>
-          <li>Scroll down → tap <strong>Export All Health Data</strong></li>
-          <li>Share the ZIP to your Mac (AirDrop, iCloud Drive, email)</li>
-          <li>Unzip the archive on your Mac</li>
-          <li>Upload the <strong>export.xml</strong> file here</li>
-        </ol>
-        <p className="import-ah-note">
-          The ZIP contains <code>export.xml</code> plus workout routes. Only <code>export.xml</code> is needed here.
-          Large exports (years of Apple Watch data) can be 50MB+ and may take 20–30 seconds to parse.
-        </p>
-      </div>
+      {/* Step-by-step guide */}
+      {step === 'drop' && (
+        <div className="import-steps">
+          <div className="import-step">
+            <div className="import-step-badge">
+              <Heart size={16} />
+            </div>
+            <div className="import-step-body">
+              <h3 className="import-step-title">Open Apple Health</h3>
+              <p className="import-step-desc">On your iPhone, open the <strong>Health</strong> app. Tap your profile photo in the top-right corner.</p>
+            </div>
+          </div>
+
+          <div className="import-step-connector" aria-hidden="true" />
+
+          <div className="import-step">
+            <div className="import-step-badge">
+              <Share2 size={16} />
+            </div>
+            <div className="import-step-body">
+              <h3 className="import-step-title">Export your data</h3>
+              <p className="import-step-desc">Scroll down and tap <strong>Export All Health Data</strong>. Share the ZIP file to your Mac via AirDrop, iCloud Drive, or email. Unzip the archive.</p>
+            </div>
+          </div>
+
+          <div className="import-step-connector" aria-hidden="true" />
+
+          <div className="import-step">
+            <div className="import-step-badge">
+              <Upload size={16} />
+            </div>
+            <div className="import-step-body">
+              <h3 className="import-step-title">Upload export.xml</h3>
+              <p className="import-step-desc">From the unzipped folder, select <code>export.xml</code> below. Only this file is needed — not workout routes.</p>
+              <p className="import-step-note">Large exports (years of Watch data) can be 50 MB+ and may take 20–30 seconds to process.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Parse error */}
       {parseError && (

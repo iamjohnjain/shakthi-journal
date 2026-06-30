@@ -2,47 +2,65 @@
 
 .import-ah-page { max-width: 680px; }
 
-/* How-to instructions */
-.import-ah-instructions {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-lg);
-  padding: 20px 24px;
-  margin-bottom: 24px;
-}
-
-.import-ah-instructions h3 {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin-bottom: 12px;
-}
-
-.import-ah-instructions ol {
-  padding-left: 20px;
+/* Step cards */
+.import-steps {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 28px;
 }
 
-.import-ah-instructions li {
+.import-step {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 20px 0;
+}
+
+.import-step-connector {
+  width: 2px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin-left: 19px;
+  flex-shrink: 0;
+}
+
+.import-step-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue);
+  flex-shrink: 0;
+}
+
+.import-step-body {
+  flex: 1;
+  padding-top: 8px;
+}
+
+.import-step-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.import-step-desc {
   font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 0;
 }
 
-.import-ah-instructions strong { color: var(--text-primary); }
-
-.import-ah-note {
-  font-size: 11px;
+.import-step-note {
+  font-size: 12px;
   color: var(--text-tertiary);
   line-height: 1.5;
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 10px;
-  margin-top: 4px;
+  margin: 8px 0 0;
 }
 
 code {

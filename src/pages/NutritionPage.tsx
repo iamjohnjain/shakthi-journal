@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, X, Pencil } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Trash2, X, Pencil, UtensilsCrossed } from 'lucide-react'
 import {
   addNutritionEntry, deleteNutritionEntry, updateNutritionEntry,
-  getEntriesForDate, getDailyTotals, QUICK_FOODS,
+  getEntriesForDate, getDailyTotals, getNutritionEntryCount, QUICK_FOODS,
 } from '../db/nutritionStore'
 import type { NutritionEntry } from '../db/nutritionStore'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
-import { getLog, saveLog } from '../db/logStore'
+// logStore removed — water logging retired
 import './NutritionPage.css'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
 
 function MacroBar({ label, value, goal, color }: { label: string; value: number; goal: number; color: string }) {
+  if (goal <= 0) return null
   const pct = Math.min(100, Math.round(value / goal * 100))
   const remaining = Math.max(0, goal - value)
   return (
@@ -182,34 +184,32 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NutritionPage() {
+  const navigate = useNavigate()
   const { mealIds, activeMealLabels, goals, loaded } = useNutritionSettings()
   const [entries,       setEntries]      = useState<NutritionEntry[]>([])
   const [totals,        setTotals]       = useState({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, entryCount: 0 })
   const [showModal,     setShowModal]    = useState(false)
   const [editEntry,     setEditEntry]    = useState<NutritionEntry | null>(null)
   const [addToMealId,   setAddToMealId]  = useState<string | undefined>()
-  const [waterMl,       setWaterMl]      = useState(0)
+  const [hasEverLogged, setHasEverLogged] = useState<boolean | null>(null)
   const date = todayStr()
 
   const load = useCallback(async () => {
-    const [all, t, log] = await Promise.all([getEntriesForDate(date), getDailyTotals(date), getLog(date)])
+    const [all, t] = await Promise.all([getEntriesForDate(date), getDailyTotals(date)])
     setEntries(all)
     setTotals(t)
-    setWaterMl(log?.waterMl ?? 0)
   }, [date])
 
   useEffect(() => { load() }, [load])
 
-  async function addWater(ml: number) {
-    const newTotal = waterMl + ml
-    setWaterMl(newTotal)
-    const existing = await getLog(date)
-    await saveLog({ ...(existing ?? {}), date, waterMl: newTotal })
-  }
+  useEffect(() => {
+    getNutritionEntryCount().then(c => setHasEverLogged(c > 0))
+  }, [])
 
   async function handleDelete(id: string) {
     await deleteNutritionEntry(id)
     load()
+    getNutritionEntryCount().then(c => setHasEverLogged(c > 0))
   }
 
   function openAdd(mealId?: string) {
@@ -273,8 +273,8 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      {/* Smart nutrition callout */}
-      {protPct < 100 && (() => {
+      {/* Smart nutrition callout — only when there's something logged */}
+      {entries.length > 0 && protPct < 100 && (() => {
         const remaining = Math.max(0, goals.proteinG - Math.round(totals.proteinG))
         const suggestion = remaining <= 31
           ? `${remaining}g remaining — one chicken breast gets you there`
@@ -290,26 +290,31 @@ export default function NutritionPage() {
         )
       })()}
 
-      {/* Water quick-add */}
-      <div className="water-card">
-        <div className="water-card-header">
-          <div className="water-card-info">
-            <span className="water-card-label">💧 Water</span>
-            <span className="water-card-total">
-              {(waterMl / 1000).toFixed(1)}L <span className="water-card-goal">/ {(goals.waterMl / 1000).toFixed(1)}L</span>
-            </span>
+      {/* First-time empty state */}
+      {loaded && hasEverLogged === false && (
+        <div className="nutrition-first-empty">
+          <div className="nutrition-first-empty-icon">
+            <UtensilsCrossed size={40} />
           </div>
-          <span className="water-card-pct">{Math.min(100, Math.round(waterMl / goals.waterMl * 100))}%</span>
+          <h2 className="nutrition-first-empty-title">Start tracking your nutrition</h2>
+          <p className="nutrition-first-empty-desc">
+            Log meals to see your calories, protein, and macros compared to your daily goals.
+            Your progress summary above will fill in as you eat.
+          </p>
+          <button
+            className="nutrition-first-empty-cta"
+            onClick={() => { setAddToMealId(undefined); setEditEntry(null); setShowModal(true) }}
+          >
+            Log first meal
+          </button>
+          <button
+            className="nutrition-first-empty-secondary"
+            onClick={() => navigate('/settings')}
+          >
+            Set nutrition goals
+          </button>
         </div>
-        <div className="water-track">
-          <div className="water-fill" style={{ width: `${Math.min(100, waterMl / goals.waterMl * 100)}%` }} />
-        </div>
-        <div className="water-btns">
-          {[250, 500, 750, 1000].map(ml => (
-            <button key={ml} className="water-btn" onClick={() => addWater(ml)}>+{ml}ml</button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Meal groups */}
       {mealIds.map((id, i) => {
@@ -393,7 +398,7 @@ export default function NutritionPage() {
           existing={editEntry ?? undefined}
           defaultMealId={addToMealId}
           onClose={() => { setShowModal(false); setEditEntry(null) }}
-          onSaved={load} />
+          onSaved={() => { load(); setHasEverLogged(true) }} />
       )}
     </div>
   )

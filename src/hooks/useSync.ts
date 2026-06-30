@@ -19,12 +19,14 @@ export function useSync() {
 
 export function syncStatusLabel(s: SyncStatus): string {
   switch (s.type) {
-    case 'idle':            return 'Not synced'
-    case 'syncing':         return s.detail ?? 'Syncing…'
-    case 'synced':          return `Synced ${fmtRelative(s.at)}`
-    case 'offline':         return 'Offline'
-    case 'error':           return `Sync failed`
-    case 'unauthenticated': return 'Sign in to sync'
+    case 'idle':              return 'Not synced'
+    case 'syncing':           return s.detail ?? 'Syncing…'
+    case 'synced':            return `Synced ${fmtRelative(s.at)}`
+    case 'offline':           return 'Offline'
+    case 'error':             return 'Sync failed'
+    case 'unauthenticated':   return 'Sign in to sync'
+    case 'local_only':        return 'Local only'
+    case 'needs_attention':   return `${s.failed} failed — tap to retry`
   }
 }
 

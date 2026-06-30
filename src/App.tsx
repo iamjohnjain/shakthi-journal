@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Heart, User, Footprints, Clock, Download } from 'lucide-react'
+import { Heart, User, Footprints, Download } from 'lucide-react'
 
 import { AuthProvider } from './context/AuthContext'
 import AuthGate from './components/AuthGate'
@@ -28,10 +28,12 @@ import ExerciseLibraryPage from './pages/ExerciseLibraryPage'
 import WorkoutProgressPage from './pages/WorkoutProgressPage'
 import WorkoutTemplatesPage from './pages/WorkoutTemplatesPage'
 import RecoveryPage from './pages/RecoveryPage'
+import Timeline from './pages/Timeline'
 import BackupRestorePage from './pages/BackupRestorePage'
 import AuthPage from './pages/AuthPage'
 import MergeDialog from './pages/MergeDialog'
 import OnboardingPage from './pages/OnboardingPage'
+import SyncTestPage from './pages/SyncTestPage'
 
 import './styles/globals.css'
 
@@ -69,6 +71,7 @@ export default function App() {
           <Route path="/settings/backup" element={<BackupRestorePage />} />
           <Route path="/dashboard-settings" element={<DashboardSettings />} />
           <Route path="/dev" element={<DevDiagnostics />} />
+          <Route path="/dev/sync-test" element={<SyncTestPage />} />
 
           {/* Core health pages */}
           <Route path="/health" element={<ComingSoon icon={Heart} title="Health Overview" description="A unified view of all your health metrics — heart rate, HRV, VO2 max, blood work, and more." accentColor="var(--red)" />} />
@@ -91,7 +94,7 @@ export default function App() {
           {/* Stubs — not in main nav, accessible via direct link */}
           <Route path="/body" element={<ComingSoon icon={User} title="Body Composition" description="Weight, body fat %, muscle mass, and visceral fat history from your RENPHO scale." accentColor="var(--teal)" />} />
           <Route path="/running" element={<ComingSoon icon={Footprints} title="Running" description="Pace, distance, heart rate zones, and GPS routes from Strava and Apple Health." accentColor="var(--orange)" />} />
-          <Route path="/timeline" element={<ComingSoon icon={Clock} title="Timeline" description="A chronological feed of every workout, weigh-in, sleep, and milestone." accentColor="var(--blue)" />} />
+          <Route path="/timeline" element={<Timeline />} />
           <Route path="/import2" element={<ComingSoon icon={Download} title="Import Data" description="" />} />
         </Route>
       </Routes>

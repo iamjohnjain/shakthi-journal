@@ -28,6 +28,9 @@ export interface DailyLog {
 export interface ProfileData {
   id: 'main'
   name: string
+  dob?: string           // 'YYYY-MM-DD'
+  sex?: 'male' | 'female' | 'other'
+  activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active'
   heightCm?: number
   startDate?: string
   startWeightKg?: number
@@ -36,7 +39,8 @@ export interface ProfileData {
   goalBodyFatPct?: number
   goalNotes?: string
   bio?: string
-  photoDataUrl?: string
+  photoDataUrl?: string  // base64 data URL for custom photo upload
+  avatarId?: string      // 'lion' | 'tiger' | 'bull' | 'wolf' | 'eagle' | 'bear'
   updatedAt: string
 }
 
@@ -182,6 +186,83 @@ export interface NutritionGoals {
   macroFirstMode: boolean
 }
 
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+
+export interface WeeklyReview {
+  id: string              // `week_${weekStart}`
+  weekStart: string       // YYYY-MM-DD (Monday)
+  weekEnd: string         // YYYY-MM-DD (Sunday)
+  generatedAt: string
+  summary: string         // 2–4 sentence narrative
+  stats: {
+    workoutCount: number
+    avgSleepHours: number | null
+    avgHrvMs: number | null
+    avgProteinG: number | null
+    avgCaloriesIn: number | null
+    weightStartKg: number | null
+    weightEndKg: number | null
+    weightChangeLbs: number | null
+  }
+  workoutConsistencyPct: number
+  nutritionConsistencyPct: number
+  recoveryConsistencyPct: number
+  biggestWin: string | null
+  biggestChallenge: string | null
+  recommendations: string[]
+  confidence: 'high' | 'medium' | 'low'
+}
+
+export interface MonthlyReview {
+  id: string           // `month_${YYYY-MM}`
+  month: string        // YYYY-MM
+  generatedAt: string
+  summary: string
+  stats: {
+    workoutCount: number
+    avgSleepHours: number | null
+    avgHrvMs: number | null
+    avgProteinG: number | null
+    avgCaloriesIn: number | null
+    weightStartKg: number | null
+    weightEndKg: number | null
+    weightChangeLbs: number | null
+    bestLiftPR: { exercise: string; weightLbs: number } | null
+  }
+  consistencyScore: number  // 0-100 composite
+  milestones: string[]
+  streaks: Array<{ name: string; days: number }>
+  confidence: 'high' | 'medium' | 'low'
+}
+
+// ─── Achievement ──────────────────────────────────────────────────────────────
+
+export interface Achievement {
+  id: string
+  type: string
+  title: string
+  description: string
+  emoji: string
+  unlockedAt: string    // ISO
+  value?: number        // e.g. workout count, streak days, weight
+}
+
+// ─── Coach Memory ─────────────────────────────────────────────────────────────
+
+export interface CoachMemory {
+  id: 'main'
+  updatedAt: string
+  preferredWorkoutDays: number[]        // 0=Sun…6=Sat, top-3 from history
+  avgSleepHours: number | null
+  avgHrvMs: number | null
+  avgProteinG: number | null
+  totalWorkouts: number
+  longestWorkoutStreak: number
+  longestProteinStreak: number
+  recurringStruggles: Array<{ type: string; lastSeen: string; count: number }>
+  recurringWins: Array<{ type: string; lastSeen: string; count: number }>
+}
+
 // ─── Sync queue ───────────────────────────────────────────────────────────────
 
 export interface SyncQueueEntry {
@@ -316,12 +397,35 @@ export interface ShakthiDB extends DBSchema {
       'by-store': string
     }
   }
+
+  weekly_reviews: {
+    key: string           // weekStart YYYY-MM-DD
+    value: WeeklyReview
+    indexes: { 'by-generated': string }
+  }
+
+  monthly_reviews: {
+    key: string           // month YYYY-MM
+    value: MonthlyReview
+    indexes: { 'by-generated': string }
+  }
+
+  achievements: {
+    key: string           // achievement id
+    value: Achievement
+    indexes: { 'by-type': string; 'by-date': string }
+  }
+
+  coach_memory: {
+    key: string           // 'main'
+    value: CoachMemory
+  }
 }
 
 // ─── Database singleton ───────────────────────────────────────────────────────
 
 const DB_NAME = 'shakthi-journal'
-const DB_VERSION = 6
+const DB_VERSION = 7
 
 let _db: IDBPDatabase<ShakthiDB> | null = null
 
@@ -383,6 +487,21 @@ export async function getDB(): Promise<IDBPDatabase<ShakthiDB>> {
         const q = db.createObjectStore('sync_queue', { keyPath: 'id' })
         q.createIndex('by-user', 'userId')
         q.createIndex('by-store', 'store')
+      }
+
+      // v6 → v7: weekly/monthly reviews, achievements, coach memory
+      if (oldVersion < 7) {
+        const wr = db.createObjectStore('weekly_reviews', { keyPath: 'id' })
+        wr.createIndex('by-generated', 'generatedAt')
+
+        const mr = db.createObjectStore('monthly_reviews', { keyPath: 'id' })
+        mr.createIndex('by-generated', 'generatedAt')
+
+        const ach = db.createObjectStore('achievements', { keyPath: 'id' })
+        ach.createIndex('by-type', 'type')
+        ach.createIndex('by-date', 'unlockedAt')
+
+        db.createObjectStore('coach_memory', { keyPath: 'id' })
       }
     },
   })

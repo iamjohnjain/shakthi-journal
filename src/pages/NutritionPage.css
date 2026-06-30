@@ -138,6 +138,41 @@
   transform: scale(0.97);
 }
 
+/* ─── First-time empty state ─────────────────────────────────── */
+.nutrition-first-empty {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 36px 20px 32px; gap: 0;
+}
+.nutrition-first-empty-icon {
+  width: 76px; height: 76px; border-radius: 22px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--green) 18%, transparent), color-mix(in srgb, var(--green) 8%, transparent));
+  border: 1px solid color-mix(in srgb, var(--green) 22%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--green); margin-bottom: 18px;
+}
+.nutrition-first-empty-title {
+  font-size: 19px; font-weight: 700; color: var(--text-primary);
+  margin: 0 0 10px; letter-spacing: -0.3px;
+}
+.nutrition-first-empty-desc {
+  font-size: 14px; color: var(--text-secondary); line-height: 1.55;
+  margin: 0 0 24px; max-width: 310px;
+}
+.nutrition-first-empty-cta {
+  background: var(--green); color: #fff;
+  border: none; border-radius: 12px;
+  padding: 12px 28px; font-size: 15px; font-weight: 600;
+  cursor: pointer; margin-bottom: 10px; width: 220px;
+}
+.nutrition-first-empty-cta:active { opacity: 0.85; }
+.nutrition-first-empty-secondary {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 12px;
+  padding: 10px 28px; font-size: 14px; font-weight: 500;
+  cursor: pointer; width: 220px;
+}
+.nutrition-first-empty-secondary:hover { border-color: var(--green); color: var(--green); }
+
 /* ─── Meal sections ───────────────────────────────────────────── */
 .meal-section { margin-bottom: 20px; }
 .meal-section-header {

@@ -17,7 +17,7 @@ function daysAgo(n: number): string {
 
 export const mockAppleHealthExport: AppleHealthExport = {
   exportDate: new Date().toISOString(),
-  deviceName: "John's Apple Watch Ultra",
+  deviceName: "Demo Apple Watch",
   records: [
     { type: 'HKQuantityTypeIdentifierHeartRate', value: 58, unit: 'count/min', startDate: daysAgo(0), endDate: daysAgo(0), sourceName: 'Apple Watch' },
     { type: 'HKQuantityTypeIdentifierRestingHeartRate', value: 52, unit: 'count/min', startDate: daysAgo(0), endDate: daysAgo(0), sourceName: 'Apple Watch' },

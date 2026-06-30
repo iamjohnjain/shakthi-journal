@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Link2, History, Download as DownloadIcon, Upload,
   FlaskConical, Database, Shield, ShieldCheck, ChevronRight, Trash2,
-  ToggleLeft, ToggleRight, Smartphone, LayoutDashboard, Ruler,
-  Cloud, LogOut, RefreshCw, User,
+  Smartphone, LayoutDashboard, Ruler, RefreshCw,
+  Cloud, LogOut, User,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
-import { useSync, syncStatusLabel } from '../hooks/useSync'
+import { SyncStatusRow } from '../components/SyncStatus'
 import { clearSyncHistory } from '../db'
 import { clearImportedMetrics } from '../db/healthStore'
 import { useUnits } from '../hooks/useUnits'
@@ -28,10 +28,11 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 // ─── Row types ────────────────────────────────────────────────────────────────
 
 function SettingsRow({
-  icon: Icon, label, value, onClick, destructive,
+  icon: Icon, label, description, value, onClick, destructive,
 }: {
   icon?: React.ElementType
   label: string
+  description?: string
   value?: string
   onClick?: () => void
   destructive?: boolean
@@ -47,50 +48,25 @@ function SettingsRow({
           <Icon size={15} />
         </span>
       )}
-      <span className="settings-row-label">{label}</span>
+      {description ? (
+        <span className="settings-row-text">
+          <span className="settings-row-label">{label}</span>
+          <span className="settings-row-description">{description}</span>
+        </span>
+      ) : (
+        <span className="settings-row-label">{label}</span>
+      )}
       {value && <span className="settings-row-value">{value}</span>}
       {onClick && <ChevronRight size={14} className="settings-row-chevron" />}
     </button>
   )
 }
 
-function SettingsToggleRow({
-  icon: Icon, label, description, value, onChange,
-}: {
-  icon?: React.ElementType
-  label: string
-  description?: string
-  value: boolean
-  onChange: (v: boolean) => void
-}) {
-  return (
-    <div className="settings-row settings-row--toggle">
-      {Icon && (
-        <span className="settings-row-icon">
-          <Icon size={15} />
-        </span>
-      )}
-      <div className="settings-row-text">
-        <span className="settings-row-label">{label}</span>
-        {description && <span className="settings-row-description">{description}</span>}
-      </div>
-      <button
-        className={`settings-toggle ${value ? 'settings-toggle--on' : ''}`}
-        onClick={() => onChange(!value)}
-        aria-label={`Toggle ${label}`}
-      >
-        {value ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-      </button>
-    </div>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Settings() {
-  const { mockMode, setMockMode, dbStatus, appVersion } = useApp()
+  const { dbStatus, appVersion } = useApp()
   const { mode: authMode, user, signOut, isSupabaseConfigured: sbConfigured } = useAuth()
-  const { status: syncStatus, syncNow } = useSync()
   const { system, setSystem } = useUnits()
   const navigate = useNavigate()
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -107,21 +83,18 @@ export default function Settings() {
   async function handleDeleteImported() {
     if (!deleteConfirm) { setDeleteConfirm(true); return }
     setDeleting(true)
-    const [deleted] = await Promise.all([clearImportedMetrics(), clearSyncHistory()])
-    setDeleting(false)
-    setDeleteConfirm(false)
-    setExportNote(`Deleted ${deleted} imported records. Mock data still available.`)
-    setTimeout(() => setExportNote(''), 4000)
-  }
-
-  async function handleDeleteAll() {
-    if (!deleteConfirm) { setDeleteConfirm(true); return }
-    setDeleting(true)
-    await Promise.all([clearImportedMetrics(), clearSyncHistory()])
-    setDeleting(false)
-    setDeleteConfirm(false)
-    setExportNote('All local data deleted.')
-    setTimeout(() => setExportNote(''), 3000)
+    try {
+      const [deleted] = await Promise.all([clearImportedMetrics(), clearSyncHistory()])
+      setExportNote(`Deleted ${deleted} imported health records.`)
+      window.dispatchEvent(new CustomEvent('health-data-cleared'))
+      setTimeout(() => setExportNote(''), 4000)
+    } catch {
+      setExportNote('Error deleting records. Please try again.')
+      setTimeout(() => setExportNote(''), 4000)
+    } finally {
+      setDeleting(false)
+      setDeleteConfirm(false)
+    }
   }
 
   return (
@@ -161,11 +134,28 @@ export default function Settings() {
         </div>
       </SettingsSection>
 
+      {/* ── Profile ── */}
+      <SettingsSection title="Profile">
+        <SettingsRow
+          icon={User}
+          label="Edit Profile"
+          description="Update name, avatar, height, weight, and goals"
+          onClick={() => navigate('/profile')}
+        />
+        <SettingsRow
+          icon={RefreshCw}
+          label="Run Setup Again"
+          description="Re-run the full setup wizard to update your profile and targets"
+          onClick={() => navigate('/onboarding?edit=1')}
+        />
+      </SettingsSection>
+
       {/* ── Customize ── */}
       <SettingsSection title="Customize">
         <SettingsRow
           icon={LayoutDashboard}
           label="Dashboard Layout"
+          description="Show or hide cards on the main screen"
           value="Cards on/off"
           onClick={() => navigate('/dashboard-settings')}
         />
@@ -184,16 +174,7 @@ export default function Settings() {
               label="Signed in as"
               value={user.email ?? user.displayName ?? 'Account'}
             />
-            <SettingsRow
-              icon={Cloud}
-              label="Sync status"
-              value={syncStatusLabel(syncStatus)}
-            />
-            <SettingsRow
-              icon={RefreshCw}
-              label="Sync now"
-              onClick={syncNow}
-            />
+            <SyncStatusRow />
             <SettingsRow
               icon={LogOut}
               label={signingOut ? 'Signing out…' : 'Sign out'}
@@ -224,12 +205,14 @@ export default function Settings() {
         <SettingsRow
           icon={DownloadIcon}
           label="Export Backup"
+          description="Download all your data as a JSON file"
           value="All data → JSON"
           onClick={() => navigate('/settings/backup')}
         />
         <SettingsRow
           icon={Upload}
           label="Restore from Backup"
+          description="Import a previously exported JSON backup"
           value="Import .json"
           onClick={() => navigate('/settings/backup')}
         />
@@ -243,20 +226,10 @@ export default function Settings() {
           value={dbStatus === 'ready' ? 'IndexedDB · Local' : dbStatus === 'loading' ? 'Loading…' : 'Error'}
         />
         <SettingsRow
-          icon={Database}
-          label="Estimated size"
-          value="< 1 MB"
-        />
-        <SettingsRow
           icon={Trash2}
-          label={deleteConfirm ? 'Tap again to confirm' : 'Delete imported data'}
+          label={deleteConfirm ? 'Tap again to confirm' : 'Delete Imported Health Data'}
+          description="Removes imported Apple Health metrics and sync history. Does not delete workouts, meals, profile, or account data."
           onClick={handleDeleteImported}
-          destructive
-        />
-        <SettingsRow
-          icon={Trash2}
-          label={deleteConfirm ? 'Tap again to confirm' : 'Delete all local data'}
-          onClick={handleDeleteAll}
           destructive
         />
         {deleting && <p className="settings-inline-note">Deleting…</p>}
@@ -267,32 +240,29 @@ export default function Settings() {
         <SettingsRow
           icon={Link2}
           label="Connected Accounts"
-          value="6 sources"
+          description="Manage Apple Health, RENPHO, MyFitnessPal, and more"
           onClick={() => navigate('/connected-accounts')}
         />
         <SettingsRow
           icon={History}
           label="Sync History"
+          description="View past imports and sync events"
           onClick={() => navigate('/sync-history')}
         />
         <SettingsRow
           icon={DownloadIcon}
           label="Import Data"
+          description="Import Apple Health export.xml or other formats"
           onClick={() => navigate('/import')}
         />
       </SettingsSection>
 
       {/* ── Developer ── */}
       <SettingsSection title="Developer">
-        <SettingsToggleRow
-          label="Mock Data Mode"
-          description="When ON, dashboard shows simulated data with yellow badges. Turn OFF when you have real imported data."
-          value={mockMode}
-          onChange={setMockMode}
-        />
         <SettingsRow
           icon={FlaskConical}
           label="Developer Diagnostics"
+          description="DB status, mock mode, sync queue inspection"
           onClick={() => navigate('/dev')}
         />
         <SettingsRow
@@ -329,19 +299,16 @@ export default function Settings() {
           label="Where is my data stored?"
         />
         <div className="settings-privacy-note">
-          All health data is stored locally in your browser's IndexedDB database. Nothing is sent to any server.
-          Strava tokens are stored in localStorage on this device only.
-          Clearing your browser data or using private mode will erase everything.
+          All health data is stored locally in your browser's IndexedDB database. Nothing is sent to third-party services.
+          Cloud sync (if enabled) sends data only to your own Supabase account.
+          Clearing your browser data or using private mode will erase local data.
         </div>
       </SettingsSection>
 
       {/* ── About ── */}
       <SettingsSection title="About">
-        <SettingsRow label="App name"    value="Shakthi Journal" />
-        <SettingsRow label="Version"     value={`v${appVersion}`} />
-        <SettingsRow label="Framework"   value="Vite 6 + React 18" />
-        <SettingsRow label="Local URL"   value="localhost:5173" />
-        <SettingsRow label="Custom domain" value="Not configured (Phase 5)" />
+        <SettingsRow label="App name" value="Shakthi Journal" />
+        <SettingsRow label="Version"  value={`v${appVersion}`} />
       </SettingsSection>
     </div>
   )

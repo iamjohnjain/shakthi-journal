@@ -1,22 +1,9 @@
-export const USER = {
-  name: 'John',
-  firstName: 'John',
-  heightFt: "6'2\"",
-  heightCm: 188,
-  startDate: '2025-04-01',
-  streakDays: 47,
-  healthScore: 84,
-  gender: 'Male',
-  birthYear: 1998,
-} as const
-
 export const GOALS = {
   proteinG: 200,
   caloriesIn: 2300,
   steps: 10000,
-  waterMl: 3785,    // 1 US gallon
+  waterMl: 3785,
   sleepH: 8,
-  targetWeightLbs: 190,
   targetBodyFatPct: 12,
 } as const
 

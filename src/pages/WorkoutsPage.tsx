@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Plus, ChevronDown, ChevronUp, Trash2, Dumbbell,
   BookOpen, TrendingUp, CalendarDays, Lightbulb, Flame,
   ChevronLeft, ChevronRight, Copy, Clipboard, Pencil,
-  LayoutTemplate, Check, X, AlertTriangle, Clock,
+  LayoutTemplate, Check, X, AlertTriangle, Clock, Play,
 } from 'lucide-react'
+import ActiveWorkout from './ActiveWorkout'
 import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs,
   getWorkoutsForDate, getWorkoutDates,
@@ -18,8 +19,12 @@ import { estimateWorkoutCalories, seedExerciseLibraryIfEmpty } from '../db/train
 import { getTemplates, workoutToTemplate } from '../db/templateStore'
 import type { WorkoutTemplate } from '../db/templateStore'
 import { useWorkoutSuggestion } from '../hooks/useWorkoutSuggestion'
+import { getProfile } from '../db/profileStore'
+import type { ProfileData } from '../db/profileStore'
 import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry, CardioEntry } from '../db'
 import './WorkoutsPage.css'
+
+const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
 
@@ -132,9 +137,10 @@ interface WeekCalendarProps {
   copiedWorkout: WorkoutSession | null
   onPasteDay: (date: string) => void
   onMarkRest: (date: string) => void
+  refreshKey: number
 }
 
-function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, onMarkRest }: WeekCalendarProps) {
+function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, onMarkRest, refreshKey }: WeekCalendarProps) {
   const today = todayStr()
   const [weekInfo, setWeekInfo] = useState(() => getISOWeek(new Date()))
   const [weekDates, setWeekDates] = useState<string[]>([])
@@ -143,7 +149,7 @@ function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, o
     const dates = getWeekDates(weekInfo.week, weekInfo.year)
     setWeekDates(dates)
     getWorkoutsForWeekDates(dates).then(setDayWorkouts)
-  }, [weekInfo])
+  }, [weekInfo, refreshKey])
 
   function prevWeek() { setWeekInfo(w => addWeeks(w.week, w.year, -1)) }
   function nextWeek() { setWeekInfo(w => addWeeks(w.week, w.year, +1)) }
@@ -532,9 +538,16 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
 
   useEffect(() => { getTemplates().then(setTemplates) }, [])
 
+  const [bodyWeightKg, setBodyWeightKg] = useState(DEFAULT_BODY_WEIGHT_KG)
+  useEffect(() => {
+    getProfile().then(p => {
+      if (p?.startWeightKg) setBodyWeightKg(p.startWeightKg)
+    })
+  }, [])
+
   const isLifting = primaryType === 'lifting'
   const logType   = isLifting ? 'lifting' : cardioSubtype
-  const weightKg  = 185 / 2.205
+  const weightKg  = bodyWeightKg
 
   const calPreview = estimateWorkoutCalories(logType, durationMin, weightKg, {
     rpe: typeof rpe === 'number' ? rpe : undefined,
@@ -780,13 +793,18 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WorkoutsPage() {
+  const navigate = useNavigate()
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [dayWorkouts,  setDayWorkouts]  = useState<WorkoutSession[]>([])
   const [prMap,        setPrMap]        = useState<Map<string, number>>(new Map())
   const [workoutDays,  setWorkoutDays]  = useState<string[]>([])
+  const [loaded,       setLoaded]       = useState(false)
   const [showModal,    setShowModal]    = useState(false)
+  const [showActiveWorkout, setShowActiveWorkout] = useState(false)
   const [editingWorkout,setEditingWorkout] = useState<WorkoutSession | null>(null)
   const [copiedWorkout, setCopiedWorkout]  = useState<WorkoutSession | null>(null)
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [calendarKey,   setCalendarKey]   = useState(0)
   const seeded = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
@@ -798,6 +816,7 @@ export default function WorkoutsPage() {
     setDayWorkouts(day)
     setPrMap(prs)
     setWorkoutDays(days)
+    setLoaded(true)
   }, [])
 
   useEffect(() => {
@@ -805,15 +824,21 @@ export default function WorkoutsPage() {
     if (!seeded.current) { seeded.current = true; seedExerciseLibraryIfEmpty() }
   }, [loadDay, selectedDate])
 
+  useEffect(() => { getProfile().then(setProfile) }, [])
+
+  function refreshCalendar() { setCalendarKey(k => k + 1) }
+
   async function handlePasteDay(date: string) {
     if (!copiedWorkout) return
     await saveWorkout({ ...copiedWorkout, date, id: undefined as unknown as string } as Parameters<typeof saveWorkout>[0])
+    refreshCalendar()
     if (date === selectedDate) loadDay(date)
     else setSelectedDate(date)
   }
 
   async function handleMarkRest(date: string) {
     await saveWorkout({ date, type: 'cardio', title: 'Rest Day', durationMin: 0, exercises: [], cardioEntries: [] })
+    refreshCalendar()
     if (date === selectedDate) loadDay(date)
   }
 
@@ -822,6 +847,7 @@ export default function WorkoutsPage() {
 
   async function handleDelete(id: string) {
     await deleteWorkout(id)
+    refreshCalendar()
     loadDay(selectedDate)
   }
 
@@ -840,50 +866,83 @@ export default function WorkoutsPage() {
           <h1 className="page-title">Workouts</h1>
           <p className="page-subtitle">{workoutDays.length} sessions in the last 400 days</p>
         </div>
-        <button className="log-workout-btn" onClick={() => { setEditingWorkout(null); setShowModal(true) }}>
-          <Plus size={16} /> Log Workout
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
+            <Play size={15} /> Start
+          </button>
+          <button className="log-workout-btn" onClick={() => { setEditingWorkout(null); setShowModal(true) }}>
+            <Plus size={16} /> Log
+          </button>
+        </div>
       </header>
 
-      {isToday && <SuggestionCard onLog={() => { setEditingWorkout(null); setShowModal(true) }} />}
-
-      {copiedWorkout && (
-        <div className="copy-banner">
-          <Clipboard size={13} />
-          <span>Workout copied: <strong>{copiedWorkout.title}</strong> — select a day and tap Paste</span>
-          <button onClick={() => setCopiedWorkout(null)}><X size={13} /></button>
-        </div>
-      )}
-
-      <WeekCalendar
-        selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
-        copiedWorkout={copiedWorkout}
-        onPasteDay={handlePasteDay}
-        onMarkRest={handleMarkRest}
-      />
-
-      {/* Selected day */}
-      <div className="day-section">
-        <div className="day-section-header">
-          <h2 className="workouts-section-title">{isToday ? 'Today' : dateLabel}</h2>
-          {!isToday && <span className="day-section-date">{selectedDate}</span>}
-        </div>
-
-        {dayWorkouts.length > 0 ? (
-          dayWorkouts.map(w => (
-            <WorkoutCard key={w.id} w={w}
-              onDelete={() => handleDelete(w.id)}
-              onEdit={() => handleEdit(w)}
-              onCopy={() => handleCopy(w)} />
-          ))
-        ) : (
-          <div className="workouts-empty-today">
-            <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
-            <button onClick={() => { setEditingWorkout(null); setShowModal(true) }}>Log one →</button>
+      {loaded && workoutDays.length === 0 ? (
+        <div className="workouts-first-empty">
+          <div className="workouts-first-empty-icon">
+            <Dumbbell size={44} />
           </div>
-        )}
-      </div>
+          <h2 className="workouts-first-empty-title">Your training log starts here</h2>
+          <p className="workouts-first-empty-desc">
+            Log your first session to start tracking strength, cardio, and personal records.
+            Every workout is saved and your history builds automatically.
+          </p>
+          <button
+            className="workouts-first-empty-cta"
+            onClick={() => { setEditingWorkout(null); setShowModal(true) }}
+          >
+            Log first workout
+          </button>
+          <button
+            className="workouts-first-empty-secondary"
+            onClick={() => navigate('/workouts/templates')}
+          >
+            Create a template
+          </button>
+        </div>
+      ) : (
+        <>
+          {isToday && <SuggestionCard onLog={() => { setEditingWorkout(null); setShowModal(true) }} />}
+
+          {copiedWorkout && (
+            <div className="copy-banner">
+              <Clipboard size={13} />
+              <span>Workout copied: <strong>{copiedWorkout.title}</strong> — select a day and tap Paste</span>
+              <button onClick={() => setCopiedWorkout(null)}><X size={13} /></button>
+            </div>
+          )}
+
+          <WeekCalendar
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            copiedWorkout={copiedWorkout}
+            onPasteDay={handlePasteDay}
+            onMarkRest={handleMarkRest}
+            refreshKey={calendarKey}
+          />
+
+          {/* Selected day */}
+          <div className="day-section">
+            <div className="day-section-header">
+              <h2 className="workouts-section-title">{isToday ? 'Today' : dateLabel}</h2>
+              {!isToday && <span className="day-section-date">{selectedDate}</span>}
+            </div>
+
+            {dayWorkouts.length > 0 ? (
+              dayWorkouts.map(w => (
+                <WorkoutCard key={w.id} w={w}
+                  onDelete={() => handleDelete(w.id)}
+                  onEdit={() => handleEdit(w)}
+                  onCopy={() => handleCopy(w)} />
+              ))
+            ) : (
+              <div className="workouts-empty-today">
+                <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
+                <button onClick={() => { setEditingWorkout(null); setShowModal(true) }}>Log one →</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {(showModal || editingWorkout) && (
         <LogModal
@@ -891,7 +950,21 @@ export default function WorkoutsPage() {
           initialWorkout={editingWorkout ?? undefined}
           prefilledDate={selectedDate}
           onClose={() => { setShowModal(false); setEditingWorkout(null) }}
-          onSaved={() => loadDay(selectedDate)} />
+          onSaved={() => { loadDay(selectedDate); refreshCalendar() }} />
+      )}
+
+      {showActiveWorkout && (
+        <ActiveWorkout
+          prMap={prMap}
+          profile={profile}
+          onFinish={session => {
+            void session
+            setShowActiveWorkout(false)
+            loadDay(selectedDate)
+            refreshCalendar()
+          }}
+          onClose={() => setShowActiveWorkout(false)}
+        />
       )}
     </div>
   )

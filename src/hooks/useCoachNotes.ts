@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import { GOALS } from '../data/config'
+import { getSetting } from '../db'
+import type { NutritionGoals } from '../db'
 import { getWorkoutsForDate } from '../db/workoutStore'
 import { getDailyTotals } from '../db/nutritionStore'
 import { getLogsForRange } from '../db/logStore'
 import type { DailySnapshot } from '../types/health'
 import type { DataSource } from './useDashboardData'
+
+const STEP_GOAL = 10_000
+const FALLBACK_GOALS: Pick<NutritionGoals, 'proteinG' | 'calories'> = { proteinG: 200, calories: 2300 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +54,7 @@ function buildNotes(
   workoutType: string | null,
   nutTotals: { calories: number; proteinG: number },
   weightHistory: number[],
+  nutGoals: Pick<NutritionGoals, 'proteinG' | 'calories'>,
 ): CoachNote[] {
   const notes: CoachNote[] = []
   const isMock = dataSource === 'mock'
@@ -101,7 +106,7 @@ function buildNotes(
 
   // ── Protein ──
   if (protein > 0) {
-    const remaining = GOALS.proteinG - protein
+    const remaining = nutGoals.proteinG - protein
     if (remaining > 20) {
       const isLow = remaining > 80
       notes.push({
@@ -111,8 +116,8 @@ function buildNotes(
         icon: '🥩',
         title: `${Math.round(remaining)}g protein remaining`,
         body: isLow
-          ? `At ${Math.round(protein)}g of ${GOALS.proteinG}g. Muscle protein synthesis requires consistent intake across the day. A chicken breast (~50g), protein shake (~25g), and Greek yogurt (~17g) closes the gap.`
-          : `${Math.round(protein)}g logged so far. A shake or 3 eggs (~18g) gets you to your ${GOALS.proteinG}g target. Protein within 2h of training supports recovery.`,
+          ? `At ${Math.round(protein)}g of ${nutGoals.proteinG}g. Muscle protein synthesis requires consistent intake across the day. A chicken breast (~50g), protein shake (~25g), and Greek yogurt (~17g) closes the gap.`
+          : `${Math.round(protein)}g logged so far. A shake or 3 eggs (~18g) gets you to your ${nutGoals.proteinG}g target. Protein within 2h of training supports recovery.`,
         sources: [logSource],
       })
     } else if (remaining <= 0) {
@@ -122,7 +127,7 @@ function buildNotes(
         confidence: 'high',
         icon: '✅',
         title: `Protein goal hit — ${Math.round(protein)}g logged`,
-        body: `You've reached your ${GOALS.proteinG}g target. This intake supports muscle protein synthesis and recovery from training. Strong day.`,
+        body: `You've reached your ${nutGoals.proteinG}g target. This intake supports muscle protein synthesis and recovery from training. Strong day.`,
         sources: [logSource],
       })
     }
@@ -141,7 +146,7 @@ function buildNotes(
 
   // ── Calories ──
   if (calories > 0) {
-    const calRemaining = GOALS.caloriesIn - calories
+    const calRemaining = nutGoals.calories - calories
     const hour = new Date().getHours()
     if (calRemaining > 600 && hour >= 14) {
       notes.push({
@@ -156,20 +161,6 @@ function buildNotes(
     }
   }
 
-  // ── Water ──
-  if ((snap.waterMl ?? 0) > 0 && (snap.waterMl ?? 0) < GOALS.waterMl * 0.45) {
-    const waterL = ((snap.waterMl ?? 0) / 1000).toFixed(1)
-    notes.push({
-      id: 'water-low',
-      severity: 'warning',
-      confidence: 'medium',
-      icon: '💧',
-      title: `Hydration low — ${waterL}L of ${(GOALS.waterMl / 1000).toFixed(0)}L goal`,
-      body: `Even mild dehydration (~1–2%) reduces strength, endurance, and focus. Drink 500ml now and keep a water bottle visible — visibility is the strongest predictor of intake.`,
-      sources: [logSource],
-    })
-  }
-
   // ── Steps ──
   if (steps > 0 && steps < 5000) {
     notes.push({
@@ -177,7 +168,7 @@ function buildNotes(
       severity: 'tip',
       confidence: 'medium',
       icon: '🚶',
-      title: `${(GOALS.steps - steps).toLocaleString()} steps remaining`,
+      title: `${(STEP_GOAL - steps).toLocaleString()} steps remaining`,
       body: `At ${steps.toLocaleString()} steps. NEAT (non-exercise activity thermogenesis) from daily walking contributes significantly to total calorie burn. A 25-min walk after dinner adds ~2,500 steps.`,
       sources: [ahSource],
     })
@@ -240,42 +231,52 @@ export function useCoachNotes(today: DailySnapshot, dataSource: DataSource) {
     let cancelled = false
 
     async function load() {
-      const date = todayStr()
-      const [workouts, nutTotals, logs] = await Promise.all([
-        getWorkoutsForDate(date),
-        getDailyTotals(date),
-        getLogsForRange(daysAgoStr(14), date),
-      ])
+      try {
+        const date = todayStr()
+        const [workouts, nutTotals, logs, storedGoals] = await Promise.all([
+          getWorkoutsForDate(date),
+          getDailyTotals(date),
+          getLogsForRange(daysAgoStr(14), date),
+          getSetting<NutritionGoals | null>('nutrition-goals', null),
+        ])
 
-      if (cancelled) return
+        if (cancelled) return
 
-      const workout = workouts[0] ?? null
-      const weightHistory = logs
-        .filter(l => l.weightKg != null)
-        .map(l => l.weightKg!)
-        .slice(0, 14)
+        const nutGoals = {
+          proteinG: storedGoals?.proteinG ?? FALLBACK_GOALS.proteinG,
+          calories: storedGoals?.calories ?? FALLBACK_GOALS.calories,
+        }
 
-      const protein   = (today.proteinG ?? 0) + nutTotals.proteinG
-      const calories  = (today.caloriesIn ?? 0) + nutTotals.calories
-      const steps     = today.steps ?? 0
+        const workout = workouts[0] ?? null
+        const weightHistory = logs
+          .filter(l => l.weightKg != null)
+          .map(l => l.weightKg!)
+          .slice(0, 14)
 
-      const newNotes = buildNotes(today, dataSource, !!workout, workout?.type ?? null, nutTotals, weightHistory)
+        const protein  = (today.proteinG ?? 0) + nutTotals.proteinG
+        const calories = (today.caloriesIn ?? 0) + nutTotals.calories
+        const steps    = today.steps ?? 0
 
-      setNotes(newNotes)
-      setStatus({
-        proteinTotal:       Math.round(protein),
-        proteinRemaining:   Math.max(0, Math.round(GOALS.proteinG - protein)),
-        caloriesToday:      Math.round(calories),
-        caloriesRemaining:  Math.max(0, Math.round(GOALS.caloriesIn - calories)),
-        stepsToday:         steps,
-        stepsRemaining:     Math.max(0, GOALS.steps - steps),
-        workoutLogged:      !!workout,
-        workoutType:        workout
-          ? (workout.cardioSubtype ?? (workout.type !== 'cardio' ? workout.type : null) ?? workout.type)
-          : null,
-        workoutDuration:    workout?.durationMin ?? null,
-      })
-      setLoading(false)
+        const newNotes = buildNotes(today, dataSource, !!workout, workout?.type ?? null, nutTotals, weightHistory, nutGoals)
+
+        setNotes(newNotes)
+        setStatus({
+          proteinTotal:      Math.round(protein),
+          proteinRemaining:  Math.max(0, Math.round(nutGoals.proteinG - protein)),
+          caloriesToday:     Math.round(calories),
+          caloriesRemaining: Math.max(0, Math.round(nutGoals.calories - calories)),
+          stepsToday:        steps,
+          stepsRemaining:    Math.max(0, STEP_GOAL - steps),
+          workoutLogged:     !!workout,
+          workoutType:       workout
+            ? (workout.cardioSubtype ?? (workout.type !== 'cardio' ? workout.type : null) ?? workout.type)
+            : null,
+          workoutDuration: workout?.durationMin ?? null,
+        })
+        setLoading(false)
+      } catch {
+        if (!cancelled) setLoading(false)
+      }
     }
 
     load()

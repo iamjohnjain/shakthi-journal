@@ -1,5 +1,7 @@
 import { getDB } from './index'
 import type { NutritionEntry } from './index'
+import { syncEngine } from './syncEngine'
+import { showToast } from '../utils/toast'
 
 export type { NutritionEntry }
 
@@ -10,19 +12,28 @@ export async function addNutritionEntry(entry: Omit<NutritionEntry, 'id' | 'crea
   const id = `nut_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
   const full: NutritionEntry = { ...entry, id, createdAt: new Date().toISOString() }
   await db.put('nutrition_entries', full)
+  void syncEngine.queueWrite('nutrition_entries', 'upsert', full.id, full)
+  showToast('Meal logged')
+  // Check protein streak achievements asynchronously
+  void import('../engine/achievementEngine').then(m => m.checkAndAwardAchievements())
   return full
 }
 
 export async function deleteNutritionEntry(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('nutrition_entries', id)
+  void syncEngine.queueWrite('nutrition_entries', 'delete', id, { id })
+  showToast('Entry removed', 'info')
 }
 
 export async function updateNutritionEntry(id: string, updates: Partial<Omit<NutritionEntry, 'id' | 'createdAt'>>): Promise<void> {
   const db = await getDB()
   const existing = await db.get('nutrition_entries', id)
   if (!existing) return
-  await db.put('nutrition_entries', { ...existing, ...updates, updatedAt: new Date().toISOString() })
+  const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() }
+  await db.put('nutrition_entries', updated)
+  void syncEngine.queueWrite('nutrition_entries', 'upsert', id, updated)
+  showToast('Entry updated')
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
@@ -30,6 +41,11 @@ export async function updateNutritionEntry(id: string, updates: Partial<Omit<Nut
 export async function getEntriesForDate(date: string): Promise<NutritionEntry[]> {
   const db = await getDB()
   return db.getAllFromIndex('nutrition_entries', 'by-date', date)
+}
+
+export async function getNutritionEntryCount(): Promise<number> {
+  const db = await getDB()
+  return db.count('nutrition_entries')
 }
 
 export async function getDailyTotals(date: string): Promise<{

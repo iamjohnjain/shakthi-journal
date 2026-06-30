@@ -1,5 +1,7 @@
 import { getDB } from './index'
 import type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet } from './index'
+import { syncEngine } from './syncEngine'
+import { showToast } from '../utils/toast'
 
 export type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet }
 
@@ -59,6 +61,10 @@ export async function saveWorkout(workout: Omit<WorkoutSession, 'id' | 'createdA
     : []
   const full: WorkoutSession = { ...workout, exercises: annotated, id, createdAt: now, updatedAt: now }
   await db.put('workouts', full)
+  void syncEngine.queueWrite('workouts', 'upsert', full.id, full)
+  showToast('Workout saved')
+  // Check achievements asynchronously — never blocks the save
+  void import('../engine/achievementEngine').then(m => m.checkAndAwardAchievements())
   return full
 }
 
@@ -66,12 +72,17 @@ export async function updateWorkout(id: string, updates: Partial<WorkoutSession>
   const db = await getDB()
   const existing = await db.get('workouts', id)
   if (!existing) return
-  await db.put('workouts', { ...existing, ...updates, updatedAt: new Date().toISOString() })
+  const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() }
+  await db.put('workouts', updated)
+  void syncEngine.queueWrite('workouts', 'upsert', id, updated)
+  showToast('Workout updated')
 }
 
 export async function deleteWorkout(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('workouts', id)
+  void syncEngine.queueWrite('workouts', 'delete', id, { id })
+  showToast('Workout deleted', 'info')
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────

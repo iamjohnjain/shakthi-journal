@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Dumbbell, Apple, Target, UserCircle, Plus } from 'lucide-react'
+import { LayoutDashboard, Dumbbell, Apple, Clock, Target, UserCircle, Plus } from 'lucide-react'
 import './BottomNav.css'
 
 const LEFT_TABS = [
-  { path: '/',         label: 'Today',  icon: LayoutDashboard, end: true },
-  { path: '/workouts', label: 'Train',  icon: Dumbbell },
+  { path: '/',         label: 'Today', icon: LayoutDashboard, end: true },
+  { path: '/workouts', label: 'Train', icon: Dumbbell },
 ]
 
 const RIGHT_TABS = [
-  { path: '/nutrition',      label: 'Eat',   icon: Apple },
-  { path: '/athletic-goals', label: 'Goals', icon: Target },
+  { path: '/nutrition', label: 'Eat',      icon: Apple },
+  { path: '/timeline',  label: 'Timeline', icon: Clock },
+  { path: '/goals',     label: 'Goals',    icon: Target },
 ]
 
 export default function BottomNav() {

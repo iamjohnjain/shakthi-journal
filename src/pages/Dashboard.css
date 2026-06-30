@@ -351,6 +351,25 @@
   gap: 8px;
 }
 
+.dash-section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-hidden-notice {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-quaternary);
+  padding: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .dash-section-title {
   font-size: 0.75rem;
   font-weight: 600;
@@ -850,4 +869,177 @@
   .quick-action-label {
     font-size: 0.65rem;
   }
+}
+
+/* ─── Premium empty state card ───────────────────────────────── */
+
+.dash-empty-card {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  text-align: center;
+}
+
+.dash-empty-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.dash-empty-msg {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dash-empty-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.dash-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 16px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s, transform 0.1s;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dash-empty-btn:hover { opacity: 0.85; }
+.dash-empty-btn:active { transform: scale(0.97); }
+
+.dash-empty-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.dash-empty-btn--ghost:hover {
+  opacity: 1;
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+}
+
+/* ─── Metric card stagger animation ─────────────────────────── */
+
+.metric-grid .metric-card:nth-child(1) { animation-delay: 0ms; }
+.metric-grid .metric-card:nth-child(2) { animation-delay: 60ms; }
+.metric-grid .metric-card:nth-child(3) { animation-delay: 120ms; }
+.metric-grid .metric-card:nth-child(4) { animation-delay: 180ms; }
+.metric-grid .metric-card:nth-child(5) { animation-delay: 240ms; }
+.metric-grid .metric-card:nth-child(6) { animation-delay: 300ms; }
+
+.metric-card {
+  animation: card-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard,
+  .metric-card,
+  .dash-focus-item,
+  .quick-action-btn {
+    animation: none;
+    transition: none;
+  }
+  .metric-progress-fill { transition: none; }
+}
+
+/* ─── First-day welcome card ──────────────────────────────── */
+
+.dash-firstday-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xl);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-firstday-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-firstday-icon {
+  color: var(--blue);
+  flex-shrink: 0;
+}
+
+.dash-firstday-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  flex: 1;
+}
+
+.dash-firstday-edit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.dash-firstday-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.dash-firstday-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg);
+  border-radius: var(--r-lg);
+  padding: 12px 14px;
+}
+
+.dash-firstday-stat-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.dash-firstday-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.dash-firstday-note {
+  font-size: 0.78rem;
+  color: var(--text-quaternary);
+  line-height: 1.5;
+}
+
+@media (max-width: 540px) {
+  .dash-firstday-stats { grid-template-columns: 1fr 1fr; }
 }

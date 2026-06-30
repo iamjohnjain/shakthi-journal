@@ -1,5 +1,6 @@
 import { getDB } from './index'
 import type { DailyLog } from './index'
+import { syncEngine } from './syncEngine'
 
 export type { DailyLog }
 
@@ -9,16 +10,19 @@ export async function saveLog(entry: Omit<DailyLog, 'createdAt' | 'updatedAt'> &
   const db = await getDB()
   const existing = await db.get('daily_logs', entry.date)
   const now = new Date().toISOString()
-  await db.put('daily_logs', {
+  const saved: DailyLog = {
     ...entry,
     createdAt: existing?.createdAt ?? entry.createdAt ?? now,
     updatedAt: now,
-  })
+  }
+  await db.put('daily_logs', saved)
+  void syncEngine.queueWrite('daily_logs', 'upsert', entry.date, saved)
 }
 
 export async function deleteLog(date: string): Promise<void> {
   const db = await getDB()
   await db.delete('daily_logs', date)
+  void syncEngine.queueWrite('daily_logs', 'delete', date, { date })
 }
 
 // ─── Read ─────────────────────────────────────────────────────────────────────

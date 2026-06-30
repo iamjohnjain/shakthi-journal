@@ -78,7 +78,7 @@ const STATUS_COLOR: Record<Integration['realStatus'], string> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DevDiagnostics() {
-  const { mockMode, dbStatus, dbError, appVersion } = useApp()
+  const { mockMode, setMockMode, dbStatus, dbError, appVersion } = useApp()
   const [dbStats, setDbStats] = useState<DBStats | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -146,9 +146,17 @@ export default function DevDiagnostics() {
           ok={!mockMode}
           warn={mockMode}
         />
+        <div className="diag-actions">
+          <button
+            className={`diag-action-btn ${mockMode ? 'diag-action-btn--warn' : ''}`}
+            onClick={() => setMockMode(!mockMode)}
+          >
+            {mockMode ? 'Disable Mock Mode' : 'Enable Mock Mode'}
+          </button>
+        </div>
         <div className="diag-note">
-          Toggle mock mode in Settings. When ON, dashboard shows realistic fake data with yellow MOCK DATA badges.
-          Turn OFF when you've imported real data.
+          When ON, dashboard shows realistic simulated data with yellow MOCK DATA badges.
+          Turn OFF when you have real imported data.
         </div>
       </DiagSection>
 

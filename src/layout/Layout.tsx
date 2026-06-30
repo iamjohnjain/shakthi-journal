@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { getSetting } from '../db'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
+import Toast from '../components/Toast'
 import './Layout.css'
 
 export default function Layout() {
@@ -21,6 +22,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <BottomNav />
+      <Toast />
     </div>
   )
 }

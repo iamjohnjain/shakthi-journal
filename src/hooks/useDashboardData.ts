@@ -62,18 +62,22 @@ export function useDashboardData(): DashboardData {
     setLoading(true)
 
     async function load() {
-      const [snaps, srcs, todayL, yestL] = await Promise.all([
-        getLatestSnapshots(7),
-        getImportedSources(),
-        getLog(todayStr()),
-        getLog(yesterdayStr()),
-      ])
-      if (!cancelled) {
-        setRealSnapshots(snaps)
-        setSources(srcs)
-        setTodayLog(todayL)
-        setYesterdayLog(yestL)
-        setLoading(false)
+      try {
+        const [snaps, srcs, todayL, yestL] = await Promise.all([
+          getLatestSnapshots(7),
+          getImportedSources(),
+          getLog(todayStr()),
+          getLog(yesterdayStr()),
+        ])
+        if (!cancelled) {
+          setRealSnapshots(snaps)
+          setSources(srcs)
+          setTodayLog(todayL)
+          setYesterdayLog(yestL)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -81,20 +85,42 @@ export function useDashboardData(): DashboardData {
     return () => { cancelled = true }
   }, [tick])
 
+  useEffect(() => {
+    function onDataCleared() { setTick(t => t + 1) }
+    window.addEventListener('health-data-cleared', onDataCleared)
+    return () => window.removeEventListener('health-data-cleared', onDataCleared)
+  }, [])
+
   const hasAH  = realSnapshots.length > 0
   const hasLog = todayLog !== null
 
-  if (mockMode || (!hasAH && !hasLog)) {
+  // Developer mock mode: show synthetic data (only toggled from DevDiagnostics)
+  if (mockMode) {
     return {
-      today:              mockDailySnapshots[0],
-      yesterday:          mockDailySnapshots[1],
-      snapshots:          mockDailySnapshots,
-      dataSource:         'mock',
-      nutritionSource:    'mock',
-      hasNutritionLog:    false,
-      sources:            [],
+      today:           mockDailySnapshots[0],
+      yesterday:       mockDailySnapshots[1],
+      snapshots:       mockDailySnapshots,
+      dataSource:      'mock',
+      nutritionSource: 'mock',
+      hasNutritionLog: false,
+      sources:         [],
       loading,
-      refresh:            () => setTick(t => t + 1),
+      refresh:         () => setTick(t => t + 1),
+    }
+  }
+
+  // No real data yet — return empty snapshots so Dashboard shows empty states
+  if (!hasAH && !hasLog) {
+    return {
+      today:           { date: todayStr() } as DailySnapshot,
+      yesterday:       { date: yesterdayStr() } as DailySnapshot,
+      snapshots:       [],
+      dataSource:      'mock',
+      nutritionSource: 'mock',
+      hasNutritionLog: false,
+      sources:         [],
+      loading,
+      refresh:         () => setTick(t => t + 1),
     }
   }
 

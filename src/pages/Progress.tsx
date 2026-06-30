@@ -1,20 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { mockDailySnapshots } from '../data/mock'
+import { useNavigate } from 'react-router-dom'
 import { kgToLbs } from '../data/config'
+import { useDashboardData } from '../hooks/useDashboardData'
+import { getProfile } from '../db/profileStore'
+import { getDBStats } from '../db'
+import type { ProfileData } from '../db/profileStore'
+import type { DailySnapshot } from '../types/health'
 import './Progress.css'
-
-type Range = '7d' | '30d' | '90d' | '1y'
-
-const RANGES: { key: Range; label: string }[] = [
-  { key: '7d', label: '7 Days' },
-  { key: '30d', label: '1 Month' },
-  { key: '90d', label: '3 Months' },
-  { key: '1y', label: '1 Year' },
-]
-
-const start = mockDailySnapshots[mockDailySnapshots.length - 1]
-const end   = mockDailySnapshots[0]
 
 interface CompMetric {
   label: string
@@ -23,175 +16,282 @@ interface CompMetric {
   delta: string
   direction: 'up' | 'down' | 'neutral'
   good: boolean
-  unit?: string
-}
-
-function buildMetrics(): CompMetric[] {
-  return [
-    {
-      label: 'Weight',
-      before: `${kgToLbs(start.weight ?? 91.6)} lbs`,
-      after:  `${kgToLbs(end.weight ?? 90.3)} lbs`,
-      delta: `${(kgToLbs(end.weight ?? 90.3) - kgToLbs(start.weight ?? 91.6)).toFixed(1)} lbs`,
-      direction: (end.weight ?? 90.3) < (start.weight ?? 91.6) ? 'down' : 'up',
-      good: (end.weight ?? 90.3) < (start.weight ?? 91.6),
-    },
-    {
-      label: 'Body Fat',
-      before: `${start.bodyFatPct ?? 17.9}%`,
-      after:  `${end.bodyFatPct ?? 17.2}%`,
-      delta: `${((end.bodyFatPct ?? 17.2) - (start.bodyFatPct ?? 17.9)).toFixed(1)}%`,
-      direction: (end.bodyFatPct ?? 17.2) < (start.bodyFatPct ?? 17.9) ? 'down' : 'up',
-      good: (end.bodyFatPct ?? 17.2) < (start.bodyFatPct ?? 17.9),
-    },
-    {
-      label: 'Muscle Mass',
-      before: `${start.muscleMassKg ?? 70.8} kg`,
-      after:  `${end.muscleMassKg ?? 71.3} kg`,
-      delta: `+${((end.muscleMassKg ?? 71.3) - (start.muscleMassKg ?? 70.8)).toFixed(1)} kg`,
-      direction: 'up',
-      good: true,
-    },
-    {
-      label: 'Resting HR',
-      before: `${start.restingHeartRate ?? 56} bpm`,
-      after:  `${end.restingHeartRate ?? 52} bpm`,
-      delta: `${((end.restingHeartRate ?? 52) - (start.restingHeartRate ?? 56))} bpm`,
-      direction: 'down',
-      good: true,
-    },
-    {
-      label: 'HRV',
-      before: `${start.hrv ?? 55} ms`,
-      after:  `${end.hrv ?? 68} ms`,
-      delta: `+${((end.hrv ?? 68) - (start.hrv ?? 55))} ms`,
-      direction: 'up',
-      good: true,
-    },
-    {
-      label: 'Sleep',
-      before: `${start.sleepHours ?? 6.5}h`,
-      after:  `${end.sleepHours ?? 7.4}h`,
-      delta: `+${((end.sleepHours ?? 7.4) - (start.sleepHours ?? 6.5)).toFixed(1)}h`,
-      direction: 'up',
-      good: true,
-    },
-    {
-      label: 'Recovery',
-      before: `${start.recoveryScore ?? 65}`,
-      after:  `${end.recoveryScore ?? 84}`,
-      delta: `+${((end.recoveryScore ?? 84) - (start.recoveryScore ?? 65))}`,
-      direction: 'up',
-      good: true,
-    },
-    {
-      label: 'Avg Protein',
-      before: `${start.proteinG ?? 195}g`,
-      after:  `${end.proteinG ?? 198}g`,
-      delta: `+${((end.proteinG ?? 198) - (start.proteinG ?? 195))}g`,
-      direction: 'up',
-      good: true,
-    },
-    {
-      label: 'Daily Steps',
-      before: `${(start.steps ?? 7800).toLocaleString()}`,
-      after:  `${(end.steps ?? 9842).toLocaleString()}`,
-      delta: `+${((end.steps ?? 9842) - (start.steps ?? 7800)).toLocaleString()}`,
-      direction: 'up',
-      good: true,
-    },
-  ]
 }
 
 function DeltaChip({ metric }: { metric: CompMetric }) {
   const Icon = metric.direction === 'up' ? TrendingUp : metric.direction === 'down' ? TrendingDown : Minus
-  const color = metric.good ? 'var(--green)' : 'var(--red)'
+  const isNeutral = metric.direction === 'neutral'
+  const color = isNeutral ? 'var(--text-tertiary)' : metric.good ? 'var(--green)' : 'var(--red)'
+  const bg    = isNeutral ? 'rgba(255,255,255,0.05)' : metric.good ? 'var(--green-dim)' : 'var(--red-dim)'
   return (
-    <span className="prog-delta-chip" style={{ color, background: metric.good ? 'var(--green-dim)' : 'var(--red-dim)' }}>
+    <span className="prog-delta-chip" style={{ color, background: bg }}>
       <Icon size={11} />
       {metric.delta}
     </span>
   )
 }
 
-export default function Progress() {
-  const [range, setRange] = useState<Range>('7d')
-  const metrics = buildMetrics()
-  const improvements = metrics.filter(m => m.good).length
+function buildMetrics(profile: ProfileData | null, today: DailySnapshot): CompMetric[] {
+  const out: CompMetric[] = []
 
-  const startLabel = range === '7d' ? `${start.date}` : '— (limited mock data)'
-  const endLabel   = end.date
+  if (profile?.startWeightKg && today.weight) {
+    const startLbs = kgToLbs(profile.startWeightKg)
+    const nowLbs   = kgToLbs(today.weight)
+    const d = +(nowLbs - startLbs).toFixed(1)
+    out.push({
+      label: 'Weight',
+      before: `${startLbs} lbs`,
+      after:  `${nowLbs} lbs`,
+      delta:  `${d >= 0 ? '+' : ''}${d} lbs`,
+      direction: d < 0 ? 'down' : d > 0 ? 'up' : 'neutral',
+      good: d <= 0,
+    })
+  }
+
+  if (profile?.startBodyFatPct != null && today.bodyFatPct != null) {
+    const d = +(today.bodyFatPct - profile.startBodyFatPct).toFixed(1)
+    out.push({
+      label: 'Body Fat',
+      before: `${profile.startBodyFatPct}%`,
+      after:  `${today.bodyFatPct.toFixed(1)}%`,
+      delta:  `${d >= 0 ? '+' : ''}${d}%`,
+      direction: d < 0 ? 'down' : d > 0 ? 'up' : 'neutral',
+      good: d <= 0,
+    })
+  }
+
+  if (today.muscleMassKg != null) {
+    out.push({
+      label: 'Muscle Mass',
+      before: '—',
+      after:  `${kgToLbs(today.muscleMassKg)} lbs`,
+      delta:  'Today',
+      direction: 'neutral',
+      good: true,
+    })
+  }
+
+  if (today.hrv != null) {
+    out.push({
+      label: 'HRV',
+      before: '—',
+      after:  `${today.hrv} ms`,
+      delta:  'Today',
+      direction: 'neutral',
+      good: true,
+    })
+  }
+
+  if (today.restingHeartRate != null) {
+    out.push({
+      label: 'Resting HR',
+      before: '—',
+      after:  `${today.restingHeartRate} bpm`,
+      delta:  'Today',
+      direction: 'neutral',
+      good: true,
+    })
+  }
+
+  if (today.sleepHours != null) {
+    out.push({
+      label: 'Sleep',
+      before: '—',
+      after:  `${today.sleepHours.toFixed(1)}h`,
+      delta:  'Today',
+      direction: 'neutral',
+      good: true,
+    })
+  }
+
+  if (today.steps != null) {
+    out.push({
+      label: 'Daily Steps',
+      before: '—',
+      after:  today.steps.toLocaleString(),
+      delta:  'Today',
+      direction: 'neutral',
+      good: true,
+    })
+  }
+
+  return out
+}
+
+function daysSince(dateStr: string) {
+  return Math.max(0, Math.floor((Date.now() - new Date(dateStr + 'T12:00:00').getTime()) / 86400000))
+}
+
+export default function Progress() {
+  const navigate = useNavigate()
+  const { today, loading: dataLoading } = useDashboardData()
+  const [profile,  setProfile]  = useState<ProfileData | null>(null)
+  const [dbStats,  setDbStats]  = useState<{ workoutCount: number; logCount: number } | null>(null)
+  const [loaded,   setLoaded]   = useState(false)
+
+  useEffect(() => {
+    Promise.all([getProfile(), getDBStats()]).then(([p, s]) => {
+      setProfile(p)
+      setDbStats({ workoutCount: s.workoutCount, logCount: s.logCount })
+      setLoaded(true)
+    })
+  }, [])
+
+  if (dataLoading || !loaded) {
+    return (
+      <div className="progress-page">
+        <p className="prog-loading">Loading…</p>
+      </div>
+    )
+  }
+
+  const hasProfile = !!profile?.startDate
+  const metrics    = hasProfile ? buildMetrics(profile, today) : []
+  const daysTracked = profile?.startDate ? daysSince(profile.startDate) : 0
+  const improvements = metrics.filter(m => m.direction !== 'neutral' && m.good).length
+
+  const startLabel = profile?.startDate
+    ? new Date(profile.startDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null
+
+  if (!hasProfile) {
+    return (
+      <div className="progress-page">
+        <header className="prog-header">
+          <h1 className="prog-title">Progress</h1>
+          <p className="prog-subtitle">Track how you've changed over time</p>
+        </header>
+        <div className="prog-empty-state">
+          <span className="prog-empty-icon">📈</span>
+          <p className="prog-empty-title">No baseline yet</p>
+          <p className="prog-empty-desc">
+            Complete your profile setup to record your starting point.
+            Progress is measured by comparing your starting baseline against your current metrics.
+          </p>
+          <button className="prog-empty-btn" onClick={() => navigate('/onboarding?edit=1')}>
+            Set up profile
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="progress-page">
 
       <header className="prog-header">
-        <div>
-          <h1 className="prog-title">Progress</h1>
-          <p className="prog-subtitle">Track how you've changed over time</p>
-        </div>
+        <h1 className="prog-title">Progress</h1>
+        <p className="prog-subtitle">
+          {startLabel ? `Since ${startLabel}` : 'Track how you\'ve changed over time'}
+        </p>
       </header>
 
-      {/* Range selector */}
-      <div className="prog-range-row">
-        {RANGES.map(r => (
-          <button
-            key={r.key}
-            className={`prog-range-btn ${range === r.key ? 'active' : ''}`}
-            onClick={() => setRange(r.key)}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Comparison dates */}
+      {/* Date span summary */}
       <div className="prog-dates-card">
         <div className="prog-date-col">
-          <span className="prog-date-role">From</span>
-          <span className="prog-date-value">{startLabel}</span>
+          <span className="prog-date-role">Started</span>
+          <span className="prog-date-value">{startLabel ?? '—'}</span>
         </div>
         <div className="prog-arrow">→</div>
         <div className="prog-date-col">
-          <span className="prog-date-role">To</span>
-          <span className="prog-date-value">{endLabel}</span>
+          <span className="prog-date-role">Today</span>
+          <span className="prog-date-value">
+            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
         </div>
-        <div className="prog-summary-pill">
-          <span style={{ color: 'var(--green)' }}>↑</span> {improvements}/{metrics.length} improving
-        </div>
+        {daysTracked > 0 && (
+          <div className="prog-summary-pill">
+            {daysTracked} {daysTracked === 1 ? 'day' : 'days'} tracked
+          </div>
+        )}
+        {improvements > 0 && (
+          <div className="prog-summary-pill prog-summary-pill--green">
+            <span>↑</span> {improvements} improving
+          </div>
+        )}
       </div>
+
+      {/* Activity counts */}
+      {((dbStats?.workoutCount ?? 0) > 0 || (dbStats?.logCount ?? 0) > 0) && (
+        <div className="prog-activity-strip">
+          {(dbStats?.workoutCount ?? 0) > 0 && (
+            <div className="prog-activity-stat">
+              <span className="prog-activity-val">{dbStats!.workoutCount}</span>
+              <span className="prog-activity-label">Workouts</span>
+            </div>
+          )}
+          {(dbStats?.logCount ?? 0) > 0 && (
+            <div className="prog-activity-stat">
+              <span className="prog-activity-val">{dbStats!.logCount}</span>
+              <span className="prog-activity-label">Daily logs</span>
+            </div>
+          )}
+          {daysTracked > 0 && (
+            <div className="prog-activity-stat">
+              <span className="prog-activity-val">{daysTracked}</span>
+              <span className="prog-activity-label">Days</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Metrics comparison */}
-      <div className="prog-metrics-grid">
-        {metrics.map(m => (
-          <div key={m.label} className="prog-metric-card">
-            <div className="prog-metric-top">
-              <span className="prog-metric-label">{m.label}</span>
-              <DeltaChip metric={m} />
-            </div>
-            <div className="prog-metric-compare">
-              <div className="prog-metric-col">
-                <span className="prog-metric-role">Before</span>
-                <span className="prog-metric-val prog-metric-val--before">{m.before}</span>
+      {metrics.length > 0 ? (
+        <div className="prog-metrics-grid">
+          {metrics.map(m => (
+            <div key={m.label} className="prog-metric-card">
+              <div className="prog-metric-top">
+                <span className="prog-metric-label">{m.label}</span>
+                <DeltaChip metric={m} />
               </div>
-              <div className="prog-metric-divider" />
-              <div className="prog-metric-col">
-                <span className="prog-metric-role">Now</span>
-                <span className="prog-metric-val" style={{ color: m.good ? 'var(--green)' : 'inherit' }}>
-                  {m.after}
-                </span>
+              <div className="prog-metric-compare">
+                <div className="prog-metric-col">
+                  <span className="prog-metric-role">Start</span>
+                  <span className="prog-metric-val prog-metric-val--before">{m.before}</span>
+                </div>
+                <div className="prog-metric-divider" />
+                <div className="prog-metric-col">
+                  <span className="prog-metric-role">Now</span>
+                  <span
+                    className="prog-metric-val"
+                    style={{ color: m.direction !== 'neutral' && m.good ? 'var(--green)' : 'inherit' }}
+                  >
+                    {m.after}
+                  </span>
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        <div className="prog-no-data-card">
+          <span className="prog-no-data-icon">📊</span>
+          <p className="prog-no-data-title">No trend yet</p>
+          <p className="prog-no-data-desc">
+            {profile?.startWeightKg
+              ? 'Log your weight daily or import Apple Health data to start seeing changes here.'
+              : 'Set a starting weight in your profile, then log daily to track changes.'}
+          </p>
+          <div className="prog-no-data-actions">
+            <button className="prog-empty-btn" onClick={() => navigate('/import/apple-health')}>
+              Import Apple Health
+            </button>
+            <button className="prog-empty-btn prog-empty-btn--ghost" onClick={() => navigate('/log')}>
+              Log today
+            </button>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Chart placeholder */}
+      {/* Charts coming */}
       <div className="prog-chart-placeholder">
         <div className="prog-chart-inner">
           <span className="prog-chart-icon">📈</span>
-          <p className="prog-chart-title">Charts coming next</p>
-          <p className="prog-chart-sub">Weight, body fat, and performance trends will visualize here once connected to live Apple Health data.</p>
+          <p className="prog-chart-title">Trend charts coming soon</p>
+          <p className="prog-chart-sub">
+            Weight, body fat, and performance trends will visualize here
+            once you have multiple days of data.
+          </p>
         </div>
       </div>
 

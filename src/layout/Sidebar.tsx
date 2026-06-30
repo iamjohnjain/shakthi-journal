@@ -1,17 +1,21 @@
 import { NavLink } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, Heart, Zap, Apple, Dumbbell,
-  Target, TrendingUp, UserCircle, Settings,
+  LayoutDashboard, Zap, Apple, Dumbbell,
+  Target, TrendingUp, UserCircle, Settings, Clock,
 } from 'lucide-react'
-import SyncStatus from '../components/SyncStatus'
+import SyncStatusPill from '../components/SyncStatus'
+import { AvatarDisplay } from '../components/Avatar'
 import { useAuth } from '../context/AuthContext'
+import { getProfile } from '../db/profileStore'
+import type { ProfileData } from '../db/profileStore'
 import './Sidebar.css'
 
 type NavItem = { path: string; label: string; icon: React.ElementType; end?: boolean }
 
 const MAIN_NAV: NavItem[] = [
   { path: '/',          label: 'Today',     icon: LayoutDashboard, end: true },
-  { path: '/health',    label: 'Health',    icon: Heart },
+  { path: '/timeline',  label: 'Timeline',  icon: Clock },
   { path: '/recovery',  label: 'Recovery',  icon: Zap },
   { path: '/nutrition', label: 'Nutrition', icon: Apple },
   { path: '/workouts',  label: 'Workouts',  icon: Dumbbell },
@@ -25,18 +29,34 @@ const BOTTOM_NAV: NavItem[] = [
 ]
 
 export default function Sidebar() {
-  const { mode, user } = useAuth()
+  const { mode } = useAuth()
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+
+  useEffect(() => {
+    getProfile().then(setProfile)
+    function onProfileUpdated(e: Event) {
+      setProfile((e as CustomEvent<ProfileData>).detail)
+    }
+    window.addEventListener('profile-updated', onProfileUpdated)
+    return () => window.removeEventListener('profile-updated', onProfileUpdated)
+  }, [])
+
+  const displayName = profile?.name ?? 'Guest'
+  const isGuest = mode === 'guest' || !profile?.name
 
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <div className="sidebar-avatar">S</div>
+        <AvatarDisplay
+          name={displayName}
+          avatarId={profile?.avatarId}
+          photoDataUrl={profile?.photoDataUrl}
+          size="sm"
+        />
         <div className="sidebar-brand">
-          <span className="sidebar-name">Shakthi Journal</span>
+          <span className="sidebar-name">{displayName}</span>
           <span className="sidebar-tagline">
-            {mode === 'authenticated' && user?.email
-              ? user.email.split('@')[0]
-              : 'Health OS'}
+            {isGuest ? 'Guest · local only' : 'Shakthi Journal'}
           </span>
         </div>
       </div>
@@ -68,7 +88,7 @@ export default function Sidebar() {
         ))}
         {mode === 'authenticated' && (
           <div className="sidebar-sync">
-            <SyncStatus />
+            <SyncStatusPill />
           </div>
         )}
       </div>

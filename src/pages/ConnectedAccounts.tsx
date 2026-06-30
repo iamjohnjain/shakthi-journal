@@ -1,24 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   CheckCircle, AlertCircle, Clock, XCircle, RefreshCw,
-  ChevronRight, Info, ExternalLink, Unlink,
+  ChevronRight, Info, Unlink,
 } from 'lucide-react'
 import DataBadge from '../components/DataBadge'
-import {
-  redirectToStravaAuth,
-  stravaCredentialsConfigured,
-  stravaConnectedAccount,
-  clearStravaToken,
-  loadStravaToken,
-} from '../services/strava/stravaOAuth'
+import { getSyncHistory } from '../db'
 import './ConnectedAccounts.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AccountStatus =
-  | 'mock_only'
   | 'import_ready'
   | 'connected'
   | 'needs_setup'
@@ -47,7 +40,6 @@ interface Account {
 
 function StatusBadge({ status }: { status: AccountStatus }) {
   const cfg: Record<AccountStatus, { label: string; color: string }> = {
-    mock_only:    { label: 'Mock Only',    color: 'var(--yellow)' },
     import_ready: { label: 'Import Ready', color: 'var(--blue)' },
     connected:    { label: 'Connected',    color: 'var(--green)' },
     needs_setup:  { label: 'Needs Setup',  color: 'var(--orange)' },
@@ -66,14 +58,14 @@ function StatusBadge({ status }: { status: AccountStatus }) {
 
 function AccountCard({
   account,
+  lastSync,
   onSync,
   onDisconnect,
-  onConnect,
 }: {
   account: Account
+  lastSync?: { at: string; count: number }
   onSync: (id: string) => void
   onDisconnect: (id: string) => void
-  onConnect: (id: string) => void
 }) {
   const [showSetup, setShowSetup] = useState(false)
   const navigate = useNavigate()
@@ -110,9 +102,9 @@ function AccountCard({
           </div>
         </div>
 
-        <DataBadge
-          mode={account.status === 'connected' ? 'live' : account.status === 'import_ready' ? 'imported' : 'mock'}
-        />
+        {(account.status === 'connected' || account.status === 'import_ready') && (
+          <DataBadge mode={account.status === 'connected' ? 'live' : 'imported'} />
+        )}
       </div>
 
       <p className="account-description">{account.description}</p>
@@ -124,14 +116,12 @@ function AccountCard({
         ))}
       </div>
 
-      {/* Last sync row */}
-      {account.lastSync && (
+      {/* Last sync row — from real IDB sync history */}
+      {lastSync && (
         <div className="account-sync-row">
           <RefreshCw size={11} />
-          <span>Last synced: {account.lastSync}</span>
-          {account.recordCount != null && (
-            <span className="account-record-count">{account.recordCount.toLocaleString()} records</span>
-          )}
+          <span>Last synced: {timeAgo(lastSync.at)}</span>
+          <span className="account-record-count">{lastSync.count.toLocaleString()} records</span>
           <button className="account-link-btn" onClick={() => navigate('/sync-history')}>
             View history <ChevronRight size={11} />
           </button>
@@ -175,7 +165,7 @@ function AccountCard({
           </>
         )}
         {account.status === 'import_ready' && (
-          <button className="btn btn-primary btn-sm" onClick={() => navigate('/import')}>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/import/apple-health')}>
             Import File
           </button>
         )}
@@ -184,15 +174,7 @@ function AccountCard({
             <Info size={13} /> View Setup
           </button>
         )}
-        {account.id === 'strava' && account.status !== 'connected' && (
-          <button
-            className="btn btn-strava btn-sm"
-            onClick={() => onConnect(account.id)}
-            disabled={account.status === 'coming_soon'}
-          >
-            <ExternalLink size={13} /> Connect with Strava
-          </button>
-        )}
+        {/* Strava OAuth disabled for beta — requires server-side token exchange */}
       </div>
     </div>
   )
@@ -200,16 +182,42 @@ function AccountCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(ms / 60_000)
+  const hours = Math.floor(ms / 3_600_000)
+  const days = Math.floor(ms / 86_400_000)
+  if (mins < 2) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  return `${days}d ago`
+}
+
 export default function ConnectedAccounts() {
-  const stravaConnected = !!loadStravaToken()
-  const stravaAccount = stravaConnectedAccount()
-  const credentialsSet = stravaCredentialsConfigured()
+  const navigate = useNavigate()
   const { user, mode: authMode } = useAuth()
 
   const googleConnected = authMode === 'authenticated' && user?.provider === 'google'
   const appleConnected  = authMode === 'authenticated' && user?.provider === 'apple'
 
-  const [accounts, setAccounts] = useState<Account[]>([
+  const [lastSyncs, setLastSyncs] = useState<Map<string, { at: string; count: number }>>(new Map())
+
+  useEffect(() => {
+    getSyncHistory(200).then(entries => {
+      const map = new Map<string, { at: string; count: number }>()
+      for (const e of entries) {
+        if (e.status === 'success' && e.completedAt) {
+          const existing = map.get(e.sourceId)
+          if (!existing || e.completedAt > existing.at) {
+            map.set(e.sourceId, { at: e.completedAt, count: e.recordCount })
+          }
+        }
+      }
+      setLastSyncs(map)
+    })
+  }, [])
+
+  const [accounts] = useState<Account[]>([
     {
       id: 'apple_health',
       name: 'Apple Health',
@@ -219,8 +227,6 @@ export default function ConnectedAccounts() {
       method: 'XML export · manual import',
       dataTypes: ['Steps', 'Heart Rate', 'HRV', 'Sleep', 'Calories', 'Workouts'],
       description: 'Acts as the central hub. Apple Watch, RingConn, and RENPHO all sync into Apple Health, so importing a single Apple Health export gives you everything.',
-      lastSync: '2 hours ago',
-      recordCount: 842,
       availability: 'now',
       setupInstructions: [
         'Open Health app on iPhone',
@@ -271,8 +277,6 @@ export default function ConnectedAccounts() {
       method: 'CSV export · or via Apple Health',
       dataTypes: ['Weight', 'Body Fat', 'Muscle Mass', 'BMI', 'Water %'],
       description: 'RENPHO syncs to Apple Health if enabled, or you can export a CSV from the RENPHO app. Body composition data only — not available via any public API.',
-      lastSync: '26 hours ago',
-      recordCount: 4,
       availability: 'now',
       importNote: 'No public RENPHO API exists. Apple Health sync or CSV export are the only options.',
       setupInstructions: [
@@ -286,17 +290,12 @@ export default function ConnectedAccounts() {
       name: 'Strava',
       shortName: 'Strava',
       icon: '🏃',
-      status: stravaConnected ? 'connected' : (credentialsSet ? 'needs_setup' : 'mock_only'),
-      method: 'OAuth 2.0 API',
+      status: 'coming_soon' as AccountStatus,
+      method: 'OAuth 2.0 API · server-side (coming later)',
       dataTypes: ['GPS Routes', 'Pace', 'Power', 'Heart Rate Zones', 'Splits'],
-      description: 'Strava is the only source with a real public API. GPS route data and splits don\'t flow through Apple Health cleanly, so a direct connection gives you full data.',
-      lastSync: stravaConnected ? 'Just now' : undefined,
-      recordCount: stravaConnected ? 0 : undefined,
-      accountName: stravaAccount?.name,
-      availability: 'now',
-      importNote: credentialsSet
-        ? undefined
-        : 'Add your Strava API credentials to .env to enable OAuth connection. See .env.example for instructions.',
+      description: 'Strava has a real public API. GPS route data and splits don\'t flow through Apple Health cleanly, so a direct connection gives the best data.',
+      availability: 'coming_soon' as const,
+      importNote: 'Strava OAuth requires a secure server-side token exchange to keep your API credentials safe. This will be enabled in a future update once a backend proxy is in place.',
     },
     {
       id: 'myfitnesspal',
@@ -307,8 +306,6 @@ export default function ConnectedAccounts() {
       method: 'CSV export · or via Apple Health',
       dataTypes: ['Calories In', 'Protein', 'Carbs', 'Fat', 'Meals'],
       description: 'MyFitnessPal removed their public API in 2019. The best option is enabling MFP → Apple Health sync (for nutrition totals), or exporting a CSV from myfitnesspal.com.',
-      lastSync: '5 hours ago',
-      recordCount: 5,
       availability: 'now',
       importNote: 'No MFP API available. Apple Health sync (in MFP app settings) or CSV export from myfitnesspal.com.',
       setupInstructions: [
@@ -404,36 +401,21 @@ export default function ConnectedAccounts() {
   ])
 
   const [syncing, setSyncing] = useState<string | null>(null)
-  const [stravaError, setStravaError] = useState<string | null>(null)
+  const [disconnectMsg, setDisconnectMsg] = useState('')
 
   function handleSync(id: string) {
+    const account = accounts.find(a => a.id === id)
+    if (account?.status === 'import_ready') {
+      navigate('/import/apple-health')
+      return
+    }
     setSyncing(id)
-    setTimeout(() => setSyncing(null), 1800)
+    setTimeout(() => setSyncing(null), 800)
   }
 
-  function handleDisconnect(id: string) {
-    if (id === 'strava') {
-      clearStravaToken()
-      setAccounts(prev => prev.map(a =>
-        a.id === 'strava'
-          ? { ...a, status: credentialsSet ? 'needs_setup' : 'mock_only', accountName: undefined, lastSync: undefined, recordCount: undefined }
-          : a
-      ))
-    }
-  }
-
-  function handleConnect(id: string) {
-    if (id === 'strava') {
-      if (!credentialsSet) {
-        setStravaError('Strava credentials not configured. Add VITE_STRAVA_CLIENT_ID and VITE_STRAVA_CLIENT_SECRET to your .env file.')
-        return
-      }
-      try {
-        redirectToStravaAuth()
-      } catch (e) {
-        setStravaError(e instanceof Error ? e.message : 'Unknown error')
-      }
-    }
+  function handleDisconnect(_id: string) {
+    setDisconnectMsg('No live connections to disconnect — data is stored locally only.')
+    setTimeout(() => setDisconnectMsg(''), 4000)
   }
 
   const connectedCount = accounts.filter(a => a.status === 'connected').length
@@ -464,6 +446,10 @@ export default function ConnectedAccounts() {
         </div>
       )}
 
+      {disconnectMsg && (
+        <div className="settings-notice" style={{ marginBottom: 0 }}>{disconnectMsg}</div>
+      )}
+
       {/* Status summary bar */}
       <div className="accounts-summary">
         <div className="accounts-summary-stat">
@@ -482,15 +468,6 @@ export default function ConnectedAccounts() {
         </div>
       </div>
 
-      {/* Strava error */}
-      {stravaError && (
-        <div className="accounts-error-banner">
-          <AlertCircle size={14} />
-          <span>{stravaError}</span>
-          <button onClick={() => setStravaError(null)}>✕</button>
-        </div>
-      )}
-
       {/* Accounts list */}
       <div className="accounts-list">
         {accounts.map(account => (
@@ -503,9 +480,9 @@ export default function ConnectedAccounts() {
             )}
             <AccountCard
               account={account}
+              lastSync={lastSyncs.get(account.id)}
               onSync={handleSync}
               onDisconnect={handleDisconnect}
-              onConnect={handleConnect}
             />
           </div>
         ))}

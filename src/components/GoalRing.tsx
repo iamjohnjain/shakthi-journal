@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { GOALS, kgToLbs } from '../data/config'
+import { kgToLbs } from '../data/config'
 import { getProfile } from '../db/profileStore'
-import type { ProfileData } from '../db'
+import { getSetting } from '../db'
+import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
 import DataBadge from './DataBadge'
 import type { DataBadgeMode } from './DataBadge'
 import './GoalRing.css'
+
+const SLEEP_GOAL_H  = 8       // universally recommended
+const STEP_GOAL_DAY = 10_000  // universal daily target
 
 type GoalType = 'weight' | 'bodyFat' | 'steps' | 'protein' | 'sleep'
 const GOAL_TYPES: GoalType[] = ['weight', 'bodyFat', 'steps', 'protein', 'sleep']
@@ -18,7 +22,7 @@ interface GoalCfg {
   color: string
   current: (s: DailySnapshot) => number | undefined
   start:   (p: ProfileData | null, s: DailySnapshot) => number | undefined
-  goal:    (p: ProfileData | null) => number
+  goal:    (p: ProfileData | null, ng: Pick<NutritionGoals, 'proteinG'>) => number | undefined
   higherIsBetter: boolean
   format:  (v: number) => string
   desc:    string
@@ -29,7 +33,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     label: 'Weight Goal', unit: 'lbs', color: 'var(--blue)',
     current: s => s.weight ? kgToLbs(s.weight) : undefined,
     start:   (p, s) => p?.startWeightKg ? kgToLbs(p.startWeightKg) : (s.weight ? +(kgToLbs(s.weight) + 15).toFixed(1) : undefined),
-    goal:    p => p?.goalWeightKg ? kgToLbs(p.goalWeightKg) : GOALS.targetWeightLbs,
+    goal:    p => p?.goalWeightKg ? kgToLbs(p.goalWeightKg) : undefined,
     higherIsBetter: false,
     format:  v => v.toFixed(1),
     desc:    'toward target weight',
@@ -38,7 +42,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     label: 'Body Fat Goal', unit: '%', color: 'var(--teal)',
     current: s => s.bodyFatPct,
     start:   (p, _s) => p?.startBodyFatPct,
-    goal:    _p => GOALS.targetBodyFatPct,
+    goal:    p => p?.goalBodyFatPct ?? undefined,
     higherIsBetter: false,
     format:  v => v.toFixed(1),
     desc:    'toward target body fat',
@@ -47,7 +51,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     label: 'Daily Steps', unit: 'steps', color: 'var(--green)',
     current: s => s.steps,
     start:   (_p, _s) => 0,
-    goal:    _p => GOALS.steps,
+    goal:    () => STEP_GOAL_DAY,
     higherIsBetter: true,
     format:  v => Math.round(v).toLocaleString(),
     desc:    "today's step goal",
@@ -56,7 +60,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     label: 'Protein Goal', unit: 'g', color: 'var(--orange)',
     current: s => s.proteinG,
     start:   (_p, _s) => 0,
-    goal:    _p => GOALS.proteinG,
+    goal:    (_p, ng) => ng.proteinG,
     higherIsBetter: true,
     format:  v => Math.round(v).toString(),
     desc:    "today's protein goal",
@@ -65,7 +69,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     label: 'Sleep Goal', unit: 'h', color: 'var(--purple)',
     current: s => s.sleepHours,
     start:   (_p, _s) => 0,
-    goal:    _p => GOALS.sleepH,
+    goal:    () => SLEEP_GOAL_H,
     higherIsBetter: true,
     format:  v => v.toFixed(1),
     desc:    "last night's sleep",
@@ -90,12 +94,18 @@ interface Props {
 export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
   const navigate = useNavigate()
   const [typeIdx, setTypeIdx] = useState(0)
-  const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [animated, setAnimated] = useState(false)
-  const [showDetail, setShowDetail] = useState(false)
+  const [profile,        setProfile]        = useState<ProfileData | null>(null)
+  const [nutritionGoals, setNutritionGoals] = useState<Pick<NutritionGoals, 'proteinG'>>({ proteinG: 200 })
+  const [animated,       setAnimated]       = useState(false)
+  const [showDetail,     setShowDetail]     = useState(false)
   const isMock = dataSource === 'mock'
 
-  useEffect(() => { getProfile().then(setProfile) }, [])
+  useEffect(() => {
+    getProfile().then(setProfile)
+    getSetting<NutritionGoals | null>('nutrition-goals', null).then(ng => {
+      if (ng?.proteinG) setNutritionGoals({ proteinG: ng.proteinG })
+    })
+  }, [])
   useEffect(() => {
     setAnimated(false)
     const t = setTimeout(() => setAnimated(true), 80)
@@ -106,16 +116,16 @@ export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
   const cfg = CONFIGS[goalType]
 
   const current  = cfg.current(snapshot)
-  const goalVal  = cfg.goal(profile)
+  const goalVal  = cfg.goal(profile, nutritionGoals)
   const startVal = cfg.start(profile, snapshot)
-  const pct = current != null && startVal != null
+  const pct = goalVal != null && current != null && startVal != null
     ? ringPct(current, startVal, goalVal, cfg.higherIsBetter)
-    : current != null
+    : goalVal != null && current != null
     ? clamp(cfg.higherIsBetter ? (current / goalVal * 100) : 0)
     : 0
 
   const change     = current != null && startVal != null ? current - startVal : null
-  const remaining  = current != null ? Math.abs(goalVal - current) : null
+  const remaining  = current != null && goalVal != null ? Math.abs(goalVal - current) : null
   const hasData    = current != null
   const hasProfile = startVal != null
 
@@ -225,7 +235,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
             </span>
           </div>
           <div className="goal-ring-stat goal-ring-stat--right">
-            <span className="goal-ring-stat-val">{cfg.format(goalVal)}</span>
+            <span className="goal-ring-stat-val">{goalVal != null ? cfg.format(goalVal) : '—'}</span>
             <span className="goal-ring-stat-label">Goal</span>
           </div>
         </div>
@@ -255,7 +265,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
                 {([
                   ['Current',      hasData     ? `${cfg.format(current!)} ${cfg.unit}`    : '—',      undefined    ],
                   ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${cfg.unit}`   : '— Set in Profile', undefined],
-                  ['Goal',         `${cfg.format(goalVal)} ${cfg.unit}`,                                            undefined],
+                  ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${cfg.unit}` : '— Set in Profile',   undefined],
                   ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${cfg.unit}` : '—', changeColor],
                   ['Remaining',    remaining != null ? `${cfg.format(remaining)} ${cfg.unit} to go` : '—', undefined],
                 ] as [string, string, string | undefined][]).map(([label, val, color]) => (

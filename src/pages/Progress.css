@@ -261,3 +261,152 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ─── Loading ────────────────────────────────────────────── */
+
+.prog-loading {
+  color: var(--text-tertiary);
+  padding: 40px 0;
+  font-size: 0.9rem;
+}
+
+/* ─── Summary pill variant ───────────────────────────────── */
+
+.prog-summary-pill--green {
+  background: var(--green-dim);
+  border-color: rgba(48,209,88,0.2);
+  color: var(--green);
+}
+
+/* ─── Activity strip ─────────────────────────────────────── */
+
+.prog-activity-strip {
+  display: flex;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+}
+
+.prog-activity-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 18px 12px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.prog-activity-stat:last-child {
+  border-right: none;
+}
+
+.prog-activity-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.prog-activity-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+}
+
+/* ─── Empty state ────────────────────────────────────────── */
+
+.prog-empty-state {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xl);
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.prog-empty-icon {
+  font-size: 2.8rem;
+}
+
+.prog-empty-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.prog-empty-desc {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+  max-width: 340px;
+}
+
+.prog-empty-btn {
+  margin-top: 4px;
+  padding: 10px 22px;
+  background: var(--blue);
+  color: #fff;
+  border-radius: var(--r-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+
+.prog-empty-btn:hover { opacity: 0.85; }
+
+.prog-empty-btn--ghost {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.prog-empty-btn--ghost:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+/* ─── No data yet card ───────────────────────────────────── */
+
+.prog-no-data-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xl);
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.prog-no-data-icon { font-size: 2.4rem; }
+
+.prog-no-data-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.prog-no-data-desc {
+  font-size: 0.84rem;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.prog-no-data-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}

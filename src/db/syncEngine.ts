@@ -1,6 +1,6 @@
 import { getDB, getSetting, setSetting } from './index'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { getPending, markSuccess, markFailure, clearQueueForUser } from './syncQueue'
+import { enqueue, getPending, markSuccess, markFailure, clearQueueForUser } from './syncQueue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +11,8 @@ export type SyncStatus =
   | { type: 'offline' }
   | { type: 'error'; message: string }
   | { type: 'unauthenticated' }
+  | { type: 'local_only' }                   // Supabase not configured
+  | { type: 'needs_attention'; failed: number } // queue has permanently failed entries
 
 // Maps every IndexedDB store to its Supabase table name
 const STORE_TABLE_MAP: Record<string, string> = {
@@ -39,6 +41,7 @@ class SyncEngine {
   private _listeners: Set<StatusListener> = new Set()
   private _userId: string | null = null
   private _timer: ReturnType<typeof setInterval> | null = null
+  private _debounce: ReturnType<typeof setTimeout> | null = null
   private _draining = false
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -65,6 +68,23 @@ class SyncEngine {
   async syncNow(): Promise<void> {
     if (!this._userId || !isSupabaseConfigured) return
     await this._runSync()
+  }
+
+  /** Called by stores after any local write. No-op in guest mode. */
+  async queueWrite(
+    store: string,
+    operation: 'upsert' | 'delete',
+    recordId: string,
+    data: unknown,
+  ): Promise<void> {
+    if (!this._userId) return
+    await enqueue({ store, operation, recordId, data, userId: this._userId })
+    this._scheduleSoon()
+  }
+
+  /** Called by AuthContext when Supabase is not configured. */
+  markLocalOnly(): void {
+    this._setStatus({ type: 'local_only' })
   }
 
   // ── Bulk operations (merge dialog) ──────────────────────────────────────────
@@ -194,6 +214,14 @@ class SyncEngine {
 
   // ── Internal ─────────────────────────────────────────────────────────────────
 
+  private _scheduleSoon(): void {
+    if (this._draining) return
+    if (this._debounce) clearTimeout(this._debounce)
+    this._debounce = setTimeout(() => {
+      if (navigator.onLine && this._userId) void this._runSync()
+    }, 2_000)
+  }
+
   private _start(): void {
     this._onlineHandler()
     window.addEventListener('online', this._onlineHandler)
@@ -231,12 +259,25 @@ class SyncEngine {
       await this._pullChanges(this._userId)
 
       await setSetting('lastSyncAt', new Date().toISOString())
-      this._setStatus({ type: 'synced', at: Date.now() })
+
+      // 3. Check for permanently failed entries (>= 5 attempts)
+      const failedCount = await this._countFailedEntries(this._userId)
+      if (failedCount > 0) {
+        this._setStatus({ type: 'needs_attention', failed: failedCount })
+      } else {
+        this._setStatus({ type: 'synced', at: Date.now() })
+      }
     } catch (e) {
       this._setStatus({ type: 'error', message: String(e) })
     } finally {
       this._draining = false
     }
+  }
+
+  private async _countFailedEntries(userId: string): Promise<number> {
+    const db = await getDB()
+    const all = await db.getAllFromIndex('sync_queue', 'by-user', userId)
+    return all.filter(e => e.attempts >= 5).length
   }
 
   private async _drainQueue(userId: string): Promise<void> {

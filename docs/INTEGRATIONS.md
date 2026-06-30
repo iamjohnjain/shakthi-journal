@@ -1,4 +1,141 @@
-# Integrations Plan
+# Integrations Reference
+*Phase 15 — Real Data Integrations Platform*  
+*Updated: 2026-06-29*
+
+---
+
+## Integration Matrix
+
+| Provider | Status | Method | Auto-sync | API | Dev Account |
+|----------|--------|--------|-----------|-----|-------------|
+| Apple Health | ✅ Manual Import | XML export | ❌ needs native app | HealthKit (iOS only) | No |
+| Apple Watch | ✅ Via Apple Health | Through AH hub | ❌ | None (no web API) | No |
+| RENPHO | ✅ Manual Import | CSV + AH passthrough | ❌ | None | No |
+| RingConn | ✅ Via Apple Health | Through AH hub | ❌ | None | No |
+| Strava | ⚡ OAuth Ready | OAuth 2.0 API | ✅ (needs credentials) | Public REST | Free |
+| MyFitnessPal | ✅ Manual Import | CSV + AH passthrough | ❌ | Deprecated (2019) | No |
+| Garmin | 🔮 Coming Soon | Garmin Health API | ✅ | Partnership required | Paid |
+| WHOOP | 🔮 Coming Soon | WHOOP API | ✅ | Invite-only | WHOOP sub |
+| Oura | 🔮 Coming Soon | Oura API v2 | ✅ | Public (free dev tier) | Free |
+
+---
+
+## Source Trust Hierarchy
+
+When two sources report conflicting values for the same metric on the same day,  
+the engine uses this trust ranking to resolve the conflict (higher = more authoritative):
+
+| Score | Source | Reasoning |
+|-------|--------|-----------|
+| 90 | RENPHO | Dedicated scale; most accurate body composition |
+| 88 | WHOOP | Recovery/HRV is WHOOP's primary purpose |
+| 85 | Oura | Sleep and readiness is Oura's primary purpose |
+| 80 | Apple Watch | General fitness ground truth |
+| 78 | Garmin | Activity and GPS accuracy |
+| 75 | RingConn | Sleep and HRV from ring |
+| 70 | Strava | Activity ground truth for endurance |
+| 65 | MyFitnessPal | Nutrition logging accuracy |
+| 50 | Apple Health | Hub; may aggregate from any source |
+| 40 | Manual | User-entered; intentional but imprecise |
+
+Conflicts are logged to `settings['import.conflict_log']` (last 200 entries).
+
+---
+
+## Source Detection from Apple Health
+
+When importing Apple Health XML, each `<Record>` element has a `sourceName` attribute.  
+We auto-detect the originating device/app:
+
+| sourceName pattern | Detected provider |
+|--------------------|------------------|
+| `watch` | apple_watch |
+| `renpho` | renpho |
+| `ringconn` / `ring conn` | ringconn |
+| `whoop` | whoop |
+| `oura` | oura |
+| `garmin` | garmin |
+| `myfitnesspal` | myfitnesspal |
+| `strava` | strava |
+| (other) | apple_health |
+
+This means a single Apple Health export correctly attributes data to RENPHO, RingConn, WHOOP, etc.
+
+---
+
+## Developer Accounts Required
+
+| Provider | Account Type | Cost | URL |
+|----------|-------------|------|-----|
+| Strava | Free developer app | Free | strava.com/settings/api |
+| Garmin | Partnership (apply) | Free to apply | connect.garmin.com/developer |
+| WHOOP | WHOOP membership + dev access | WHOOP subscription | developer.whoop.com |
+| Oura | Free developer app | Free | cloud.ouraring.com/oauth/applications |
+
+Apple Health, RENPHO, RingConn, and MFP: no developer account possible/needed.
+
+---
+
+## What Works Today
+
+| Feature | Status |
+|---------|--------|
+| Apple Health XML import | ✅ Real |
+| RENPHO auto-detection from AH | ✅ Real |
+| RingConn auto-detection from AH | ✅ Real |
+| WHOOP/Oura/Garmin via AH | ✅ Real (auto-detected from sourceName) |
+| MFP via AH or CSV | ✅ Real |
+| Strava OAuth flow | ✅ Architecture complete, needs .env credentials |
+| Deduplication with trust hierarchy | ✅ importEngine.ts |
+| Conflict logging | ✅ settings['import.conflict_log'] |
+| Data attribution popover | ✅ MetricAttribution component |
+| Background sync | ❌ Requires native iOS app |
+| Auto-refresh | ❌ Requires native app or OAuth polling |
+| Strava live sync | 🔨 Next milestone |
+| Oura OAuth | 🔨 Phase 6 |
+
+---
+
+## iOS Companion App Architecture (Phase 6)
+
+The only path to automatic Apple Health sync:
+
+```
+HealthKit background delivery
+    ↓ (iOS app, Swift)
+SwiftUI lightweight companion
+    ↓ (HTTPS POST)
+Supabase API
+    ↓ (real-time subscription)
+Shakthi web app
+```
+
+The companion app's only jobs:
+- Request HealthKit permissions
+- Register for HealthKit background delivery (fires even when app is closed)
+- Push new records to Supabase on background delivery
+- Display sync status
+
+No UI needed beyond a status screen. Estimated: 4–8 weeks for a focused build.
+
+---
+
+## Strava Integration — Next Steps
+
+1. User adds `VITE_STRAVA_CLIENT_ID` and `VITE_STRAVA_CLIENT_SECRET` to `.env`
+2. OAuth flow redirects to Strava, user authorizes
+3. Token stored in localStorage
+4. App fetches activities list via `https://www.strava.com/api/v3/athlete/activities`
+5. Activities parsed and stored in `workouts` IndexedDB store
+6. Strava activity ID stored as dedup key (prevents re-importing on refresh)
+
+Rate limit: 200 req/15min, 2000 req/day — sufficient for personal use.
+
+---
+
+## Original Plan (V1/V2) below
+
+---
 
 ## Version 1 — Local & Manual (Build This First)
 
