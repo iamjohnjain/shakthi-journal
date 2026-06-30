@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { AUTH_PROVIDERS } from '../lib/authProviders'
 import {
   CheckCircle, AlertCircle, Clock, XCircle, RefreshCw,
   ChevronRight, Info, Unlink,
@@ -400,6 +401,8 @@ export default function ConnectedAccounts() {
     },
   ])
 
+  const visibleAccounts = accounts.filter(a => a.id !== 'apple_id' || AUTH_PROVIDERS.apple.enabled)
+
   const [syncing, setSyncing] = useState<string | null>(null)
   const [disconnectMsg, setDisconnectMsg] = useState('')
 
@@ -470,7 +473,7 @@ export default function ConnectedAccounts() {
 
       {/* Accounts list */}
       <div className="accounts-list">
-        {accounts.map(account => (
+        {visibleAccounts.map(account => (
           <div key={account.id} className="account-wrap">
             {syncing === account.id && (
               <div className="account-syncing-overlay">
