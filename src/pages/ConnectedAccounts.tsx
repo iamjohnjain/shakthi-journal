@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import DataBadge from '../components/DataBadge'
 import { getSyncHistory } from '../db'
+import { getImportedSources } from '../db/healthStore'
 import { isInsideNativeApp } from '../layout/BottomNav'
 import './ConnectedAccounts.css'
 
@@ -217,8 +218,9 @@ export default function ConnectedAccounts() {
   const appleConnected  = authMode === 'authenticated' && user?.provider === 'apple'
 
   const [lastSyncs, setLastSyncs] = useState<Map<string, { at: string; count: number }>>(new Map())
+  const [detectedSources, setDetectedSources] = useState<string[]>([])
 
-  useEffect(() => {
+  const loadData = useCallback(function loadData() {
     getSyncHistory(200).then(entries => {
       const map = new Map<string, { at: string; count: number }>()
       for (const e of entries) {
@@ -231,9 +233,18 @@ export default function ConnectedAccounts() {
       }
       setLastSyncs(map)
     })
+    getImportedSources().then(setDetectedSources)
   }, [])
 
-  const [accounts] = useState<Account[]>([
+  useEffect(() => {
+    loadData()
+    window.addEventListener('native-health-sync-complete', loadData)
+    return () => window.removeEventListener('native-health-sync-complete', loadData)
+  }, [])
+
+  const renphoDetected = detectedSources.includes('renpho')
+
+  const accounts = useMemo<Account[]>(() => [
     {
       id: 'apple_health',
       name: 'Apple Health',
@@ -293,13 +304,26 @@ export default function ConnectedAccounts() {
       name: 'RENPHO',
       shortName: 'RENPHO',
       icon: '⚖️',
-      status: 'import_ready',
-      method: 'CSV export · or via Apple Health',
+      status: inNativeApp
+        ? (renphoDetected ? 'connected' : 'needs_setup')
+        : 'import_ready',
+      method: inNativeApp
+        ? (renphoDetected ? 'Connected via Apple Health' : 'Via Apple Health · setup needed')
+        : 'CSV export · or via Apple Health',
       dataTypes: ['Weight', 'Body Fat', 'Muscle Mass', 'BMI', 'Water %'],
-      description: 'RENPHO syncs to Apple Health if enabled, or you can export a CSV from the RENPHO app. Body composition data only — not available via any public API.',
+      description: inNativeApp
+        ? (renphoDetected
+          ? 'RENPHO body composition data is syncing through Apple Health — weight, body fat %, and more appear automatically after each sync.'
+          : 'Open RENPHO app → Settings → Connect to → Health App → enable Weight and Body Fat. Then return here and tap "Sync Now" on Apple Health.')
+        : 'RENPHO syncs to Apple Health if enabled, or you can export a CSV from the RENPHO app. Body composition data only — not available via any public API.',
       availability: 'now',
-      importNote: 'No public RENPHO API exists. Apple Health sync or CSV export are the only options.',
-      setupInstructions: [
+      importNote: inNativeApp ? undefined : 'No public RENPHO API exists. Apple Health sync or CSV export are the only options.',
+      setupInstructions: inNativeApp ? (renphoDetected ? undefined : [
+        'Open RENPHO app on your iPhone',
+        'Go to Settings → Connect to → Health App',
+        'Enable Weight, Body Fat %, Muscle Mass, and other metrics',
+        'Return here and tap "Sync Now" on the Apple Health card',
+      ]) : [
         'Open RENPHO app → More → Apple Health',
         'Enable body composition sharing, OR',
         'Go to RENPHO app → Profile → Export Data → select CSV',
@@ -418,7 +442,7 @@ export default function ConnectedAccounts() {
         'Then import via Apple Health export',
       ],
     },
-  ])
+  ], [inNativeApp, renphoDetected, googleConnected, appleConnected, user])
 
   const visibleAccounts = accounts.filter(a => a.id !== 'apple_id' || AUTH_PROVIDERS.apple.enabled)
 

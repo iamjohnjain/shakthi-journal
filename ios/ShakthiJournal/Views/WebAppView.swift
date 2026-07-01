@@ -36,6 +36,7 @@ struct WebAppView: UIViewRepresentable {
 
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
+        context.coordinator.webView = wv  // stored weakly so Coordinator can inject metrics later
         wv.allowsBackForwardNavigationGestures = true
         // Let the web app handle safe-area padding via CSS env()
         wv.scrollView.contentInsetAdjustmentBehavior = .always
@@ -113,10 +114,25 @@ struct WebAppView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
 
         let onMessage: (([String: Any]) -> Void)?
+        /// Weak reference so the Coordinator can call evaluateJavaScript after a sync completes.
+        weak var webView: WKWebView?
 
         init(onMessage: (([String: Any]) -> Void)?) {
             self.onMessage = onMessage
+            super.init()
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleNativeSyncComplete(_:)),
+                name: .shakthiNativeSyncComplete,
+                object: nil
+            )
         }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+
+        // MARK: Navigation
 
         func webView(
             _ webView: WKWebView,
@@ -137,6 +153,8 @@ struct WebAppView: UIViewRepresentable {
             decisionHandler(.cancel)
         }
 
+        // MARK: JS → Native messages
+
         // Receives messages posted by the web app via:
         //   window.webkit.messageHandlers.shakthiNative.postMessage({ type: '...' })
         func userContentController(
@@ -147,6 +165,82 @@ struct WebAppView: UIViewRepresentable {
                   let body = message.body as? [String: Any] else { return }
             DispatchQueue.main.async { [weak self] in
                 self?.onMessage?(body)
+            }
+        }
+
+        // MARK: Native → Web injection
+
+        /// Called after a successful HealthKit sync. Encodes the metrics to JSON
+        /// and injects them directly into the web app's IndexedDB via evaluateJavaScript.
+        /// This bridges the native sync to the web dashboard without a Supabase round-trip.
+        @objc private func handleNativeSyncComplete(_ note: Notification) {
+            guard
+                let metrics = note.userInfo?["metrics"] as? [HealthMetric],
+                !metrics.isEmpty,
+                let wv = webView
+            else { return }
+
+            guard
+                let json = try? JSONEncoder().encode(metrics),
+                let jsonString = String(data: json, encoding: .utf8)
+            else { return }
+
+            // Build the injection script. Embedding the JSON directly (not as a string)
+            // means no escaping is needed — JSON is a valid JS literal.
+            let script = """
+            (function() {
+              try {
+                var metrics = \(jsonString);
+                var req = indexedDB.open('shakthi-journal');
+                req.onsuccess = function(e) {
+                  var db = e.target.result;
+                  if (!db.objectStoreNames.contains('health_metrics')) {
+                    db.close();
+                    console.warn('[ShakthiJournal] health_metrics store not found — app may not be initialized');
+                    return;
+                  }
+                  var tx = db.transaction(['health_metrics', 'sync_history'], 'readwrite');
+                  var metricsStore = tx.objectStore('health_metrics');
+                  metrics.forEach(function(m) { metricsStore.put(m); });
+                  var histStore = tx.objectStore('sync_history');
+                  var types = [...new Set(metrics.map(function(m) { return m.type; }))];
+                  histStore.put({
+                    id: crypto.randomUUID(),
+                    sourceId: 'apple_health',
+                    sourceName: 'Apple Health (HealthKit)',
+                    status: 'success',
+                    recordCount: metrics.length,
+                    dataTypes: types,
+                    dataMode: 'imported',
+                    startedAt: new Date().toISOString(),
+                    completedAt: new Date().toISOString(),
+                    durationMs: 0,
+                  });
+                  tx.oncomplete = function() {
+                    db.close();
+                    window.dispatchEvent(new CustomEvent('native-health-sync-complete', {
+                      detail: { count: metrics.length }
+                    }));
+                  };
+                  tx.onerror = function(err) {
+                    console.error('[ShakthiJournal] IDB write error:', err.target.error);
+                  };
+                };
+                req.onerror = function(err) {
+                  console.error('[ShakthiJournal] IDB open error:', err.target.error);
+                };
+              } catch(err) {
+                console.error('[ShakthiJournal] inject error:', err);
+              }
+            })();
+            """
+
+            DispatchQueue.main.async {
+                wv.evaluateJavaScript(script) { _, error in
+                    if let error = error {
+                        print("[ShakthiJournal] evaluateJavaScript error:", error)
+                    }
+                }
             }
         }
     }

@@ -91,6 +91,14 @@ export function useDashboardData(): DashboardData {
     return () => window.removeEventListener('health-data-cleared', onDataCleared)
   }, [])
 
+  // After native HealthKit sync, the iOS layer injects records into IndexedDB
+  // and fires this event. Re-read so the dashboard updates without a reload.
+  useEffect(() => {
+    function onNativeSync() { setTick(t => t + 1) }
+    window.addEventListener('native-health-sync-complete', onNativeSync)
+    return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
+  }, [])
+
   const hasAH  = realSnapshots.length > 0
   const hasLog = todayLog !== null
 

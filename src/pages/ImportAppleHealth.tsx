@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Upload, CheckCircle, AlertCircle, Loader, ChevronRight,
@@ -9,6 +9,7 @@ import { parseAppleHealthFile, type ParsePreview } from '../parsers/appleHealthP
 import { storeMetrics } from '../db/healthStore'
 import { addSyncHistoryEntry } from '../db'
 import DataBadge from '../components/DataBadge'
+import { isInsideNativeApp } from '../layout/BottomNav'
 import './ImportAppleHealth.css'
 
 type Step = 'drop' | 'parsing' | 'preview' | 'importing' | 'done'
@@ -238,6 +239,17 @@ function DoneScreen({ preview, onImportAnother }: { preview: ParsePreview; onImp
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ImportAppleHealth() {
+  const navigate = useNavigate()
+
+  // In the native app, Apple Health syncs via HealthKit — there's no export.xml flow.
+  // Redirect to Data Sources which shows the real native-connected state.
+  useEffect(() => {
+    if (isInsideNativeApp()) {
+      navigate('/connected-accounts', { replace: true })
+    }
+  }, [navigate])
+  if (isInsideNativeApp()) return null
+
   const [step, setStep] = useState<Step>('drop')
   const [parseStage, setParseStage] = useState('')
   const [preview, setPreview] = useState<ParsePreview | null>(null)

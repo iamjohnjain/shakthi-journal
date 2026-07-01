@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+// MARK: - Notification
+
+extension Notification.Name {
+    /// Posted on the main thread after a successful HealthKit sync.
+    /// `userInfo["metrics"]` is `[HealthMetric]` — the records that were uploaded.
+    /// WebAppView.Coordinator listens for this and injects the records into IndexedDB.
+    static let shakthiNativeSyncComplete = Notification.Name("ShakthiJournal.NativeSyncComplete")
+}
+
 @MainActor
 @Observable
 final class SyncEngine {
@@ -75,7 +84,7 @@ final class SyncEngine {
                 accessToken: accessToken
             )
 
-            markSuccess(uploadCount: uploaded)
+            markSuccess(uploadCount: uploaded, metrics: metrics)
         } catch {
             syncState.lastError      = error.localizedDescription
             syncState.pendingUploads = 0
@@ -86,7 +95,7 @@ final class SyncEngine {
 
     // MARK: - Private
 
-    private func markSuccess(uploadCount: Int) {
+    private func markSuccess(uploadCount: Int, metrics: [HealthMetric] = []) {
         let now = Date()
         syncState.lastSuccessfulSync      = now
         syncState.lastAttemptedSync       = now
@@ -97,5 +106,14 @@ final class SyncEngine {
         syncState.healthPermissionGranted = true
         SyncStateStore.save(syncState)
         activity = .idle
+        // Notify WebAppView.Coordinator to inject metrics into the WebView's IndexedDB.
+        // This is what makes the web dashboard update after a native HealthKit sync.
+        if !metrics.isEmpty {
+            NotificationCenter.default.post(
+                name: .shakthiNativeSyncComplete,
+                object: nil,
+                userInfo: ["metrics": metrics]
+            )
+        }
     }
 }
