@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { getLatestSnapshots, getImportedSources } from '../db/healthStore'
+import { getLatestSnapshots, getImportedSources, getLatestWeightRecord } from '../db/healthStore'
 import { getLog } from '../db/logStore'
 import { mockDailySnapshots } from '../data/mock'
 import type { DailySnapshot } from '../types/health'
 import type { DailyLog } from '../db/logStore'
 
 export type DataSource = 'mock' | 'imported' | 'manual' | 'merged'
+
+export interface LatestWeightInfo {
+  valueKg: number
+  date: string
+  sourceId: string
+  sourceName: string
+}
 
 interface DashboardData {
   today: DailySnapshot
@@ -16,6 +23,7 @@ interface DashboardData {
   nutritionSource: 'mock' | 'manual' | 'imported'
   hasNutritionLog: boolean
   sources: string[]
+  latestWeight: LatestWeightInfo | null
   loading: boolean
   refresh: () => void
 }
@@ -54,6 +62,7 @@ export function useDashboardData(): DashboardData {
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
   const [yesterdayLog, setYesterdayLog] = useState<DailyLog | null>(null)
   const [sources, setSources] = useState<string[]>([])
+  const [latestWeightInfo, setLatestWeightInfo] = useState<LatestWeightInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
 
@@ -63,17 +72,19 @@ export function useDashboardData(): DashboardData {
 
     async function load() {
       try {
-        const [snaps, srcs, todayL, yestL] = await Promise.all([
+        const [snaps, srcs, todayL, yestL, latestWt] = await Promise.all([
           getLatestSnapshots(7),
           getImportedSources(),
           getLog(todayStr()),
           getLog(yesterdayStr()),
+          getLatestWeightRecord(),
         ])
         if (!cancelled) {
           setRealSnapshots(snaps)
           setSources(srcs)
           setTodayLog(todayL)
           setYesterdayLog(yestL)
+          setLatestWeightInfo(latestWt)
           setLoading(false)
         }
       } catch {
@@ -112,6 +123,7 @@ export function useDashboardData(): DashboardData {
       nutritionSource: 'mock',
       hasNutritionLog: false,
       sources:         [],
+      latestWeight:    null,
       loading,
       refresh:         () => setTick(t => t + 1),
     }
@@ -127,6 +139,7 @@ export function useDashboardData(): DashboardData {
       nutritionSource: 'mock',
       hasNutritionLog: false,
       sources:         [],
+      latestWeight:    null,
       loading,
       refresh:         () => setTick(t => t + 1),
     }
@@ -141,14 +154,20 @@ export function useDashboardData(): DashboardData {
   const dataSource: DataSource = hasAH && hasLog ? 'merged' : hasAH ? 'imported' : 'manual'
   const nutritionLogged = logHasNutrition(todayLog)
 
+  // If today has no weight but we have a recent weight record, backfill it so GoalRing can see it.
+  const finalToday: DailySnapshot = mergedToday.weight == null && latestWeightInfo
+    ? { ...mergedToday, weight: latestWeightInfo.valueKg }
+    : mergedToday
+
   return {
-    today:           mergedToday,
+    today:           finalToday,
     yesterday:       mergedYesterday,
     snapshots:       hasAH ? realSnapshots : [],
     dataSource,
     nutritionSource: nutritionLogged ? 'manual' : hasAH ? 'imported' : 'mock',
     hasNutritionLog: nutritionLogged,
     sources:         sources,
+    latestWeight:    latestWeightInfo,
     loading,
     refresh:         () => setTick(t => t + 1),
   }

@@ -18,6 +18,7 @@ import { CardMenu } from '../components/CardMenu'
 import TodayCard from '../components/TodayCard'
 import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
 import type { DataBadgeMode } from '../components/DataBadge'
+import { isInsideNativeApp } from '../layout/BottomNav'
 import './Dashboard.css'
 
 function delta(curr: number, prev: number) {
@@ -235,14 +236,16 @@ function FirstDayCard({ profile, nutritionGoals }: {
 
 function TodaysFocus() {
   const navigate = useNavigate()
-  const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const inNative = isInsideNativeApp()
   const items = [
     { emoji: '⚖️', text: 'Record today\'s weight',   path: '/log'                    },
     { emoji: '🥗', text: 'Log your first meal',      path: '/nutrition'               },
     { emoji: '💪', text: 'Log a workout',            path: '/workouts'                },
-    isIos
-      ? { emoji: '❤️', text: 'Import Apple Health',  path: '/import/apple-health'    }
-      : { emoji: '🔌', text: 'Connect a data source', path: '/connected-accounts'    },
+    inNative
+      ? { emoji: '❤️', text: 'Sync Apple Health',    path: '/connected-accounts'     }
+      : (typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent))
+        ? { emoji: '❤️', text: 'Import Apple Health', path: '/import/apple-health'   }
+        : { emoji: '🔌', text: 'Connect a data source', path: '/connected-accounts'  },
   ]
   return (
     <div className="dash-focus-card">
@@ -272,12 +275,18 @@ interface SectionCtx {
   todayProgress: ReturnType<typeof useHealthInsights>['todayProgress']
   nutritionGoals: ReturnType<typeof useNutritionSettings>['goals']
   sectionOrder: string[]
+  inNative: boolean
   menuFor: (id: string) => React.ComponentProps<typeof CardMenu>
+}
+
+function openNativeHealthSync() {
+  const w = window as unknown as { webkit?: { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } }
+  w?.webkit?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
 }
 
 function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, dataSource, menuFor } = ctx
+  const { today, yesterday, dataSource, inNative, menuFor } = ctx
   const weightLbs     = today.weight ? kgToLbs(today.weight) : undefined
   const prevWeightLbs = yesterday.weight ? kgToLbs(yesterday.weight) : undefined
   const weightDelta   = weightLbs != null && prevWeightLbs != null ? delta(weightLbs, prevWeightLbs) : null
@@ -312,8 +321,8 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
             trendLabel={bodyFatDelta != null ? `${Math.abs(bodyFatDelta)}%` : undefined}
             trendPositive={false}
             empty={today.bodyFatPct == null}
-            emptyPrompt="Import Apple Health"
-            onEmptyClick={() => navigate('/import/apple-health')}
+            emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+            onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
           />
           <MetricCard
             label="Muscle Mass"
@@ -324,15 +333,15 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
             trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} kg` : undefined}
             trendPositive={true}
             empty={today.muscleMassKg == null}
-            emptyPrompt="Import Apple Health"
-            onEmptyClick={() => navigate('/import/apple-health')}
+            emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+            onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
           />
         </>
       ) : (
         <EmptyState
           icon="🫀"
           message="No body data yet"
-          primaryLabel="Import Apple Health"
+          primaryLabel={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
           primaryPath="/import/apple-health"
           secondaryLabel="Log manually"
           secondaryPath="/log"
@@ -344,7 +353,7 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
 
 function ActivitySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, todayProgress, nutritionGoals: _ng, menuFor } = ctx
+  const { today, todayProgress, nutritionGoals: _ng, inNative, menuFor } = ctx
   const steps    = today.steps
   const stepsPct = steps ? Math.round((steps / STEP_GOAL) * 100) : 0
   const hasActivity = steps != null || today.activeCalories != null || todayProgress.workoutLogged
@@ -362,8 +371,8 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
         progressMax={STEP_GOAL}
         progressColor={stepsPct >= 100 ? 'var(--green)' : 'var(--blue)'}
         empty={steps == null}
-        emptyPrompt="Import Apple Health"
-        onEmptyClick={() => navigate('/import/apple-health')}
+        emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+        onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
       />
       <MetricCard
         label="Calories Burned"
@@ -372,8 +381,8 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
         sub="Active energy"
         accentColor="var(--orange)"
         empty={today.activeCalories == null}
-        emptyPrompt="Import Apple Health"
-        onEmptyClick={() => navigate('/import/apple-health')}
+        emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+        onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
       />
       <MetricCard
         label="Workout"
@@ -451,7 +460,7 @@ function NutritionSection({ ctx }: { ctx: SectionCtx }) {
 
 function VitalsSection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, menuFor } = ctx
+  const { today, yesterday, inNative, menuFor } = ctx
   const hrvDelta = today.hrv != null && yesterday.hrv != null ? delta(today.hrv, yesterday.hrv) : null
   const hrDelta  = today.restingHeartRate != null && yesterday.restingHeartRate != null
     ? delta(today.restingHeartRate, yesterday.restingHeartRate) : null
@@ -470,8 +479,8 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
         trendPositive={true}
         accentColor="var(--purple)"
         empty={today.hrv == null}
-        emptyPrompt="Import Apple Health"
-        onEmptyClick={() => navigate('/import/apple-health')}
+        emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+        onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
       />
       <MetricCard
         label="Resting HR"
@@ -483,8 +492,8 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
         trendPositive={false}
         accentColor="var(--pink)"
         empty={today.restingHeartRate == null}
-        emptyPrompt="Import Apple Health"
-        onEmptyClick={() => navigate('/import/apple-health')}
+        emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+        onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
       />
     </Section>
   )
@@ -503,7 +512,7 @@ const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>
 export default function Dashboard() {
   const navigate = useNavigate()
   const { mockMode } = useApp()
-  const { today, yesterday, dataSource, nutritionSource, hasNutritionLog, loading: dataLoading } = useDashboardData()
+  const { today, yesterday, dataSource, nutritionSource, hasNutritionLog, latestWeight, loading: dataLoading } = useDashboardData()
   const { insights, todayProgress, loading: insightsLoading } = useHealthInsights(mockMode)
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
@@ -525,8 +534,9 @@ export default function Dashboard() {
     return () => window.removeEventListener('profile-updated', onProfileUpdated)
   }, [])
 
-  const isMock  = dataSource === 'mock' && mockMode
-  const isEmpty = dataSource === 'mock' && !mockMode
+  const isMock    = dataSource === 'mock' && mockMode
+  const isEmpty   = dataSource === 'mock' && !mockMode
+  const inNative  = isInsideNativeApp()
 
   function menuFor(id: string): React.ComponentProps<typeof CardMenu> {
     const ordered = REORDERABLE_IDS.filter(s => sectionOrder.includes(s))
@@ -546,6 +556,7 @@ export default function Dashboard() {
   const sectionCtx: SectionCtx = {
     today, yesterday, dataSource, nutritionSource, hasNutritionLog,
     todayProgress, nutritionGoals, sectionOrder,
+    inNative,
     menuFor,
   }
 
@@ -569,7 +580,7 @@ export default function Dashboard() {
 
       {/* ── Goal Ring (weight goal circle) ── */}
       {isVisible('goal-ring') && !isEmpty && (
-        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} />
+        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} latestWeight={latestWeight ?? undefined} />
       )}
 
       {/* ── "Here's where things stand" ── */}

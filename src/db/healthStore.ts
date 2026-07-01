@@ -86,6 +86,23 @@ export async function getImportedSources(): Promise<string[]> {
   return [...new Set(real.map(m => m.sourceId))]
 }
 
+/** Returns the most recent weight metric across ALL stored records, regardless of date range. */
+export async function getLatestWeightRecord(): Promise<{
+  valueKg: number
+  date: string
+  sourceId: string
+  sourceName: string
+} | null> {
+  const db = await getDB()
+  const all = await db.getAll('health_metrics')
+  const weights = all
+    .filter(m => m.type === 'weight' && m.dataMode !== 'mock')
+    .sort((a, b) => b.date.localeCompare(a.date))
+  if (weights.length === 0) return null
+  const w = weights[0]
+  return { valueKg: Number(w.value), date: w.date, sourceId: w.sourceId, sourceName: w.sourceName }
+}
+
 // ─── Build snapshot ───────────────────────────────────────────────────────────
 
 export function buildSnapshot(date: string, metrics: DBMetric[]): DailySnapshot {

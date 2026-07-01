@@ -318,3 +318,11 @@
   background: #0a75e8;
   color: #fff;
 }
+
+.goal-ring-modal-weight-note {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.4;
+}

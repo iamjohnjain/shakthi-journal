@@ -89,9 +89,10 @@ interface Props {
   snapshot: DailySnapshot
   yesterday?: DailySnapshot
   dataSource: string
+  latestWeight?: import('../hooks/useDashboardData').LatestWeightInfo
 }
 
-export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
+export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight }: Props) {
   const navigate = useNavigate()
   const [typeIdx, setTypeIdx] = useState(0)
   const [profile,        setProfile]        = useState<ProfileData | null>(null)
@@ -99,6 +100,13 @@ export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
   const isMock = dataSource === 'mock'
+
+  function weightSourceLabel(sourceId: string): string {
+    if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
+    if (sourceId === 'apple_watch') return 'Apple Watch'
+    if (sourceId === 'ringconn')    return 'RingConn via Apple Health'
+    return 'Apple Health'
+  }
 
   useEffect(() => {
     getProfile().then(setProfile)
@@ -263,7 +271,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
 
               <div className="goal-ring-modal-rows">
                 {([
-                  ['Current',      hasData     ? `${cfg.format(current!)} ${cfg.unit}`    : '—',      undefined    ],
+                  ['Current',      hasData     ? (goalType === 'weight' && latestWeight ? `${cfg.format(current!)} ${cfg.unit} · ${weightSourceLabel(latestWeight.sourceId)} · ${latestWeight.date}` : `${cfg.format(current!)} ${cfg.unit}`) : '—',      undefined    ],
                   ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${cfg.unit}`   : '— Set in Profile', undefined],
                   ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${cfg.unit}` : '— Set in Profile',   undefined],
                   ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${cfg.unit}` : '—', changeColor],
@@ -293,6 +301,12 @@ export default function GoalRing({ snapshot, yesterday, dataSource }: Props) {
               {!hasProfile && goalType !== 'steps' && goalType !== 'protein' && goalType !== 'sleep' && (
                 <p className="goal-ring-modal-setup-hint">
                   Set your baseline in Profile to track progress from your starting point.
+                </p>
+              )}
+
+              {goalType === 'weight' && latestWeight && (
+                <p className="goal-ring-modal-weight-note">
+                  Weight from {weightSourceLabel(latestWeight.sourceId)} on {latestWeight.date}. Tap "Edit Goal" to update your start weight.
                 </p>
               )}
 

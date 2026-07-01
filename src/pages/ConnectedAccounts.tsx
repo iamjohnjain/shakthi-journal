@@ -1,7 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { AUTH_PROVIDERS } from '../lib/authProviders'
 import {
   CheckCircle, AlertCircle, Clock, XCircle, RefreshCw,
   ChevronRight, Info, Unlink,
@@ -209,13 +207,21 @@ function openNativeHealthSync() {
   handlers?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
 }
 
+const PRIMARY_IDS = ['apple_health', 'apple_watch', 'renpho']
+
+const COMING_SOON_PROVIDERS = [
+  { id: 'ringconn',     icon: '💍', name: 'RingConn',       method: 'Via Apple Health · enable in RingConn app' },
+  { id: 'myfitnesspal', icon: '🥗', name: 'MyFitnessPal',   method: 'Via Apple Health · or CSV from myfitnesspal.com' },
+  { id: 'strava',       icon: '🏃', name: 'Strava',         method: 'OAuth 2.0 API · requires server-side proxy' },
+  { id: 'garmin',       icon: '⌚', name: 'Garmin Connect', method: 'Via Apple Health · enable in Garmin Connect app' },
+  { id: 'whoop',        icon: '⚡', name: 'WHOOP',          method: 'Via Apple Health · enable in WHOOP app' },
+  { id: 'oura',         icon: '💍', name: 'Oura Ring',      method: 'Via Apple Health · enable in Oura app' },
+]
+
 export default function ConnectedAccounts() {
   const navigate = useNavigate()
-  const { user, mode: authMode } = useAuth()
 
   const inNativeApp = isInsideNativeApp()
-  const googleConnected = authMode === 'authenticated' && user?.provider === 'google'
-  const appleConnected  = authMode === 'authenticated' && user?.provider === 'apple'
 
   const [lastSyncs, setLastSyncs] = useState<Map<string, { at: string; count: number }>>(new Map())
   const [detectedSources, setDetectedSources] = useState<string[]>([])
@@ -283,23 +289,6 @@ export default function ConnectedAccounts() {
       ],
     },
     {
-      id: 'ringconn',
-      name: 'RingConn',
-      shortName: 'RingConn',
-      icon: '💍',
-      status: 'needs_setup',
-      method: 'Via Apple Health · or direct CSV',
-      dataTypes: ['Sleep', 'HRV', 'SpO2', 'Stress', 'Activity'],
-      description: 'RingConn can sync to Apple Health. Enable this in the RingConn app and your ring data will be included in the Apple Health export.',
-      availability: 'now',
-      setupInstructions: [
-        'Open RingConn app on iPhone',
-        'Go to Profile → Connected Apps → Apple Health',
-        'Enable all data categories',
-        'RingConn data will now appear in Apple Health exports',
-      ],
-    },
-    {
       id: 'renpho',
       name: 'RENPHO',
       shortName: 'RENPHO',
@@ -329,122 +318,7 @@ export default function ConnectedAccounts() {
         'Go to RENPHO app → Profile → Export Data → select CSV',
       ],
     },
-    {
-      id: 'strava',
-      name: 'Strava',
-      shortName: 'Strava',
-      icon: '🏃',
-      status: 'coming_soon' as AccountStatus,
-      method: 'OAuth 2.0 API · server-side (coming later)',
-      dataTypes: ['GPS Routes', 'Pace', 'Power', 'Heart Rate Zones', 'Splits'],
-      description: 'Strava has a real public API. GPS route data and splits don\'t flow through Apple Health cleanly, so a direct connection gives the best data.',
-      availability: 'coming_soon' as const,
-      importNote: 'Strava OAuth requires a secure server-side token exchange to keep your API credentials safe. This will be enabled in a future update once a backend proxy is in place.',
-    },
-    {
-      id: 'myfitnesspal',
-      name: 'MyFitnessPal',
-      shortName: 'MFP',
-      icon: '🥗',
-      status: 'import_ready',
-      method: 'CSV export · or via Apple Health',
-      dataTypes: ['Calories In', 'Protein', 'Carbs', 'Fat', 'Meals'],
-      description: 'MyFitnessPal removed their public API in 2019. The best option is enabling MFP → Apple Health sync (for nutrition totals), or exporting a CSV from myfitnesspal.com.',
-      availability: 'now',
-      importNote: 'No MFP API available. Apple Health sync (in MFP app settings) or CSV export from myfitnesspal.com.',
-      setupInstructions: [
-        'Open MFP app → More → Apps & Devices → Apple Health',
-        'Enable "Nutrition" to sync daily totals to Apple Health, OR',
-        'Go to myfitnesspal.com → Settings → Diary Settings → Export',
-      ],
-    },
-    {
-      id: 'google',
-      availability: 'now' as const,
-      name: 'Google',
-      shortName: 'Google',
-      icon: '🔵',
-      status: googleConnected ? 'connected' : 'needs_setup',
-      method: 'OAuth 2.0 · via Supabase',
-      dataTypes: ['Account identity', 'Cloud sync'],
-      description: 'Sign in with Google to enable cloud sync across devices. Requires Google OAuth configured in Supabase dashboard.',
-      accountName: googleConnected ? user?.email ?? undefined : undefined,
-      setupInstructions: [
-        'In Supabase Dashboard → Authentication → Providers → Google',
-        'Create a Google OAuth app at console.cloud.google.com',
-        'Add Client ID and Secret to Supabase',
-        'Then use Settings → Sign in with Google',
-      ],
-    },
-    {
-      id: 'apple_id',
-      availability: 'now' as const,
-      name: 'Apple ID',
-      shortName: 'Apple ID',
-      icon: '🍏',
-      status: appleConnected ? 'connected' : 'needs_setup',
-      method: 'OAuth 2.0 · via Supabase',
-      dataTypes: ['Account identity', 'Cloud sync'],
-      description: 'Sign in with Apple for private cloud sync. Requires Apple Developer account and Supabase Apple provider configuration.',
-      accountName: appleConnected ? user?.email ?? undefined : undefined,
-      setupInstructions: [
-        'Requires Apple Developer Program membership ($99/yr)',
-        'In Supabase Dashboard → Authentication → Providers → Apple',
-        'Create a Services ID at developer.apple.com',
-        'Add Key ID, Team ID, and Private Key to Supabase',
-      ],
-    },
-    {
-      id: 'garmin',
-      name: 'Garmin Connect',
-      shortName: 'Garmin',
-      icon: '⌚',
-      status: 'coming_soon',
-      method: 'Garmin Health API · requires partnership',
-      dataTypes: ['GPS', 'Heart Rate', 'VO2 Max', 'Stress', 'Body Battery'],
-      description: 'Garmin data (from Garmin watches) can be imported via Apple Health if the Garmin Connect app syncs to Apple Health on iPhone.',
-      availability: 'phase6' as const,
-      setupInstructions: [
-        'Open Garmin Connect app → More → Connected Apps → Apple Health',
-        'Enable all data categories',
-        'Garmin data will appear in your next Apple Health export',
-      ],
-    },
-    {
-      id: 'whoop',
-      name: 'WHOOP',
-      shortName: 'WHOOP',
-      icon: '⚡',
-      status: 'coming_soon',
-      method: 'WHOOP API · invite-only',
-      dataTypes: ['Recovery', 'Strain', 'HRV', 'Sleep', 'Respiratory Rate'],
-      description: 'WHOOP data is available via Apple Health sync from the WHOOP app. A direct API integration would require WHOOP developer access.',
-      availability: 'phase6' as const,
-      setupInstructions: [
-        'Open WHOOP app → More → Integrations → Apple Health',
-        'Enable data sync',
-        'Import via Apple Health export',
-      ],
-    },
-    {
-      id: 'oura',
-      name: 'Oura Ring',
-      shortName: 'Oura',
-      icon: '💍',
-      status: 'coming_soon',
-      method: 'Oura API v2 · available',
-      dataTypes: ['Sleep Score', 'Readiness', 'HRV', 'Temperature', 'Activity'],
-      description: 'Oura has a public API (oura.com/oauth/authorize). A direct integration would pull readiness, sleep, and HRV scores automatically.',
-      availability: 'phase6' as const,
-      setupInstructions: [
-        'Oura API integration is planned for a future phase',
-        'For now: enable Oura → Apple Health sync in the Oura app',
-        'Then import via Apple Health export',
-      ],
-    },
-  ], [inNativeApp, renphoDetected, googleConnected, appleConnected, user])
-
-  const visibleAccounts = accounts.filter(a => a.id !== 'apple_id' || AUTH_PROVIDERS.apple.enabled)
+  ], [inNativeApp, renphoDetected])
 
   const [syncing, setSyncing] = useState<string | null>(null)
   const [disconnectMsg, setDisconnectMsg] = useState('')
@@ -464,9 +338,10 @@ export default function ConnectedAccounts() {
     setTimeout(() => setDisconnectMsg(''), 4000)
   }
 
-  const connectedCount = accounts.filter(a => a.status === 'connected').length
-  const importReadyCount = accounts.filter(a => a.status === 'import_ready').length
-  const needsSetupCount = accounts.filter(a => a.status === 'needs_setup').length
+  const primaryAccounts = accounts.filter(a => PRIMARY_IDS.includes(a.id))
+  const connectedCount  = primaryAccounts.filter(a => a.status === 'connected').length
+  const importReadyCount = primaryAccounts.filter(a => a.status === 'import_ready').length
+  const needsSetupCount  = primaryAccounts.filter(a => a.status === 'needs_setup').length
 
   const deviceHint = useMemo(() => {
     if (inNativeApp) return { emoji: '✅', text: 'Apple Health is connected via HealthKit. Tap "Sync Now" on any card to pull the latest data.' }
@@ -515,9 +390,9 @@ export default function ConnectedAccounts() {
         </div>
       </div>
 
-      {/* Accounts list */}
+      {/* Primary accounts list */}
       <div className="accounts-list">
-        {visibleAccounts.map(account => (
+        {primaryAccounts.map(account => (
           <div key={account.id} className="account-wrap">
             {syncing === account.id && (
               <div className="account-syncing-overlay">
@@ -536,6 +411,19 @@ export default function ConnectedAccounts() {
                   : undefined
               }
             />
+          </div>
+        ))}
+      </div>
+
+      {/* Coming Soon — compact list */}
+      <div className="accounts-coming-soon">
+        <h3 className="accounts-cs-heading">More sources coming soon</h3>
+        <p className="accounts-cs-sub">These devices sync via Apple Health today. Direct integrations are planned for a future update.</p>
+        {COMING_SOON_PROVIDERS.map(p => (
+          <div key={p.id} className="accounts-cs-row">
+            <span className="accounts-cs-icon">{p.icon}</span>
+            <span className="accounts-cs-name">{p.name}</span>
+            <span className="accounts-cs-method">{p.method}</span>
           </div>
         ))}
       </div>
