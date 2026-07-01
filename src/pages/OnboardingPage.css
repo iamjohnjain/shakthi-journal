@@ -61,6 +61,8 @@
   flex: 1;          /* always fills remaining space in .ob-page, with or without header */
   padding: 40px 24px max(40px, calc(env(safe-area-inset-bottom) + 24px));
   min-height: 0;    /* let flex control height; prevent content from overflowing parent */
+  overflow-y: auto;                   /* scroll when iOS keyboard reduces viewport */
+  -webkit-overflow-scrolling: touch;
   animation: ob-enter-fwd 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 

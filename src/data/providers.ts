@@ -222,9 +222,9 @@ export const INITIAL_CONNECTIONS: ConnectedApp[] = [
   },
 ]
 
-// Mock sync results — what each source returns when "synced"
+// Mock sync results used by the legacy ConnectedApps demo page.
+// RENPHO and MFP are intentionally excluded: RENPHO has no public API (data
+// arrives via Apple Health HealthKit bridge), and MFP removed its API in 2019.
 export const MOCK_SYNC_RESULTS: Record<string, { records: number; message: string }> = {
   apple_health: { records: 856, message: 'Heart rate, sleep, steps, workouts, and vitals imported' },
-  renpho: { records: 5, message: 'Weight and body composition updated' },
-  myfitnesspal: { records: 7, message: 'Nutrition and macros for 7 days imported' },
 }

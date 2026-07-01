@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader,
@@ -93,15 +93,50 @@ function StepShell({ dir, children }: { dir: 'fwd' | 'bwd'; children: React.Reac
   return <div className={`ob-step ${dir === 'bwd' ? 'ob-step--bwd' : ''}`}>{children}</div>
 }
 
-// Large number picker with ± stepper buttons for mobile-first feel
+// Large number picker with ± stepper buttons for mobile-first feel.
+// Uses local string state so the user can freely clear/type without React
+// reverting the field. Value is committed to the parent only on blur or
+// when a stepper button is pressed.
 function NumberStepper({
   label, value, onChange, unit, min = 0, max = 9999, step = 1,
 }: {
   label?: string; value: number; onChange: (v: number) => void
   unit?: string; min?: number; max?: number; step?: number
 }) {
-  function dec() { onChange(Math.max(min, value - step)) }
-  function inc() { onChange(Math.min(max, value + step)) }
+  const [display, setDisplay] = useState(String(value))
+  const focusedRef = useRef(false)
+
+  // Sync display from parent only when this field is not actively being edited
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setDisplay(String(value))
+    }
+  }, [value])
+
+  const commit = useCallback((raw: string) => {
+    const stripped = raw.replace(/[^0-9]/g, '')
+    const n = parseInt(stripped, 10)
+    if (!isNaN(n) && stripped !== '') {
+      const clamped = Math.min(max, Math.max(min, n))
+      setDisplay(String(clamped))
+      onChange(clamped)
+    } else {
+      // Empty or non-numeric: restore the last valid value
+      setDisplay(String(value))
+    }
+  }, [min, max, value, onChange])
+
+  function dec() {
+    const newVal = Math.max(min, value - step)
+    setDisplay(String(newVal))
+    onChange(newVal)
+  }
+  function inc() {
+    const newVal = Math.min(max, value + step)
+    setDisplay(String(newVal))
+    onChange(newVal)
+  }
+
   return (
     <div className="ob-stepper">
       {label && <span className="ob-stepper-label">{label}</span>}
@@ -109,14 +144,22 @@ function NumberStepper({
         <button type="button" className="ob-stepper-btn" onClick={dec} aria-label="Decrease">−</button>
         <div className="ob-stepper-center">
           <input
-            type="number"
-            className="ob-stepper-input"
-            value={value}
-            onChange={e => {
-              const n = parseInt(e.target.value)
-              if (!isNaN(n)) onChange(Math.min(max, Math.max(min, n)))
-            }}
+            type="text"
             inputMode="numeric"
+            pattern="[0-9]*"
+            className="ob-stepper-input"
+            value={display}
+            onChange={e => setDisplay(e.target.value.replace(/[^0-9]/g, ''))}
+            onFocus={e => {
+              focusedRef.current = true
+              e.target.select()
+              // Scroll input into view so the keyboard doesn't bury it
+              setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350)
+            }}
+            onBlur={e => {
+              focusedRef.current = false
+              commit(e.target.value)
+            }}
             aria-label={label}
           />
           {unit && <span className="ob-stepper-unit">{unit}</span>}
@@ -452,8 +495,9 @@ function StepCurrentWeight({ data, patch, onNext, dir }: StepProps) {
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={() => {
+          ;(document.activeElement as HTMLElement | null)?.blur()
           if (!data.currentWeightLbs) patch({ currentWeightLbs: String(val) })
-          onNext()
+          setTimeout(onNext, 0)
         }}>Continue</button>
         <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
@@ -482,8 +526,9 @@ function StepGoalWeight({ data, patch, onNext, dir }: StepProps) {
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={() => {
+          ;(document.activeElement as HTMLElement | null)?.blur()
           if (!data.goalWeightLbs) patch({ goalWeightLbs: String(val) })
-          onNext()
+          setTimeout(onNext, 0)
         }}>Continue</button>
         <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
@@ -629,9 +674,12 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={() => {
+          // Blur any focused input so its onBlur commit fires before we read state
+          ;(document.activeElement as HTMLElement | null)?.blur()
           if (!data.calorieGoal) patch({ calorieGoal: String(calories) })
           if (!data.proteinGoal) patch({ proteinGoal: String(protein) })
-          onNext()
+          // Small delay so React can process the blur-triggered state update
+          setTimeout(onNext, 0)
         }}>Continue</button>
         <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
