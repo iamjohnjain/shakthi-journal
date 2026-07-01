@@ -861,99 +861,7 @@ export default function WorkoutsPage() {
     <div className="workouts-page">
       <WorkoutsSubNav />
 
-      <header className="page-header" style={{ marginTop: '8px' }}>
-        <div>
-          <h1 className="page-title">Workouts</h1>
-          <p className="page-subtitle">{workoutDays.length} sessions in the last 400 days</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
-            <Play size={15} /> Start
-          </button>
-          <button className="log-workout-btn" onClick={() => { setEditingWorkout(null); setShowModal(true) }}>
-            <Plus size={16} /> Log
-          </button>
-        </div>
-      </header>
-
-      {loaded && workoutDays.length === 0 ? (
-        <div className="workouts-first-empty">
-          <div className="workouts-first-empty-icon">
-            <Dumbbell size={44} />
-          </div>
-          <h2 className="workouts-first-empty-title">Your training log starts here</h2>
-          <p className="workouts-first-empty-desc">
-            Log your first session to start tracking strength, cardio, and personal records.
-            Every workout is saved and your history builds automatically.
-          </p>
-          <button
-            className="workouts-first-empty-cta"
-            onClick={() => { setEditingWorkout(null); setShowModal(true) }}
-          >
-            Log first workout
-          </button>
-          <button
-            className="workouts-first-empty-secondary"
-            onClick={() => navigate('/workouts/templates')}
-          >
-            Create a template
-          </button>
-        </div>
-      ) : (
-        <>
-          {isToday && <SuggestionCard onLog={() => { setEditingWorkout(null); setShowModal(true) }} />}
-
-          {copiedWorkout && (
-            <div className="copy-banner">
-              <Clipboard size={13} />
-              <span>Workout copied: <strong>{copiedWorkout.title}</strong> — select a day and tap Paste</span>
-              <button onClick={() => setCopiedWorkout(null)}><X size={13} /></button>
-            </div>
-          )}
-
-          <WeekCalendar
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            copiedWorkout={copiedWorkout}
-            onPasteDay={handlePasteDay}
-            onMarkRest={handleMarkRest}
-            refreshKey={calendarKey}
-          />
-
-          {/* Selected day */}
-          <div className="day-section">
-            <div className="day-section-header">
-              <h2 className="workouts-section-title">{isToday ? 'Today' : dateLabel}</h2>
-              {!isToday && <span className="day-section-date">{selectedDate}</span>}
-            </div>
-
-            {dayWorkouts.length > 0 ? (
-              dayWorkouts.map(w => (
-                <WorkoutCard key={w.id} w={w}
-                  onDelete={() => handleDelete(w.id)}
-                  onEdit={() => handleEdit(w)}
-                  onCopy={() => handleCopy(w)} />
-              ))
-            ) : (
-              <div className="workouts-empty-today">
-                <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
-                <button onClick={() => { setEditingWorkout(null); setShowModal(true) }}>Log one →</button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {(showModal || editingWorkout) && (
-        <LogModal
-          prMap={prMap}
-          initialWorkout={editingWorkout ?? undefined}
-          prefilledDate={selectedDate}
-          onClose={() => { setShowModal(false); setEditingWorkout(null) }}
-          onSaved={() => { loadDay(selectedDate); refreshCalendar() }} />
-      )}
-
-      {showActiveWorkout && (
+      {showActiveWorkout ? (
         <ActiveWorkout
           prMap={prMap}
           profile={profile}
@@ -965,6 +873,100 @@ export default function WorkoutsPage() {
           }}
           onClose={() => setShowActiveWorkout(false)}
         />
+      ) : (
+        <>
+          <header className="page-header" style={{ marginTop: '8px' }}>
+            <div>
+              <h1 className="page-title">Workouts</h1>
+              <p className="page-subtitle">{workoutDays.length} sessions in the last 400 days</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
+                <Play size={15} /> Start
+              </button>
+              <button className="log-workout-btn" onClick={() => { setEditingWorkout(null); setShowModal(true) }}>
+                <Plus size={16} /> Log
+              </button>
+            </div>
+          </header>
+
+          {loaded && workoutDays.length === 0 ? (
+            <div className="workouts-first-empty">
+              <div className="workouts-first-empty-icon">
+                <Dumbbell size={44} />
+              </div>
+              <h2 className="workouts-first-empty-title">Your training log starts here</h2>
+              <p className="workouts-first-empty-desc">
+                Log your first session to start tracking strength, cardio, and personal records.
+                Every workout is saved and your history builds automatically.
+              </p>
+              <button
+                className="workouts-first-empty-cta"
+                onClick={() => { setEditingWorkout(null); setShowModal(true) }}
+              >
+                Log first workout
+              </button>
+              <button
+                className="workouts-first-empty-secondary"
+                onClick={() => navigate('/workouts/templates')}
+              >
+                Create a template
+              </button>
+            </div>
+          ) : (
+            <>
+              {isToday && <SuggestionCard onLog={() => { setEditingWorkout(null); setShowModal(true) }} />}
+
+              {copiedWorkout && (
+                <div className="copy-banner">
+                  <Clipboard size={13} />
+                  <span>Workout copied: <strong>{copiedWorkout.title}</strong> — select a day and tap Paste</span>
+                  <button onClick={() => setCopiedWorkout(null)}><X size={13} /></button>
+                </div>
+              )}
+
+              <WeekCalendar
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                copiedWorkout={copiedWorkout}
+                onPasteDay={handlePasteDay}
+                onMarkRest={handleMarkRest}
+                refreshKey={calendarKey}
+              />
+
+              {/* Selected day */}
+              <div className="day-section">
+                <div className="day-section-header">
+                  <h2 className="workouts-section-title">{isToday ? 'Today' : dateLabel}</h2>
+                  {!isToday && <span className="day-section-date">{selectedDate}</span>}
+                </div>
+
+                {dayWorkouts.length > 0 ? (
+                  dayWorkouts.map(w => (
+                    <WorkoutCard key={w.id} w={w}
+                      onDelete={() => handleDelete(w.id)}
+                      onEdit={() => handleEdit(w)}
+                      onCopy={() => handleCopy(w)} />
+                  ))
+                ) : (
+                  <div className="workouts-empty-today">
+                    <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
+                    <button onClick={() => { setEditingWorkout(null); setShowModal(true) }}>Log one →</button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {(showModal || editingWorkout) && (
+            <LogModal
+              prMap={prMap}
+              initialWorkout={editingWorkout ?? undefined}
+              prefilledDate={selectedDate}
+              onClose={() => { setShowModal(false); setEditingWorkout(null) }}
+              onSaved={() => { loadDay(selectedDate); refreshCalendar() }} />
+          )}
+        </>
       )}
     </div>
   )

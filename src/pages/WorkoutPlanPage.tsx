@@ -9,15 +9,13 @@ import type { TrainingProfile, WorkoutPlan } from '../db/trainingStore'
 import './WorkoutPlanPage.css'
 
 const GOAL_OPTIONS = [
-  { id: 'visible-abs',   label: 'Visible Abs',       emoji: '🔥' },
-  { id: 'vertical-jump', label: 'Vertical Jump',      emoji: '⬆️' },
-  { id: 'dunk',          label: 'Dunk a Basketball',  emoji: '🏀' },
-  { id: 'strength',      label: 'Max Strength',       emoji: '💪' },
-  { id: 'muscle-gain',   label: 'Muscle Gain',        emoji: '📈' },
-  { id: 'running-endurance', label: 'Run Endurance',  emoji: '🏃' },
-  { id: 'pull-ups',      label: 'Pull-up PRs',        emoji: '🧗' },
-  { id: 'shoulders-arms',label: 'Shoulders & Arms',   emoji: '💎' },
-  { id: 'general-health',label: 'General Health',     emoji: '❤️' },
+  { id: 'core-abs',      label: 'Core/Abs',      emoji: '🔥' },
+  { id: 'vertical-jump', label: 'Vertical Jump',  emoji: '⬆️' },
+  { id: 'strength',      label: 'Max Strength',   emoji: '💪' },
+  { id: 'endurance',     label: 'Endurance',      emoji: '🏃' },
+  { id: 'muscle-gain',   label: 'Muscle Gain',    emoji: '📈' },
+  { id: 'prs',           label: 'PRs',            emoji: '🏆' },
+  { id: 'general-health',label: 'General Health', emoji: '❤️' },
 ]
 
 const EQUIPMENT_OPTIONS = [

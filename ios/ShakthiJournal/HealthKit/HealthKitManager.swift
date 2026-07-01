@@ -93,13 +93,24 @@ final class HealthKitManager {
         ]
         for identifier in quantityTypes {
             let type = HKQuantityType(identifier)
-            let samples = try await querySamples(type: type, predicate: predicate)
-            if !samples.isEmpty { results[type] = samples }
+            do {
+                let samples = try await querySamples(type: type, predicate: predicate)
+                if !samples.isEmpty { results[type] = samples }
+            } catch {
+                // Type not authorized or unavailable — skip silently and continue with other types.
+                // This handles the case where a new type was added after the user already
+                // granted HealthKit permission (authorization status = .notDetermined for the new type).
+                print("[HealthKitManager] skipping \(identifier.rawValue): \(error.localizedDescription)")
+            }
         }
 
         let sleepType = HKCategoryType(.sleepAnalysis)
-        let sleepSamples = try await querySamples(type: sleepType, predicate: predicate)
-        if !sleepSamples.isEmpty { results[sleepType] = sleepSamples }
+        do {
+            let sleepSamples = try await querySamples(type: sleepType, predicate: predicate)
+            if !sleepSamples.isEmpty { results[sleepType] = sleepSamples }
+        } catch {
+            print("[HealthKitManager] skipping sleepAnalysis: \(error.localizedDescription)")
+        }
 
         return results
     }

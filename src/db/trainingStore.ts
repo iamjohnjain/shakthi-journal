@@ -323,10 +323,9 @@ const PLAN_SESSIONS: Record<GoalCluster, PlanSession[]> = {
 // ─── Goal cluster mapping ─────────────────────────────────────────────────────
 
 function getGoalCluster(goals: string[]): GoalCluster {
-  if (goals.some(g => ['vertical-jump','dunk','visible-abs'].includes(g))) return 'athletic'
-  if (goals.some(g => ['strength','muscle-gain'].includes(g))) return 'strength'
-  if (goals.includes('running-endurance')) return 'endurance'
-  if (goals.some(g => ['pull-ups','shoulders-arms'].includes(g))) return 'upper'
+  if (goals.some(g => ['vertical-jump','core-abs'].includes(g))) return 'athletic'
+  if (goals.some(g => ['strength','muscle-gain','prs'].includes(g))) return 'strength'
+  if (goals.includes('endurance')) return 'endurance'
   return 'general'
 }
 
