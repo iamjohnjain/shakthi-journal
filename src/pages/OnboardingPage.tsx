@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader, Camera, Image,
+  ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader,
 } from 'lucide-react'
 import { setSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
@@ -56,22 +56,6 @@ const PRIMARY_GOALS = [
   { id: 'general-health', emoji: '🩺', label: 'Feel healthier'    },
 ]
 
-const WEARABLES = [
-  { id: 'apple-health', icon: '❤️', name: 'Apple Health',       desc: 'Sleep, weight, heart rate, steps, workouts',  status: 'import-required' },
-  { id: 'garmin',       icon: '⌚', name: 'Garmin Connect',     desc: 'GPS, HRV, VO₂ Max, training load, workouts',  status: 'coming-soon' },
-  { id: 'whoop',        icon: '⚡', name: 'WHOOP',              desc: 'Strain, recovery, HRV, sleep quality',         status: 'coming-soon' },
-  { id: 'oura',         icon: '💍', name: 'Oura Ring',          desc: 'Sleep score, readiness, HRV, temperature',    status: 'coming-soon' },
-  { id: 'ringconn',     icon: '🔵', name: 'RingConn',           desc: 'Blood oxygen, heart rate, sleep tracking',    status: 'coming-soon' },
-  { id: 'fitbit',       icon: '🟢', name: 'Fitbit / Google Fit', desc: 'Steps, heart rate, sleep, active minutes',   status: 'coming-soon' },
-]
-
-const WEARABLE_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  'import-required': { label: 'Import Required', color: 'var(--blue)'          },
-  'coming-soon':     { label: 'Coming Soon',     color: 'var(--text-tertiary)' },
-  'connected':       { label: 'Connected',        color: 'var(--green)'         },
-  'available':       { label: 'Available',        color: 'var(--accent)'        },
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface OBData {
@@ -109,27 +93,36 @@ function StepShell({ dir, children }: { dir: 'fwd' | 'bwd'; children: React.Reac
   return <div className={`ob-step ${dir === 'bwd' ? 'ob-step--bwd' : ''}`}>{children}</div>
 }
 
-function FieldInput({
-  label, type = 'text', value, onChange, placeholder, min, max, hint,
+// Large number picker with ± stepper buttons for mobile-first feel
+function NumberStepper({
+  label, value, onChange, unit, min = 0, max = 9999, step = 1,
 }: {
-  label: string; type?: string; value: string; onChange: (v: string) => void
-  placeholder?: string; min?: string; max?: string; hint?: string
+  label?: string; value: number; onChange: (v: number) => void
+  unit?: string; min?: number; max?: number; step?: number
 }) {
+  function dec() { onChange(Math.max(min, value - step)) }
+  function inc() { onChange(Math.min(max, value + step)) }
   return (
-    <div className="ob-form-row">
-      <label className="ob-field-label">{label}</label>
-      <input
-        className="ob-field-input"
-        type={type}
-        inputMode={type === 'number' ? 'decimal' : undefined}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        min={min}
-        max={max}
-        autoComplete="off"
-      />
-      {hint && <span className="ob-field-hint">{hint}</span>}
+    <div className="ob-stepper">
+      {label && <span className="ob-stepper-label">{label}</span>}
+      <div className="ob-stepper-row">
+        <button type="button" className="ob-stepper-btn" onClick={dec} aria-label="Decrease">−</button>
+        <div className="ob-stepper-center">
+          <input
+            type="number"
+            className="ob-stepper-input"
+            value={value}
+            onChange={e => {
+              const n = parseInt(e.target.value)
+              if (!isNaN(n)) onChange(Math.min(max, Math.max(min, n)))
+            }}
+            inputMode="numeric"
+            aria-label={label}
+          />
+          {unit && <span className="ob-stepper-unit">{unit}</span>}
+        </div>
+        <button type="button" className="ob-stepper-btn" onClick={inc} aria-label="Increase">+</button>
+      </div>
     </div>
   )
 }
@@ -319,331 +312,287 @@ function StepWelcomeAuth({ onGuest, onAuthSuccess, dir }: {
   )
 }
 
-// ─── Step 1: Personal Profile ─────────────────────────────────────────────────
+// ─── Step 1: Name ─────────────────────────────────────────────────────────────
 
-function StepProfile({ data, patch, onNext, dir }: StepProps) {
-  const today = new Date().toISOString().split('T')[0]
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
-  const photoRef  = useRef<HTMLInputElement>(null)
-  const cameraRef = useRef<HTMLInputElement>(null)
-
-  const canContinue = !!data.name.trim()
-
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => patch({ photoDataUrl: ev.target?.result as string, avatarId: undefined })
-    reader.readAsDataURL(file)
-  }
-
+function StepName({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Your profile</h1>
-        <p className="ob-q-sub">Tell us a bit about yourself. You can update this anytime.</p>
+        <h1 className="ob-q-title">What's your<br/>name?</h1>
+        <p className="ob-q-sub">We'll use this to personalize your experience.</p>
       </div>
-
-      <div className="ob-form">
-        {/* Identity */}
-        <div className="ob-form-group">
-          <p className="ob-form-group-title">Identity</p>
-          <FieldInput label="First name" value={data.name} onChange={v => patch({ name: v })} placeholder="Your name" />
-
-          {/* Profile photo — immediately after name */}
-          <div className="ob-photo-section">
-            <label className="ob-field-label">Profile photo</label>
-            <div className="ob-photo-row">
-              <div
-                className="ob-photo-preview"
-                onClick={() => photoRef.current?.click()}
-                title="Upload photo"
-              >
-                <AvatarDisplay
-                  name={data.name.trim() || 'You'}
-                  avatarId={data.photoDataUrl ? undefined : data.avatarId}
-                  photoDataUrl={data.photoDataUrl}
-                  size="lg"
-                />
-              </div>
-              <div className="ob-photo-btns">
-                <button type="button" className="ob-photo-btn" onClick={() => cameraRef.current?.click()}>
-                  <Camera size={14} /> Camera
-                </button>
-                <button type="button" className="ob-photo-btn" onClick={() => photoRef.current?.click()}>
-                  <Image size={14} /> Photos
-                </button>
-                <button
-                  type="button"
-                  className={`ob-photo-btn ${showAvatarPicker ? 'ob-photo-btn--on' : ''}`}
-                  onClick={() => setShowAvatarPicker(v => !v)}
-                >
-                  🦁 Avatar
-                </button>
-              </div>
-            </div>
-            {showAvatarPicker && (
-              <AvatarPicker
-                selectedId={data.avatarId}
-                onSelect={id => {
-                  patch({ avatarId: id, photoDataUrl: undefined })
-                  setShowAvatarPicker(false)
-                }}
-              />
-            )}
-            <input
-              ref={photoRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoChange}
-              style={{ display: 'none' }}
-            />
-            <input
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="user"
-              onChange={handlePhotoChange}
-              style={{ display: 'none' }}
-            />
-          </div>
-          <FieldInput
-            label="Date of birth"
-            type="date"
-            value={data.dob}
-            onChange={v => patch({ dob: v })}
-            max={today}
-            min="1900-01-01"
-            hint="Used to personalize baselines. Never shared."
-          />
-          <div className="ob-form-row">
-            <label className="ob-field-label">Sex</label>
-            <div className="ob-segment">
-              {(['male', 'female', 'other'] as const).map(s => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`ob-segment-btn ${data.sex === s ? 'ob-segment-btn--on' : ''}`}
-                  onClick={() => patch({ sex: s })}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="ob-form-group">
-          <p className="ob-form-group-title">Body</p>
-          <div className="ob-form-row">
-            <label className="ob-field-label">Height</label>
-            <div className="ob-form-row ob-form-row--row">
-              <select className="ob-field-input ob-field-select" value={data.heightFt} onChange={e => patch({ heightFt: e.target.value })}>
-                <option value="">— ft</option>
-                {[4, 5, 6, 7].map(f => <option key={f} value={String(f)}>{f} ft</option>)}
-              </select>
-              <select className="ob-field-input ob-field-select" value={data.heightIn} onChange={e => patch({ heightIn: e.target.value })}>
-                <option value="">— in</option>
-                {Array.from({ length: 12 }, (_, i) => i).map(i => <option key={i} value={String(i)}>{i} in</option>)}
-              </select>
-            </div>
-          </div>
-          <FieldInput label="Current weight" type="number" value={data.currentWeightLbs} onChange={v => patch({ currentWeightLbs: v })} placeholder="185" hint="lbs — your starting point" />
-          <FieldInput label="Goal weight" type="number" value={data.goalWeightLbs} onChange={v => patch({ goalWeightLbs: v })} placeholder="175" hint="lbs — where you want to be" />
-        </div>
-
-        {/* Activity */}
-        <div className="ob-form-group">
-          <p className="ob-form-group-title">Activity Level</p>
-          <div className="ob-activity-list">
-            {ACTIVITY_LEVELS.map(a => (
-              <button
-                key={a.id}
-                type="button"
-                className={`ob-activity-row ${data.activityLevel === a.id ? 'ob-activity-row--on' : ''}`}
-                onClick={() => patch({ activityLevel: a.id as OBData['activityLevel'] })}
-              >
-                <div className="ob-activity-info">
-                  <div className="ob-activity-label">{a.label}</div>
-                  <div className="ob-activity-desc">{a.desc}</div>
-                </div>
-                <div className={`ob-activity-radio ${data.activityLevel === a.id ? 'ob-activity-radio--on' : ''}`} />
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="ob-input-zone">
+        <input
+          className="ob-big-text-input"
+          type="text"
+          value={data.name}
+          onChange={e => patch({ name: e.target.value })}
+          placeholder="First name"
+          autoFocus
+          autoComplete="given-name"
+        />
       </div>
-
       <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!canContinue}>Continue</button>
+        <button className="ob-cta ob-cta--full" onClick={onNext} disabled={!data.name.trim()}>
+          Continue
+        </button>
         <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
     </StepShell>
   )
 }
 
-// ─── Step 2: Connect Health Data ──────────────────────────────────────────────
+// ─── Step 2: Identity (DOB + Sex) ─────────────────────────────────────────────
 
-function StepHealthData({ patch, onNext, dir }: StepProps) {
-  const platform = getPlatform()
-  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://shakthi-journal.pages.dev'
-  const [copied, setCopied] = useState(false)
-
-  function copyUrl() {
-    navigator.clipboard.writeText(appUrl).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  function importNow() {
-    patch({ importAfterSetup: true })
-    onNext()
-  }
-
-  function skipImport() {
-    patch({ importAfterSetup: false })
-    onNext()
-  }
-
+function StepIdentity({ data, patch, onNext, dir }: StepProps) {
+  const today = new Date().toISOString().split('T')[0]
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Import your<br/>health data</h1>
-        <p className="ob-q-sub">
-          {platform === 'ios'
-            ? 'Would you like to import your Apple Health data?'
-            : 'Would you like to import health data after setup?'}
-        </p>
+        <h1 className="ob-q-title">A few basics</h1>
+        <p className="ob-q-sub">Used to personalize your baselines. Never shared.</p>
       </div>
-
-      <div className="ob-health-options">
-        {platform === 'ios' && (
-          <>
-            <div className="ob-health-limitation-card">
-              <span className="ob-health-limitation-icon">ℹ️</span>
-              <div>
-                <p className="ob-health-limitation-title">Web apps cannot access Apple Health directly.</p>
-                <p className="ob-health-limitation-body">
-                  You can export your data and import it here in a few steps.
-                  A native app with automatic HealthKit sync is planned.
-                </p>
-              </div>
-            </div>
-
-            <div className="ob-health-steps">
-              <p className="ob-health-steps-title">How to export Apple Health</p>
-              {[
-                'Open the Health app on your iPhone',
-                'Tap your profile photo → Export All Health Data',
-                'Share the ZIP → unzip → find export.xml',
-                'After setup: Settings → Import Data → upload export.xml',
-              ].map((step, i) => (
-                <div key={i} className="ob-health-step-row">
-                  <span className="ob-health-step-num">{i + 1}</span>
-                  <span className="ob-health-step-text">{step}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {platform === 'desktop' && (
-          <>
-            <div className="ob-health-platform-note">
-              <strong>Best imported from your iPhone.</strong> Open this app on your iPhone to follow the Apple Health export steps there.
-            </div>
-            <div className="ob-url-box">
-              <span className="ob-url-text">{appUrl}</span>
-              <button className={`ob-url-copy ${copied ? 'ob-url-copy--copied' : ''}`} onClick={copyUrl}>
-                {copied ? <><Check size={13} /> Copied</> : 'Copy'}
+      <div className="ob-form">
+        <div className="ob-form-row">
+          <label className="ob-field-label">Date of birth</label>
+          <input
+            className="ob-field-input"
+            type="date"
+            value={data.dob}
+            onChange={e => patch({ dob: e.target.value })}
+            max={today}
+            min="1900-01-01"
+          />
+        </div>
+        <div className="ob-form-row">
+          <label className="ob-field-label">Sex</label>
+          <div className="ob-segment">
+            {(['male', 'female', 'other'] as const).map(s => (
+              <button
+                key={s}
+                type="button"
+                className={`ob-segment-btn ${data.sex === s ? 'ob-segment-btn--on' : ''}`}
+                onClick={() => patch({ sex: s })}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
-            </div>
-            <div className="ob-health-option ob-health-option--info">
-              <span className="ob-health-option-icon">📂</span>
-              <div className="ob-health-option-info">
-                <span className="ob-health-option-name">Or upload an export file on desktop</span>
-                <span className="ob-health-option-desc">After setup, go to Settings → Import Data to upload export.xml.</span>
-              </div>
-            </div>
-          </>
-        )}
-
-        {platform === 'android' && (
-          <div className="ob-health-platform-note">
-            Google Health Connect integration is planned. Most wearable apps (Garmin, WHOOP, Oura) can export data for import.
+            ))}
           </div>
-        )}
+        </div>
       </div>
-
       <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={importNow}>
-          {platform === 'ios' ? 'Set up import after this' : 'Import after setup'}
-        </button>
-        <button className="ob-skip" onClick={skipImport}>Skip for now</button>
+        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
+        <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
     </StepShell>
   )
 }
 
-// ─── Step 3: Connect Wearables ────────────────────────────────────────────────
+// ─── Step 3: Height ───────────────────────────────────────────────────────────
 
-function StepWearables({ data, patch, onNext, dir }: StepProps) {
-  function toggle(id: string) {
-    const wearable = WEARABLES.find(w => w.id === id)
-    if (!wearable || wearable.status === 'coming-soon') return
-    const on = data.intendToConnect.includes(id)
-    patch({ intendToConnect: on ? data.intendToConnect.filter(s => s !== id) : [...data.intendToConnect, id] })
-  }
-
+function StepHeight({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">What do<br/>you use?</h1>
-        <p className="ob-q-sub">Select the devices and apps you want to connect. Only real connections are shown — nothing is added without your action.</p>
+        <h1 className="ob-q-title">How tall<br/>are you?</h1>
       </div>
-
-      <div className="ob-source-list">
-        {WEARABLES.map(w => {
-          const sl = WEARABLE_STATUS_LABELS[w.status]
-          const isSoon = w.status === 'coming-soon'
-          const on = data.intendToConnect.includes(w.id)
-          return (
-            <button
-              key={w.id}
-              className={`ob-source-row ${on ? 'ob-source-row--on' : ''} ${isSoon ? 'ob-source-row--soon' : ''}`}
-              onClick={() => toggle(w.id)}
-              disabled={isSoon}
-              type="button"
+      <div className="ob-input-zone">
+        <div className="ob-height-pickers">
+          <div className="ob-picker-col">
+            <select
+              className="ob-drum-select"
+              value={data.heightFt}
+              onChange={e => patch({ heightFt: e.target.value })}
             >
-              <span className="ob-source-icon">{w.icon}</span>
-              <div className="ob-source-info">
-                <span className="ob-source-name">{w.name}</span>
-                <span className="ob-source-desc">{w.desc}</span>
-              </div>
-              {on
-                ? <span className="ob-source-check"><Check size={16} /></span>
-                : <span className="ob-source-status" style={{ color: sl?.color }}>{sl?.label}</span>
-              }
+              {[4, 5, 6, 7].map(f => (
+                <option key={f} value={String(f)}>{f}</option>
+              ))}
+            </select>
+            <span className="ob-picker-unit">ft</span>
+          </div>
+          <div className="ob-picker-col">
+            <select
+              className="ob-drum-select"
+              value={data.heightIn}
+              onChange={e => patch({ heightIn: e.target.value })}
+            >
+              {Array.from({ length: 12 }, (_, i) => i).map(i => (
+                <option key={i} value={String(i)}>{i}</option>
+              ))}
+            </select>
+            <span className="ob-picker-unit">in</span>
+          </div>
+        </div>
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
+        <button className="ob-skip" onClick={onNext}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 4: Current Weight ───────────────────────────────────────────────────
+
+function StepCurrentWeight({ data, patch, onNext, dir }: StepProps) {
+  const val = parseInt(data.currentWeightLbs) || 185
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What's your<br/>current weight?</h1>
+        <p className="ob-q-sub">Your starting point for tracking progress.</p>
+      </div>
+      <div className="ob-input-zone">
+        <NumberStepper
+          value={val}
+          onChange={v => patch({ currentWeightLbs: String(v) })}
+          unit="lbs"
+          min={80} max={500} step={1}
+        />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={() => {
+          if (!data.currentWeightLbs) patch({ currentWeightLbs: String(val) })
+          onNext()
+        }}>Continue</button>
+        <button className="ob-skip" onClick={onNext}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 5: Goal Weight ──────────────────────────────────────────────────────
+
+function StepGoalWeight({ data, patch, onNext, dir }: StepProps) {
+  const current = parseInt(data.currentWeightLbs) || 185
+  const val = parseInt(data.goalWeightLbs) || Math.max(130, current - 10)
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What's your<br/>goal weight?</h1>
+        <p className="ob-q-sub">Where you want to be. You can always change this.</p>
+      </div>
+      <div className="ob-input-zone">
+        <NumberStepper
+          value={val}
+          onChange={v => patch({ goalWeightLbs: String(v) })}
+          unit="lbs"
+          min={80} max={500} step={1}
+        />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={() => {
+          if (!data.goalWeightLbs) patch({ goalWeightLbs: String(val) })
+          onNext()
+        }}>Continue</button>
+        <button className="ob-skip" onClick={onNext}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 6: Activity Level ───────────────────────────────────────────────────
+
+function StepActivity({ data, patch, onNext, dir }: StepProps) {
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">How active<br/>are you?</h1>
+        <p className="ob-q-sub">Used to calculate your daily targets.</p>
+      </div>
+      <div className="ob-activity-list">
+        {ACTIVITY_LEVELS.map(a => (
+          <button
+            key={a.id}
+            type="button"
+            className={`ob-activity-row ${data.activityLevel === a.id ? 'ob-activity-row--on' : ''}`}
+            onClick={() => patch({ activityLevel: a.id as OBData['activityLevel'] })}
+          >
+            <div className="ob-activity-info">
+              <div className="ob-activity-label">{a.label}</div>
+              <div className="ob-activity-desc">{a.desc}</div>
+            </div>
+            <div className={`ob-activity-radio ${data.activityLevel === a.id ? 'ob-activity-radio--on' : ''}`} />
+          </button>
+        ))}
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext}>
+          {data.activityLevel ? 'Continue' : 'Skip for now'}
+        </button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 7: Primary Goal ─────────────────────────────────────────────────────
+
+function StepPrimaryGoal({ data, patch, onNext, dir }: StepProps) {
+  function toggle(id: string) {
+    const on = data.primaryGoals.includes(id)
+    patch({ primaryGoals: on ? data.primaryGoals.filter(g => g !== id) : [id] })
+  }
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">What are you<br/>training for?</h1>
+        <p className="ob-q-sub">Pick the one that fits best right now.</p>
+      </div>
+      <div className="ob-goal-list ob-goal-list--large">
+        {PRIMARY_GOALS.map(g => {
+          const on = data.primaryGoals.includes(g.id)
+          return (
+            <button key={g.id} type="button" className={`ob-goal-row ${on ? 'ob-goal-row--on' : ''}`} onClick={() => toggle(g.id)}>
+              <span className="ob-goal-emoji">{g.emoji}</span>
+              <span className="ob-goal-lbl">{g.label}</span>
+              <span className={`ob-goal-dot ${on ? 'ob-goal-dot--on' : ''}`}><Check size={14} /></span>
             </button>
           )
         })}
       </div>
-
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>
-          {data.intendToConnect.length > 0 ? 'Continue' : 'Skip for now'}
+          {data.primaryGoals.length > 0 ? 'Continue' : 'Skip for now'}
         </button>
       </div>
     </StepShell>
   )
 }
 
-// ─── Step 4: Goals ────────────────────────────────────────────────────────────
+// ─── Step 8: Training Days ────────────────────────────────────────────────────
 
-function StepGoals({ data, patch, onNext, dir }: StepProps) {
-  // Auto-calculate targets if not yet set
+function StepTraining({ data, patch, onNext, dir }: StepProps) {
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">How many days<br/>do you train?</h1>
+        <p className="ob-q-sub">Per week on average.</p>
+      </div>
+      <div className="ob-input-zone">
+        <div className="ob-day-selector ob-day-selector--large">
+          {[2, 3, 4, 5, 6, 7].map(d => (
+            <button
+              key={d}
+              type="button"
+              className={`ob-day-tile ${data.trainingDays === d ? 'ob-day-tile--on' : ''}`}
+              onClick={() => patch({ trainingDays: d })}
+            >
+              <span className="ob-day-num">{d}</span>
+              <span className="ob-day-lbl">days</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 9: Nutrition Targets ────────────────────────────────────────────────
+
+function StepNutrition({ data, patch, onNext, dir }: StepProps) {
   useEffect(() => {
     const goalLbs = parseFloat(data.goalWeightLbs)
     if (!isNaN(goalLbs) && goalLbs > 0 && !data.calorieGoal) {
@@ -653,92 +602,168 @@ function StepGoals({ data, patch, onNext, dir }: StepProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function toggleGoal(id: string) {
-    const on = data.primaryGoals.includes(id)
-    patch({ primaryGoals: on ? data.primaryGoals.filter(g => g !== id) : [...data.primaryGoals.slice(0, 1), id] })
+  const calories = parseInt(data.calorieGoal) || 2200
+  const protein  = parseInt(data.proteinGoal) || 160
+
+  return (
+    <StepShell dir={dir}>
+      <div className="ob-question">
+        <h1 className="ob-q-title">Your nutrition<br/>targets</h1>
+        <p className="ob-q-sub">Calculated from your goal and activity level. Adjust anytime.</p>
+      </div>
+      <div className="ob-nutrition-stack">
+        <NumberStepper
+          label="Daily calories"
+          value={calories}
+          onChange={v => patch({ calorieGoal: String(v) })}
+          unit="kcal"
+          min={1000} max={6000} step={50}
+        />
+        <NumberStepper
+          label="Daily protein"
+          value={protein}
+          onChange={v => patch({ proteinGoal: String(v) })}
+          unit="g"
+          min={50} max={400} step={5}
+        />
+      </div>
+      <div className="ob-footer">
+        <button className="ob-cta ob-cta--full" onClick={() => {
+          if (!data.calorieGoal) patch({ calorieGoal: String(calories) })
+          if (!data.proteinGoal) patch({ proteinGoal: String(protein) })
+          onNext()
+        }}>Continue</button>
+        <button className="ob-skip" onClick={onNext}>Skip for now</button>
+      </div>
+    </StepShell>
+  )
+}
+
+// ─── Step 10: Connect Sources ─────────────────────────────────────────────────
+
+const CONNECT_SOURCES = [
+  {
+    id: 'apple-health',
+    icon: '❤️',
+    name: 'iPhone Health',
+    desc: 'Steps, weight, sleep, heart rate, workouts',
+  },
+  {
+    id: 'ringconn',
+    icon: '💍',
+    name: 'RingConn',
+    desc: 'Blood oxygen, heart rate, sleep tracking',
+  },
+  {
+    id: 'strava',
+    icon: '🏃',
+    name: 'Strava',
+    desc: 'Runs, rides, GPS, pace, heart rate zones',
+  },
+  {
+    id: 'myfitnesspal',
+    icon: '🥗',
+    name: 'MyFitnessPal',
+    desc: 'Food log, calories, macros',
+  },
+  {
+    id: 'garmin',
+    icon: '⌚',
+    name: 'Garmin',
+    desc: 'GPS, HRV, VO₂ Max, training load',
+  },
+]
+
+function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
+  const platform   = getPlatform()
+  const isNativeApp =
+    typeof window !== 'undefined' &&
+    (window as unknown as Record<string, unknown>).__shakthiNativeApp === true
+
+  function toggle(id: string) {
+    const on = data.intendToConnect.includes(id)
+    patch({
+      intendToConnect: on
+        ? data.intendToConnect.filter(s => s !== id)
+        : [...data.intendToConnect, id],
+    })
   }
 
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Set your<br/>goals</h1>
-        <p className="ob-q-sub">We've calculated starting targets based on your profile. Adjust anytime.</p>
+        <h1 className="ob-q-title">Connect your<br/>health data</h1>
+        <p className="ob-q-sub">
+          Link apps and devices to see everything in one place.
+        </p>
       </div>
 
-      <div className="ob-form">
-        <div className="ob-form-group">
-          <p className="ob-form-group-title">Nutrition targets</p>
-          <div className="ob-macro-rows">
-            <div className="ob-macro-row">
-              <span className="ob-macro-label">Calories</span>
-              <input
-                className="ob-macro-input"
-                type="number"
-                inputMode="numeric"
-                value={data.calorieGoal}
-                onChange={e => patch({ calorieGoal: e.target.value })}
-                placeholder="2200"
-              />
-              <span className="ob-macro-unit">kcal / day</span>
+      <div className="ob-source-list">
+        {/* ── iPhone Health — platform-aware ── */}
+        {isNativeApp ? (
+          <div className="ob-source-row ob-source-row--connected">
+            <span className="ob-source-icon">❤️</span>
+            <div className="ob-source-info">
+              <span className="ob-source-name">iPhone Health</span>
+              <span className="ob-source-desc">Connected via the Shakthi Journal iPhone app</span>
             </div>
-            <div className="ob-macro-row">
-              <span className="ob-macro-label">Protein</span>
-              <input
-                className="ob-macro-input"
-                type="number"
-                inputMode="numeric"
-                value={data.proteinGoal}
-                onChange={e => patch({ proteinGoal: e.target.value })}
-                placeholder="160"
-              />
-              <span className="ob-macro-unit">g / day</span>
-            </div>
+            <span className="ob-source-badge ob-source-badge--connected"><Check size={13} /> Connected</span>
           </div>
-          {!data.calorieGoal && (
-            <p className="ob-goals-auto-note">Enter a goal weight in Profile to auto-calculate your targets.</p>
-          )}
-        </div>
+        ) : platform === 'ios' ? (
+          <div className="ob-source-row ob-source-row--native">
+            <span className="ob-source-icon">❤️</span>
+            <div className="ob-source-info">
+              <span className="ob-source-name">iPhone Health</span>
+              <span className="ob-source-desc">
+                Download the <strong>Shakthi Journal</strong> iPhone app to connect Apple Health directly.
+                {' '}<span className="ob-source-note">Direct sync, no file export needed.</span>
+              </span>
+            </div>
+            <span className="ob-source-badge ob-source-badge--native">iPhone app</span>
+          </div>
+        ) : (
+          <div className="ob-source-row ob-source-row--native">
+            <span className="ob-source-icon">❤️</span>
+            <div className="ob-source-info">
+              <span className="ob-source-name">iPhone Health</span>
+              <span className="ob-source-desc">
+                Available in the Shakthi Journal iPhone app.
+                {' '}<span className="ob-source-note">Open this app on your iPhone for direct HealthKit sync.</span>
+              </span>
+            </div>
+            <span className="ob-source-badge ob-source-badge--native">iPhone app</span>
+          </div>
+        )}
 
-        <div className="ob-form-group">
-          <p className="ob-form-group-title">Training</p>
-          <div className="ob-form-row">
-            <label className="ob-field-label">Days per week</label>
-            <div className="ob-day-selector">
-              {[2, 3, 4, 5, 6, 7].map(d => (
-                <button
-                  key={d}
-                  type="button"
-                  className={`ob-day-tile ${data.trainingDays === d ? 'ob-day-tile--on' : ''}`}
-                  onClick={() => patch({ trainingDays: d })}
-                >
-                  <span className="ob-day-num">{d}</span>
-                  <span className="ob-day-lbl">days</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="ob-form-group">
-          <p className="ob-form-group-title">Primary objective</p>
-          <div className="ob-goal-list">
-            {PRIMARY_GOALS.map(g => {
-              const on = data.primaryGoals.includes(g.id)
-              return (
-                <button key={g.id} type="button" className={`ob-goal-row ${on ? 'ob-goal-row--on' : ''}`} onClick={() => toggleGoal(g.id)}>
-                  <span className="ob-goal-emoji">{g.emoji}</span>
-                  <span className="ob-goal-lbl">{g.label}</span>
-                  <span className={`ob-goal-dot ${on ? 'ob-goal-dot--on' : ''}`}><Check size={14} /></span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        {/* ── Other sources — intent tagging + coming soon ── */}
+        {CONNECT_SOURCES.filter(s => s.id !== 'apple-health').map(s => {
+          const on = data.intendToConnect.includes(s.id)
+          return (
+            <button
+              key={s.id}
+              type="button"
+              className={`ob-source-row ob-source-row--soon ${on ? 'ob-source-row--intent' : ''}`}
+              onClick={() => toggle(s.id)}
+            >
+              <span className="ob-source-icon">{s.icon}</span>
+              <div className="ob-source-info">
+                <span className="ob-source-name">{s.name}</span>
+                <span className="ob-source-desc">{s.desc}</span>
+              </div>
+              <span className={`ob-source-badge ${on ? 'ob-source-badge--intent' : 'ob-source-badge--soon'}`}>
+                {on ? 'Notify me' : 'Coming soon'}
+              </span>
+            </button>
+          )
+        })}
       </div>
+
+      <p className="ob-connect-footnote">
+        Advanced import (Apple Health export.xml) is available after setup in Settings → Import Data.
+      </p>
 
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-        <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
     </StepShell>
   )
@@ -770,11 +795,11 @@ function StepAvatar({ data, patch, onNext, dir }: StepProps) {
   )
 }
 
-// ─── Step 6: Review ───────────────────────────────────────────────────────────
+// ─── Step 12: Review ──────────────────────────────────────────────────────────
 
 function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number) => void }) {
   const goalLabels = PRIMARY_GOALS.filter(g => data.primaryGoals.includes(g.id)).map(g => g.label)
-  const heightStr = data.heightFt ? `${data.heightFt}′ ${data.heightIn || '0'}″` : '—'
+  const heightStr  = data.heightFt ? `${data.heightFt}′ ${data.heightIn || '0'}″` : '—'
 
   return (
     <StepShell dir={dir}>
@@ -810,13 +835,13 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
         <div className="ob-review-card">
           <div className="ob-review-card-header">
             <span className="ob-review-card-title">Goals</span>
-            <button className="ob-review-edit-btn" onClick={() => goTo(4)}>Edit</button>
+            <button className="ob-review-edit-btn" onClick={() => goTo(7)}>Edit</button>
           </div>
           {[
+            ['Objective', goalLabels.length > 0 ? goalLabels.join(', ') : '—'],
+            ['Training',  `${data.trainingDays} days/week`],
             ['Calories',  data.calorieGoal ? `${data.calorieGoal} kcal/day` : '—'],
             ['Protein',   data.proteinGoal ? `${data.proteinGoal} g/day` : '—'],
-            ['Training',  `${data.trainingDays} days/week`],
-            ['Objective', goalLabels.length > 0 ? goalLabels.join(', ') : '—'],
           ].map(([k, v]) => (
             <div key={k} className="ob-review-row">
               <span className="ob-review-key">{k}</span>
@@ -829,13 +854,16 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
         {data.intendToConnect.length > 0 && (
           <div className="ob-review-card">
             <div className="ob-review-card-header">
-              <span className="ob-review-card-title">Planned Connections</span>
-              <button className="ob-review-edit-btn" onClick={() => goTo(3)}>Edit</button>
+              <span className="ob-review-card-title">Notify me when ready</span>
+              <button className="ob-review-edit-btn" onClick={() => goTo(10)}>Edit</button>
             </div>
             <div className="ob-review-row">
               <span className="ob-review-key">Sources</span>
               <span className="ob-review-val">
-                {data.intendToConnect.map(id => WEARABLES.find(w => w.id === id)?.name).filter(Boolean).join(', ')}
+                {data.intendToConnect
+                  .map(id => CONNECT_SOURCES.find(s => s.id === id)?.name)
+                  .filter(Boolean)
+                  .join(', ')}
               </span>
             </div>
           </div>
@@ -845,7 +873,7 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
         <div className="ob-review-card">
           <div className="ob-review-card-header">
             <span className="ob-review-card-title">Avatar</span>
-            <button className="ob-review-edit-btn" onClick={() => goTo(5)}>Edit</button>
+            <button className="ob-review-edit-btn" onClick={() => goTo(11)}>Edit</button>
           </div>
           <div className="ob-review-row">
             <span className="ob-review-key">Avatar</span>
@@ -898,8 +926,9 @@ function AuthLoadingScreen() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-// Steps: 0=welcome/auth, 1=profile, 2=health-data, 3=wearables, 4=goals, 5=avatar, 6=review, 7=finish
-const CONTENT_STEPS = 6  // steps 1–6 shown in progress bar
+// Steps: 0=welcome/auth, 1=name, 2=identity, 3=height, 4=current-weight, 5=goal-weight,
+//        6=activity, 7=primary-goal, 8=training, 9=nutrition, 10=connect, 11=avatar, 12=review, 13=finish
+const CONTENT_STEPS = 11  // steps 1–11 shown in progress bar (review and finish are outside)
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -1050,8 +1079,10 @@ export default function OnboardingPage() {
 
   if (syncingProfile) return <div className="ob-page"><AuthLoadingScreen /></div>
 
-  const showHeader = step >= 1 && step <= 6
-  const progressPct = step >= 1 ? Math.round(((step - 1) / CONTENT_STEPS) * 100) : 0
+  const showHeader  = step >= 1 && step <= 12
+  const progressPct = step >= 1 && step <= 11
+    ? Math.round(((step - 1) / CONTENT_STEPS) * 100)
+    : step > 11 ? 100 : 0
   const sp: StepProps = { data, patch, onNext: () => go(step + 1), dir }
 
   return (
@@ -1069,22 +1100,28 @@ export default function OnboardingPage() {
         </header>
       )}
 
-      {step === 0 && (
+      {step === 0  && (
         <StepWelcomeAuth
           dir={dir}
           onGuest={() => go(1)}
           onAuthSuccess={() => {/* handled by mode useEffect */}}
         />
       )}
-      {step === 1 && <StepProfile     key={1} {...sp} />}
-      {step === 2 && <StepHealthData  key={2} {...sp} />}
-      {step === 3 && <StepWearables   key={3} {...sp} />}
-      {step === 4 && <StepGoals       key={4} {...sp} />}
-      {step === 5 && <StepAvatar      key={5} {...sp} />}
-      {step === 6 && (
-        <StepReview key={6} {...sp} onNext={() => go(7)} goTo={go} />
+      {step === 1  && <StepName          key={1}  {...sp} />}
+      {step === 2  && <StepIdentity      key={2}  {...sp} />}
+      {step === 3  && <StepHeight        key={3}  {...sp} />}
+      {step === 4  && <StepCurrentWeight key={4}  {...sp} />}
+      {step === 5  && <StepGoalWeight    key={5}  {...sp} />}
+      {step === 6  && <StepActivity      key={6}  {...sp} />}
+      {step === 7  && <StepPrimaryGoal   key={7}  {...sp} />}
+      {step === 8  && <StepTraining      key={8}  {...sp} />}
+      {step === 9  && <StepNutrition     key={9}  {...sp} />}
+      {step === 10 && <StepConnectSources key={10} {...sp} />}
+      {step === 11 && <StepAvatar        key={11} {...sp} />}
+      {step === 12 && (
+        <StepReview key={12} {...sp} onNext={() => go(13)} goTo={go} />
       )}
-      {step === 7 && (
+      {step === 13 && (
         <ScreenFinish
           name={data.name.trim()}
           loading={loading}

@@ -4,14 +4,15 @@ import {
   Link2, History, Download as DownloadIcon, Upload,
   FlaskConical, Database, Shield, ShieldCheck, ChevronRight, Trash2,
   Smartphone, LayoutDashboard, Ruler, RefreshCw,
-  Cloud, LogOut, User,
+  Cloud, LogOut, User, Heart,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { SyncStatusRow } from '../components/SyncStatus'
-import { clearSyncHistory } from '../db'
+import { clearSyncHistory, setSetting } from '../db'
 import { clearImportedMetrics } from '../db/healthStore'
 import { useUnits } from '../hooks/useUnits'
+import { isInsideNativeApp } from '../layout/BottomNav'
 import './Settings.css'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -73,6 +74,21 @@ export default function Settings() {
   const [deleting, setDeleting] = useState(false)
   const [exportNote, setExportNote] = useState('')
   const [signingOut, setSigningOut] = useState(false)
+  const [resetOnboardingConfirm, setResetOnboardingConfirm] = useState(false)
+
+  async function handleResetOnboarding() {
+    if (!resetOnboardingConfirm) { setResetOnboardingConfirm(true); return }
+    await setSetting('onboarding.completed', false)
+    setResetOnboardingConfirm(false)
+    setExportNote('Onboarding reset. Reopen the app to run setup again.')
+    setTimeout(() => setExportNote(''), 4000)
+  }
+
+  function openHealthSync() {
+    const w = window as unknown as Record<string, unknown>
+    const handlers = w.webkit as { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } | undefined
+    handlers?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
+  }
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -147,6 +163,12 @@ export default function Settings() {
           label="Run Setup Again"
           description="Re-run the full setup wizard to update your profile and targets"
           onClick={() => navigate('/onboarding?edit=1')}
+        />
+        <SettingsRow
+          icon={RefreshCw}
+          label={resetOnboardingConfirm ? 'Tap again to confirm' : 'Reset Onboarding Only'}
+          description="Marks setup as incomplete so it shows on next launch. Does not delete any data."
+          onClick={handleResetOnboarding}
         />
       </SettingsSection>
 
@@ -237,6 +259,14 @@ export default function Settings() {
 
       {/* ── Integrations ── */}
       <SettingsSection title="Integrations">
+        {isInsideNativeApp() && (
+          <SettingsRow
+            icon={Heart}
+            label="Apple Health Sync"
+            description="Sync steps, weight, sleep, heart rate, and more from Apple Health"
+            onClick={openHealthSync}
+          />
+        )}
         <SettingsRow
           icon={Link2}
           label="Connected Accounts"

@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Download, ArrowLeftRight, ChevronRight, Target } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ArrowLeftRight, ChevronRight, Target } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate } from '../data/config'
 
@@ -170,10 +170,10 @@ function EmptyState({
 function QuickActions() {
   const navigate = useNavigate()
   const actions = [
-    { icon: Utensils,       label: 'Log Food',    path: '/nutrition',           color: 'var(--green)'  },
-    { icon: Dumbbell,       label: 'Log Workout', path: '/workouts',            color: 'var(--blue)'   },
-    { icon: Download,       label: 'Import Data', path: '/import/apple-health', color: 'var(--purple)' },
-    { icon: ArrowLeftRight, label: 'Compare',     path: '/compare',             color: 'var(--orange)' },
+    { icon: Utensils,       label: 'Log Food',    path: '/nutrition', color: 'var(--green)'  },
+    { icon: Dumbbell,       label: 'Log Workout', path: '/workouts',  color: 'var(--blue)'   },
+    { icon: Scale,          label: 'Log Weight',  path: '/log',       color: 'var(--purple)' },
+    { icon: ArrowLeftRight, label: 'Compare',     path: '/compare',   color: 'var(--orange)' },
   ]
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
@@ -564,25 +564,28 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* ── Today at a glance (intelligence-first hero) ── */}
+      {/* ── Quick Actions (immediately below greeting) ── */}
+      {isVisible('quick-actions') && <QuickActions />}
+
+      {/* ── Goal Ring (weight goal circle) ── */}
+      {isVisible('goal-ring') && !isEmpty && (
+        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} />
+      )}
+
+      {/* ── "Here's where things stand" ── */}
       {loading && !isEmpty && !isMock ? (
         <SkeletonHero />
       ) : (!isEmpty && !isMock) ? (
-        <TodayCard
-          today={today}
-          todayProgress={todayProgress}
-          nutritionGoals={nutritionGoals}
-          dataSource={dataSource}
-        />
+        <>
+          <p className="dash-section-standin">Here's where things stand</p>
+          <TodayCard
+            today={today}
+            todayProgress={todayProgress}
+            nutritionGoals={nutritionGoals}
+            dataSource={dataSource}
+          />
+        </>
       ) : null}
-
-      {/* ── Quick Actions (primary CTA — always visible) ── */}
-      {isVisible('quick-actions') && <QuickActions />}
-
-      {/* ── Goal Ring ── */}
-      {isVisible('goal-ring') && (
-        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} />
-      )}
 
       {/* ── Empty state: no data yet ── */}
       {isEmpty && isVisible('import-status') && (

@@ -35,6 +35,17 @@
   font-weight: 400;
 }
 
+/* ─── "Here's where things stand" label ─────────────────── */
+
+.dash-section-standin {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: -24px;
+}
+
 /* ─── Daily Brief ────────────────────────────────────────── */
 
 .daily-brief {

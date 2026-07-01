@@ -81,6 +81,17 @@ export default function DevDiagnostics() {
   const { mockMode, setMockMode, dbStatus, dbError, appVersion } = useApp()
   const [dbStats, setDbStats] = useState<DBStats | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [resetConfirm, setResetConfirm] = useState(false)
+
+  async function handleResetLocalState() {
+    if (!resetConfirm) { setResetConfirm(true); return }
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.deleteDatabase('shakthi-journal')
+      req.onsuccess = () => resolve()
+      req.onerror = () => reject(req.error)
+    })
+    window.location.reload()
+  }
 
   async function refresh() {
     setRefreshing(true)
@@ -191,6 +202,21 @@ export default function DevDiagnostics() {
             </div>
           </div>
         ))}
+      </DiagSection>
+
+      {/* ── Danger zone ── */}
+      <DiagSection title="Danger Zone">
+        <div className="diag-note">
+          These actions affect local IndexedDB only. Cloud data in Supabase is never touched.
+        </div>
+        <div className="diag-actions">
+          <button
+            className="diag-action-btn diag-action-btn--destructive"
+            onClick={handleResetLocalState}
+          >
+            {resetConfirm ? 'Tap again — this deletes all local data' : 'Reset Local App State'}
+          </button>
+        </div>
       </DiagSection>
 
       {/* ── App ── */}

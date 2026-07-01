@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Supabase credentials — injected from Secrets.xcconfig at build time.
+	     Never hardcode real values here. The $(VAR) syntax pulls from the xcconfig. -->
+	<key>SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+
+	<!-- HealthKit read — required, or App Store will reject the binary -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Shakthi Journal reads your health data from Apple Health to sync it to your personal dashboard. Your data is only uploaded to your own account and is never shared with anyone.</string>
+
+	<!-- HealthKit write — permission requested now for future use (Phase iOS 2+).
+	     The app does not write to Apple Health yet. -->
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>A future update will allow Shakthi Journal to log workouts and body measurements back to Apple Health. Write permission is requested now to avoid a second dialog later.</string>
+
+	<!-- Standard iOS keys -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+</dict>
+</plist>

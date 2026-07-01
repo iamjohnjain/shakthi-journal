@@ -1001,6 +1001,257 @@
   flex: 1;
 }
 
+/* ─── Big text input (name step) ─────────────────────────────────────────── */
+
+.ob-big-text-input {
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: var(--r-lg);
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  padding: 20px 24px;
+  width: 100%;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.ob-big-text-input:focus {
+  border-color: var(--blue);
+}
+.ob-big-text-input::placeholder {
+  color: rgba(255,255,255,0.2);
+}
+
+/* ─── Number stepper (weight, calories, protein) ─────────────────────────── */
+
+.ob-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.ob-stepper-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.ob-stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.ob-stepper-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.ob-stepper-btn:active {
+  background: rgba(255,255,255,0.15);
+}
+
+.ob-stepper-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.ob-stepper-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -2px;
+  width: 100%;
+  text-align: center;
+  -moz-appearance: textfield;
+  -webkit-appearance: none;
+}
+.ob-stepper-input::-webkit-inner-spin-button,
+.ob-stepper-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.ob-stepper-unit {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-align: center;
+}
+
+.ob-nutrition-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+  padding: 8px 0;
+}
+
+/* ─── Height drum pickers ─────────────────────────────────────────────────── */
+
+.ob-height-pickers {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ob-picker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-drum-select {
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: var(--r-lg);
+  color: var(--text-primary);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  padding: 20px 28px;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  min-width: 100px;
+}
+.ob-drum-select:focus {
+  border-color: var(--blue);
+}
+
+.ob-picker-unit {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* ─── Goal list (large variant for primary goal step) ────────────────────── */
+
+.ob-goal-list--large .ob-goal-row {
+  padding: 18px 20px;
+  gap: 16px;
+}
+.ob-goal-list--large .ob-goal-emoji {
+  font-size: 1.4rem;
+}
+.ob-goal-list--large .ob-goal-lbl {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ─── Training day selector (large variant) ──────────────────────────────── */
+
+.ob-day-selector--large {
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.ob-day-selector--large .ob-day-tile {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r-lg);
+}
+.ob-day-selector--large .ob-day-num {
+  font-size: 1.6rem;
+}
+.ob-day-selector--large .ob-day-lbl {
+  font-size: 0.65rem;
+}
+
+/* ─── Connect sources (new clean design) ─────────────────────────────────── */
+
+.ob-source-row--connected {
+  opacity: 1;
+  background: rgba(52,199,89,0.08);
+  border-color: rgba(52,199,89,0.25);
+}
+
+.ob-source-row--native {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.ob-source-row--intent {
+  background: rgba(10,132,255,0.08);
+  border-color: rgba(10,132,255,0.25);
+}
+
+.ob-source-note {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+
+.ob-source-badge {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.ob-source-badge--connected {
+  background: rgba(52,199,89,0.15);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ob-source-badge--native {
+  background: rgba(255,255,255,0.07);
+  color: var(--text-tertiary);
+}
+
+.ob-source-badge--soon {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-tertiary);
+}
+
+.ob-source-badge--intent {
+  background: rgba(10,132,255,0.15);
+  color: var(--blue);
+}
+
+.ob-connect-footnote {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 0 16px;
+  line-height: 1.5;
+}
+
 /* ─── Desktop overrides ───────────────────────────────────────────────────── */
 
 @media (min-width: 640px) {
@@ -1010,6 +1261,9 @@
   .ob-review-list { max-width: 440px; }
   .ob-photo-btns { flex-direction: row; flex-wrap: wrap; }
   .ob-photo-btn { width: auto; flex: 1; min-width: 90px; }
+  .ob-stepper-row { max-width: 360px; }
+  .ob-height-pickers { gap: 32px; }
+  .ob-drum-select { padding: 22px 36px; }
 }
 
 /* ─── Reduced motion (combined) ───────────────────────────────────────────── */

@@ -198,11 +198,11 @@ export const INITIAL_CONNECTIONS: ConnectedApp[] = [
   },
   {
     providerId: 'renpho',
-    status: 'import_ready',
-    syncMethod: 'csv_import',
-    lastSyncedAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
-    lastSyncedRecordCount: 4,
-    isEnabled: true,
+    status: 'needs_setup',
+    syncMethod: 'via_apple_health',
+    lastSyncedAt: null,
+    lastSyncedRecordCount: null,
+    isEnabled: false,
   },
   {
     providerId: 'strava',

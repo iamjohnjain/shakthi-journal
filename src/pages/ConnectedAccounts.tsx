@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import DataBadge from '../components/DataBadge'
 import { getSyncHistory } from '../db'
+import { isInsideNativeApp } from '../layout/BottomNav'
 import './ConnectedAccounts.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,11 +63,13 @@ function AccountCard({
   lastSync,
   onSync,
   onDisconnect,
+  nativeAction,
 }: {
   account: Account
   lastSync?: { at: string; count: number }
   onSync: (id: string) => void
   onDisconnect: (id: string) => void
+  nativeAction?: { label: string; onClick: () => void }
 }) {
   const [showSetup, setShowSetup] = useState(false)
   const navigate = useNavigate()
@@ -155,7 +158,12 @@ function AccountCard({
 
       {/* Actions */}
       <div className="account-actions">
-        {account.status === 'connected' && (
+        {nativeAction && (
+          <button className="btn btn-primary btn-sm" onClick={nativeAction.onClick}>
+            <RefreshCw size={13} /> {nativeAction.label}
+          </button>
+        )}
+        {!nativeAction && account.status === 'connected' && (
           <>
             <button className="btn btn-secondary btn-sm" onClick={() => onSync(account.id)}>
               <RefreshCw size={13} /> Sync Now
@@ -165,12 +173,12 @@ function AccountCard({
             </button>
           </>
         )}
-        {account.status === 'import_ready' && (
+        {!nativeAction && account.status === 'import_ready' && (
           <button className="btn btn-primary btn-sm" onClick={() => navigate('/import/apple-health')}>
             Import File
           </button>
         )}
-        {account.status === 'needs_setup' && account.setupInstructions && (
+        {!nativeAction && account.status === 'needs_setup' && account.setupInstructions && (
           <button className="btn btn-secondary btn-sm" onClick={() => setShowSetup(true)}>
             <Info size={13} /> View Setup
           </button>
@@ -194,10 +202,17 @@ function timeAgo(iso: string): string {
   return `${days}d ago`
 }
 
+function openNativeHealthSync() {
+  const w = window as unknown as Record<string, unknown>
+  const handlers = w.webkit as { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } | undefined
+  handlers?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
+}
+
 export default function ConnectedAccounts() {
   const navigate = useNavigate()
   const { user, mode: authMode } = useAuth()
 
+  const inNativeApp = isInsideNativeApp()
   const googleConnected = authMode === 'authenticated' && user?.provider === 'google'
   const appleConnected  = authMode === 'authenticated' && user?.provider === 'apple'
 
@@ -224,12 +239,14 @@ export default function ConnectedAccounts() {
       name: 'Apple Health',
       shortName: 'Apple Health',
       icon: '🍎',
-      status: 'import_ready',
-      method: 'XML export · manual import',
+      status: inNativeApp ? 'connected' : 'import_ready',
+      method: inNativeApp ? 'Via HealthKit · auto-sync' : 'XML export · manual import',
       dataTypes: ['Steps', 'Heart Rate', 'HRV', 'Sleep', 'Calories', 'Workouts'],
-      description: 'Acts as the central hub. Apple Watch, RingConn, and RENPHO all sync into Apple Health, so importing a single Apple Health export gives you everything.',
+      description: inNativeApp
+        ? 'Connected via HealthKit. Steps, heart rate, HRV, sleep, weight, and calories sync automatically. Tap "Sync Now" to pull the latest data immediately.'
+        : 'Acts as the central hub. Apple Watch, RingConn, and RENPHO all sync into Apple Health, so importing a single Apple Health export gives you everything.',
       availability: 'now',
-      setupInstructions: [
+      setupInstructions: inNativeApp ? undefined : [
         'Open Health app on iPhone',
         'Tap your profile photo → Export All Health Data',
         'Share the export.zip to your Mac',
@@ -241,12 +258,14 @@ export default function ConnectedAccounts() {
       name: 'Apple Watch',
       shortName: 'Watch',
       icon: '⌚',
-      status: 'needs_setup',
-      method: 'Via Apple Health hub',
+      status: inNativeApp ? 'connected' : 'needs_setup',
+      method: inNativeApp ? 'Via HealthKit · included automatically' : 'Via Apple Health hub',
       dataTypes: ['Heart Rate', 'HRV', 'Activity', 'Workouts', 'ECG'],
-      description: 'Apple Watch syncs all data to Apple Health automatically. No separate import needed — import Apple Health and Watch data is included.',
+      description: inNativeApp
+        ? 'Apple Watch data flows through HealthKit automatically. No separate action needed — it\'s included every time you sync Apple Health.'
+        : 'Apple Watch syncs all data to Apple Health automatically. No separate import needed — import Apple Health and Watch data is included.',
       availability: 'now',
-      setupInstructions: [
+      setupInstructions: inNativeApp ? undefined : [
         'Ensure Apple Watch is paired with your iPhone',
         'Open Watch app → Health → turn on all data sharing',
         'Then export Apple Health to get Watch data',
@@ -426,12 +445,13 @@ export default function ConnectedAccounts() {
   const needsSetupCount = accounts.filter(a => a.status === 'needs_setup').length
 
   const deviceHint = useMemo(() => {
+    if (inNativeApp) return { emoji: '✅', text: 'Apple Health is connected via HealthKit. Tap "Sync Now" on any card to pull the latest data.' }
     if (typeof navigator === 'undefined') return null
     const ua = navigator.userAgent
-    if (/iPad|iPhone|iPod/.test(ua)) return { emoji: '📱', text: 'You\'re on iPhone — Apple Health is your best first integration.' }
+    if (/iPad|iPhone|iPod/.test(ua)) return { emoji: '📱', text: 'You\'re on iPhone — use the native app for automatic Apple Health sync, no file exports needed.' }
     if (/Android/.test(ua)) return { emoji: '🤖', text: 'You\'re on Android — Google Fit or Strava are your best starting points.' }
     return { emoji: '💻', text: 'On desktop, file imports work great. For live wearable sync, visit from your phone.' }
-  }, [])
+  }, [inNativeApp])
 
   return (
     <div className="connected-accounts-page">
@@ -486,6 +506,11 @@ export default function ConnectedAccounts() {
               lastSync={lastSyncs.get(account.id)}
               onSync={handleSync}
               onDisconnect={handleDisconnect}
+              nativeAction={
+                inNativeApp && (account.id === 'apple_health' || account.id === 'apple_watch')
+                  ? { label: 'Sync Now', onClick: openNativeHealthSync }
+                  : undefined
+              }
             />
           </div>
         ))}
@@ -495,15 +520,28 @@ export default function ConnectedAccounts() {
       <div className="accounts-honesty-box">
         <h3>What's actually connected right now?</h3>
         <div className="honesty-grid">
-          <div className="honesty-item honesty-item--yes">
-            <strong>Real today:</strong> Manual file import from Apple Health XML, RENPHO CSV, or MFP CSV. Strava OAuth once you add credentials.
-          </div>
-          <div className="honesty-item honesty-item--no">
-            <strong>Not yet real:</strong> Automatic background sync, live API polling, Apple Watch direct access, RingConn API (doesn't exist), native iOS companion.
-          </div>
-          <div className="honesty-item honesty-item--future">
-            <strong>Phase 6 (future):</strong> Native iOS app with HealthKit for automatic real-time sync. That's when everything becomes truly seamless.
-          </div>
+          {inNativeApp ? (
+            <>
+              <div className="honesty-item honesty-item--yes">
+                <strong>Real today (native app):</strong> Apple Health and Apple Watch via HealthKit — steps, heart rate, HRV, sleep, weight, calories, and body fat sync automatically. RENPHO data appears here automatically if you've enabled Apple Health sync in the RENPHO app.
+              </div>
+              <div className="honesty-item honesty-item--no">
+                <strong>Not yet real:</strong> Background auto-sync (you tap Sync Now to pull fresh data), Strava direct API (requires server-side proxy), RingConn and WHOOP direct APIs (don't exist publicly).
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="honesty-item honesty-item--yes">
+                <strong>Real today:</strong> Manual file import from Apple Health XML, RENPHO CSV, or MFP CSV. Strava OAuth once you add credentials.
+              </div>
+              <div className="honesty-item honesty-item--no">
+                <strong>Not yet real:</strong> Automatic background sync, live API polling, Apple Watch direct access, RingConn API (doesn't exist publicly).
+              </div>
+              <div className="honesty-item honesty-item--future">
+                <strong>Best experience:</strong> Use the native iOS app — Apple Health connects automatically via HealthKit with no file exports needed.
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

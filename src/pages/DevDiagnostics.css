@@ -135,6 +135,7 @@
 }
 .diag-action-btn:hover { background: rgba(255,255,255,0.13); }
 .diag-action-btn--warn { border-color: var(--yellow); color: var(--yellow); }
+.diag-action-btn--destructive { border-color: var(--red); color: var(--red); }
 
 /* Spin */
 .spin { animation: spin 1s linear infinite; }

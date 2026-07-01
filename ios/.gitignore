@@ -1,0 +1,22 @@
+# Xcode derived data and user state
+DerivedData/
+*.xcuserstate
+xcuserdata/
+**/*.xcworkspace/xcuserdata/
+
+# Secrets — NEVER commit
+**/Config/Secrets.xcconfig
+
+# Build outputs
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Swift Package Manager (if added later)
+.build/

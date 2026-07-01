@@ -1,0 +1,457 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1B2C3D4E5F6A1B2C3D4E530 /* ShakthiJournalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E511 /* ShakthiJournalApp.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E531 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E512 /* AuthManager.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E532 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E513 /* KeychainHelper.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E533 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E514 /* SignInView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E534 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E515 /* AppConfig.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E535 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E518 /* HealthKitManager.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E536 /* HealthKitMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E519 /* HealthKitMapper.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E537 /* HealthMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E51A /* HealthMetric.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E538 /* SyncState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E51B /* SyncState.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E539 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E51C /* SupabaseClient.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E53A /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E51D /* SyncEngine.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E53B /* ConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E51E /* ConfigurationView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E53C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E51F /* ContentView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E53D /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E520 /* DashboardView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E53E /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E521 /* PermissionsView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E53F /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E524 /* HealthKit.framework */; };
+		A1B2C3D4E5F6A1B2C3D4E540 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E525 /* Security.framework */; };
+		A1B2C3D4E5F6A1B2C3D4E544 /* WebAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E527 /* WebAppView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E545 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E546 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A1B2C3D4E5F6A1B2C3D4E510 /* ShakthiJournal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShakthiJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F6A1B2C3D4E511 /* ShakthiJournalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakthiJournalApp.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E512 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E513 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E514 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E515 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E516 /* Secrets.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text; path = Secrets.xcconfig.template; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E517 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E518 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E519 /* HealthKitMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitMapper.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E51A /* HealthMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetric.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E51B /* SyncState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncState.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E51C /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E51D /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E51E /* ConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E51F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E520 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E521 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E522 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E523 /* ShakthiJournal.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShakthiJournal.entitlements; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E524 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
+		A1B2C3D4E5F6A1B2C3D4E525 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		A1B2C3D4E5F6A1B2C3D4E527 /* WebAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAppView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A1B2C3D4E5F6A1B2C3D4E551 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3D4E5F6A1B2C3D4E53F /* HealthKit.framework in Frameworks */,
+				A1B2C3D4E5F6A1B2C3D4E540 /* Security.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A1B2C3D4E5F6A1B2C3D4E500 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E510 /* ShakthiJournal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E501 /* ShakthiJournal */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E511 /* ShakthiJournalApp.swift */,
+				A1B2C3D4E5F6A1B2C3D4E502 /* Auth */,
+				A1B2C3D4E5F6A1B2C3D4E503 /* Config */,
+				A1B2C3D4E5F6A1B2C3D4E504 /* HealthKit */,
+				A1B2C3D4E5F6A1B2C3D4E505 /* Models */,
+				A1B2C3D4E5F6A1B2C3D4E506 /* Sync */,
+				A1B2C3D4E5F6A1B2C3D4E507 /* Views */,
+				A1B2C3D4E5F6A1B2C3D4E522 /* Info.plist */,
+				A1B2C3D4E5F6A1B2C3D4E523 /* ShakthiJournal.entitlements */,
+			);
+			path = ShakthiJournal;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E502 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E512 /* AuthManager.swift */,
+				A1B2C3D4E5F6A1B2C3D4E513 /* KeychainHelper.swift */,
+				A1B2C3D4E5F6A1B2C3D4E514 /* SignInView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E503 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E515 /* AppConfig.swift */,
+				A1B2C3D4E5F6A1B2C3D4E516 /* Secrets.xcconfig.template */,
+				A1B2C3D4E5F6A1B2C3D4E517 /* Secrets.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E504 /* HealthKit */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E518 /* HealthKitManager.swift */,
+				A1B2C3D4E5F6A1B2C3D4E519 /* HealthKitMapper.swift */,
+			);
+			path = HealthKit;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E505 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E51A /* HealthMetric.swift */,
+				A1B2C3D4E5F6A1B2C3D4E51B /* SyncState.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E506 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E51C /* SupabaseClient.swift */,
+				A1B2C3D4E5F6A1B2C3D4E51D /* SyncEngine.swift */,
+			);
+			path = Sync;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E507 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E51E /* ConfigurationView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E51F /* ContentView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E520 /* DashboardView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E521 /* PermissionsView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E527 /* WebAppView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */,
+				A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E526 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E524 /* HealthKit.framework */,
+				A1B2C3D4E5F6A1B2C3D4E525 /* Security.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E5F6 = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E501 /* ShakthiJournal */,
+				A1B2C3D4E5F6A1B2C3D4E526 /* Frameworks */,
+				A1B2C3D4E5F6A1B2C3D4E500 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1B2C3D4E5F6A1B2C3D4E560 /* ShakthiJournal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E571 /* Build configuration list for PBXNativeTarget "ShakthiJournal" */;
+			buildPhases = (
+				A1B2C3D4E5F6A1B2C3D4E550 /* Sources */,
+				A1B2C3D4E5F6A1B2C3D4E551 /* Frameworks */,
+				A1B2C3D4E5F6A1B2C3D4E552 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShakthiJournal;
+			productName = ShakthiJournal;
+			productReference = A1B2C3D4E5F6A1B2C3D4E510 /* ShakthiJournal.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A1B2C3D4E5F6A1B2C3D4E561 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A1B2C3D4E5F6A1B2C3D4E560 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E570 /* Build configuration list for PBXProject "ShakthiJournal" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A1B2C3D4E5F6A1B2C3D4E5F6;
+			productRefGroup = A1B2C3D4E5F6A1B2C3D4E500 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1B2C3D4E5F6A1B2C3D4E560 /* ShakthiJournal */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1B2C3D4E5F6A1B2C3D4E552 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A1B2C3D4E5F6A1B2C3D4E550 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3D4E5F6A1B2C3D4E530 /* ShakthiJournalApp.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E531 /* AuthManager.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E532 /* KeychainHelper.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E533 /* SignInView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E534 /* AppConfig.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E535 /* HealthKitManager.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E536 /* HealthKitMapper.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E537 /* HealthMetric.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E538 /* SyncState.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E539 /* SupabaseClient.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E53A /* SyncEngine.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E53B /* ConfigurationView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E53C /* ContentView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E53D /* DashboardView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E53E /* PermissionsView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E544 /* WebAppView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E545 /* MainTabView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E546 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1B2C3D4E5F6A1B2C3D4E580 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = M6PK3Q3BRJ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1B2C3D4E5F6A1B2C3D4E581 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = M6PK3Q3BRJ;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A1B2C3D4E5F6A1B2C3D4E582 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1B2C3D4E5F6A1B2C3D4E517 /* Secrets.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShakthiJournal/ShakthiJournal.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShakthiJournal/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shakthijournal.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A1B2C3D4E5F6A1B2C3D4E583 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1B2C3D4E5F6A1B2C3D4E517 /* Secrets.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShakthiJournal/ShakthiJournal.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShakthiJournal/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shakthijournal.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1B2C3D4E5F6A1B2C3D4E570 /* Build configuration list for PBXProject "ShakthiJournal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4E5F6A1B2C3D4E580 /* Debug */,
+				A1B2C3D4E5F6A1B2C3D4E581 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D4E5F6A1B2C3D4E571 /* Build configuration list for PBXNativeTarget "ShakthiJournal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4E5F6A1B2C3D4E582 /* Debug */,
+				A1B2C3D4E5F6A1B2C3D4E583 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A1B2C3D4E5F6A1B2C3D4E561 /* Project object */;
+}
