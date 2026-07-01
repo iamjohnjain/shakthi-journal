@@ -130,7 +130,7 @@ struct DashboardView: View {
             // Sync button
             Button {
                 guard let userId = auth.userId, let token = auth.accessToken else { return }
-                Task { await sync.sync(userId: userId, accessToken: token, healthKitManager: hk) }
+                Task { await sync.sync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk) }
             } label: {
                 HStack(spacing: 8) {
                     if sync.activity.isRunning {
@@ -246,7 +246,7 @@ struct DashboardView: View {
                     // Try Again
                     if let userId = auth.userId, let token = auth.accessToken {
                         Button {
-                            Task { await sync.sync(userId: userId, accessToken: token, healthKitManager: hk) }
+                            Task { await sync.sync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk) }
                         } label: {
                             Label("Try Again", systemImage: "arrow.clockwise")
                                 .font(.caption).fontWeight(.semibold)

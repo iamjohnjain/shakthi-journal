@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs } from '../data/config'
@@ -139,6 +139,27 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
 
   const badgeMode: DataBadgeMode = isMock ? 'mock' : dataSource === 'manual' ? 'manual' : 'imported'
 
+  const touchStartX = useRef<number>(0)
+  const didSwipe = useRef<boolean>(false)
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+    didSwipe.current = false
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    if (Math.abs(dx) > 40) {
+      didSwipe.current = true
+      if (dx < 0) next(); else prev()
+    }
+  }
+
+  function handleCardClick() {
+    if (didSwipe.current) { didSwipe.current = false; return }
+    setShowDetail(true)
+  }
+
   const R = 88
   const C = 2 * Math.PI * R
   const strokeOffset = C - (pct / 100) * C
@@ -152,8 +173,10 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
 
   return (
     <>
-      <div className="goal-ring-card" onClick={() => setShowDetail(true)} role="button" tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && setShowDetail(true)}>
+      <div className="goal-ring-card" onClick={handleCardClick} role="button" tabIndex={0}
+        onKeyDown={e => e.key === 'Enter' && setShowDetail(true)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}>
 
         <div className="goal-ring-header">
           <span className="goal-ring-type-label">{cfg.label}</span>

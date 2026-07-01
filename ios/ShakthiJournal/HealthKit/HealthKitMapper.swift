@@ -34,6 +34,13 @@ enum HealthKitMapper {
                     importedAt: importedAt
                 ) { $0 < 2.0 ? $0 * 100 : $0 }
 
+            case HKQuantityType(.leanBodyMass):
+                metrics += latestPerDay(
+                    typeSamples, type: "leanBodyMass",
+                    unit: .gramUnit(with: .kilo), shakthiUnit: "kg",
+                    importedAt: importedAt
+                ) { $0 }
+
             case HKQuantityType(.stepCount):
                 metrics += sumPerDay(
                     typeSamples, type: "steps",

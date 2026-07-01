@@ -47,6 +47,7 @@ final class SyncEngine {
     func sync(
         userId: String,
         accessToken: String,
+        authManager: AuthManager,
         healthKitManager: HealthKitManager
     ) async {
         guard !activity.isRunning else { return }
@@ -78,11 +79,7 @@ final class SyncEngine {
             SyncStateStore.save(syncState)
 
             activity = .running(detail: "Uploading \(metrics.count) records…")
-            let uploaded = try await SupabaseClient.upsertHealthMetrics(
-                metrics,
-                userId: userId,
-                accessToken: accessToken
-            )
+            let uploaded = try await upload(metrics, userId: userId, accessToken: accessToken, authManager: authManager)
 
             markSuccess(uploadCount: uploaded, metrics: metrics)
         } catch {
@@ -90,6 +87,22 @@ final class SyncEngine {
             syncState.pendingUploads = 0
             SyncStateStore.save(syncState)
             activity = .idle
+        }
+    }
+
+    /// Uploads metrics, refreshing the JWT and retrying once on HTTP 401.
+    private func upload(
+        _ metrics: [HealthMetric],
+        userId: String,
+        accessToken: String,
+        authManager: AuthManager
+    ) async throws -> Int {
+        do {
+            return try await SupabaseClient.upsertHealthMetrics(metrics, userId: userId, accessToken: accessToken)
+        } catch SupabaseError.httpError(let code, _) where code == 401 {
+            activity = .running(detail: "Refreshing auth token…")
+            let newToken = try await authManager.refreshAndGetToken()
+            return try await SupabaseClient.upsertHealthMetrics(metrics, userId: userId, accessToken: newToken)
         }
     }
 

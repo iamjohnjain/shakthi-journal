@@ -22,11 +22,12 @@ final class HealthKitManager {
 
     private let store = HKHealthStore()
 
-    // Types we will READ (all 7 metrics synced to Supabase)
+    // Types we will READ (synced to Supabase)
     private var typesToRead: Set<HKObjectType> {
         [
             HKQuantityType(.bodyMass),
             HKQuantityType(.bodyFatPercentage),
+            HKQuantityType(.leanBodyMass),
             HKQuantityType(.stepCount),
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.restingHeartRate),
@@ -84,6 +85,7 @@ final class HealthKitManager {
         let quantityTypes: [HKQuantityTypeIdentifier] = [
             .bodyMass,
             .bodyFatPercentage,
+            .leanBodyMass,
             .stepCount,
             .activeEnergyBurned,
             .restingHeartRate,

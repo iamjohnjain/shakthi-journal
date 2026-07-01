@@ -132,14 +132,18 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                 <div className="custom-field">
                   <label>Calories*</label>
                   <div className="field-with-unit">
-                    <input type="number" min={0} value={calories} placeholder="0" onChange={e => setCalories(e.target.value)} />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
+                      onChange={e => setCalories(e.target.value.replace(/[^0-9]/g, ''))}
+                      onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>kcal</span>
                   </div>
                 </div>
                 <div className="custom-field">
                   <label>Protein*</label>
                   <div className="field-with-unit">
-                    <input type="number" min={0} value={protein} placeholder="0" onChange={e => setProtein(e.target.value)} />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={protein} placeholder="0"
+                      onChange={e => setProtein(e.target.value.replace(/[^0-9]/g, ''))}
+                      onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>g</span>
                   </div>
                 </div>
@@ -148,14 +152,18 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                 <div className="custom-field">
                   <label>Carbs</label>
                   <div className="field-with-unit">
-                    <input type="number" min={0} value={carbs} placeholder="0" onChange={e => setCarbs(e.target.value)} />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbs} placeholder="0"
+                      onChange={e => setCarbs(e.target.value.replace(/[^0-9]/g, ''))}
+                      onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>g</span>
                   </div>
                 </div>
                 <div className="custom-field">
                   <label>Fat</label>
                   <div className="field-with-unit">
-                    <input type="number" min={0} value={fat} placeholder="0" onChange={e => setFat(e.target.value)} />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={fat} placeholder="0"
+                      onChange={e => setFat(e.target.value.replace(/[^0-9]/g, ''))}
+                      onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>g</span>
                   </div>
                 </div>

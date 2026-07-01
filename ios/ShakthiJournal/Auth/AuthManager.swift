@@ -133,4 +133,21 @@ final class AuthManager {
         KeychainHelper.save(session.user.id,      key: KeychainHelper.userIdKey)
         KeychainHelper.save(session.user.email,   key: KeychainHelper.userEmailKey)
     }
+
+    /// Refreshes the Supabase session using the stored refresh token.
+    /// Updates Keychain and authState with the new tokens.
+    /// Returns the new access token so callers can retry immediately.
+    func refreshAndGetToken() async throws -> String {
+        guard let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey) else {
+            throw SupabaseError.httpError(statusCode: 401, body: "No refresh token stored — please sign in again.")
+        }
+        let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+        persist(session)
+        authState = .signedIn(
+            userId: session.user.id,
+            email: session.user.email,
+            accessToken: session.accessToken
+        )
+        return session.accessToken
+    }
 }
