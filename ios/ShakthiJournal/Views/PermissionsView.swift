@@ -22,7 +22,7 @@ struct PermissionsView: View {
                                 .font(.system(size: 22, weight: .bold))
                                 .foregroundStyle(.white)
 
-                            Text("Shakthi Journal reads health data from Apple Health and syncs it to your dashboard. Your data only goes to your own account.")
+                            Text("Shakthi reads health data from Apple Health and syncs it to your dashboard. Your data only goes to your own account.")
                                 .font(.subheadline)
                                 .foregroundStyle(Color(white: 0.6))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -52,7 +52,7 @@ struct PermissionsView: View {
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                        Text("Shakthi Journal will not write to Apple Health yet. Write permission is established now so a future update can log workouts and body measurements without a second permission dialog.")
+                        Text("Shakthi will not write to Apple Health yet. Write permission is established now so a future update can log workouts and body measurements without a second permission dialog.")
                             .font(.caption)
                             .foregroundStyle(Color(white: 0.4))
                             .fixedSize(horizontal: false, vertical: true)

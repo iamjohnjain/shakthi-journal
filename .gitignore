@@ -1,3 +1,6 @@
+# Claude Code agent artifacts (worktrees, memory)
+.claude/
+
 # Dependencies
 node_modules/
 

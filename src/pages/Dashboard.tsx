@@ -512,7 +512,7 @@ const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>
 export default function Dashboard() {
   const navigate = useNavigate()
   const { mockMode } = useApp()
-  const { today, yesterday, dataSource, nutritionSource, hasNutritionLog, latestWeight, loading: dataLoading } = useDashboardData()
+  const { today, yesterday, dataSource, nutritionSource, hasNutritionLog, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData()
   const { insights, todayProgress, loading: insightsLoading } = useHealthInsights(mockMode)
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
@@ -580,7 +580,7 @@ export default function Dashboard() {
 
       {/* ── Goal Ring (weight goal circle) ── */}
       {isVisible('goal-ring') && !isEmpty && (
-        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} latestWeight={latestWeight ?? undefined} />
+        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
       )}
 
       {/* ── "Here's where things stand" ── */}

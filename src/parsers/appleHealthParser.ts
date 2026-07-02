@@ -21,32 +21,36 @@ export type DBMetric = ShakthiDB['health_metrics']['value']
 // ─── HK type identifiers ──────────────────────────────────────────────────────
 
 export const HK = {
-  BODY_MASS:      'HKQuantityTypeIdentifierBodyMass',
-  BODY_FAT:       'HKQuantityTypeIdentifierBodyFatPercentage',
-  LEAN_BODY_MASS: 'HKQuantityTypeIdentifierLeanBodyMass',
-  STEP_COUNT:     'HKQuantityTypeIdentifierStepCount',
-  ACTIVE_ENERGY:  'HKQuantityTypeIdentifierActiveEnergyBurned',
-  BASAL_ENERGY:   'HKQuantityTypeIdentifierBasalEnergyBurned',
-  RESTING_HR:     'HKQuantityTypeIdentifierRestingHeartRate',
-  HRV_SDNN:       'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
-  SLEEP:          'HKCategoryTypeIdentifierSleepAnalysis',
-  HEART_RATE:     'HKQuantityTypeIdentifierHeartRate',
-  VO2_MAX:        'HKQuantityTypeIdentifierVO2Max',
+  BODY_MASS:         'HKQuantityTypeIdentifierBodyMass',
+  BODY_FAT:          'HKQuantityTypeIdentifierBodyFatPercentage',
+  LEAN_BODY_MASS:    'HKQuantityTypeIdentifierLeanBodyMass',
+  STEP_COUNT:        'HKQuantityTypeIdentifierStepCount',
+  ACTIVE_ENERGY:     'HKQuantityTypeIdentifierActiveEnergyBurned',
+  BASAL_ENERGY:      'HKQuantityTypeIdentifierBasalEnergyBurned',
+  RESTING_HR:        'HKQuantityTypeIdentifierRestingHeartRate',
+  HRV_SDNN:          'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
+  SLEEP:             'HKCategoryTypeIdentifierSleepAnalysis',
+  HEART_RATE:        'HKQuantityTypeIdentifierHeartRate',
+  VO2_MAX:           'HKQuantityTypeIdentifierVO2Max',
+  OXYGEN_SATURATION: 'HKQuantityTypeIdentifierOxygenSaturation',
+  RESPIRATORY_RATE:  'HKQuantityTypeIdentifierRespiratoryRate',
 } as const
 
 // Human-readable labels for record types
 export const HK_LABELS: Record<string, string> = {
-  [HK.BODY_MASS]:      'Weight',
-  [HK.BODY_FAT]:       'Body Fat %',
-  [HK.LEAN_BODY_MASS]: 'Lean Body Mass',
-  [HK.STEP_COUNT]:     'Step Count',
-  [HK.ACTIVE_ENERGY]:  'Active Calories',
-  [HK.BASAL_ENERGY]:   'Resting Calories',
-  [HK.RESTING_HR]:     'Resting Heart Rate',
-  [HK.HRV_SDNN]:       'HRV (SDNN)',
-  [HK.SLEEP]:          'Sleep Analysis',
-  [HK.HEART_RATE]:     'Heart Rate',
-  [HK.VO2_MAX]:        'VO2 Max',
+  [HK.BODY_MASS]:         'Weight',
+  [HK.BODY_FAT]:          'Body Fat %',
+  [HK.LEAN_BODY_MASS]:    'Lean Body Mass',
+  [HK.STEP_COUNT]:        'Step Count',
+  [HK.ACTIVE_ENERGY]:     'Active Calories',
+  [HK.BASAL_ENERGY]:      'Resting Calories',
+  [HK.RESTING_HR]:        'Resting Heart Rate',
+  [HK.HRV_SDNN]:          'HRV (SDNN)',
+  [HK.SLEEP]:             'Sleep Analysis',
+  [HK.HEART_RATE]:        'Heart Rate',
+  [HK.VO2_MAX]:           'VO2 Max',
+  [HK.OXYGEN_SATURATION]: 'Blood Oxygen (SpO2)',
+  [HK.RESPIRATORY_RATE]:  'Respiratory Rate',
 }
 
 const SUPPORTED_TYPES: Set<string> = new Set(Object.values(HK))
@@ -176,15 +180,18 @@ interface DayAcc {
   steps: number
   activeCalories: number
   basalCalories: number
-  // latest-value fields (stored as {value, ts})
+  // latest-value fields (stored as {value, ts, src})
   weight?: { v: number; ts: number; src: string }
   bodyFat?: { v: number; ts: number; src: string }
   leanMass?: { v: number; ts: number; src: string }
   restingHR?: { v: number; ts: number; src: string }
+  spO2?: { v: number; ts: number; src: string }
+  respiratoryRate?: { v: number; ts: number; src: string }
   hrvSamples: number[]
   hrSamples: number[]
-  // sleep duration in ms
+  // sleep duration in ms and primary source
   sleepMs: number
+  sleepSrc?: string
 }
 
 function emptyAcc(): DayAcc {
@@ -286,7 +293,9 @@ export async function parseAppleHealthFile(
         const endMs   = hkTimestamp(end)
         const durationMs = endMs - startMs
         if (durationMs > 0 && durationMs < 14 * 60 * 60 * 1000) {  // sanity: < 14h
-          dayMap.get(sleepDate)!.sleepMs += durationMs
+          const sleepAcc = dayMap.get(sleepDate)!
+          sleepAcc.sleepMs += durationMs
+          if (!sleepAcc.sleepSrc) sleepAcc.sleepSrc = src  // track primary source
         }
       }
       addSample(sampleMap, type, {
@@ -349,6 +358,19 @@ export async function parseAppleHealthFile(
       }
       case HK.HEART_RATE: {
         acc.hrSamples.push(Math.round(numVal))
+        break
+      }
+      case HK.OXYGEN_SATURATION: {
+        // Apple Health stores SpO2 as a fraction (0.0–1.0); HK_LABELS says %, so convert
+        const pct = numVal <= 1.0 ? +(numVal * 100).toFixed(1) : +numVal.toFixed(1)
+        if (!acc.spO2 || ts > acc.spO2.ts) acc.spO2 = { v: pct, ts, src }
+        addSample(sampleMap, type, { label: 'SpO2', date, value: `${pct}%`, source: src })
+        break
+      }
+      case HK.RESPIRATORY_RATE: {
+        const brpm = +numVal.toFixed(1)
+        if (!acc.respiratoryRate || ts > acc.respiratoryRate.ts) acc.respiratoryRate = { v: brpm, ts, src }
+        addSample(sampleMap, type, { label: 'Resp. Rate', date, value: `${brpm} brpm`, source: src })
         break
       }
     }
@@ -433,12 +455,22 @@ export async function parseAppleHealthFile(
       snap.hrv = avg
       metrics.push(metric('hrv', date, avg, 'ms', 'apple_watch', now))
     }
-    // Sleep — convert ms to hours, round to 1 decimal
+    // SpO2
+    if (acc.spO2) {
+      snap.spO2 = acc.spO2.v
+      metrics.push(metric('spO2', date, acc.spO2.v, '%', acc.spO2.src, now))
+    }
+    // Respiratory rate
+    if (acc.respiratoryRate) {
+      snap.respiratoryRate = acc.respiratoryRate.v
+      metrics.push(metric('respiratoryRate', date, acc.respiratoryRate.v, 'brpm', acc.respiratoryRate.src, now))
+    }
+    // Sleep — convert ms to hours, round to 1 decimal; use actual source
     if (acc.sleepMs > 0) {
       const hours = +(acc.sleepMs / 3_600_000).toFixed(1)
       if (hours >= 1 && hours <= 14) {  // sanity range
         snap.sleepHours = hours
-        metrics.push(metric('sleepHours', date, hours, 'h', 'ringconn', now))
+        metrics.push(metric('sleepHours', date, hours, 'h', acc.sleepSrc ?? 'apple_health', now))
       }
     }
 
@@ -518,14 +550,16 @@ function addSample(
 
 function hkToMetricType(hkType: string): string {
   const m: Record<string, string> = {
-    [HK.BODY_MASS]:      'weight',
-    [HK.BODY_FAT]:       'bodyFatPct',
-    [HK.LEAN_BODY_MASS]: 'leanBodyMass',
-    [HK.STEP_COUNT]:     'steps',
-    [HK.ACTIVE_ENERGY]:  'activeCalories',
-    [HK.RESTING_HR]:     'restingHeartRate',
-    [HK.HRV_SDNN]:       'hrv',
-    [HK.SLEEP]:          'sleepHours',
+    [HK.BODY_MASS]:         'weight',
+    [HK.BODY_FAT]:          'bodyFatPct',
+    [HK.LEAN_BODY_MASS]:    'leanBodyMass',
+    [HK.STEP_COUNT]:        'steps',
+    [HK.ACTIVE_ENERGY]:     'activeCalories',
+    [HK.RESTING_HR]:        'restingHeartRate',
+    [HK.HRV_SDNN]:          'hrv',
+    [HK.SLEEP]:             'sleepHours',
+    [HK.OXYGEN_SATURATION]: 'spO2',
+    [HK.RESPIRATORY_RATE]:  'respiratoryRate',
   }
   return m[hkType] ?? hkType
 }

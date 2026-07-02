@@ -90,9 +90,11 @@ interface Props {
   yesterday?: DailySnapshot
   dataSource: string
   latestWeight?: import('../hooks/useDashboardData').LatestWeightInfo
+  latestBodyFat?: import('../hooks/useDashboardData').LatestBodyFatInfo
+  latestSleep?: import('../hooks/useDashboardData').LatestSleepInfo
 }
 
-export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight }: Props) {
+export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight, latestBodyFat, latestSleep }: Props) {
   const navigate = useNavigate()
   const [typeIdx, setTypeIdx] = useState(0)
   const [profile,        setProfile]        = useState<ProfileData | null>(null)
@@ -101,12 +103,14 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
   const [showDetail,     setShowDetail]     = useState(false)
   const isMock = dataSource === 'mock'
 
-  function weightSourceLabel(sourceId: string): string {
+  function sourceLabel(sourceId: string): string {
     if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
     if (sourceId === 'apple_watch') return 'Apple Watch'
     if (sourceId === 'ringconn')    return 'RingConn via Apple Health'
     return 'Apple Health'
   }
+  // Keep old name as alias so existing weight/bodyFat calls don't change
+  const weightSourceLabel = sourceLabel
 
   useEffect(() => {
     getProfile().then(setProfile)
@@ -294,7 +298,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
 
               <div className="goal-ring-modal-rows">
                 {([
-                  ['Current',      hasData     ? (goalType === 'weight' && latestWeight ? `${cfg.format(current!)} ${cfg.unit} · ${weightSourceLabel(latestWeight.sourceId)} · ${latestWeight.date}` : `${cfg.format(current!)} ${cfg.unit}`) : '—',      undefined    ],
+                  ['Current',      hasData     ? (goalType === 'weight' && latestWeight ? `${cfg.format(current!)} ${cfg.unit} · ${sourceLabel(latestWeight.sourceId)} · ${latestWeight.date}` : goalType === 'bodyFat' && latestBodyFat ? `${cfg.format(current!)} ${cfg.unit} · ${sourceLabel(latestBodyFat.sourceId)} · ${latestBodyFat.date}` : goalType === 'sleep' && latestSleep ? `${cfg.format(current!)} ${cfg.unit} · ${sourceLabel(latestSleep.sourceId)} · ${latestSleep.date}` : `${cfg.format(current!)} ${cfg.unit}`) : '—',      undefined    ],
                   ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${cfg.unit}`   : '— Set in Profile', undefined],
                   ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${cfg.unit}` : '— Set in Profile',   undefined],
                   ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${cfg.unit}` : '—', changeColor],
@@ -330,6 +334,24 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
               {goalType === 'weight' && latestWeight && (
                 <p className="goal-ring-modal-weight-note">
                   Weight from {weightSourceLabel(latestWeight.sourceId)} on {latestWeight.date}. Tap "Edit Goal" to update your start weight.
+                </p>
+              )}
+
+              {goalType === 'bodyFat' && latestBodyFat && (
+                <p className="goal-ring-modal-weight-note">
+                  Body fat from {sourceLabel(latestBodyFat.sourceId)} on {latestBodyFat.date}. Sync RENPHO via Apple Health to keep this current.
+                </p>
+              )}
+
+              {goalType === 'sleep' && latestSleep && (
+                <p className="goal-ring-modal-weight-note">
+                  Sleep from {sourceLabel(latestSleep.sourceId)} on {latestSleep.date}. Open RingConn → ensure Apple Health sync is enabled for Sleep.
+                </p>
+              )}
+
+              {goalType === 'sleep' && !latestSleep && (
+                <p className="goal-ring-modal-weight-note">
+                  No sleep data found. In the native app, tap Sync Now after enabling RingConn → Apple Health sync for Sleep, HRV, and Heart Rate.
                 </p>
               )}
 

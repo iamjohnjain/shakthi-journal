@@ -58,9 +58,9 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src="/icon.svg" alt="Shakthi Journal" className="auth-logo-img" />
+            <img src="/icon.svg" alt="Shakthi" className="auth-logo-img" />
           </div>
-          <h1 className="auth-title">Shakthi Journal</h1>
+          <h1 className="auth-title">Shakthi</h1>
           <p className="auth-subtitle">Personal health OS — private by default</p>
 
           {!isSupabaseConfigured && (

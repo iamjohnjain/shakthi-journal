@@ -13,6 +13,8 @@ import Foundation
 ///   "activeCalories"   kcal
 ///   "restingHeartRate" bpm
 ///   "hrv"              ms
+///   "spO2"             %    (blood oxygen, 95–100 range)
+///   "respiratoryRate"  brpm (breaths per minute)
 ///   "sleepHours"       h    (note: NOT "hours")
 struct HealthMetric: Codable, Identifiable {
     /// Primary key: "\(type)_\(date)"  e.g. "weight_2026-06-30"

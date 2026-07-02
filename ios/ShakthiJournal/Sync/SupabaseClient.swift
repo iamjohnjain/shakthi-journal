@@ -18,11 +18,15 @@ struct SupabaseUser {
 enum SupabaseError: LocalizedError {
     case malformedResponse
     case httpError(statusCode: Int, body: String)
+    /// The Supabase refresh token is invalid or expired. Requires re-sign-in.
+    case sessionExpired
 
     var errorDescription: String? {
         switch self {
         case .malformedResponse:
             return "Unexpected response format from Supabase."
+        case .sessionExpired:
+            return "Session expired — please sign in again to sync Apple Health."
         case .httpError(let code, let body):
             // Auth-specific friendly messages (sign-in / sign-up flows only).
             // All other HTTP errors — including 401/403 from data endpoints — pass
@@ -38,6 +42,11 @@ enum SupabaseError: LocalizedError {
             }
             if body.lowercased().contains("password should be at least") {
                 return "Password must be at least 6 characters."
+            }
+            // Token errors — surfaces as .sessionExpired above, but if caught raw, show clean message
+            if body.lowercased().contains("refresh_token_not_found") ||
+               body.lowercased().contains("invalid refresh token") {
+                return "Session expired — please sign in again."
             }
             return "HTTP \(code): \(body)"
         }

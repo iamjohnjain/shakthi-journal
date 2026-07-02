@@ -21,7 +21,7 @@ struct ConfigurationView: View {
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
 
-                        Text("Supabase credentials are missing. The app needs a URL and anon key to connect to your Shakthi Journal account.")
+                        Text("Supabase credentials are missing. The app needs a URL and anon key to connect to your Shakthi account.")
                             .font(.subheadline)
                             .foregroundStyle(Color(white: 0.55))
                             .fixedSize(horizontal: false, vertical: true)

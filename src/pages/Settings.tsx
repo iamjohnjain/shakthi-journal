@@ -1,16 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Link2, History, Download as DownloadIcon, Upload,
   FlaskConical, Database, Shield, ShieldCheck, ChevronRight, Trash2,
   Smartphone, LayoutDashboard, Ruler, RefreshCw,
-  Cloud, LogOut, User, Heart,
+  Cloud, LogOut, User, Heart, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { SyncStatusRow } from '../components/SyncStatus'
 import { clearSyncHistory, setSetting } from '../db'
-import { clearImportedMetrics } from '../db/healthStore'
+import { clearImportedMetrics, getHealthDiagnostics } from '../db/healthStore'
+import type { HealthDiagnosticEntry } from '../db/healthStore'
 import { useUnits } from '../hooks/useUnits'
 import { isInsideNativeApp } from '../layout/BottomNav'
 import './Settings.css'
@@ -75,6 +76,15 @@ export default function Settings() {
   const [exportNote, setExportNote] = useState('')
   const [signingOut, setSigningOut] = useState(false)
   const [resetOnboardingConfirm, setResetOnboardingConfirm] = useState(false)
+  const [showSetupConfirm, setShowSetupConfirm] = useState(false)
+  const [showHealthDiag, setShowHealthDiag] = useState(false)
+  const [healthDiag, setHealthDiag] = useState<HealthDiagnosticEntry[] | null>(null)
+
+  useEffect(() => {
+    if (showHealthDiag && !healthDiag) {
+      getHealthDiagnostics().then(setHealthDiag).catch(() => {})
+    }
+  }, [showHealthDiag, healthDiag])
 
   async function handleResetOnboarding() {
     if (!resetOnboardingConfirm) { setResetOnboardingConfirm(true); return }
@@ -117,7 +127,7 @@ export default function Settings() {
     <div className="settings-page">
       <header className="page-header">
         <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Shakthi Journal · v{appVersion}</p>
+        <p className="page-subtitle">Shakthi · v{appVersion}</p>
       </header>
 
       {exportNote && (
@@ -162,7 +172,7 @@ export default function Settings() {
           icon={RefreshCw}
           label="Run Setup Again"
           description="Re-run the full setup wizard to update your profile and targets"
-          onClick={() => navigate('/onboarding?edit=1')}
+          onClick={() => setShowSetupConfirm(true)}
         />
         <SettingsRow
           icon={RefreshCw}
@@ -287,6 +297,56 @@ export default function Settings() {
         />
       </SettingsSection>
 
+      {/* ── Health Diagnostics (only inside iOS native app) ── */}
+      {isInsideNativeApp() && (
+        <SettingsSection title="Health Diagnostics">
+          <button
+            className="settings-row settings-row--clickable"
+            onClick={() => setShowHealthDiag(v => !v)}
+          >
+            <span className="settings-row-icon"><Heart size={15} /></span>
+            <span className="settings-row-label">HealthKit Data Freshness</span>
+            <span className="settings-row-value" style={{ color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+              {showHealthDiag ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </span>
+          </button>
+          {showHealthDiag && (
+            <div style={{ padding: '4px 0 8px' }}>
+              {!healthDiag ? (
+                <p className="settings-inline-note">Loading…</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {healthDiag.map(entry => (
+                    <div
+                      key={entry.typeId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 16px',
+                        borderBottom: '0.5px solid var(--border-subtle)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-secondary)' }}>{entry.displayName}</span>
+                      <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
+                        {entry.recordCount === 0
+                          ? 'No data'
+                          : entry.daysAgo === 0
+                          ? `${entry.recordCount} records · today`
+                          : entry.daysAgo === 1
+                          ? `${entry.recordCount} records · yesterday`
+                          : `${entry.recordCount} records · ${entry.daysAgo}d ago`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </SettingsSection>
+      )}
+
       {/* ── Developer ── */}
       <SettingsSection title="Developer">
         <SettingsRow
@@ -337,9 +397,33 @@ export default function Settings() {
 
       {/* ── About ── */}
       <SettingsSection title="About">
-        <SettingsRow label="App name" value="Shakthi Journal" />
+        <SettingsRow label="App name" value="Shakthi" />
         <SettingsRow label="Version"  value={`v${appVersion}`} />
       </SettingsSection>
+
+      {/* ── Run Setup Again confirmation ── */}
+      {showSetupConfirm && (
+        <div className="settings-overlay" onClick={() => setShowSetupConfirm(false)}>
+          <div className="settings-confirm-modal" onClick={e => e.stopPropagation()}>
+            <h2 className="settings-confirm-title">Run setup again?</h2>
+            <p className="settings-confirm-body">
+              This lets you update your profile, goals, nutrition targets, and connected sources.
+              Your workouts, meals, health data, and account will not be deleted.
+            </p>
+            <div className="settings-confirm-actions">
+              <button className="settings-confirm-cancel" onClick={() => setShowSetupConfirm(false)}>
+                Cancel
+              </button>
+              <button
+                className="settings-confirm-go"
+                onClick={() => { setShowSetupConfirm(false); navigate('/onboarding?edit=1') }}
+              >
+                Continue Setup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

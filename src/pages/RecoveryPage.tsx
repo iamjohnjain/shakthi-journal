@@ -145,6 +145,22 @@ export default function RecoveryPage() {
                 : undefined
             }
           />
+          <MetricCard
+            icon={Activity}
+            label="SpO2"
+            value={today.spO2}
+            unit="%"
+            color="var(--blue)"
+            note={today.spO2 != null ? (today.spO2 >= 95 ? 'Normal range' : 'Below normal — consider retesting') : undefined}
+          />
+          <MetricCard
+            icon={Activity}
+            label="Respiratory Rate"
+            value={today.respiratoryRate}
+            unit="brpm"
+            color="var(--teal)"
+            note={today.respiratoryRate != null ? 'Breaths per minute during sleep' : undefined}
+          />
         </div>
       </div>
 
@@ -153,15 +169,37 @@ export default function RecoveryPage() {
           <Zap size={32} style={{ opacity: 0.25, marginBottom: 12 }} />
           <p className="recovery-empty-title">No recovery data yet</p>
           <p className="recovery-empty-desc">
-            Connect Apple Watch or import Apple Health data to see your HRV, sleep, and resting heart rate.
+            RingConn, Apple Watch, and other wearables write sleep, HRV, resting heart rate, SpO2, and respiratory rate to Apple Health automatically.
             <br /><br />
-            Go to <strong>Settings → Import Data</strong> to get started.
+            In the native app, tap <strong>Sync Now</strong> after enabling Apple Health sync in your RingConn app. On web, go to <strong>Settings → Import Data</strong> and import an Apple Health export.
           </p>
         </div>
       )}
 
+      <div className="recovery-honesty-box" style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>What Apple Health exposes from RingConn</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {[
+            { label: 'Sleep duration', available: true },
+            { label: 'HRV (SDNN)', available: true },
+            { label: 'Resting heart rate', available: true },
+            { label: 'SpO2 (blood oxygen)', available: true },
+            { label: 'Respiratory rate', available: true },
+            { label: 'Sleep score', available: false, reason: 'RingConn keeps this in-app only' },
+            { label: 'Stress / Relax score', available: false, reason: 'Not exposed to Apple Health' },
+            { label: 'Recovery score', available: false, reason: 'Not exposed to Apple Health' },
+          ].map(({ label, available, reason }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13 }}>
+              <span style={{ color: available ? 'var(--green)' : 'var(--text-tertiary)', minWidth: 14 }}>{available ? '✓' : '✗'}</span>
+              <span style={{ color: available ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>{label}</span>
+              {!available && reason && <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>— {reason}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="recovery-coming-section">
-        <p className="recovery-coming-label">Coming soon</p>
+        <p className="recovery-coming-label">Coming next</p>
         <div className="recovery-coming-grid">
           {[
             { icon: TrendingUp, text: '7-day HRV trend' },

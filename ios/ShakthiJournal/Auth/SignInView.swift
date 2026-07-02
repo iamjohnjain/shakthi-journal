@@ -48,7 +48,7 @@ struct SignInView: View {
                 .background(Color(hex: "#1a6ef5"))
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            Text("Shakthi Journal")
+            Text("Shakthi")
                 .font(.system(size: 26, weight: .bold))
                 .foregroundStyle(.white)
 
@@ -229,8 +229,8 @@ struct SignInView: View {
 
     private var footerNote: some View {
         Text(mode == .signIn
-             ? "Use the same email and password as the\nShakthi Journal web app."
-             : "Your account works on both the iOS app\nand the Shakthi Journal web dashboard.")
+             ? "Use the same email and password as the\nShakthi web app."
+             : "Your account works on both the iOS app\nand the Shakthi web dashboard.")
             .font(.caption)
             .foregroundStyle(Color(white: 0.35))
             .multilineTextAlignment(.center)

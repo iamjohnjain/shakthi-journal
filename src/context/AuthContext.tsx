@@ -153,10 +153,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     init()
 
-    // Listen for auth state changes (e.g. OAuth redirect returns)
-    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (_event, s) => {
+    // Listen for auth state changes (e.g. OAuth redirect, token refresh)
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, s) => {
       if (s) {
         await activateSession(s)
+        // When the JS client auto-refreshes the token, push the new tokens to the
+        // native iOS Keychain so HealthKit sync stays in sync with the web session.
+        if (event === 'TOKEN_REFRESHED') {
+          const w = window as unknown as Record<string, unknown>
+          const bridge = (w.webkit as {
+            messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } }
+          } | undefined)
+          bridge?.messageHandlers?.shakthiNative?.postMessage({
+            type: 'sessionRefreshed',
+            accessToken:  s.access_token,
+            refreshToken: s.refresh_token,
+            userId:       s.user.id,
+            email:        s.user.email ?? '',
+          })
+        }
       } else {
         setSession(null)
         setUser(null)

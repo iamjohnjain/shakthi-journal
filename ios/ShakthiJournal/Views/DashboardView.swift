@@ -6,6 +6,8 @@ struct DashboardView: View {
     @Environment(SyncEngine.self)       private var sync
 
     @State private var showPermissions = false
+    @State private var showCategoryDetail = false
+    @State private var showSampleDetail = false
 
     var body: some View {
         NavigationStack {
@@ -23,7 +25,7 @@ struct DashboardView: View {
                     .padding(.bottom, 40)
                 }
             }
-            .navigationTitle("Shakthi Journal")
+            .navigationTitle("Shakthi")
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .preferredColorScheme(.dark)
@@ -229,10 +231,169 @@ struct DashboardView: View {
                         : (state.healthPermissionRequested ? "Authorized" : "Not connected"),
                     valueColor: state.healthPermissionRequested ? .green : Color(white: 0.4)
                 )
+
+                // Category summary row (only after first sync)
+                if !state.categoryResults.isEmpty {
+                    let connectedCount = state.categoryResults.filter { $0.status != "unavailable" }.count
+                    let hasUnavailable = state.categoryResults.contains { $0.status == "unavailable" }
+                    StateRow(
+                        label: "Categories",
+                        value: "\(connectedCount) of \(state.categoryResults.count) connected",
+                        valueColor: hasUnavailable ? .yellow : .green
+                    )
+                }
             }
 
+            // Category detail toggle
+            if !state.categoryResults.isEmpty {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showCategoryDetail.toggle() }
+                } label: {
+                    HStack {
+                        Text("Health categories")
+                            .font(.caption)
+                            .foregroundStyle(Color(white: 0.38))
+                        Spacer()
+                        Image(systemName: showCategoryDetail ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(Color(white: 0.3))
+                    }
+                    .padding(.top, 10)
+                }
+            }
+
+            // Expandable per-category list
+            if showCategoryDetail && !state.categoryResults.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(state.categoryResults, id: \.typeId) { r in
+                        HStack(spacing: 8) {
+                            Image(systemName: r.status == "synced" ? "checkmark.circle.fill"
+                                           : r.status == "unavailable" ? "exclamationmark.circle.fill"
+                                           : "circle.dotted")
+                                .font(.footnote)
+                                .foregroundStyle(r.status == "synced" ? .green
+                                               : r.status == "unavailable" ? .yellow
+                                               : Color(white: 0.35))
+                            Text(r.displayName)
+                                .font(.footnote)
+                                .foregroundStyle(Color(white: 0.65))
+                            Spacer()
+                            Group {
+                                if let date = r.latestDate {
+                                    Text(date)
+                                        .font(.caption2)
+                                        .foregroundStyle(Color(white: 0.4))
+                                } else {
+                                    Text(r.status == "unavailable" ? "No permission" : "No data")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color(white: 0.3))
+                                }
+                            }
+                        }
+                        .padding(.vertical, 7)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(Color(white: 0.13)).frame(height: 0.5)
+                        }
+                    }
+                }
+                .padding(.top, 8)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            // Raw HealthKit sample diagnostics (expandable — one row per type from last sync)
+            if !state.lastSampleDiagnostics.isEmpty {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showSampleDetail.toggle() }
+                } label: {
+                    HStack {
+                        Text("Raw HealthKit samples")
+                            .font(.caption)
+                            .foregroundStyle(Color(white: 0.38))
+                        Spacer()
+                        Image(systemName: showSampleDetail ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(Color(white: 0.3))
+                    }
+                    .padding(.top, 10)
+                }
+
+                if showSampleDetail {
+                    VStack(spacing: 0) {
+                        ForEach(state.lastSampleDiagnostics) { d in
+                            HStack(alignment: .top, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(d.displayName)
+                                        .font(.footnote)
+                                        .foregroundStyle(d.sourceId == "renpho"
+                                            ? Color(hex: "#30d158")
+                                            : Color(white: 0.65))
+                                    Text("\(d.sourceName) · \(d.sampleDate)")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color(white: 0.38))
+                                }
+                                Spacer()
+                                Text(formatDiagnosticValue(d))
+                                    .font(.footnote)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.white)
+                            }
+                            .padding(.vertical, 7)
+                            .overlay(alignment: .bottom) {
+                                Rectangle().fill(Color(white: 0.13)).frame(height: 0.5)
+                            }
+                        }
+                    }
+                    .padding(.top, 8)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+
+            // Partial sync warning (yellow — sync succeeded but some types were skipped)
+            if let warning = state.partialSyncWarning {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow).font(.footnote).padding(.top, 1)
+                        Text(warning)
+                            .font(.caption2)
+                            .foregroundStyle(Color(white: 0.65))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Button {
+                        Task { await hk.requestMissingAuthorizations() }
+                    } label: {
+                        Label("Grant Missing Permissions", systemImage: "lock.open")
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundStyle(.yellow)
+                    }
+                }
+                .padding(.top, 12)
+            }
+
+            // Session expired — show sign-in prompt, not "Try Again"
+            if state.needsReauth {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                            .foregroundStyle(.red).font(.footnote).padding(.top, 1)
+                        Text("Session expired — please sign in again to sync Apple Health.")
+                            .font(.caption2)
+                            .foregroundStyle(Color(white: 0.7))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Button {
+                        auth.signOut()
+                    } label: {
+                        Label("Sign In Again", systemImage: "arrow.right.circle")
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundStyle(Color(hex: "#1a6ef5"))
+                    }
+                }
+                .padding(.top, 12)
+
             // Error (if last attempt failed) — raw Supabase response, no transformation
-            if let error = state.lastError {
+            } else if let error = state.lastError {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "exclamationmark.circle.fill")
@@ -265,14 +426,24 @@ struct DashboardView: View {
     // MARK: - Helpers
 
     private var dotColor: Color {
-        if sync.activity.isRunning                  { return .yellow }
-        if sync.syncState.lastError != nil          { return .red    }
-        if sync.syncState.lastSuccessfulSync != nil { return .green  }
+        if sync.activity.isRunning                        { return .yellow }
+        if sync.syncState.needsReauth                     { return .red    }
+        if sync.syncState.lastError != nil                { return .red    }
+        if sync.syncState.partialSyncWarning != nil       { return .yellow }
+        if sync.syncState.lastSuccessfulSync != nil       { return .green  }
         return Color(white: 0.35)
     }
 
     private func dateString(_ date: Date) -> String {
         date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private func formatDiagnosticValue(_ d: SampleDiagnostic) -> String {
+        let v = d.mappedValue
+        let str = v == v.rounded(.towardZero) && abs(v) < 1_000_000
+            ? "\(Int(v))"
+            : String(format: "%.1f", v)
+        return "\(str) \(d.unit)"
     }
 }
 

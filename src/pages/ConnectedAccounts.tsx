@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import DataBadge from '../components/DataBadge'
 import { getSyncHistory } from '../db'
-import { getImportedSources } from '../db/healthStore'
+import { getImportedSources, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
 import { isInsideNativeApp } from '../layout/BottomNav'
 import './ConnectedAccounts.css'
 
@@ -207,10 +207,9 @@ function openNativeHealthSync() {
   handlers?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
 }
 
-const PRIMARY_IDS = ['apple_health', 'apple_watch', 'renpho']
+const PRIMARY_IDS = ['apple_health', 'apple_watch', 'renpho', 'ringconn']
 
 const COMING_SOON_PROVIDERS = [
-  { id: 'ringconn',     icon: '💍', name: 'RingConn',       method: 'Via Apple Health · enable in RingConn app' },
   { id: 'myfitnesspal', icon: '🥗', name: 'MyFitnessPal',   method: 'Via Apple Health · or CSV from myfitnesspal.com' },
   { id: 'strava',       icon: '🏃', name: 'Strava',         method: 'OAuth 2.0 API · requires server-side proxy' },
   { id: 'garmin',       icon: '⌚', name: 'Garmin Connect', method: 'Via Apple Health · enable in Garmin Connect app' },
@@ -225,6 +224,8 @@ export default function ConnectedAccounts() {
 
   const [lastSyncs, setLastSyncs] = useState<Map<string, { at: string; count: number }>>(new Map())
   const [detectedSources, setDetectedSources] = useState<string[]>([])
+  const [latestBodyFat, setLatestBodyFat] = useState<{ valuePct: number; date: string; sourceId: string; sourceName: string } | null>(null)
+  const [latestSleep, setLatestSleep] = useState<{ valueH: number; date: string; sourceId: string; sourceName: string } | null>(null)
 
   const loadData = useCallback(function loadData() {
     getSyncHistory(200).then(entries => {
@@ -240,6 +241,8 @@ export default function ConnectedAccounts() {
       setLastSyncs(map)
     })
     getImportedSources().then(setDetectedSources)
+    getLatestBodyFatRecord().then(setLatestBodyFat)
+    getLatestSleepRecord().then(setLatestSleep)
   }, [])
 
   useEffect(() => {
@@ -248,7 +251,8 @@ export default function ConnectedAccounts() {
     return () => window.removeEventListener('native-health-sync-complete', loadData)
   }, [])
 
-  const renphoDetected = detectedSources.includes('renpho')
+  const renphoDetected    = detectedSources.includes('renpho')
+  const ringconnDetected  = detectedSources.includes('ringconn')
 
   const accounts = useMemo<Account[]>(() => [
     {
@@ -306,7 +310,13 @@ export default function ConnectedAccounts() {
           : 'Open RENPHO app → Settings → Connect to → Health App → enable Weight and Body Fat. Then return here and tap "Sync Now" on Apple Health.')
         : 'RENPHO syncs to Apple Health if enabled, or you can export a CSV from the RENPHO app. Body composition data only — not available via any public API.',
       availability: 'now',
-      importNote: inNativeApp ? undefined : 'No public RENPHO API exists. Apple Health sync or CSV export are the only options.',
+      importNote: (() => {
+        if (!inNativeApp) return 'No public RENPHO API exists. Apple Health sync or CSV export are the only options.'
+        if (!renphoDetected) return undefined
+        if (!latestBodyFat) return 'No RENPHO body fat found in Apple Health yet. Open RENPHO → confirm Apple Health sync is enabled for Body Fat → return and tap Sync.'
+        if (latestBodyFat.sourceId === 'renpho') return `Body Fat synced from RENPHO via Apple Health · ${latestBodyFat.valuePct.toFixed(1)}% · ${latestBodyFat.date}`
+        return `No RENPHO body fat found. Latest body fat (${latestBodyFat.date}) is from another source. Open RENPHO app and enable Apple Health sync for Body Fat.`
+      })(),
       setupInstructions: inNativeApp ? (renphoDetected ? undefined : [
         'Open RENPHO app on your iPhone',
         'Go to Settings → Connect to → Health App',
@@ -318,7 +328,40 @@ export default function ConnectedAccounts() {
         'Go to RENPHO app → Profile → Export Data → select CSV',
       ],
     },
-  ], [inNativeApp, renphoDetected])
+    {
+      id: 'ringconn',
+      name: 'RingConn',
+      shortName: 'RingConn',
+      icon: '💍',
+      status: inNativeApp
+        ? (ringconnDetected ? 'connected' : 'needs_setup')
+        : 'needs_setup',
+      method: inNativeApp
+        ? (ringconnDetected ? 'Connected via Apple Health' : 'Via Apple Health · setup needed')
+        : 'Via Apple Health · no direct API',
+      dataTypes: ['Sleep', 'HRV', 'Resting HR', 'SpO2', 'Respiratory Rate'],
+      description: inNativeApp
+        ? (ringconnDetected
+          ? 'RingConn sleep, HRV, heart rate, SpO2, and respiratory rate are syncing through Apple Health. Data appears automatically after each Sync.'
+          : 'Open RingConn app → Settings → Apple Health → enable Sleep, Heart Rate, HRV, Blood Oxygen, and Respiratory Rate. Then return and Sync Apple Health.')
+        : 'RingConn syncs all biometric data to Apple Health if enabled in the RingConn app. No direct public API exists — Apple Health sync is the only path.',
+      importNote: (() => {
+        if (!inNativeApp) return 'No public RingConn API exists. Enable Apple Health sync in the RingConn app, then import an Apple Health export.'
+        if (!ringconnDetected) return undefined
+        if (!latestSleep) return 'RingConn detected in Apple Health. No sleep data found yet — open RingConn → verify Apple Health sync includes Sleep.'
+        if (latestSleep.sourceId === 'ringconn') return `Sleep synced from RingConn via Apple Health · ${latestSleep.valueH.toFixed(1)}h · ${latestSleep.date}`
+        return `No RingConn sleep found. Latest sleep (${latestSleep.date}) is from another source. Open RingConn → enable Apple Health sync for Sleep.`
+      })(),
+      availability: 'now',
+      setupInstructions: inNativeApp && !ringconnDetected ? [
+        'Open RingConn app on your iPhone',
+        'Go to Settings → Apple Health (or Health Sync)',
+        'Enable: Sleep, Heart Rate, HRV, Blood Oxygen, Respiratory Rate',
+        'Return here and tap "Sync Now" on the Apple Health card',
+        'Note: Sleep Score, Stress, and Recovery Score are not exposed to Apple Health',
+      ] : undefined,
+    },
+  ], [inNativeApp, renphoDetected, ringconnDetected, latestBodyFat, latestSleep])
 
   const [syncing, setSyncing] = useState<string | null>(null)
   const [disconnectMsg, setDisconnectMsg] = useState('')
@@ -438,7 +481,7 @@ export default function ConnectedAccounts() {
                 <strong>Real today (native app):</strong> Apple Health and Apple Watch via HealthKit — steps, heart rate, HRV, sleep, weight, calories, and body fat sync automatically. RENPHO data appears here automatically if you've enabled Apple Health sync in the RENPHO app.
               </div>
               <div className="honesty-item honesty-item--no">
-                <strong>Not yet real:</strong> Background auto-sync (you tap Sync Now to pull fresh data), Strava direct API (requires server-side proxy), RingConn and WHOOP direct APIs (don't exist publicly).
+                <strong>Not yet real:</strong> Background auto-sync (you tap Sync Now to pull fresh data), Strava direct API (requires server-side proxy), RingConn/WHOOP/Oura direct APIs (don't exist publicly — Apple Health is the only path). RingConn Sleep Score, Stress, and Recovery Score are not exposed to Apple Health by RingConn.
               </div>
             </>
           ) : (

@@ -121,8 +121,15 @@ final class AuthManager {
                 email: session.user.email,
                 accessToken: session.accessToken
             )
+        } catch SupabaseError.httpError(let code, _) where code == 400 || code == 401 {
+            // The refresh token is genuinely revoked or invalid — force re-sign-in.
+            // Falling back to the stale access token would also fail, since it's expired.
+            print("[AuthManager] Refresh token rejected (\(code)) — clearing Keychain session")
+            KeychainHelper.clearSession()
+            authState = .signedOut
         } catch {
-            // Use stale token — better UX than forcing sign-in on a transient network error
+            // Transient network/server error — preserve the stale session so the user
+            // isn't forced offline by a momentary connectivity blip.
             authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
         }
     }
@@ -137,17 +144,35 @@ final class AuthManager {
     /// Refreshes the Supabase session using the stored refresh token.
     /// Updates Keychain and authState with the new tokens.
     /// Returns the new access token so callers can retry immediately.
+    /// Throws `SupabaseError.sessionExpired` if the refresh token is no longer valid.
     func refreshAndGetToken() async throws -> String {
         guard let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey) else {
-            throw SupabaseError.httpError(statusCode: 401, body: "No refresh token stored — please sign in again.")
+            KeychainHelper.clearSession()
+            authState = .signedOut
+            throw SupabaseError.sessionExpired
         }
-        let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
-        persist(session)
-        authState = .signedIn(
-            userId: session.user.id,
-            email: session.user.email,
-            accessToken: session.accessToken
-        )
-        return session.accessToken
+        do {
+            let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+            persist(session)
+            authState = .signedIn(
+                userId: session.user.id,
+                email: session.user.email,
+                accessToken: session.accessToken
+            )
+            return session.accessToken
+        } catch SupabaseError.httpError(let code, _) where code == 400 || code == 401 {
+            // Refresh token is revoked / expired — clear session and force re-sign-in.
+            // SyncEngine catches .sessionExpired to show the right UI.
+            KeychainHelper.clearSession()
+            authState = .signedOut
+            throw SupabaseError.sessionExpired
+        }
+    }
+
+    /// Updates the in-memory access token when the WebView refreshes it.
+    /// Called by the native JS bridge when Supabase JS posts a TOKEN_REFRESHED event.
+    func updateTokens(accessToken: String) {
+        guard case .signedIn(let userId, let email, _) = authState else { return }
+        authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
     }
 }

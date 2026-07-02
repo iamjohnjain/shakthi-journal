@@ -2,9 +2,14 @@
 
 export type DataSourceId =
   | 'apple_health'
+  | 'apple_watch'
   | 'renpho'
+  | 'ringconn'
   | 'strava'
   | 'myfitnesspal'
+  | 'whoop'
+  | 'oura'
+  | 'garmin'
 
 export type ImportStatus = 'idle' | 'parsing' | 'success' | 'error'
 
@@ -55,6 +60,8 @@ export interface DailySnapshot {
   muscleMassKg?: number
   restingHeartRate?: number
   hrv?: number
+  spO2?: number            // blood oxygen % (e.g. 98.0)
+  respiratoryRate?: number // breaths per minute
   steps?: number
   sleepHours?: number
   sleepScore?: number

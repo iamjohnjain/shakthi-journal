@@ -51,6 +51,24 @@ struct MainTabView: View {
         switch type {
         case "openHealthSync":
             showHealthSync = true
+
+        case "sessionRefreshed":
+            // The Supabase JS client in the WebView refreshed its token.
+            // Sync the new tokens to native Keychain so HealthKit sync doesn't
+            // try to use the old, now-revoked refresh token.
+            guard
+                let at  = message["accessToken"]  as? String,
+                let rt  = message["refreshToken"] as? String,
+                let uid = message["userId"]       as? String,
+                let em  = message["email"]        as? String
+            else { return }
+            KeychainHelper.save(at,  key: KeychainHelper.accessTokenKey)
+            KeychainHelper.save(rt,  key: KeychainHelper.refreshTokenKey)
+            KeychainHelper.save(uid, key: KeychainHelper.userIdKey)
+            KeychainHelper.save(em,  key: KeychainHelper.userEmailKey)
+            auth.updateTokens(accessToken: at)
+            print("[MainTabView] Keychain updated from WebView token refresh")
+
         default:
             break
         }

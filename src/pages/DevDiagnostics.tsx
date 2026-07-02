@@ -221,7 +221,7 @@ export default function DevDiagnostics() {
 
       {/* ── App ── */}
       <DiagSection title="App">
-        <DiagRow label="App name"  value="Shakthi Journal" />
+        <DiagRow label="App name"  value="Shakthi" />
         <DiagRow label="Version"   value={`v${appVersion}`} mono />
         <DiagRow label="Framework" value="Vite 6 · React 18 · TypeScript" mono />
         <DiagRow label="Dev URL"   value="http://localhost:5173" mono />

@@ -304,7 +304,7 @@ function StepWelcomeAuth({ onGuest, onAuthSuccess, dir }: {
   return (
     <StepShell dir={dir}>
       <div className="ob-welcome-mark">S</div>
-      <h1 className="ob-welcome-title">Shakthi Journal</h1>
+      <h1 className="ob-welcome-title">Shakthi</h1>
       <p className="ob-welcome-sub">Your private health OS. Data stays on your device unless you create an account.</p>
 
       <div className="ob-spacer" />
@@ -753,7 +753,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <span className="ob-source-icon">❤️</span>
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
-              <span className="ob-source-desc">Connected via the Shakthi Journal iPhone app</span>
+              <span className="ob-source-desc">Connected via the Shakthi iPhone app</span>
             </div>
             <span className="ob-source-badge ob-source-badge--connected"><Check size={13} /> Connected</span>
           </div>
@@ -763,7 +763,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
               <span className="ob-source-desc">
-                Download the <strong>Shakthi Journal</strong> iPhone app to connect Apple Health directly.
+                Download the <strong>Shakthi</strong> iPhone app to connect Apple Health directly.
                 {' '}<span className="ob-source-note">Direct sync, no file export needed.</span>
               </span>
             </div>
@@ -775,7 +775,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
               <span className="ob-source-desc">
-                Available in the Shakthi Journal iPhone app.
+                Available in the Shakthi iPhone app.
                 {' '}<span className="ob-source-note">Open this app on your iPhone for direct HealthKit sync.</span>
               </span>
             </div>
@@ -951,7 +951,7 @@ function ScreenFinish({ name, loading, isEdit, onFinish }: {
       <p className="ob-finish-sub">Your profile has been saved.</p>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onFinish} disabled={loading}>
-          {loading ? 'Saving…' : isEdit ? 'Save Changes' : 'Enter Shakthi Journal'}
+          {loading ? 'Saving…' : isEdit ? 'Save Changes' : 'Enter Shakthi'}
         </button>
         <p className="ob-fine-print">All settings can be adjusted anytime in the app.</p>
       </div>

@@ -103,35 +103,116 @@ export async function getLatestWeightRecord(): Promise<{
   return { valueKg: Number(w.value), date: w.date, sourceId: w.sourceId, sourceName: w.sourceName }
 }
 
+/** Returns the most recent sleep metric across ALL stored records, regardless of date range. */
+export async function getLatestSleepRecord(): Promise<{
+  valueH: number
+  date: string
+  sourceId: string
+  sourceName: string
+} | null> {
+  const db = await getDB()
+  const all = await db.getAll('health_metrics')
+  const records = all
+    .filter(m => m.type === 'sleepHours' && m.dataMode !== 'mock')
+    .sort((a, b) => b.date.localeCompare(a.date))
+  if (records.length === 0) return null
+  const r = records[0]
+  return { valueH: Number(r.value), date: r.date, sourceId: r.sourceId, sourceName: r.sourceName }
+}
+
+/** Returns the most recent body fat metric across ALL stored records, regardless of date range. */
+export async function getLatestBodyFatRecord(): Promise<{
+  valuePct: number
+  date: string
+  sourceId: string
+  sourceName: string
+} | null> {
+  const db = await getDB()
+  const all = await db.getAll('health_metrics')
+  const records = all
+    .filter(m => m.type === 'bodyFatPct' && m.dataMode !== 'mock')
+    .sort((a, b) => b.date.localeCompare(a.date))
+  if (records.length === 0) return null
+  const r = records[0]
+  return { valuePct: Number(r.value), date: r.date, sourceId: r.sourceId, sourceName: r.sourceName }
+}
+
+// ─── Health diagnostics ───────────────────────────────────────────────────────
+
+export interface HealthDiagnosticEntry {
+  typeId: string
+  displayName: string
+  recordCount: number
+  latestDate: string | null
+  daysAgo: number | null
+}
+
+const DIAGNOSTIC_TYPES: Array<{ typeId: string; displayName: string }> = [
+  { typeId: 'weight',           displayName: 'Weight' },
+  { typeId: 'bodyFatPct',       displayName: 'Body Fat %' },
+  { typeId: 'leanBodyMass',     displayName: 'Lean Body Mass' },
+  { typeId: 'steps',            displayName: 'Steps' },
+  { typeId: 'activeCalories',   displayName: 'Active Calories' },
+  { typeId: 'restingHeartRate', displayName: 'Resting Heart Rate' },
+  { typeId: 'hrv',              displayName: 'HRV' },
+  { typeId: 'spO2',             displayName: 'Blood Oxygen (SpO2)' },
+  { typeId: 'respiratoryRate',  displayName: 'Respiratory Rate' },
+  { typeId: 'sleepHours',       displayName: 'Sleep' },
+]
+
+/** Per-type health data freshness report, reading from IndexedDB (non-mock only). */
+export async function getHealthDiagnostics(): Promise<HealthDiagnosticEntry[]> {
+  const db = await getDB()
+  const all = await db.getAll('health_metrics')
+  const real = all.filter(m => m.dataMode !== 'mock')
+  const today = new Date().toISOString().slice(0, 10)
+
+  return DIAGNOSTIC_TYPES.map(({ typeId, displayName }) => {
+    const records = real.filter(m => m.type === typeId)
+    const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date))
+    const latestDate = sorted[0]?.date ?? null
+    let daysAgo: number | null = null
+    if (latestDate) {
+      const diff = new Date(today).getTime() - new Date(latestDate).getTime()
+      daysAgo = Math.floor(diff / (1000 * 60 * 60 * 24))
+    }
+    return { typeId, displayName, recordCount: records.length, latestDate, daysAgo }
+  })
+}
+
 // ─── Build snapshot ───────────────────────────────────────────────────────────
 
 export function buildSnapshot(date: string, metrics: DBMetric[]): DailySnapshot {
   const get = (type: string) => metrics.find(m => m.type === type)
 
-  const weight       = get('weight')
-  const bodyFatPct   = get('bodyFatPct')
-  const leanBodyMass = get('leanBodyMass')
-  const steps        = get('steps')
-  const activeCal    = get('activeCalories')
-  const restingHR    = get('restingHeartRate')
-  const hrv          = get('hrv')
-  const sleep        = get('sleepHours')
-  const protein      = get('protein')
-  const caloriesIn   = get('caloriesIn')
-  const water        = get('water')
+  const weight         = get('weight')
+  const bodyFatPct     = get('bodyFatPct')
+  const leanBodyMass   = get('leanBodyMass')
+  const steps          = get('steps')
+  const activeCal      = get('activeCalories')
+  const restingHR      = get('restingHeartRate')
+  const hrv            = get('hrv')
+  const spO2           = get('spO2')
+  const respiratoryRt  = get('respiratoryRate')
+  const sleep          = get('sleepHours')
+  const protein        = get('protein')
+  const caloriesIn     = get('caloriesIn')
+  const water          = get('water')
 
   return {
     date,
-    weight:           weight       ? Number(weight.value)       : undefined,
-    bodyFatPct:       bodyFatPct   ? Number(bodyFatPct.value)   : undefined,
-    muscleMassKg:     leanBodyMass ? Number(leanBodyMass.value) : undefined,
-    steps:            steps        ? Number(steps.value)        : undefined,
-    activeCalories:   activeCal    ? Number(activeCal.value)    : undefined,
-    restingHeartRate: restingHR    ? Number(restingHR.value)    : undefined,
-    hrv:              hrv          ? Number(hrv.value)          : undefined,
-    sleepHours:       sleep        ? Number(sleep.value)        : undefined,
-    proteinG:         protein      ? Number(protein.value)      : undefined,
-    caloriesIn:       caloriesIn   ? Number(caloriesIn.value)   : undefined,
-    waterMl:          water        ? Number(water.value)        : undefined,
+    weight:           weight        ? Number(weight.value)        : undefined,
+    bodyFatPct:       bodyFatPct    ? Number(bodyFatPct.value)    : undefined,
+    muscleMassKg:     leanBodyMass  ? Number(leanBodyMass.value)  : undefined,
+    steps:            steps         ? Number(steps.value)         : undefined,
+    activeCalories:   activeCal     ? Number(activeCal.value)     : undefined,
+    restingHeartRate: restingHR     ? Number(restingHR.value)     : undefined,
+    hrv:              hrv           ? Number(hrv.value)           : undefined,
+    spO2:             spO2          ? Number(spO2.value)          : undefined,
+    respiratoryRate:  respiratoryRt ? Number(respiratoryRt.value) : undefined,
+    sleepHours:       sleep         ? Number(sleep.value)         : undefined,
+    proteinG:         protein       ? Number(protein.value)       : undefined,
+    caloriesIn:       caloriesIn    ? Number(caloriesIn.value)    : undefined,
+    waterMl:          water         ? Number(water.value)         : undefined,
   }
 }

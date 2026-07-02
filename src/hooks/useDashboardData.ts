@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { getLatestSnapshots, getImportedSources, getLatestWeightRecord } from '../db/healthStore'
+import { getLatestSnapshots, getImportedSources, getLatestWeightRecord, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
 import { getLog } from '../db/logStore'
 import { mockDailySnapshots } from '../data/mock'
 import type { DailySnapshot } from '../types/health'
@@ -15,6 +15,20 @@ export interface LatestWeightInfo {
   sourceName: string
 }
 
+export interface LatestBodyFatInfo {
+  valuePct: number
+  date: string
+  sourceId: string
+  sourceName: string
+}
+
+export interface LatestSleepInfo {
+  valueH: number
+  date: string
+  sourceId: string
+  sourceName: string
+}
+
 interface DashboardData {
   today: DailySnapshot
   yesterday: DailySnapshot
@@ -24,6 +38,8 @@ interface DashboardData {
   hasNutritionLog: boolean
   sources: string[]
   latestWeight: LatestWeightInfo | null
+  latestBodyFat: LatestBodyFatInfo | null
+  latestSleep: LatestSleepInfo | null
   loading: boolean
   refresh: () => void
 }
@@ -63,6 +79,8 @@ export function useDashboardData(): DashboardData {
   const [yesterdayLog, setYesterdayLog] = useState<DailyLog | null>(null)
   const [sources, setSources] = useState<string[]>([])
   const [latestWeightInfo, setLatestWeightInfo] = useState<LatestWeightInfo | null>(null)
+  const [latestBodyFatInfo, setLatestBodyFatInfo] = useState<LatestBodyFatInfo | null>(null)
+  const [latestSleepInfo, setLatestSleepInfo] = useState<LatestSleepInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
 
@@ -72,12 +90,14 @@ export function useDashboardData(): DashboardData {
 
     async function load() {
       try {
-        const [snaps, srcs, todayL, yestL, latestWt] = await Promise.all([
+        const [snaps, srcs, todayL, yestL, latestWt, latestBf, latestSl] = await Promise.all([
           getLatestSnapshots(7),
           getImportedSources(),
           getLog(todayStr()),
           getLog(yesterdayStr()),
           getLatestWeightRecord(),
+          getLatestBodyFatRecord(),
+          getLatestSleepRecord(),
         ])
         if (!cancelled) {
           setRealSnapshots(snaps)
@@ -85,6 +105,8 @@ export function useDashboardData(): DashboardData {
           setTodayLog(todayL)
           setYesterdayLog(yestL)
           setLatestWeightInfo(latestWt)
+          setLatestBodyFatInfo(latestBf)
+          setLatestSleepInfo(latestSl)
           setLoading(false)
         }
       } catch {
@@ -124,6 +146,8 @@ export function useDashboardData(): DashboardData {
       hasNutritionLog: false,
       sources:         [],
       latestWeight:    null,
+      latestBodyFat:   null,
+      latestSleep:     null,
       loading,
       refresh:         () => setTick(t => t + 1),
     }
@@ -140,6 +164,8 @@ export function useDashboardData(): DashboardData {
       hasNutritionLog: false,
       sources:         [],
       latestWeight:    null,
+      latestBodyFat:   null,
+      latestSleep:     null,
       loading,
       refresh:         () => setTick(t => t + 1),
     }
@@ -154,10 +180,18 @@ export function useDashboardData(): DashboardData {
   const dataSource: DataSource = hasAH && hasLog ? 'merged' : hasAH ? 'imported' : 'manual'
   const nutritionLogged = logHasNutrition(todayLog)
 
-  // If today has no weight but we have a recent weight record, backfill it so GoalRing can see it.
-  const finalToday: DailySnapshot = mergedToday.weight == null && latestWeightInfo
+  // Backfill composition + sleep when today's snapshot lacks them.
+  // Weight/bodyFat: RENPHO measures weekly; sleepHours: RingConn writes to yesterday's wakeup date
+  // if today's sync captured steps but not sleep yet.
+  const withWeight: DailySnapshot = mergedToday.weight == null && latestWeightInfo
     ? { ...mergedToday, weight: latestWeightInfo.valueKg }
     : mergedToday
+  const withBodyFat: DailySnapshot = withWeight.bodyFatPct == null && latestBodyFatInfo
+    ? { ...withWeight, bodyFatPct: latestBodyFatInfo.valuePct }
+    : withWeight
+  const finalToday: DailySnapshot = withBodyFat.sleepHours == null && latestSleepInfo
+    ? { ...withBodyFat, sleepHours: latestSleepInfo.valueH }
+    : withBodyFat
 
   return {
     today:           finalToday,
@@ -168,6 +202,8 @@ export function useDashboardData(): DashboardData {
     hasNutritionLog: nutritionLogged,
     sources:         sources,
     latestWeight:    latestWeightInfo,
+    latestBodyFat:   latestBodyFatInfo,
+    latestSleep:     latestSleepInfo,
     loading,
     refresh:         () => setTick(t => t + 1),
   }

@@ -44,7 +44,7 @@ struct SettingsView: View {
 
                     // App info
                     Section("About") {
-                        LabeledRow(label: "App",       icon: "app",         value: "Shakthi Journal")
+                        LabeledRow(label: "App",       icon: "app",         value: "Shakthi")
                         LabeledRow(label: "Version",   icon: "number",       value: "iOS 2.0")
                         LabeledRow(label: "Platform",  icon: "globe",        value: "shakthi-journal.pages.dev")
                     }

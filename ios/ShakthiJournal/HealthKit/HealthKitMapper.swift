@@ -71,6 +71,23 @@ enum HealthKitMapper {
                     importedAt: importedAt
                 ) { $0 }
 
+            case HKQuantityType(.oxygenSaturation):
+                // HKUnit.percent() returns percentage form (e.g. 98.0 for 98% SpO2).
+                // Defensive: if a device writes fractional form (0.98), multiply up.
+                metrics += latestPerDay(
+                    typeSamples, type: "spO2",
+                    unit: .percent(), shakthiUnit: "%",
+                    importedAt: importedAt
+                ) { $0 < 2.0 ? $0 * 100 : $0 }
+
+            case HKQuantityType(.respiratoryRate):
+                let brpm = HKUnit.count().unitDivided(by: .minute())
+                metrics += latestPerDay(
+                    typeSamples, type: "respiratoryRate",
+                    unit: brpm, shakthiUnit: "brpm",
+                    importedAt: importedAt
+                ) { $0 }
+
             case HKCategoryType(.sleepAnalysis):
                 metrics += sleepPerDay(typeSamples, importedAt: importedAt)
 

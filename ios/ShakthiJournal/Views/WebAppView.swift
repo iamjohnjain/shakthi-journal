@@ -38,8 +38,10 @@ struct WebAppView: UIViewRepresentable {
         wv.navigationDelegate = context.coordinator
         context.coordinator.webView = wv  // stored weakly so Coordinator can inject metrics later
         wv.allowsBackForwardNavigationGestures = true
-        // Let the web app handle safe-area padding via CSS env()
-        wv.scrollView.contentInsetAdjustmentBehavior = .always
+        // The web app handles safe-area padding entirely via CSS env(safe-area-inset-*).
+        // Setting .never prevents WKWebView from adding its own content insets, which
+        // would double the status-bar spacing on top of the CSS padding-top.
+        wv.scrollView.contentInsetAdjustmentBehavior = .never
         wv.load(URLRequest(url: Self.appURL))
         return wv
     }

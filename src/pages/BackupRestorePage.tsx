@@ -175,7 +175,7 @@ export default function BackupRestorePage() {
       const data = parseBackupFile(text)
       if (!data) {
         setStatus('error')
-        setMessage('Invalid backup file. Make sure you selected a .json file exported from Shakthi Journal.')
+        setMessage('Invalid backup file. Make sure you selected a .json file exported from Shakthi.')
         return
       }
       setPendingBackup(data)
@@ -299,7 +299,7 @@ export default function BackupRestorePage() {
         >
           {status === 'importing' ? 'Importing…' : 'Choose Backup File'}
         </button>
-        <p className="br-card-note">Select a <code>.json</code> file previously exported from Shakthi Journal.</p>
+        <p className="br-card-note">Select a <code>.json</code> file previously exported from Shakthi.</p>
       </div>
 
       {/* What's included */}

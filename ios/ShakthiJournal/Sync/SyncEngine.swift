@@ -63,14 +63,20 @@ final class SyncEngine {
 
         do {
             activity = .running(detail: "Reading Apple Health…")
-            let samples = try await healthKitManager.fetchSamples(since: since)
+            let (metrics, typeResults) = await healthKitManager.fetchSamplesWithStatus(since: since)
 
-            let sampleCount = samples.values.reduce(0) { $0 + $1.count }
-            activity = .running(detail: "Mapping \(sampleCount) samples…")
-            let metrics = HealthKitMapper.map(samples: samples)
+            // Build and persist category results regardless of whether we have data to upload
+            let categoryResults = buildCategoryResults(from: typeResults, metrics: metrics)
+            syncState.categoryResults = categoryResults
+
+            let unavailableCount = categoryResults.filter { $0.status == "unavailable" }.count
+            let totalCount = categoryResults.count
+            let partialWarning: String? = unavailableCount > 0
+                ? "\(unavailableCount) of \(totalCount) \(unavailableCount == 1 ? "category needs" : "categories need") permission. Tap 'Grant Missing Permissions' to update."
+                : nil
 
             guard !metrics.isEmpty else {
-                markSuccess(uploadCount: 0)
+                markSuccess(uploadCount: 0, partialWarning: partialWarning)
                 return
             }
 
@@ -81,12 +87,35 @@ final class SyncEngine {
             activity = .running(detail: "Uploading \(metrics.count) records…")
             let uploaded = try await upload(metrics, userId: userId, accessToken: accessToken, authManager: authManager)
 
-            markSuccess(uploadCount: uploaded, metrics: metrics)
-        } catch {
-            syncState.lastError      = error.localizedDescription
+            markSuccess(uploadCount: uploaded, metrics: metrics, typeResults: typeResults, partialWarning: partialWarning)
+        } catch SupabaseError.sessionExpired {
+            syncState.lastError      = SupabaseError.sessionExpired.localizedDescription
+            syncState.needsReauth    = true
             syncState.pendingUploads = 0
             SyncStateStore.save(syncState)
             activity = .idle
+        } catch {
+            syncState.lastError      = error.localizedDescription
+            syncState.needsReauth    = false
+            syncState.pendingUploads = 0
+            SyncStateStore.save(syncState)
+            activity = .idle
+        }
+    }
+
+    // MARK: - Private
+
+    private func buildCategoryResults(from typeResults: [TypeFetchResult], metrics: [HealthMetric]) -> [CategorySyncResult] {
+        typeResults.map { r in
+            let typeMetrics = metrics.filter { $0.type == r.typeId }
+            return CategorySyncResult(
+                typeId: r.typeId,
+                displayName: r.displayName,
+                status: r.hasError ? "unavailable" : typeMetrics.isEmpty ? "no_data" : "synced",
+                recordCount: typeMetrics.count,
+                latestDate: typeMetrics.max { $0.date < $1.date }?.date ?? r.latestDate,
+                skipReason: r.errorDescription
+            )
         }
     }
 
@@ -106,26 +135,50 @@ final class SyncEngine {
         }
     }
 
-    // MARK: - Private
-
-    private func markSuccess(uploadCount: Int, metrics: [HealthMetric] = []) {
+    private func markSuccess(
+        uploadCount: Int,
+        metrics: [HealthMetric] = [],
+        typeResults: [TypeFetchResult] = [],
+        partialWarning: String? = nil
+    ) {
         let now = Date()
-        syncState.lastSuccessfulSync      = now
-        syncState.lastAttemptedSync       = now
-        syncState.lastError               = nil
-        syncState.pendingUploads          = 0
-        syncState.lastUploadCount         = uploadCount
-        syncState.totalRecordsUploaded   += uploadCount
-        syncState.healthPermissionGranted = true
+        syncState.lastSuccessfulSync     = now
+        syncState.lastAttemptedSync      = now
+        syncState.lastError              = nil
+        syncState.needsReauth            = false
+        syncState.partialSyncWarning     = partialWarning
+        syncState.pendingUploads         = 0
+        syncState.lastUploadCount        = uploadCount
+        syncState.totalRecordsUploaded  += uploadCount
+        if !metrics.isEmpty {
+            syncState.healthPermissionGranted = true
+            syncState.lastSampleDiagnostics = buildSampleDiagnostics(from: metrics, typeResults: typeResults)
+        }
         SyncStateStore.save(syncState)
         activity = .idle
         // Notify WebAppView.Coordinator to inject metrics into the WebView's IndexedDB.
-        // This is what makes the web dashboard update after a native HealthKit sync.
         if !metrics.isEmpty {
             NotificationCenter.default.post(
                 name: .shakthiNativeSyncComplete,
                 object: nil,
                 userInfo: ["metrics": metrics]
+            )
+        }
+    }
+
+    /// Builds one diagnostic entry per type using the most recent mapped metric for that type.
+    private func buildSampleDiagnostics(from metrics: [HealthMetric], typeResults: [TypeFetchResult]) -> [SampleDiagnostic] {
+        typeResults.compactMap { r in
+            let typeMetrics = metrics.filter { $0.type == r.typeId }
+            guard let latest = typeMetrics.max(by: { $0.date < $1.date }) else { return nil }
+            return SampleDiagnostic(
+                typeId: r.typeId,
+                displayName: r.displayName,
+                mappedValue: latest.value,
+                unit: latest.unit,
+                sourceName: latest.sourceName,
+                sourceId: latest.sourceId,
+                sampleDate: latest.date
             )
         }
     }
