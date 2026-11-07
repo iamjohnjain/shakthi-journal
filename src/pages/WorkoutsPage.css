@@ -200,9 +200,11 @@
 }
 
 .log-modal-header {
+  position: relative;
   display: flex; justify-content: space-between; align-items: center;
-  padding: 18px 20px 14px;
+  padding: 20px 20px 14px;
   border-bottom: 1px solid var(--border);
+  cursor: grab;
 }
 .log-modal-header h2 { margin: 0; font-size: 17px; font-weight: 700; }
 .log-modal-close {
@@ -840,8 +842,10 @@
 }
 @media (min-width: 540px) { .tmpl-modal { border-radius: 20px; } }
 .tmpl-modal-header {
+  position: relative;
   display: flex; justify-content: space-between; align-items: center;
-  padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+  padding: 20px 20px 14px; border-bottom: 1px solid var(--border);
+  cursor: grab;
 }
 .tmpl-modal-header h2 { margin: 0; font-size: 17px; font-weight: 700; }
 .tmpl-modal-body  { overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -866,14 +870,28 @@
 .tmpl-exercise-edit {
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 10px; padding: 10px 12px;
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
 }
-.tmpl-exercise-edit input {
-  flex: 1; background: none; border: none; color: var(--text-primary);
+.tmpl-ex-name-input {
+  flex: 1 1 140px; min-width: 0;
+  background: none; border: none; color: var(--text-primary);
   font-size: 14px; outline: none;
 }
+.tmpl-ex-sets-row {
+  display: flex; align-items: center; gap: 6px;
+  flex: 0 0 auto;
+}
+.tmpl-ex-num-input {
+  width: 46px; flex-shrink: 0; text-align: center;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 7px;
+  padding: 6px 4px; font-size: 14px;
+}
+.tmpl-ex-sets-label { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
 .tmpl-ex-remove {
-  background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 2px;
+  background: none; border: none; color: var(--text-tertiary); cursor: pointer; padding: 4px;
+  flex-shrink: 0;
 }
 .tmpl-ex-remove:hover { color: var(--red); }
 .tmpl-add-ex-btn {

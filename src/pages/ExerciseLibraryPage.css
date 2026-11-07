@@ -97,8 +97,10 @@
 }
 @media (min-width: 540px) { .ex-modal { border-radius: 20px; } }
 .ex-modal-header {
+  position: relative;
   display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 18px 12px; border-bottom: 1px solid var(--border);
+  padding: 18px 18px 12px; border-bottom: 1px solid var(--border);
+  cursor: grab;
 }
 .ex-modal-title { font-size: 16px; font-weight: 700; }
 .ex-modal-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; }

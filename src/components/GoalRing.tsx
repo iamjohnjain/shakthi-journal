@@ -101,6 +101,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
   const [typeIdx, setTypeIdx] = useState(0)
   const [profile,        setProfile]        = useState<ProfileData | null>(null)
   const [nutritionGoals, setNutritionGoals] = useState<Pick<NutritionGoals, 'proteinG'>>({ proteinG: 200 })
+  const [stepGoal,       setStepGoal]       = useState(10_000)
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
   const isMock = dataSource === 'mock'
@@ -119,6 +120,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
     getSetting<NutritionGoals | null>('nutrition-goals', null).then(ng => {
       if (ng?.proteinG) setNutritionGoals({ proteinG: ng.proteinG })
     })
+    getSetting<number>('step-goal', 10_000).then(setStepGoal)
   }, [])
   useEffect(() => {
     setAnimated(false)
@@ -130,7 +132,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
   const cfg = CONFIGS[goalType]
 
   const current  = cfg.current(snapshot)
-  const goalVal  = cfg.goal(profile, nutritionGoals)
+  const goalVal  = goalType === 'steps' ? stepGoal : cfg.goal(profile, nutritionGoals)
   const startVal = cfg.start(profile, snapshot)
   const pct = goalVal != null && current != null && startVal != null
     ? ringPct(current, startVal, goalVal, cfg.higherIsBetter)

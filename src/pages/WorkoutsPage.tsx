@@ -22,6 +22,8 @@ import { useWorkoutSuggestion } from '../hooks/useWorkoutSuggestion'
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry, CardioEntry } from '../db'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import './WorkoutsPage.css'
 
 const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
@@ -501,6 +503,9 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
   const [notes, setNotes] = useState(initialWorkout?.notes ?? '')
   const [saving, setSaving] = useState(false)
 
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
+
   // Session timer
   const sessionStartRef = useRef(Date.now())
   const [elapsedSecs, setElapsedSecs] = useState(0)
@@ -620,8 +625,9 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
 
   return (
     <div className="log-modal-overlay" onClick={onClose}>
-      <div className="log-modal" onClick={e => e.stopPropagation()}>
-        <div className="log-modal-header">
+      <div className="log-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="log-modal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
           <h2 className="log-modal-title">{initialWorkout ? 'Edit Workout' : 'Log Workout'}</h2>
           <button className="log-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
@@ -904,13 +910,13 @@ export default function WorkoutsPage() {
                 className="workouts-first-empty-cta"
                 onClick={() => { setEditingWorkout(null); setShowModal(true) }}
               >
-                Log first workout
+                Log Workout
               </button>
               <button
                 className="workouts-first-empty-secondary"
                 onClick={() => navigate('/workouts/templates')}
               >
-                Create a template
+                Create Workout Template
               </button>
             </div>
           ) : (

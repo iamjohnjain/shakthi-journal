@@ -7,6 +7,8 @@ import {
 import { getTemplates, saveTemplate, updateTemplate, deleteTemplate } from '../db/templateStore'
 import type { WorkoutTemplate } from '../db/templateStore'
 import { EXERCISE_LIBRARY } from '../db/workoutStore'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import './WorkoutsPage.css'
 
 const ALL_EXERCISE_NAMES = EXERCISE_LIBRARY.map(e => e.name)
@@ -77,6 +79,9 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
   const [duration, setDuration] = useState(existing?.estimatedDurationMin ?? 60)
   const [saving, setSaving] = useState(false)
 
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
+
   function addExercise() {
     setExercises(p => [...p, { name: '', sets: 3, reps: '8' }])
   }
@@ -129,8 +134,9 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
 
   return (
     <div className="tmpl-modal-overlay" onClick={onClose}>
-      <div className="tmpl-modal" onClick={e => e.stopPropagation()}>
-        <div className="tmpl-modal-header">
+      <div className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="tmpl-modal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
           <h2>{existing ? 'Edit Template' : 'New Template'}</h2>
           <button className="log-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
@@ -157,6 +163,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
               {exercises.map((ex, i) => (
                 <div key={i} className="tmpl-exercise-edit">
                   <input
+                    className="tmpl-ex-name-input"
                     list="tmpl-exercise-datalist"
                     placeholder="Exercise name"
                     value={ex.name}
@@ -164,14 +171,16 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
                   <datalist id="tmpl-exercise-datalist">
                     {ALL_EXERCISE_NAMES.map(n => <option key={n} value={n} />)}
                   </datalist>
-                  <input type="number" style={{ width: 44, textAlign: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 6, padding: '4px', fontSize: 13 }}
-                    title="Sets" min={1} max={20} value={ex.sets}
-                    onChange={e => updateExercise(i, { sets: +e.target.value })} />
-                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>sets ×</span>
-                  <input type="text" style={{ width: 44, textAlign: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 6, padding: '4px', fontSize: 13 }}
-                    title="Reps" placeholder="reps" value={ex.reps}
-                    onChange={e => updateExercise(i, { reps: e.target.value })} />
-                  <button className="tmpl-ex-remove" onClick={() => removeExercise(i)}><X size={13} /></button>
+                  <div className="tmpl-ex-sets-row">
+                    <input className="tmpl-ex-num-input" type="number"
+                      title="Sets" min={1} max={20} value={ex.sets}
+                      onChange={e => updateExercise(i, { sets: +e.target.value })} />
+                    <span className="tmpl-ex-sets-label">sets ×</span>
+                    <input className="tmpl-ex-num-input" type="text"
+                      title="Reps" placeholder="reps" value={ex.reps}
+                      onChange={e => updateExercise(i, { reps: e.target.value })} />
+                  </div>
+                  <button className="tmpl-ex-remove" onClick={() => removeExercise(i)} aria-label="Remove exercise"><X size={13} /></button>
                 </div>
               ))}
             </div>
@@ -191,7 +200,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
 
         <div className="tmpl-modal-footer">
           <button className="tmpl-modal-save" onClick={handleSave} disabled={saving || !name.trim()}>
-            {saving ? 'Saving…' : (existing ? 'Save Changes' : 'Create Template')}
+            {saving ? 'Saving…' : (existing ? 'Save Changes' : 'Create Workout Template')}
           </button>
         </div>
       </div>
@@ -325,7 +334,7 @@ export default function WorkoutTemplatesPage() {
             Create a template to quickly load your favorite workouts, or save a logged workout as a template from the Log tab.
           </p>
           <button className="tmpl-create-btn" onClick={() => { setEditTemplate(null); setShowModal(true) }}>
-            Create first template
+            Create Workout Template
           </button>
         </div>
       ) : (

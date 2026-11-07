@@ -4,13 +4,15 @@ import { Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check } from 'lucid
 import {
   addNutritionEntry, deleteNutritionEntry, updateNutritionEntry,
   getEntriesForDate, getDailyTotals, getNutritionEntryCount, QUICK_FOODS,
-  getCalorieHistory, getCurrentStreak, getLoggedDatesInList,
+  getCalorieHistory, getCurrentStreak, getLoggedDatesInList, getCustomFoods,
 } from '../db/nutritionStore'
-import type { NutritionEntry } from '../db/nutritionStore'
+import type { NutritionEntry, CustomFood } from '../db/nutritionStore'
 import type { ChartPoint } from '../db/timelineStore'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
-import DataBadge from '../components/DataBadge'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import TrendChart from '../components/TrendChart'
+import WheelPicker from '../components/WheelPicker'
 // logStore removed — water logging retired
 import './NutritionPage.css'
 
@@ -90,6 +92,57 @@ function MacroBar({ label, value, goal, color }: { label: string; value: number;
   )
 }
 
+// ─── Quantity: number + unit, both scrollable and directly typeable ──────────
+
+const WEIGHT_UNITS = ['g', 'oz']
+const COUNT_UNITS  = ['scoop', 'cup', 'tbsp', 'piece', 'slice', 'serving']
+const QTY_UNITS    = [...WEIGHT_UNITS, ...COUNT_UNITS]
+
+function numberValuesFor(unit: string): number[] {
+  if (unit === 'g')  return Array.from({ length: 101 }, (_, i) => i * 5)    // 0,5,…,500
+  if (unit === 'oz') return Array.from({ length: 65 },  (_, i) => +(i * 0.5).toFixed(1)) // 0,0.5,…,32
+  return Array.from({ length: 21 }, (_, i) => i)                           // 0..20
+}
+
+function parseQuantity(q?: string): { num: number; unit: string } {
+  if (!q) return { num: 100, unit: 'g' }
+  const m = q.trim().match(/^([\d.]+)\s*([a-zA-Z]+)/)
+  if (m) {
+    const num = parseFloat(m[1])
+    const unitRaw = m[2].toLowerCase()
+    const unit = QTY_UNITS.find(u => unitRaw.startsWith(u)) ?? 'g'
+    return { num: isNaN(num) ? 100 : num, unit }
+  }
+  return { num: 1, unit: 'serving' }
+}
+
+function QuantityPicker({ num, unit, onNumChange, onUnitChange }: {
+  num: number
+  unit: string
+  onNumChange: (n: number) => void
+  onUnitChange: (u: string) => void
+}) {
+  const numValues = numberValuesFor(unit)
+  return (
+    <div className="qty-picker">
+      <div className="qty-picker-col">
+        <input
+          className="qty-picker-input"
+          type="text" inputMode="decimal"
+          value={num}
+          onChange={e => { const n = parseFloat(e.target.value); onNumChange(isNaN(n) ? 0 : n) }}
+          onFocus={e => e.target.select()}
+        />
+        <WheelPicker values={numValues} value={num} onChange={v => onNumChange(+v)} />
+      </div>
+      <div className="qty-picker-col">
+        <span className="qty-picker-unit-label">{unit}</span>
+        <WheelPicker values={QTY_UNITS} value={unit} onChange={v => onUnitChange(String(v))} />
+      </div>
+    </div>
+  )
+}
+
 // ─── Add / Edit Entry Modal ───────────────────────────────────────────────────
 
 interface EntryModalProps {
@@ -111,13 +164,24 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
   const [protein,  setProtein]  = useState(existing ? String(existing.proteinG) : '')
   const [carbs,    setCarbs]    = useState(existing?.carbsG != null ? String(existing.carbsG) : '')
   const [fat,      setFat]      = useState(existing?.fatG != null ? String(existing.fatG) : '')
-  const [qty,      setQty]      = useState(existing?.quantity ?? '')
+  const initialQty = parseQuantity(existing?.quantity)
+  const [qtyNum,   setQtyNum]   = useState(initialQty.num)
+  const [qtyUnit,  setQtyUnit]  = useState(initialQty.unit)
   const [saving,   setSaving]   = useState(false)
+  const [search,   setSearch]   = useState('')
+  const [customFoods, setCustomFoods] = useState<CustomFood[]>([])
 
-  function fillFromQuick(q: typeof QUICK_FOODS[number]) {
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
+
+  useEffect(() => { getCustomFoods().then(setCustomFoods) }, [])
+
+  function fillFromQuick(q: { food: string; calories: number; proteinG: number; carbsG?: number; fatG?: number; quantity?: string }) {
     setFood(q.food); setCalories(String(q.calories))
-    setProtein(String(q.proteinG)); setCarbs(String(q.carbsG ?? ''))
-    setFat(String(q.fatG ?? '')); setQty(q.quantity ?? '')
+    setProtein(String(q.proteinG)); setCarbs(q.carbsG != null ? String(q.carbsG) : '')
+    setFat(q.fatG != null ? String(q.fatG) : '')
+    const parsed = parseQuantity(q.quantity)
+    setQtyNum(parsed.num); setQtyUnit(parsed.unit)
     setTab('custom')
   }
 
@@ -129,7 +193,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
       calories: +calories, proteinG: +protein,
       carbsG: carbs ? +carbs : undefined,
       fatG: fat ? +fat : undefined,
-      quantity: qty || undefined,
+      quantity: qtyNum > 0 ? `${qtyNum} ${qtyUnit}` : undefined,
     }
     if (isEdit && existing) {
       await updateNutritionEntry(existing.id, data)
@@ -141,12 +205,17 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     onClose()
   }
 
+  const searchLower = search.trim().toLowerCase()
+  const visibleCustom = customFoods.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
+  const visiblePresets = QUICK_FOODS.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
+
   return (
     <div className="add-modal-overlay" onClick={onClose}>
-      <div className="add-modal" onClick={e => e.stopPropagation()}>
-        <div className="add-modal-header">
+      <div className="add-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="add-modal-header" {...swipe.handlers}>
+          <div className="add-modal-grabber" />
           <h2>{isEdit ? 'Edit Food' : 'Add Food'}</h2>
-          <button className="add-modal-close" onClick={onClose}><X size={18} /></button>
+          <button className="add-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 
         <div className="add-modal-meal-tabs">
@@ -166,18 +235,43 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
         <div className="add-modal-body">
           {tab === 'quick' ? (
-            <div className="quick-foods">
-              {QUICK_FOODS.map((q, i) => (
-                <button key={i} className="quick-food-btn" onClick={() => fillFromQuick(q)}>
-                  <div className="quick-food-name">{q.food}</div>
-                  <div className="quick-food-macros">
-                    <span>{q.calories} cal</span>
-                    <span>{q.proteinG}g protein</span>
-                    {q.quantity && <span>{q.quantity}</span>}
-                  </div>
-                </button>
-              ))}
-            </div>
+            <>
+              <input
+                className="quick-food-search"
+                type="search"
+                placeholder="Search foods…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              <div className="quick-foods">
+                {visibleCustom.map((q, i) => (
+                  <button key={`custom-${i}`} className="quick-food-btn" onClick={() => fillFromQuick(q)}>
+                    <div className="quick-food-name-row">
+                      <span className="quick-food-name">{q.food}</span>
+                      <span className="quick-food-made-by-you">Made By You</span>
+                    </div>
+                    <div className="quick-food-macros">
+                      <span>{q.calories} cal</span>
+                      <span>{q.proteinG}g protein</span>
+                      {q.carbsG != null && <span>{q.carbsG}g carbs</span>}
+                    </div>
+                  </button>
+                ))}
+                {visiblePresets.map((q, i) => (
+                  <button key={`preset-${i}`} className="quick-food-btn" onClick={() => fillFromQuick(q)}>
+                    <div className="quick-food-name">{q.food}</div>
+                    <div className="quick-food-macros">
+                      <span>{q.calories} cal</span>
+                      <span>{q.proteinG}g protein</span>
+                      {q.carbsG != null && <span>{q.carbsG}g carbs</span>}
+                    </div>
+                  </button>
+                ))}
+                {visibleCustom.length === 0 && visiblePresets.length === 0 && (
+                  <p className="quick-food-empty">No foods match "{search}". Try Custom to add it yourself.</p>
+                )}
+              </div>
+            </>
           ) : (
             <div className="custom-form">
               <div className="custom-field custom-field--full">
@@ -186,6 +280,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                   onChange={e => setFood(e.target.value)} />
                 <datalist id="food-suggestions">
                   {QUICK_FOODS.map((q, i) => <option key={i} value={q.food} />)}
+                  {customFoods.map((q, i) => <option key={i} value={q.food} />)}
                 </datalist>
               </div>
               <div className="custom-fields-row">
@@ -230,7 +325,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
               </div>
               <div className="custom-field custom-field--full">
                 <label>Quantity</label>
-                <input type="text" value={qty} placeholder="e.g. 1 cup, 6 oz" onChange={e => setQty(e.target.value)} />
+                <QuantityPicker num={qtyNum} unit={qtyUnit} onNumChange={setQtyNum} onUnitChange={setQtyUnit} />
               </div>
             </div>
           )}
@@ -328,7 +423,6 @@ export default function NutritionPage() {
         <div>
           <h1 className="page-title">Meals</h1>
           <p className="page-subtitle">{new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
-          {entries.length > 0 && <DataBadge mode="manual" source="Logged by you" />}
         </div>
         <button className="log-workout-btn" onClick={() => openAdd()}>
           <Plus size={16} /> Add Food

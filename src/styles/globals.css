@@ -174,6 +174,18 @@ a {
   line-height: 1.4;
 }
 
+/* Shared drag handle for swipe-to-close bottom sheets */
+.modal-grabber {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
 /* Safari auto-zooms the page on focusing any text input smaller than 16px.
    Every form field needs to clear that threshold on mobile, regardless of
    what size an individual component's CSS otherwise sets. */

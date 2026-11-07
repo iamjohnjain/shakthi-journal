@@ -15,6 +15,8 @@ import DataBadge from '../components/DataBadge'
 import type { DataBadgeMode } from '../components/DataBadge'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import './Profile.css'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -98,6 +100,9 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
   const [avatarId,       setAvatarId]       = useState<string | undefined>(initial.avatarId)
   const [saving,         setSaving]         = useState(false)
 
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
+
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -132,8 +137,9 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 
   return (
     <div className="profile-modal-overlay" onClick={onClose}>
-      <div className="profile-modal" onClick={e => e.stopPropagation()}>
-        <div className="profile-modal-header">
+      <div className="profile-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="profile-modal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
           <h2>Edit Profile</h2>
           <button className="profile-modal-close" onClick={onClose}><X size={18} /></button>
         </div>

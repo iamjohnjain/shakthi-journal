@@ -236,11 +236,13 @@
 }
 
 .br-modal-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 20px 22px 16px;
   border-bottom: 1px solid var(--border-subtle);
+  cursor: grab;
 }
 
 .br-modal-header h2 {

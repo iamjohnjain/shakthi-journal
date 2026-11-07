@@ -2,8 +2,7 @@ import { useState, useEffect, memo } from 'react'
 import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronRight, Target } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate } from '../data/config'
-
-const STEP_GOAL = 10_000
+import { getSetting } from '../db'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useDashboardCards, REORDERABLE_IDS } from '../hooks/useDashboardCards'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
@@ -270,6 +269,7 @@ interface SectionCtx {
   yesterday: ReturnType<typeof useDashboardData>['yesterday']
   dataSource: ReturnType<typeof useDashboardData>['dataSource']
   todayProgress: ReturnType<typeof useHealthInsights>['todayProgress']
+  stepGoal: number
   sectionOrder: string[]
   inNative: boolean
   menuFor: (id: string) => React.ComponentProps<typeof CardMenu>
@@ -349,9 +349,9 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
 
 function ActivitySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, todayProgress, inNative, menuFor } = ctx
+  const { today, todayProgress, stepGoal, inNative, menuFor } = ctx
   const steps    = today.steps
-  const stepsPct = steps ? Math.round((steps / STEP_GOAL) * 100) : 0
+  const stepsPct = steps ? Math.round((steps / stepGoal) * 100) : 0
   const hasActivity = steps != null || today.activeCalories != null || todayProgress.workoutLogged
 
   return (
@@ -360,11 +360,11 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
         label="Steps"
         value={steps ? steps.toLocaleString() : undefined}
         unit="steps"
-        sub={steps ? `${stepsPct}% of ${STEP_GOAL.toLocaleString()} step goal` : undefined}
+        sub={steps ? `${stepsPct}% of ${stepGoal.toLocaleString()} step goal` : undefined}
         trend={stepsPct >= 100 ? 'up' : 'neutral'}
         trendLabel={stepsPct >= 100 ? 'Goal hit' : steps ? `${100 - stepsPct}% left` : undefined}
         progress={steps ?? 0}
-        progressMax={STEP_GOAL}
+        progressMax={stepGoal}
         progressColor={stepsPct >= 100 ? 'var(--green)' : 'var(--blue)'}
         empty={steps == null}
         emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
@@ -458,12 +458,14 @@ export default function Dashboard() {
   const { goals: nutritionGoals } = useNutritionSettings()
   const [userName,    setUserName]    = useState<string | null>(null)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
+  const [stepGoal,    setStepGoal]    = useState(10_000)
 
   useEffect(() => {
     getProfile().then(p => {
       if (p?.name) setUserName(p.name)
       setProfileData(p)
     })
+    getSetting<number>('step-goal', 10_000).then(setStepGoal)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
       setUserName(p.name ?? null)
@@ -494,7 +496,7 @@ export default function Dashboard() {
 
   const sectionCtx: SectionCtx = {
     today, yesterday, dataSource,
-    todayProgress, sectionOrder,
+    todayProgress, stepGoal, sectionOrder,
     inNative,
     menuFor,
   }

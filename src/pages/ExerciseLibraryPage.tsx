@@ -6,6 +6,8 @@ import {
   toggleExerciseFavorite, seedExerciseLibraryIfEmpty,
 } from '../db/trainingStore'
 import type { ExerciseLibraryEntry } from '../db/trainingStore'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import './ExerciseLibraryPage.css'
 
 const MUSCLE_GROUPS = [
@@ -100,10 +102,14 @@ function EditModal({
 }) {
   const [form, setForm] = useState(initial)
 
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
+
   return (
     <div className="ex-modal-overlay" onClick={onClose}>
-      <div className="ex-modal" onClick={e => e.stopPropagation()}>
-        <div className="ex-modal-header">
+      <div className="ex-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="ex-modal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
           <span className="ex-modal-title">{initial.name ? 'Edit Exercise' : 'Add Exercise'}</span>
           <button className="ex-modal-close" onClick={onClose}><X size={18} /></button>
         </div>

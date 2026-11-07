@@ -61,7 +61,31 @@
   display: flex; justify-content: space-between; align-items: center;
   font-size: 10px; color: var(--text-tertiary);
 }
-.goal-target-label { font-weight: 600; color: var(--text-secondary); }
+.goal-target-label { font-weight: 600; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px; }
+
+.goal-target-edit-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 5px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-tertiary);
+}
+.goal-target-edit-btn:hover { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
+
+.goal-target-edit {
+  display: flex; align-items: center; gap: 6px;
+}
+.goal-target-edit-input {
+  width: 64px; font-size: 13px; font-weight: 600;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 6px; padding: 4px 6px;
+}
+.goal-target-edit-unit { font-size: 11px; color: var(--text-tertiary); }
+.goal-target-edit-save, .goal-target-edit-cancel {
+  font-size: 11px; font-weight: 600; border-radius: 6px; padding: 4px 9px;
+  border: none; cursor: pointer;
+}
+.goal-target-edit-save   { background: var(--blue); color: #fff; }
+.goal-target-edit-cancel { background: var(--bg-tertiary); color: var(--text-tertiary); margin-left: auto; }
 
 /* ─── Status + action ────────────────────────────────────────── */
 .goal-status {
@@ -125,6 +149,15 @@ section + section { margin-top: 28px; }
   transition: background 0.15s, color 0.15s;
 }
 .goal-delete-btn:hover { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); }
+
+.goal-edit-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--r-md);
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-tertiary);
+  transition: background 0.15s, color 0.15s;
+}
+.goal-edit-btn:hover { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
 
 .goal-delete-confirm {
   display: flex; gap: 6px; align-items: center;
@@ -202,8 +235,11 @@ section + section { margin-top: 28px; }
 }
 
 .goal-modal-header {
+  position: relative;
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 20px;
+  padding-top: 10px;
+  cursor: grab;
 }
 .goal-modal-title { font-size: 18px; font-weight: 700; margin: 0; }
 .goal-modal-close {

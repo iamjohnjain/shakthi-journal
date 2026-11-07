@@ -111,6 +111,43 @@ export async function getCurrentStreak(): Promise<number> {
   return streak
 }
 
+// ─── Your own foods, resurfaced as quick-add options ──────────────────────────
+
+export interface CustomFood {
+  food: string
+  calories: number
+  proteinG: number
+  carbsG?: number
+  fatG?: number
+  quantity?: string
+}
+
+/**
+ * Distinct foods you've logged yourself, most-recently-used first, with
+ * built-in presets excluded so the same food never shows up twice. This is
+ * the "Made By You" list — deliberately local, not a third-party food
+ * database lookup.
+ */
+export async function getCustomFoods(limit = 20): Promise<CustomFood[]> {
+  const db = await getDB()
+  const all = await db.getAll('nutrition_entries')
+  const presetNames = new Set(QUICK_FOODS.map(f => f.food.toLowerCase()))
+
+  const byName = new Map<string, NutritionEntry>()
+  for (const e of all.sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const key = e.food.trim().toLowerCase()
+    if (!key || presetNames.has(key) || byName.has(key)) continue
+    byName.set(key, e)
+  }
+
+  return Array.from(byName.values())
+    .slice(0, limit)
+    .map(e => ({
+      food: e.food, calories: e.calories, proteinG: e.proteinG,
+      carbsG: e.carbsG, fatG: e.fatG, quantity: e.quantity,
+    }))
+}
+
 // ─── Quick-add presets ────────────────────────────────────────────────────────
 
 export const QUICK_FOODS: Omit<NutritionEntry, 'id' | 'date' | 'mealType' | 'createdAt'>[] = [

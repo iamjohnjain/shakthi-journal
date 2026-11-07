@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
-import { ArrowRight, Target, Plus, X, Trash2 } from 'lucide-react'
+import { ArrowRight, Target, Plus, X, Trash2, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDashboardData } from '../hooks/useDashboardData'
-import { getProfile } from '../db/profileStore'
-import { getSetting } from '../db'
+import { useNutritionSettings } from '../hooks/useNutritionSettings'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
+import { getProfile, saveProfile } from '../db/profileStore'
+import { getSetting, setSetting } from '../db'
 import type { ProfileData, NutritionGoals } from '../db'
-import { getUserGoals, saveUserGoal, deleteUserGoal } from '../db/goalStore'
+import { getUserGoals, saveUserGoal, updateUserGoal, deleteUserGoal } from '../db/goalStore'
 import type { UserGoal, GoalCategory } from '../db/goalStore'
 import { kgToLbs } from '../data/config'
 import DataBadge from '../components/DataBadge'
@@ -21,6 +24,14 @@ interface GoalStatus {
   nextAction: string
 }
 
+interface EditableTarget {
+  value: number
+  unit: string
+  step?: number
+  min?: number
+  save: (newValue: number) => Promise<void>
+}
+
 interface GoalConfig {
   id: string
   emoji: string
@@ -34,6 +45,7 @@ interface GoalConfig {
     nutGoals: Pick<NutritionGoals, 'proteinG' | 'calories'>,
   ) => GoalStatus
   relatedMetrics: string[]
+  editTarget?: EditableTarget
 }
 
 // ─── Preset quick-add goals ───────────────────────────────────────────────────
@@ -51,7 +63,15 @@ const PRESET_GOALS: Array<{ emoji: string; title: string; category: GoalCategory
 
 // ─── Data-driven goal factory ─────────────────────────────────────────────────
 
-function makeGoals(profile: ProfileData | null): GoalConfig[] {
+function makeGoals(
+  profile: ProfileData | null,
+  stepGoal: number,
+  proteinGoalG: number,
+  onSaveWeightLbs: (lbs: number) => Promise<void>,
+  onSaveBodyFatPct: (pct: number) => Promise<void>,
+  onSaveProteinG: (g: number) => Promise<void>,
+  onSaveStepGoal: (n: number) => Promise<void>,
+): GoalConfig[] {
   const goals: GoalConfig[] = []
 
   if (profile?.goalWeightKg) {
@@ -65,6 +85,7 @@ function makeGoals(profile: ProfileData | null): GoalConfig[] {
       description: `Reach and maintain ${goalLbs} lbs.`,
       target: `${goalLbs} lbs`,
       relatedMetrics: ['Daily weight', 'Calories', 'Protein intake'],
+      editTarget: { value: goalLbs, unit: 'lbs', step: 1, min: 50, save: onSaveWeightLbs },
       getStatus: (d) => {
         const w = d.today.weight
         if (!w) return {
@@ -102,6 +123,7 @@ function makeGoals(profile: ProfileData | null): GoalConfig[] {
       description: `Reach ${goalBF}% body fat while maintaining muscle mass.`,
       target: `≤ ${goalBF}% body fat`,
       relatedMetrics: ['Body fat %', 'Weight', 'Lean mass'],
+      editTarget: { value: goalBF, unit: '%', step: 0.5, min: 3, save: onSaveBodyFatPct },
       getStatus: (d) => {
         const bf = d.today.bodyFatPct
         if (bf == null) return {
@@ -133,8 +155,9 @@ function makeGoals(profile: ProfileData | null): GoalConfig[] {
     title: 'Daily Protein',
     category: 'Nutrition',
     description: 'Consistently hit your daily protein target to support muscle building and recovery.',
-    target: 'Your protein goal',
+    target: `${proteinGoalG}g / day`,
     relatedMetrics: ['Protein logged', 'Total calories', 'Meal frequency'],
+    editTarget: { value: proteinGoalG, unit: 'g', step: 5, min: 20, save: onSaveProteinG },
     getStatus: (d, _p, ng) => {
       const protein = d.today.proteinG
       if (protein == null) return {
@@ -163,8 +186,9 @@ function makeGoals(profile: ProfileData | null): GoalConfig[] {
     title: 'Daily Activity',
     category: 'Cardio',
     description: 'Build a consistent movement base through daily steps and cardio.',
-    target: '10,000 steps / day',
+    target: `${stepGoal.toLocaleString()} steps / day`,
     relatedMetrics: ['Daily steps', 'Active calories', 'Resting HR'],
+    editTarget: { value: stepGoal, unit: 'steps', step: 500, min: 1000, save: onSaveStepGoal },
     getStatus: (d) => {
       const steps = d.today.steps
       if (!steps) return {
@@ -172,13 +196,13 @@ function makeGoals(profile: ProfileData | null): GoalConfig[] {
         statusText: 'No step data. Import Apple Health to track daily movement.',
         nextAction: 'Connect Apple Health to see your daily steps and cardio activity here.',
       }
-      const pct = Math.min(100, Math.round(steps / 10_000 * 100))
+      const pct = Math.min(100, Math.round(steps / stepGoal * 100))
       return {
         current: `${steps.toLocaleString()} steps`,
         progress: pct,
         statusText: pct >= 100
           ? `${steps.toLocaleString()} steps — daily goal hit!`
-          : `${steps.toLocaleString()} steps so far. ${(10_000 - steps).toLocaleString()} to goal.`,
+          : `${steps.toLocaleString()} steps so far. ${(stepGoal - steps).toLocaleString()} to goal.`,
         nextAction: pct >= 100
           ? 'Strong movement day. Rest or add a light recovery walk.'
           : 'A 25-min walk after dinner adds ~2,500 steps. Aim for consistent daily movement.',
@@ -198,6 +222,25 @@ function GoalCard({ goal, data, profile, nutGoals }: {
   nutGoals: Pick<NutritionGoals, 'proteinG' | 'calories'>
 }) {
   const status = goal.getStatus(data, profile, nutGoals)
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState('')
+  const [saving,  setSaving]  = useState(false)
+
+  function startEdit() {
+    if (!goal.editTarget) return
+    setDraft(String(goal.editTarget.value))
+    setEditing(true)
+  }
+
+  async function saveEdit() {
+    if (!goal.editTarget) return
+    const n = parseFloat(draft)
+    if (isNaN(n) || n <= 0) { setEditing(false); return }
+    setSaving(true)
+    await goal.editTarget.save(n)
+    setSaving(false)
+    setEditing(false)
+  }
 
   return (
     <div className="goal-card">
@@ -221,11 +264,39 @@ function GoalCard({ goal, data, profile, nutGoals }: {
         <div className="goal-progress-track">
           <div className="goal-progress-fill" style={{ width: `${status.progress}%` }} />
         </div>
-        <div className="goal-progress-labels">
-          <span>Start</span>
-          <span className="goal-target-label">Target: {goal.target}</span>
-          <span>{status.progress}%</span>
-        </div>
+        {editing ? (
+          <div className="goal-target-edit">
+            <input
+              className="goal-target-edit-input"
+              type="number"
+              inputMode="decimal"
+              step={goal.editTarget?.step ?? 1}
+              min={goal.editTarget?.min ?? 0}
+              value={draft}
+              autoFocus
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false) }}
+            />
+            <span className="goal-target-edit-unit">{goal.editTarget?.unit}</span>
+            <button className="goal-target-edit-save" onClick={saveEdit} disabled={saving}>
+              {saving ? '…' : 'Save'}
+            </button>
+            <button className="goal-target-edit-cancel" onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        ) : (
+          <div className="goal-progress-labels">
+            <span>Start</span>
+            <span className="goal-target-label">
+              Target: {goal.target}
+              {goal.editTarget && (
+                <button className="goal-target-edit-btn" onClick={startEdit} aria-label="Edit target">
+                  <Pencil size={11} />
+                </button>
+              )}
+            </span>
+            <span>{status.progress}%</span>
+          </div>
+        )}
       </div>
 
       <div className="goal-status">{status.statusText}</div>
@@ -246,7 +317,7 @@ function GoalCard({ goal, data, profile, nutGoals }: {
 
 // ─── User-created goal card ───────────────────────────────────────────────────
 
-function UserGoalCard({ goal, onDelete }: { goal: UserGoal; onDelete: () => void }) {
+function UserGoalCard({ goal, onEdit, onDelete }: { goal: UserGoal; onEdit: () => void; onDelete: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const daysLeft = goal.targetDate
@@ -266,13 +337,22 @@ function UserGoalCard({ goal, onDelete }: { goal: UserGoal; onDelete: () => void
         </div>
         <div className="goal-user-actions">
           {!confirmDelete ? (
-            <button
-              className="goal-delete-btn"
-              onClick={() => setConfirmDelete(true)}
-              aria-label="Delete goal"
-            >
-              <Trash2 size={14} />
-            </button>
+            <>
+              <button
+                className="goal-edit-btn"
+                onClick={onEdit}
+                aria-label="Edit goal"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                className="goal-delete-btn"
+                onClick={() => setConfirmDelete(true)}
+                aria-label="Delete goal"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
           ) : (
             <div className="goal-delete-confirm">
               <button onClick={onDelete} className="goal-delete-confirm-yes">Delete</button>
@@ -299,15 +379,20 @@ function UserGoalCard({ goal, onDelete }: { goal: UserGoal; onDelete: () => void
 
 // ─── Add goal modal ───────────────────────────────────────────────────────────
 
-function AddGoalModal({ onSave, onClose }: {
+function AddGoalModal({ existing, onSave, onClose }: {
+  existing?: UserGoal
   onSave: (goal: Omit<UserGoal, 'id' | 'createdAt' | 'updatedAt'>) => void
   onClose: () => void
 }) {
-  const [emoji,       setEmoji]       = useState('🎯')
-  const [title,       setTitle]       = useState('')
-  const [description, setDescription] = useState('')
-  const [category,    setCategory]    = useState<GoalCategory>('milestone')
-  const [targetDate,  setTargetDate]  = useState('')
+  const isEdit = !!existing
+  const [emoji,       setEmoji]       = useState(existing?.emoji ?? '🎯')
+  const [title,       setTitle]       = useState(existing?.title ?? '')
+  const [description, setDescription] = useState(existing?.description ?? '')
+  const [category,    setCategory]    = useState<GoalCategory>(existing?.category ?? 'milestone')
+  const [targetDate,  setTargetDate]  = useState(existing?.targetDate ?? '')
+
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
 
   function applyPreset(p: typeof PRESET_GOALS[0]) {
     setEmoji(p.emoji)
@@ -328,31 +413,36 @@ function AddGoalModal({ onSave, onClose }: {
   }
 
   return (
-    <div className="goal-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Add a goal">
-      <div className="goal-modal" onClick={e => e.stopPropagation()}>
-        <div className="goal-modal-header">
-          <h2 className="goal-modal-title">Add a Goal</h2>
+    <div className="goal-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit goal' : 'Add a goal'}>
+      <div className="goal-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="goal-modal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
+          <h2 className="goal-modal-title">{isEdit ? 'Edit Goal' : 'Add a Goal'}</h2>
           <button className="goal-modal-close" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
-        <div className="goal-presets">
-          <p className="goal-presets-label">Quick add</p>
-          <div className="goal-presets-list">
-            {PRESET_GOALS.map(p => (
-              <button
-                key={p.title}
-                className={`goal-preset-btn ${title === p.title ? 'goal-preset-btn--active' : ''}`}
-                onClick={() => applyPreset(p)}
-              >
-                {p.emoji} {p.title}
-              </button>
-            ))}
-          </div>
-        </div>
+        {!isEdit && (
+          <>
+            <div className="goal-presets">
+              <p className="goal-presets-label">Quick add</p>
+              <div className="goal-presets-list">
+                {PRESET_GOALS.map(p => (
+                  <button
+                    key={p.title}
+                    className={`goal-preset-btn ${title === p.title ? 'goal-preset-btn--active' : ''}`}
+                    onClick={() => applyPreset(p)}
+                  >
+                    {p.emoji} {p.title}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <div className="goal-modal-divider">or write your own</div>
+            <div className="goal-modal-divider">or write your own</div>
+          </>
+        )}
 
         <div className="goal-form">
           <div className="goal-form-emoji-row">
@@ -415,7 +505,7 @@ function AddGoalModal({ onSave, onClose }: {
             onClick={handleSave}
             disabled={!title.trim()}
           >
-            Add Goal
+            {isEdit ? 'Save Changes' : 'Add Goal'}
           </button>
         </div>
       </div>
@@ -444,23 +534,46 @@ function NoGoalsCard({ onSetup }: { onSetup: () => void }) {
 export default function AthleticGoals() {
   const navigate = useNavigate()
   const data = useDashboardData()
+  const { goals: nutGoals, updateGoals: updateNutGoals } = useNutritionSettings()
   const [profile,      setProfile]      = useState<ProfileData | null>(null)
-  const [nutGoals,     setNutGoals]     = useState<Pick<NutritionGoals, 'proteinG' | 'calories'>>({ proteinG: 200, calories: 2300 })
+  const [stepGoal,     setStepGoal]     = useState(10_000)
   const [userGoals,    setUserGoals]    = useState<UserGoal[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingGoal,  setEditingGoal]  = useState<UserGoal | null>(null)
   const [activeCategory, setActiveCategory] = useState<string>('All')
 
   useEffect(() => {
     getProfile().then(setProfile)
-    getSetting<NutritionGoals | null>('nutrition-goals', null).then(ng => {
-      if (ng) setNutGoals({ proteinG: ng.proteinG, calories: ng.calories })
-    })
+    getSetting<number>('step-goal', 10_000).then(setStepGoal)
     getUserGoals().then(setUserGoals)
   }, [])
 
   if (data.loading) return <div className="goals-loading">Loading…</div>
 
-  const goalConfigs  = makeGoals(profile)
+  async function saveWeightGoalLbs(lbs: number) {
+    if (!profile) return
+    const kg = +(lbs / 2.20462).toFixed(1)
+    await saveProfile({ ...profile, name: profile.name || 'Me', goalWeightKg: kg })
+    setProfile(p => p ? { ...p, goalWeightKg: kg } : p)
+  }
+
+  async function saveBodyFatGoalPct(pct: number) {
+    if (!profile) return
+    await saveProfile({ ...profile, name: profile.name || 'Me', goalBodyFatPct: pct })
+    setProfile(p => p ? { ...p, goalBodyFatPct: pct } : p)
+  }
+
+  async function saveProteinGoalG(g: number) {
+    await updateNutGoals({ proteinG: Math.round(g) })
+  }
+
+  async function saveStepGoalN(n: number) {
+    const rounded = Math.round(n)
+    setStepGoal(rounded)
+    await setSetting('step-goal', rounded)
+  }
+
+  const goalConfigs  = makeGoals(profile, stepGoal, nutGoals.proteinG, saveWeightGoalLbs, saveBodyFatGoalPct, saveProteinGoalG, saveStepGoalN)
   const badgeMode: DataBadgeMode | undefined = goalConfigs.length > 0 && data.dataSource !== 'mock'
     ? (data.dataSource === 'manual' ? 'manual' : 'imported')
     : undefined
@@ -469,9 +582,15 @@ export default function AthleticGoals() {
     ? goalConfigs
     : goalConfigs.filter(g => g.category === activeCategory)
 
-  async function handleAddGoal(goal: Omit<UserGoal, 'id' | 'createdAt' | 'updatedAt'>) {
-    const saved = await saveUserGoal(goal)
-    setUserGoals(prev => [saved, ...prev])
+  async function handleSaveGoal(goal: Omit<UserGoal, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (editingGoal) {
+      await updateUserGoal(editingGoal.id, goal)
+      setUserGoals(prev => prev.map(g => g.id === editingGoal.id ? { ...g, ...goal } : g))
+      setEditingGoal(null)
+    } else {
+      const saved = await saveUserGoal(goal)
+      setUserGoals(prev => [saved, ...prev])
+    }
     setShowAddModal(false)
   }
 
@@ -490,7 +609,7 @@ export default function AthleticGoals() {
         </div>
         <button
           className="goal-add-btn"
-          onClick={() => setShowAddModal(true)}
+          onClick={() => { setEditingGoal(null); setShowAddModal(true) }}
           aria-label="Add a goal"
         >
           <Plus size={16} />
@@ -538,6 +657,7 @@ export default function AthleticGoals() {
               <UserGoalCard
                 key={g.id}
                 goal={g}
+                onEdit={() => { setEditingGoal(g); setShowAddModal(true) }}
                 onDelete={() => handleDeleteGoal(g.id)}
               />
             ))}
@@ -548,18 +668,19 @@ export default function AthleticGoals() {
       {/* ── Add goal hint when list is short ── */}
       {goalConfigs.length > 0 && userGoals.length === 0 && (
         <div className="goal-add-hint">
-          <button className="goal-add-hint-btn" onClick={() => setShowAddModal(true)}>
+          <button className="goal-add-hint-btn" onClick={() => { setEditingGoal(null); setShowAddModal(true) }}>
             <Plus size={14} />
             Add a personal goal — marathon, bench 225, sleep 8h…
           </button>
         </div>
       )}
 
-      {/* ── Add goal modal ── */}
+      {/* ── Add/edit goal modal ── */}
       {showAddModal && (
         <AddGoalModal
-          onSave={handleAddGoal}
-          onClose={() => setShowAddModal(false)}
+          existing={editingGoal ?? undefined}
+          onSave={handleSaveGoal}
+          onClose={() => { setShowAddModal(false); setEditingGoal(null) }}
         />
       )}
     </div>

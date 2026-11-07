@@ -10,6 +10,8 @@ import {
   BACKUP_STORES,
 } from '../db/backupStore'
 import type { BackupData, ImportMode } from '../db/backupStore'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import './BackupRestorePage.css'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,10 +49,14 @@ function ImportPreviewModal({
   const [mode, setMode] = useState<ImportMode>('merge')
   const totalRecords = Object.values(data.summary).reduce((a, b) => a + b, 0)
 
+  useScrollLock()
+  const swipe = useSwipeToClose(onCancel)
+
   return (
     <div className="br-modal-overlay" onClick={onCancel}>
-      <div className="br-modal" onClick={e => e.stopPropagation()}>
-        <div className="br-modal-header">
+      <div className="br-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="br-modal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
           <h2>Import Backup</h2>
           <button className="br-modal-close" onClick={onCancel}>×</button>
         </div>

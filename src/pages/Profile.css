@@ -461,6 +461,7 @@
   top: 0;
   background: #1c1c1e;
   z-index: 1;
+  cursor: grab;
 }
 .profile-modal-header h2 { font-size: 17px; font-weight: 700; }
 
