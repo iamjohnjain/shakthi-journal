@@ -50,7 +50,7 @@ const ACTIVITY_LEVELS = [
   { id: 'very-active', label: 'Very Active',   desc: 'Hard daily exercise + physical job' },
 ]
 
-const PRIMARY_GOALS = [
+export const PRIMARY_GOALS = [
   { id: 'fat-loss',       emoji: '🔥', label: 'Lose fat'         },
   { id: 'muscle-gain',    emoji: '💪', label: 'Build muscle'      },
   { id: 'strength',       emoji: '🏋️', label: 'Get stronger'      },
@@ -814,7 +814,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
                 <span className="ob-source-desc">{d.desc}</span>
               </div>
               <span className={`ob-source-badge ${on ? 'ob-source-badge--intent' : ''}`}>
-                {on ? <><Check size={13} /> I have this</> : 'I don\'t have this'}
+                {on ? <><Check size={13} /> I have this</> : 'Tap if you have this'}
               </span>
             </button>
           )

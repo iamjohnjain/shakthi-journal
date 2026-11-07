@@ -10,6 +10,8 @@ import { useHealthInsights } from '../hooks/useHealthInsights'
 import { useApp } from '../context/AppContext'
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
+import { getOwnedDevices, owns } from '../db/deviceStore'
+import type { DeviceId } from '../db/deviceStore'
 import DataBadge from '../components/DataBadge'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
@@ -289,6 +291,10 @@ interface SectionCtx {
   sectionOrder: string[]
   inNative: boolean
   menuFor: (id: string) => React.ComponentProps<typeof CardMenu>
+  /** From onboarding's "which of these do you have?" step. `null` means the
+      user was never asked (pre-feature account, or skipped) — treat that as
+      "show everything" so nothing regresses for existing users. */
+  ownedDevices: DeviceId[] | null
 }
 
 function openNativeHealthSync() {
@@ -298,7 +304,7 @@ function openNativeHealthSync() {
 
 function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, dataSource, inNative, menuFor } = ctx
+  const { today, yesterday, dataSource, inNative, menuFor, ownedDevices } = ctx
   const weightLbs     = today.weight ? kgToLbs(today.weight) : undefined
   const prevWeightLbs = yesterday.weight ? kgToLbs(yesterday.weight) : undefined
   const weightDelta   = weightLbs != null && prevWeightLbs != null ? delta(weightLbs, prevWeightLbs) : null
@@ -308,9 +314,15 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
     ? delta(today.muscleMassKg, yesterday.muscleMassKg) : null
   const hasBody = !!(today.weight || today.bodyFatPct)
   const badge: DataBadgeMode | undefined = hasBody ? (dataSource === 'manual' ? 'manual' : 'imported') : undefined
+  // Body fat / muscle mass only ever come from a smart scale — prompting
+  // "Import Apple Health" for someone who never said they own one just
+  // clutters the dashboard with a card that can't do anything for them.
+  const hasScale = owns(ownedDevices, 'renpho')
+  const showBodyFat    = today.bodyFatPct    != null || hasScale
+  const showMuscleMass = today.muscleMassKg  != null || hasScale
 
   return (
-    <Section title="Body" badgeMode={badge} badgeSource="Apple Health / Log" menuProps={menuFor('body')}>
+    <Section title="Body" badgeMode={badge} badgeSource={badge === 'imported' ? 'Apple Health' : undefined} menuProps={menuFor('body')}>
       {hasBody ? (
         <>
           <MetricCard
@@ -325,29 +337,33 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
             emptyPrompt="Log weight"
             onEmptyClick={() => navigate('/log')}
           />
-          <MetricCard
-            label="Body Fat"
-            value={today.bodyFatPct}
-            unit="%"
-            trend={bodyFatDelta != null ? (bodyFatDelta < 0 ? 'down' : 'up') : undefined}
-            trendLabel={bodyFatDelta != null ? `${Math.abs(bodyFatDelta)}%` : undefined}
-            trendPositive={false}
-            empty={today.bodyFatPct == null}
-            emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-            onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-          />
-          <MetricCard
-            label="Muscle Mass"
-            value={today.muscleMassKg ? kgToLbs(today.muscleMassKg) : undefined}
-            unit="lbs"
-            sub={today.muscleMassKg ? `${today.muscleMassKg} kg` : undefined}
-            trend={muscleDelta != null ? (muscleDelta >= 0 ? 'up' : 'down') : undefined}
-            trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} kg` : undefined}
-            trendPositive={true}
-            empty={today.muscleMassKg == null}
-            emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-            onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-          />
+          {showBodyFat && (
+            <MetricCard
+              label="Body Fat"
+              value={today.bodyFatPct}
+              unit="%"
+              trend={bodyFatDelta != null ? (bodyFatDelta < 0 ? 'down' : 'up') : undefined}
+              trendLabel={bodyFatDelta != null ? `${Math.abs(bodyFatDelta)}%` : undefined}
+              trendPositive={false}
+              empty={today.bodyFatPct == null}
+              emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+              onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
+            />
+          )}
+          {showMuscleMass && (
+            <MetricCard
+              label="Muscle Mass"
+              value={today.muscleMassKg ? kgToLbs(today.muscleMassKg) : undefined}
+              unit="lbs"
+              sub={today.muscleMassKg ? `${today.muscleMassKg} kg` : undefined}
+              trend={muscleDelta != null ? (muscleDelta >= 0 ? 'up' : 'down') : undefined}
+              trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} kg` : undefined}
+              trendPositive={true}
+              empty={today.muscleMassKg == null}
+              emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
+              onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
+            />
+          )}
         </>
       ) : (
         <EmptyState
@@ -416,11 +432,16 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
 
 function VitalsSection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, inNative, menuFor } = ctx
+  const { today, yesterday, inNative, menuFor, ownedDevices } = ctx
   const hrvDelta = today.hrv != null && yesterday.hrv != null ? delta(today.hrv, yesterday.hrv) : null
   const hrDelta  = today.restingHeartRate != null && yesterday.restingHeartRate != null
     ? delta(today.restingHeartRate, yesterday.restingHeartRate) : null
   const hasVitals = today.hrv != null || today.restingHeartRate != null
+  // HRV/resting-HR only come from a wearable. No data and no wearable
+  // means an empty card promising a sync that can't produce anything —
+  // hide the whole section rather than clutter the dashboard with it.
+  const hasWearable = owns(ownedDevices, 'apple_watch') || owns(ownedDevices, 'ringconn')
+  if (!hasVitals && !hasWearable) return null
 
   return (
     <Section title="Vitals" badgeMode={hasVitals ? 'imported' : undefined} badgeSource="Apple Health" menuProps={menuFor('vitals')}>
@@ -476,6 +497,7 @@ export default function Dashboard() {
   const [userName,    setUserName]    = useState<string | null>(null)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [stepGoal,    setStepGoal]    = useState(10_000)
+  const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
 
   useEffect(() => {
     getProfile().then(p => {
@@ -483,6 +505,7 @@ export default function Dashboard() {
       setProfileData(p)
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
+    getOwnedDevices().then(setOwnedDevices)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
       setUserName(p.name || null)
@@ -516,6 +539,7 @@ export default function Dashboard() {
     todayProgress, stepGoal, sectionOrder,
     inNative,
     menuFor,
+    ownedDevices,
   }
 
   // Build ordered list of visible reorderable sections

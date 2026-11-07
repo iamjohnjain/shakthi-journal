@@ -19,7 +19,11 @@ import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
+import { PRIMARY_GOALS } from './OnboardingPage'
 import './Profile.css'
+
+const GOAL_LABEL: Record<string, string> = Object.fromEntries(PRIMARY_GOALS.map(g => [g.id, g.label]))
+function goalLabel(id: string): string { return GOAL_LABEL[id] ?? id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -427,7 +431,11 @@ export default function Profile() {
           {currentWeightLbs == null && currentBF == null && (
             <p className="profile-no-data">Import Apple Health data or log your weight to see progress.</p>
           )}
-          {goalNotes && <p className="profile-goal-notes">🎯 {goalNotes}</p>}
+          {goalNotes && (
+            <p className="profile-goal-notes">
+              🎯 {goalNotes.split(',').map(g => g.trim()).filter(Boolean).map(goalLabel).join(', ')}
+            </p>
+          )}
         </section>
 
         {/* ── Baseline ── */}
@@ -472,7 +480,7 @@ export default function Profile() {
                 {goalNotes.split(',').map(g => g.trim()).filter(Boolean).map(g => (
                   <li key={g} className="profile-goal-item">
                     <CheckCircle2 size={15} className="profile-goal-icon" />
-                    <span style={{ textTransform: 'capitalize' }}>{g.replace(/-/g, ' ')}</span>
+                    <span>{goalLabel(g)}</span>
                   </li>
                 ))}
               </ul>

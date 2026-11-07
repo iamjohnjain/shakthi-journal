@@ -94,7 +94,7 @@ function getHeadline(insights: Insight[], hasAnyData: boolean): string {
 
   const goodCount = insights.filter(i => ['good', 'excellent'].includes(i.status)).length
   if (goodCount >= 2) return 'On track today.'
-  if (insights.length > 0) return "Here's where things stand."
+  if (insights.length > 0) return "Today's rundown."
   return "Log data to see today's story."
 }
 
