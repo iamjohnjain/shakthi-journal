@@ -36,6 +36,7 @@ struct WebAppView: UIViewRepresentable {
 
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
+        wv.uiDelegate = context.coordinator  // required for getUserMedia() camera access — see below
         context.coordinator.webView = wv  // stored weakly so Coordinator can inject metrics later
         wv.allowsBackForwardNavigationGestures = true
         // The web app handles safe-area padding entirely via CSS env(safe-area-inset-*).
@@ -113,7 +114,7 @@ struct WebAppView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
 
         let onMessage: (([String: Any]) -> Void)?
         /// Weak reference so the Coordinator can call evaluateJavaScript after a sync completes.
@@ -153,6 +154,24 @@ struct WebAppView: UIViewRepresentable {
             // Open external links (e.g. Supabase dashboard, docs) in Safari
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
+        }
+
+        // MARK: Camera / microphone permission (WKUIDelegate)
+
+        // Without this, getUserMedia() calls from the web app's live camera
+        // view are auto-denied by WKWebView even with NSCameraUsageDescription
+        // set — this delegate method is the second, separate requirement.
+        // The native Info.plist prompt (driven by NSCameraUsageDescription)
+        // still shows to the user on first use; this just tells WKWebView to
+        // forward that OS-level grant through to the page's JS.
+        func webView(
+            _ webView: WKWebView,
+            requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+            initiatedByFrame frame: WKFrameInfo,
+            type: WKMediaCaptureType,
+            decisionHandler: @escaping (WKPermissionDecision) -> Void
+        ) {
+            decisionHandler(.grant)
         }
 
         // MARK: JS → Native messages

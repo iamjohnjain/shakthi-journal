@@ -480,12 +480,97 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
 
 // ─── Photo tab (food photo / receipt / barcode, all through one button) ───────
 
+/** Full-screen live camera — getUserMedia + a real viewfinder and shutter
+    button, not a handoff to the OS camera sheet. Falls back to a plain photo
+    picker if getUserMedia is unavailable or permission is denied, so the
+    feature still works rather than dead-ending. */
+function LiveCamera({ onCapture, onClose }: {
+  onCapture: (blob: Blob) => void
+  onClose: () => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [ready, setReady] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setFailed(true)
+      return
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(stream => {
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+      })
+      .catch(() => { if (!cancelled) setFailed(true) })
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, [])
+
+  function capture() {
+    const video = videoRef.current
+    if (!video || !video.videoWidth) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0)
+    canvas.toBlob(blob => { if (blob) onCapture(blob) }, 'image/jpeg', 0.88)
+  }
+
+  if (failed) {
+    return createPortal(
+      <div className="live-camera-overlay live-camera-overlay--fallback">
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) onCapture(f) }} />
+        <p className="live-camera-fallback-text">Couldn't access the camera — you can still pick a photo instead.</p>
+        <button className="ai-estimate-btn" onClick={() => fileRef.current?.click()}>Choose Photo</button>
+        <button className="ai-describe-back" onClick={onClose}>Cancel</button>
+      </div>,
+      document.body
+    )
+  }
+
+  return createPortal(
+    <div className="live-camera-overlay">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        onLoadedMetadata={() => setReady(true)}
+        className="live-camera-video"
+      />
+      {!ready && (
+        <div className="live-camera-loading"><Loader2 size={22} className="ai-spin" /></div>
+      )}
+      <div className="live-camera-controls">
+        <button className="live-camera-cancel" onClick={onClose} aria-label="Cancel">
+          <X size={22} />
+        </button>
+        <button className="live-camera-shutter" onClick={capture} disabled={!ready} aria-label="Take photo" />
+        <span className="live-camera-spacer" />
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
   onLogged: (items: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) => void
   onFallbackToManual: () => void
   autoOpen?: boolean
 }) {
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [showCamera, setShowCamera] = useState(false)
   const [status, setStatus] = useState<'idle' | 'scanning' | 'analyzing'>('idle')
   const [items, setItems] = useState<AiDraftItem[]>([])
   const [clarification, setClarification] = useState<Clarification | null>(null)
@@ -498,11 +583,9 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
   useEffect(() => {
     if (autoOpen && !autoOpened.current) {
       autoOpened.current = true
-      fileRef.current?.click()
+      setShowCamera(true)
     }
   }, [autoOpen])
-
-  function openCamera() { fileRef.current?.click() }
 
   function applyResult(result: MealParseResult) {
     setItems(prev => (result.items.length > 0 ? draftItemsFrom(result.items) : prev))
@@ -510,16 +593,13 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
     setNote(result.items.length === 0 && !result.clarification ? (result.note ?? '') : '')
   }
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-
-    setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file) })
+  async function processImage(blob: Blob) {
+    setShowCamera(false)
+    setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
     setStatus('scanning')
 
     // 1. Try a local barcode/QR decode first — instant, free, no AI call needed.
-    const barcode = await decodeBarcodeFromImage(file)
+    const barcode = await decodeBarcodeFromImage(blob)
     if (barcode) {
       const product = await lookupBarcode(barcode)
       if (product) {
@@ -541,7 +621,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
     // 2. Vision AI — compress first to keep the payload small and the round-trip fast.
     setStatus('analyzing')
     try {
-      const dataUrl = await compressImageToDataUrl(file)
+      const dataUrl = await compressImageToDataUrl(blob)
       setImageDataUrl(dataUrl)
       const result = await analyzeMealPhoto(dataUrl)
       applyResult(result)
@@ -574,20 +654,19 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
   const hasResult = items.length > 0 || clarification !== null || note !== ''
   const busy = status === 'scanning' || status === 'analyzing'
 
-  const fileInput = (
-    <input ref={fileRef} type="file" accept="image/*" capture="environment"
-      onChange={handleFile} style={{ display: 'none' }} />
+  const camera = showCamera && (
+    <LiveCamera onCapture={processImage} onClose={() => setShowCamera(false)} />
   )
 
   if (!hasResult) {
     return (
       <div className="ai-describe">
-        {fileInput}
+        {camera}
         {previewUrl && <img src={previewUrl} alt="" className="ai-photo-preview" />}
         <p className="ai-describe-hint">
           Snap a photo of your food, a receipt, or a barcode — it figures out which and estimates nutrition.
         </p>
-        <button className="ai-estimate-btn ai-photo-btn" onClick={openCamera} disabled={busy}>
+        <button className="ai-estimate-btn ai-photo-btn" onClick={() => setShowCamera(true)} disabled={busy}>
           {busy
             ? <><Loader2 size={15} className="ai-spin" /> {status === 'scanning' ? 'Checking for a barcode…' : 'Analyzing photo…'}</>
             : <><Camera size={16} /> Take a Photo</>}
@@ -599,16 +678,16 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
   if (items.length === 0 && note) {
     return (
       <div className="ai-describe">
-        {fileInput}
+        {camera}
         <SoftNote note={note} onManual={onFallbackToManual} />
-        <button className="ai-describe-back" onClick={reset}>Try another photo</button>
+        <button className="ai-describe-back" onClick={() => { reset(); setShowCamera(true) }}>Try another photo</button>
       </div>
     )
   }
 
   return (
     <div className="ai-describe">
-      {fileInput}
+      {camera}
       <p className="ai-describe-hint">Estimated from your photo — review and adjust before logging.</p>
       {clarification && <ClarificationBlock clarification={clarification} onAnswer={handleAnswer} busy={answering} />}
       {items.length === 0 ? (
@@ -617,7 +696,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
         <>
           <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} />
           <div className="ai-review-actions">
-            <button className="ai-describe-back" onClick={reset}>Retake</button>
+            <button className="ai-describe-back" onClick={() => { reset(); setShowCamera(true) }}>Retake</button>
             <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
               food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
               quantity: `${it.qtyNum} ${it.qtyUnit}`,
@@ -641,13 +720,15 @@ function QuickLogTab({ onLogged }: {
   const [protein,  setProtein]  = useState('')
   const [carbs,    setCarbs]    = useState('')
   const [fat,      setFat]      = useState('')
+  const [qtyNum,   setQtyNum]   = useState(1)
+  const [qtyUnit,  setQtyUnit]  = useState('serving')
 
   function handleLog() {
     if (!calories) return
     onLogged({
       food: food.trim() || `Quick entry — ${calories} cal`,
       calories: +calories, proteinG: +protein || 0, carbsG: +carbs || 0, fatG: +fat || 0,
-      quantity: '1 serving',
+      quantity: `${qtyNum} ${qtyUnit}`,
     })
   }
 
@@ -657,6 +738,10 @@ function QuickLogTab({ onLogged }: {
       <div className="custom-field custom-field--full">
         <label>Name (optional)</label>
         <input value={food} onChange={e => setFood(e.target.value)} placeholder="e.g. Leftovers" />
+      </div>
+      <div className="custom-field custom-field--full">
+        <label>Quantity</label>
+        <QuantityPicker num={qtyNum} unit={qtyUnit} onNumChange={setQtyNum} onUnitChange={setQtyUnit} />
       </div>
       <div className="custom-fields-row">
         <div className="custom-field">
@@ -826,11 +911,10 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                 <Sparkles size={13} /> Describe
               </button>
             )}
-            <button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>Quick Add</button>
+            <button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>History Log</button>
             <button className={tab === 'quicklog' ? 'active' : ''} onClick={() => setTab('quicklog')}>
               <Zap size={13} /> Quick Log
             </button>
-            <button className={tab === 'custom' ? 'active' : ''} onClick={() => setTab('custom')}>Custom</button>
           </div>
         )}
 

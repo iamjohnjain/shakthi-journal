@@ -9,6 +9,13 @@
 	<key>SUPABASE_ANON_KEY</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
 
+	<!-- Camera — required for the in-app photo meal logger (food photos,
+	     receipts, barcodes). Without this key, iOS hard-crashes the app the
+	     moment anything (an <input capture> tap or a getUserMedia() call)
+	     touches the camera — it does not show a permission dialog first. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Shakthi uses your camera so you can snap a photo of a meal, receipt, or barcode and get an instant nutrition estimate.</string>
+
 	<!-- HealthKit read — required, or App Store will reject the binary -->
 	<key>NSHealthShareUsageDescription</key>
 	<string>Shakthi reads your health data from Apple Health to sync it to your personal dashboard. Your data is only uploaded to your own account and is never shared with anyone.</string>
