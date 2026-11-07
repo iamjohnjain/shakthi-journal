@@ -75,3 +75,18 @@ export async function refineMealPhoto(
 ): Promise<MealParseResult> {
   return invoke('analyze-meal-photo', { image: imageDataUrl, priorQuestion, userAnswer })
 }
+
+/** Re-estimates a single already-logged item with extra detail the user
+    supplies after the fact (e.g. "Coffee with milk" → "it's oat milk, large
+    size") — works whether the item originally came from text or a photo,
+    since by this point it's just re-describing one item in words. Routes
+    through parse-meal (text, not vision) since no image round-trip is
+    needed. Returns null if the refined description somehow produced
+    nothing usable — the caller should just leave the item as it was. */
+export async function refineOneItem(
+  item: Pick<ParsedMealItem, 'food' | 'qtyNum' | 'qtyUnit'>, detail: string,
+): Promise<ParsedMealItem | null> {
+  const description = `${item.qtyNum} ${item.qtyUnit} of ${item.food}. Specific detail: ${detail}`
+  const result = await parseMealDescription(description)
+  return result.items[0] ?? null
+}

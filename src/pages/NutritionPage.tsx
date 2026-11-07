@@ -6,7 +6,7 @@ import {
   Sparkles, Mic, Loader2, Camera, Zap,
 } from 'lucide-react'
 import {
-  parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, isAiMealParsingAvailable,
+  parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, refineOneItem, isAiMealParsingAvailable,
 } from '../lib/aiMealParser'
 import type { ParsedMealItem, Clarification, MealParseResult } from '../lib/aiMealParser'
 import { decodeBarcodeFromImage, lookupBarcode } from '../lib/barcodeScan'
@@ -200,6 +200,29 @@ function draftItemsFrom(items: ParsedMealItem[]): AiDraftItem[] {
   return items.map((p, i) => ({ ...p, _key: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}` }))
 }
 
+/** Applies an edit to one review-card item. A quantity-only change (the
+    number, not the unit) scales all four macros proportionally from the
+    item's current values — so bumping "1 cup" to "2 cups" doubles calories
+    automatically instead of leaving stale numbers the user has to redo by
+    hand. Editing a macro directly, or changing the unit, does NOT trigger
+    scaling — those become the new reference point for the next quantity
+    change, since there's no reliable way to convert between arbitrary units
+    (a "slice" and a "g" of the same food aren't a fixed ratio). */
+function patchDraftItem(item: AiDraftItem, patch: Partial<AiDraftItem>): AiDraftItem {
+  if ('qtyNum' in patch && patch.qtyNum != null && item.qtyNum > 0 && !('calories' in patch)) {
+    const scale = patch.qtyNum / item.qtyNum
+    return {
+      ...item,
+      ...patch,
+      calories: Math.max(0, Math.round(item.calories * scale)),
+      proteinG: Math.max(0, Math.round(item.proteinG * scale)),
+      carbsG:   Math.max(0, Math.round(item.carbsG   * scale)),
+      fatG:     Math.max(0, Math.round(item.fatG     * scale)),
+    }
+  }
+  return { ...item, ...patch }
+}
+
 function numField(value: number, onChange: (n: number) => void) {
   return (
     <input type="text" inputMode="numeric" pattern="[0-9]*" value={value}
@@ -208,67 +231,146 @@ function numField(value: number, onChange: (n: number) => void) {
   )
 }
 
+/** One review card, with an expandable "add detail" refine field so a vague
+    item (e.g. "Coffee with milk") can be pinned down ("oat milk, Starbucks
+    grande") and re-estimated without starting over. */
+function MealReviewCard({ item, onUpdate, onRemove, onRefine }: {
+  item: AiDraftItem
+  onUpdate: (patch: Partial<AiDraftItem>) => void
+  onRemove: () => void
+  onRefine: (detail: string) => Promise<void>
+}) {
+  const [refining, setRefining] = useState(false)
+  const [detail, setDetail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const speechCtor = getSpeechRecognitionCtor()
+
+  function toggleListening() {
+    if (listening) { recognitionRef.current?.stop(); return }
+    if (!speechCtor) return
+    const rec = new speechCtor()
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1
+    rec.onresult = e => {
+      const t = e.results[0]?.[0]?.transcript
+      if (t) setDetail(d => (d ? `${d} ${t}` : t))
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    recognitionRef.current = rec
+    rec.start()
+    setListening(true)
+  }
+
+  async function submit() {
+    if (!detail.trim() || busy) return
+    setBusy(true)
+    await onRefine(detail.trim())
+    setBusy(false)
+    setRefining(false)
+    setDetail('')
+  }
+
+  return (
+    <div className="ai-review-card">
+      <div className="ai-review-card-top">
+        <input className="ai-review-food-input" value={item.food}
+          onChange={e => onUpdate({ food: e.target.value })} />
+        <button className="ai-review-remove" onClick={onRemove} aria-label="Remove item">
+          <X size={14} />
+        </button>
+      </div>
+      <span className={`ai-confidence ${item.source === 'barcode' ? 'ai-confidence--barcode' : `ai-confidence--${item.confidence}`}`}>
+        {item.source === 'barcode' ? 'Scanned from barcode' : CONFIDENCE_LABEL[item.confidence]}
+      </span>
+
+      <div className="custom-field custom-field--full">
+        <label>Quantity</label>
+        <QuantityPicker num={item.qtyNum} unit={item.qtyUnit}
+          onNumChange={n => onUpdate({ qtyNum: n })}
+          onUnitChange={u => onUpdate({ qtyUnit: u })} />
+      </div>
+
+      <div className="custom-fields-row">
+        <div className="custom-field">
+          <label>Calories</label>
+          <div className="field-with-unit">
+            {numField(item.calories, n => onUpdate({ calories: n }))}
+            <span>kcal</span>
+          </div>
+        </div>
+        <div className="custom-field">
+          <label>Protein</label>
+          <div className="field-with-unit">
+            {numField(item.proteinG, n => onUpdate({ proteinG: n }))}
+            <span>g</span>
+          </div>
+        </div>
+      </div>
+      <div className="custom-fields-row">
+        <div className="custom-field">
+          <label>Carbs</label>
+          <div className="field-with-unit">
+            {numField(item.carbsG, n => onUpdate({ carbsG: n }))}
+            <span>g</span>
+          </div>
+        </div>
+        <div className="custom-field">
+          <label>Fat</label>
+          <div className="field-with-unit">
+            {numField(item.fatG, n => onUpdate({ fatG: n }))}
+            <span>g</span>
+          </div>
+        </div>
+      </div>
+
+      {!refining ? (
+        <button className="ai-review-refine-toggle" onClick={() => setRefining(true)}>
+          Not quite right? Specify exactly what it was
+        </button>
+      ) : (
+        <div className="ai-clarify-custom">
+          <input
+            placeholder={`e.g. "oat milk", "no sugar", "from Starbucks"`}
+            value={detail}
+            onChange={e => setDetail(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit() }}
+            disabled={busy}
+            autoFocus
+          />
+          {speechCtor && (
+            <button type="button" className={`ai-clarify-mic ${listening ? 'ai-mic-btn--active' : ''}`}
+              onClick={toggleListening} aria-label={listening ? 'Stop dictating' : 'Dictate'} disabled={busy}>
+              <Mic size={14} />
+            </button>
+          )}
+          <button className="ai-clarify-send" onClick={submit} disabled={!detail.trim() || busy} aria-label="Re-estimate">
+            {busy ? <Loader2 size={14} className="ai-spin" /> : <Check size={14} />}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** The editable best-guess item cards — shared by Describe and Photo tabs. */
-function MealReviewList({ items, onUpdate, onRemove }: {
+function MealReviewList({ items, onUpdate, onRemove, onRefine }: {
   items: AiDraftItem[]
   onUpdate: (key: string, patch: Partial<AiDraftItem>) => void
   onRemove: (key: string) => void
+  onRefine: (key: string, detail: string) => Promise<void>
 }) {
   return (
     <div className="ai-review-list">
       {items.map(it => (
-        <div key={it._key} className="ai-review-card">
-          <div className="ai-review-card-top">
-            <input className="ai-review-food-input" value={it.food}
-              onChange={e => onUpdate(it._key, { food: e.target.value })} />
-            <button className="ai-review-remove" onClick={() => onRemove(it._key)} aria-label="Remove item">
-              <X size={14} />
-            </button>
-          </div>
-          <span className={`ai-confidence ${it.source === 'barcode' ? 'ai-confidence--barcode' : `ai-confidence--${it.confidence}`}`}>
-            {it.source === 'barcode' ? 'Scanned from barcode' : CONFIDENCE_LABEL[it.confidence]}
-          </span>
-
-          <div className="custom-field custom-field--full">
-            <label>Quantity</label>
-            <QuantityPicker num={it.qtyNum} unit={it.qtyUnit}
-              onNumChange={n => onUpdate(it._key, { qtyNum: n })}
-              onUnitChange={u => onUpdate(it._key, { qtyUnit: u })} />
-          </div>
-
-          <div className="custom-fields-row">
-            <div className="custom-field">
-              <label>Calories</label>
-              <div className="field-with-unit">
-                {numField(it.calories, n => onUpdate(it._key, { calories: n }))}
-                <span>kcal</span>
-              </div>
-            </div>
-            <div className="custom-field">
-              <label>Protein</label>
-              <div className="field-with-unit">
-                {numField(it.proteinG, n => onUpdate(it._key, { proteinG: n }))}
-                <span>g</span>
-              </div>
-            </div>
-          </div>
-          <div className="custom-fields-row">
-            <div className="custom-field">
-              <label>Carbs</label>
-              <div className="field-with-unit">
-                {numField(it.carbsG, n => onUpdate(it._key, { carbsG: n }))}
-                <span>g</span>
-              </div>
-            </div>
-            <div className="custom-field">
-              <label>Fat</label>
-              <div className="field-with-unit">
-                {numField(it.fatG, n => onUpdate(it._key, { fatG: n }))}
-                <span>g</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <MealReviewCard
+          key={it._key}
+          item={it}
+          onUpdate={patch => onUpdate(it._key, patch)}
+          onRemove={() => onRemove(it._key)}
+          onRefine={detail => onRefine(it._key, detail)}
+        />
       ))}
     </div>
   )
@@ -408,10 +510,18 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
   }
 
   function updateItem(key: string, patch: Partial<AiDraftItem>) {
-    setItems(prev => prev.map(it => (it._key === key ? { ...it, ...patch } : it)))
+    setItems(prev => prev.map(it => (it._key === key ? patchDraftItem(it, patch) : it)))
   }
   function removeItem(key: string) {
     setItems(prev => prev.filter(it => it._key !== key))
+  }
+  async function refineItem(key: string, detail: string) {
+    const current = items.find(it => it._key === key)
+    if (!current) return
+    const refined = await refineOneItem(current, detail)
+    if (refined) {
+      setItems(prev => prev.map(it => (it._key === key ? { ...refined, _key: key } : it)))
+    }
   }
   function reset() {
     setStatus('input'); setItems([]); setClarification(null); setNote(''); setDescription('')
@@ -467,7 +577,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
         <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
       ) : (
         <>
-          <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} />
+          <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} onRefine={refineItem} />
           <div className="ai-review-actions">
             <button className="ai-describe-back" onClick={reset}>Start over</button>
             <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
@@ -649,10 +759,18 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
   }
 
   function updateItem(key: string, patch: Partial<AiDraftItem>) {
-    setItems(prev => prev.map(it => (it._key === key ? { ...it, ...patch } : it)))
+    setItems(prev => prev.map(it => (it._key === key ? patchDraftItem(it, patch) : it)))
   }
   function removeItem(key: string) {
     setItems(prev => prev.filter(it => it._key !== key))
+  }
+  async function refineItem(key: string, detail: string) {
+    const current = items.find(it => it._key === key)
+    if (!current) return
+    const refined = await refineOneItem(current, detail)
+    if (refined) {
+      setItems(prev => prev.map(it => (it._key === key ? { ...refined, _key: key } : it)))
+    }
   }
   function reset() {
     setStatus('idle'); setItems([]); setClarification(null); setNote('')
@@ -703,7 +821,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
         <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
       ) : (
         <>
-          <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} />
+          <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} onRefine={refineItem} />
           <div className="ai-review-actions">
             <button className="ai-describe-back" onClick={() => { reset(); setShowCamera(true) }}>Retake</button>
             <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({

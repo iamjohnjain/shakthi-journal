@@ -40,6 +40,10 @@ Rules for "items":
 - Quantity must be a plain number (qtyNum) and a unit from EXACTLY this list: ${ALLOWED_UNITS.join(', ')}.
 - Nutrition values are for the TOTAL stated quantity, not per unit.
 - "confidence": "high" for well-known standard items, "medium" for reasonable estimates of less-specific items, "low" when genuinely guessing.
+- Accuracy matters a lot here — this feeds a real calorie budget someone is using to lose weight. Think through the ACTUAL composition of the item before estimating, not just a generic/light version of its category:
+  - Milk-based or sweetened drinks (chai, karak tea, lattes, boba, smoothies, frappes) are usually much higher in calories than a plain tea/coffee — full-fat or condensed milk and real sugar add up fast. A 16oz milk tea with "regular sugar" is commonly 250-400+ kcal, not the 80-150 kcal a black tea would be. Don't default to the lightest plausible interpretation just because the name sounds simple.
+  - Restaurant and prepared foods are usually cooked with more oil/butter/sauce than a home-cooked estimate would assume.
+  - When a reasonable range exists for an item (e.g. "could be 250-400 kcal depending on exact recipe"), estimate toward the HIGHER end of that range, not the middle or low end. Underestimating calories is the more costly mistake for someone tracking food to lose weight — it quietly lets them eat more than their logged total suggests, which is a common reason diets stall. Overestimating slightly is the safer direction to be wrong in. This doesn't mean inflate confident, well-known values (a medium banana is still ~105 kcal) — it means when genuinely uncertain, round up rather than down or split the difference.
 
 Rules for "clarification" — set it (non-null) ONLY when a real ambiguity would meaningfully change the nutrition estimate, for example:
 - A dish that varies a lot by type/filling (e.g. "a sandwich", "some soup", "a curry", "a salad") with no further detail — ask what kind, with 3-5 concrete tappable options plus an implicit "type your own" (don't include "Other" or "type your own" as an option string — the client adds that itself).
