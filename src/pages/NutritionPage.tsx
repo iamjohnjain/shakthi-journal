@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check } from 'lucide-react'
 import {
@@ -209,7 +210,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
   const visibleCustom = customFoods.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
   const visiblePresets = QUICK_FOODS.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
 
-  return (
+  return createPortal(
     <div className="add-modal-overlay" onClick={onClose}>
       <div className="add-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="add-modal-header" {...swipe.handlers}>
@@ -340,7 +341,8 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

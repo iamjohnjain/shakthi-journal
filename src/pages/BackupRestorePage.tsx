@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Download, Upload, ShieldCheck, AlertTriangle,
@@ -52,7 +53,7 @@ function ImportPreviewModal({
   useScrollLock()
   const swipe = useSwipeToClose(onCancel)
 
-  return (
+  return createPortal(
     <div className="br-modal-overlay" onClick={onCancel}>
       <div className="br-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="br-modal-header" {...swipe.handlers}>
@@ -131,7 +132,8 @@ function ImportPreviewModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

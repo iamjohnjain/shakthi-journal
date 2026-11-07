@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs } from '../data/config'
@@ -283,7 +284,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
       </div>
 
       {/* ── Detail Modal ── */}
-      {showDetail && (
+      {showDetail && createPortal(
         <div className="goal-ring-overlay" onClick={() => setShowDetail(false)}>
           <div className="goal-ring-modal" onClick={e => e.stopPropagation()}>
             <div className="goal-ring-modal-header">
@@ -371,7 +372,8 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

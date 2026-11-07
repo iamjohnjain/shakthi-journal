@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Plus, ChevronDown, ChevronUp, Trash2, Dumbbell,
@@ -238,9 +239,9 @@ function SetRow({
   return (
     <div className={`set-row ${isPR ? 'set-row--pr' : ''}`}>
       <span className="set-num">{idx + 1}</span>
-      <input type="number" className="set-input" placeholder="Reps" value={set.reps || ''} min={0} max={999}
+      <input type="number" inputMode="numeric" className="set-input" placeholder="Reps" value={set.reps || ''} min={0} max={999}
         onChange={e => onChange({ ...set, reps: +e.target.value })} />
-      <input type="number" className="set-input" placeholder="lbs" value={set.weightLbs || ''} min={0} step={5}
+      <input type="number" inputMode="decimal" className="set-input" placeholder="lbs" value={set.weightLbs || ''} min={0} step={5}
         onChange={e => onChange({ ...set, weightLbs: +e.target.value })} />
       <div className="set-eq-picker">
         {EQUIPMENT_OPTS.map(opt => (
@@ -328,17 +329,17 @@ function CardioSection({ entry, onChange }: { entry: Partial<CardioEntry>; onCha
       <div className="cardio-grid">
         <div className="cardio-field">
           <label className="cardio-label">Distance (km)</label>
-          <input type="number" className="cardio-input" placeholder="0.0" step={0.1} min={0}
+          <input type="number" inputMode="decimal" className="cardio-input" placeholder="0.0" step={0.1} min={0}
             value={entry.distanceKm ?? ''} onChange={e => onChange({ ...entry, distanceKm: e.target.value ? +e.target.value : undefined })} />
         </div>
         <div className="cardio-field">
           <label className="cardio-label">Avg HR (bpm)</label>
-          <input type="number" className="cardio-input" placeholder="—" min={40} max={220}
+          <input type="number" inputMode="numeric" className="cardio-input" placeholder="—" min={40} max={220}
             value={entry.avgHeartRate ?? ''} onChange={e => onChange({ ...entry, avgHeartRate: e.target.value ? +e.target.value : undefined })} />
         </div>
         <div className="cardio-field">
           <label className="cardio-label">Calories (override)</label>
-          <input type="number" className="cardio-input" placeholder="Auto-calculated"
+          <input type="number" inputMode="numeric" className="cardio-input" placeholder="Auto-calculated"
             value={entry.calories ?? ''} onChange={e => onChange({ ...entry, calories: e.target.value ? +e.target.value : undefined })} />
         </div>
         <div className="cardio-field">
@@ -358,7 +359,7 @@ function CardioSection({ entry, onChange }: { entry: Partial<CardioEntry>; onCha
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
-  return (
+  return createPortal(
     <div className="confirm-overlay" onClick={onCancel}>
       <div className="confirm-box" onClick={e => e.stopPropagation()}>
         <AlertTriangle size={20} className="confirm-icon" />
@@ -368,7 +369,8 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
           <button className="confirm-delete" onClick={onConfirm}>Delete</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -623,7 +625,7 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
     }
   }
 
-  return (
+  return createPortal(
     <div className="log-modal-overlay" onClick={onClose}>
       <div className="log-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="log-modal-header" {...swipe.handlers}>
@@ -688,12 +690,12 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
           <div className="log-row">
             <div className="log-field">
               <label className="log-label">Duration (min)</label>
-              <input type="number" className="log-num-input" value={durationMin} min={5} max={300} step={5}
+              <input type="number" inputMode="numeric" className="log-num-input" value={durationMin} min={5} max={300} step={5}
                 onChange={e => setDurationMin(+e.target.value)} />
             </div>
             <div className="log-field">
               <label className="log-label">RPE (1–10)</label>
-              <input type="number" className="log-num-input" value={rpe} min={1} max={10}
+              <input type="number" inputMode="numeric" className="log-num-input" value={rpe} min={1} max={10}
                 onChange={e => setRpe(e.target.value ? +e.target.value : '')} />
             </div>
           </div>
@@ -792,7 +794,8 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

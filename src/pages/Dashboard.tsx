@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronRight, Target } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronLeft, ChevronRight, Target } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate } from '../data/config'
 import { getSetting } from '../db'
@@ -19,6 +19,16 @@ import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
 import type { DataBadgeMode } from '../components/DataBadge'
 import { isInsideNativeApp } from '../layout/BottomNav'
 import './Dashboard.css'
+
+function todayDateStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function offsetDateStr(dateStr: string, deltaDays: number): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() + deltaDays)
+  return d.toISOString().split('T')[0]
+}
 
 function delta(curr: number, prev: number) {
   return +(curr - prev).toFixed(1)
@@ -451,7 +461,8 @@ const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>
 export default function Dashboard() {
   const navigate = useNavigate()
   const { mockMode } = useApp()
-  const { today, yesterday, dataSource, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData()
+  const [viewDate, setViewDate] = useState(todayDateStr)
+  const { today, yesterday, dataSource, isToday, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData(viewDate)
   const { insights, todayProgress, loading: insightsLoading } = useHealthInsights(mockMode)
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
@@ -505,48 +516,77 @@ export default function Dashboard() {
   const orderedSections = sectionOrder
     .filter(id => REORDERABLE_IDS.includes(id) && isVisible(id))
 
+  const viewDateObj = new Date(viewDate + 'T12:00:00')
+  const canGoForward = viewDate < todayDateStr()
+
   return (
     <div className="dashboard">
 
       {/* ── Greeting ── */}
       <header className="dash-header">
         <div>
-          <h1 className="dash-greeting">{getGreeting()}{userName ? `, ${userName}` : ''}.</h1>
-          <p className="dash-date">{formatDate()}</p>
+          <h1 className="dash-greeting">{isToday ? `${getGreeting()}${userName ? `, ${userName}` : ''}.` : 'Looking back.'}</h1>
+          <p className="dash-date">{formatDate(viewDateObj)}</p>
         </div>
       </header>
 
-      {/* ── Quick Actions (immediately below greeting) ── */}
-      {isVisible('quick-actions') && <QuickActions />}
+      {/* ── Date nav — browse a previous day's dashboard ── */}
+      <div className="dash-date-nav">
+        <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, -1))} aria-label="Previous day">
+          <ChevronLeft size={16} />
+        </button>
+        <span className="dash-date-nav-label">{isToday ? 'Today' : formatDate(viewDateObj)}</span>
+        <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, 1))} disabled={!canGoForward} aria-label="Next day">
+          <ChevronRight size={16} />
+        </button>
+        {!isToday && (
+          <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
+        )}
+      </div>
 
-      {/* ── Goal Ring (weight goal circle) ── */}
-      {isVisible('goal-ring') && !isEmpty && (
-        <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
+      {isToday && (
+        <>
+          {/* ── Quick Actions (immediately below greeting) ── */}
+          {isVisible('quick-actions') && <QuickActions />}
+
+          {/* ── Goal Ring (weight goal circle) ── */}
+          {isVisible('goal-ring') && !isEmpty && (
+            <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
+          )}
+
+          {/* ── "Here's where things stand" ── */}
+          {loading && !isEmpty && !isMock ? (
+            <SkeletonHero />
+          ) : (!isEmpty && !isMock) ? (
+            <>
+              <p className="dash-section-standin">Here's where things stand</p>
+              <TodayCard
+                today={today}
+                todayProgress={todayProgress}
+                dataSource={dataSource}
+              />
+            </>
+          ) : null}
+
+          {/* ── Empty state: no data yet ── */}
+          {isEmpty && isVisible('import-status') && (
+            <>
+              <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} />
+              <TodaysFocus />
+            </>
+          )}
+        </>
       )}
 
-      {/* ── "Here's where things stand" ── */}
-      {loading && !isEmpty && !isMock ? (
-        <SkeletonHero />
-      ) : (!isEmpty && !isMock) ? (
-        <>
-          <p className="dash-section-standin">Here's where things stand</p>
-          <TodayCard
-            today={today}
-            todayProgress={todayProgress}
-            dataSource={dataSource}
-          />
-        </>
-      ) : null}
-
-      {/* ── Empty state: no data yet ── */}
-      {isEmpty && isVisible('import-status') && (
-        <>
-          <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} />
-          <TodaysFocus />
-        </>
+      {/* ── Past-day empty state ── */}
+      {!isToday && isEmpty && !loading && (
+        <div className="dash-empty-card">
+          <span className="dash-empty-icon">📭</span>
+          <p className="dash-empty-msg">No data recorded for {formatDate(viewDateObj)}.</p>
+        </div>
       )}
 
-      {/* ── Reorderable sections (Body, Activity, Nutrition, Vitals in user order) ── */}
+      {/* ── Reorderable sections (Body, Activity, Vitals in user order) — any viewed date ── */}
       {loading && !isEmpty ? (
         <>
           <SkeletonSection />
@@ -558,8 +598,8 @@ export default function Dashboard() {
         return <SectionComponent key={id} ctx={sectionCtx} />
       })}
 
-      {/* ── Daily Insights (below the fold — deeper analysis) ── */}
-      {!isMock && (
+      {/* ── Daily Insights (below the fold — deeper analysis) — today only, these are prescriptive ── */}
+      {isToday && !isMock && (
         <DailyBrief insights={insights} loading={insightsLoading} />
       )}
 

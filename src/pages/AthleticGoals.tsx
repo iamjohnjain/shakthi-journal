@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowRight, Target, Plus, X, Trash2, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -412,7 +413,7 @@ function AddGoalModal({ existing, onSave, onClose }: {
     })
   }
 
-  return (
+  return createPortal(
     <div className="goal-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit goal' : 'Add a goal'}>
       <div className="goal-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="goal-modal-header" {...swipe.handlers}>
@@ -509,7 +510,8 @@ function AddGoalModal({ existing, onSave, onClose }: {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

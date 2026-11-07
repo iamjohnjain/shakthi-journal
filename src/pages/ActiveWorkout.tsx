@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X, Plus, Check, Timer, ChevronDown,
   Dumbbell, RotateCcw, Flame,
@@ -87,7 +88,7 @@ function ExercisePicker({ onPick, onClose }: { onPick: (name: string) => void; o
   const ref = useRef<HTMLInputElement>(null)
   useEffect(() => { ref.current?.focus() }, [])
 
-  return (
+  return createPortal(
     <div className="aw-picker-overlay" onClick={onClose}>
       <div className="aw-picker" onClick={e => e.stopPropagation()}>
         <div className="aw-picker-search">
@@ -113,7 +114,8 @@ function ExercisePicker({ onPick, onClose }: { onPick: (name: string) => void; o
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -137,6 +139,7 @@ function SetRow({
       <input
         className="aw-set-field"
         type="number"
+        inputMode="decimal"
         min={0}
         step={2.5}
         value={set.weightLbs || ''}
@@ -147,6 +150,7 @@ function SetRow({
       <input
         className="aw-set-field"
         type="number"
+        inputMode="numeric"
         min={0}
         value={set.reps || ''}
         placeholder="reps"

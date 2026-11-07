@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import {
   Plus, Pencil, Trash2, LayoutTemplate, Dumbbell, BookOpen, TrendingUp,
@@ -43,7 +44,7 @@ function WorkoutsSubNav() {
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
-  return (
+  return createPortal(
     <div className="confirm-overlay" onClick={onCancel}>
       <div className="confirm-box" onClick={e => e.stopPropagation()}>
         <AlertTriangle size={20} className="confirm-icon" />
@@ -53,7 +54,8 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
           <button className="confirm-delete" onClick={onConfirm}>Delete</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -132,7 +134,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
     }
   }
 
-  return (
+  return createPortal(
     <div className="tmpl-modal-overlay" onClick={onClose}>
       <div className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="tmpl-modal-header" {...swipe.handlers}>
@@ -150,7 +152,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
 
           <div className="log-field">
             <label className="log-label">Estimated Duration (min)</label>
-            <input type="number" className="log-num-input" min={10} max={240} step={5}
+            <input type="number" inputMode="numeric" className="log-num-input" min={10} max={240} step={5}
               value={duration} onChange={e => setDuration(+e.target.value)} />
           </div>
 
@@ -172,7 +174,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
                     {ALL_EXERCISE_NAMES.map(n => <option key={n} value={n} />)}
                   </datalist>
                   <div className="tmpl-ex-sets-row">
-                    <input className="tmpl-ex-num-input" type="number"
+                    <input className="tmpl-ex-num-input" type="number" inputMode="numeric"
                       title="Sets" min={1} max={20} value={ex.sets}
                       onChange={e => updateExercise(i, { sets: +e.target.value })} />
                     <span className="tmpl-ex-sets-label">sets ×</span>
@@ -204,7 +206,8 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

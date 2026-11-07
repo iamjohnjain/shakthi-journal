@@ -56,6 +56,7 @@ function NumberField({
       <div className="log-field-input-wrap">
         <input
           type="number"
+          inputMode="decimal"
           className="log-field-input"
           value={value ?? ''}
           placeholder={placeholder ?? '—'}

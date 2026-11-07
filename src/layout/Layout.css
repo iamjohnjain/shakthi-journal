@@ -15,7 +15,14 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Page entry animation applied to the first child of each route */
+/* Page entry animation applied to the first child of each route.
+   Opacity-only on purpose: a `transform` here (even from a long-finished
+   animation) makes Safari/WKWebView treat this element as a containing
+   block for any `position: fixed` descendant — which includes every
+   modal overlay. That trapped modals under the page instead of the true
+   top layer, so the fixed bottom nav (a sibling, unaffected) rendered
+   above them. Don't reintroduce a transform here without portaling
+   modals out of the page tree first. */
 .page-content > * {
   animation: page-enter 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
@@ -23,11 +30,9 @@
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

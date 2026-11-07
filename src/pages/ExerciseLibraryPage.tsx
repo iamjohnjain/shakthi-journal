@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import { Search, Star, Plus, Pencil, Trash2, Dumbbell, BookOpen, TrendingUp, CalendarDays, Check, X, Clock, LayoutTemplate } from 'lucide-react'
 import {
@@ -105,7 +106,7 @@ function EditModal({
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
 
-  return (
+  return createPortal(
     <div className="ex-modal-overlay" onClick={onClose}>
       <div className="ex-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="ex-modal-header" {...swipe.handlers}>
@@ -144,7 +145,7 @@ function EditModal({
             <div>
               <label className="ex-form-label">Default Sets × Reps</label>
               <div className="ex-form-row-inner">
-                <input type="number" className="ex-form-input ex-form-input--sm" value={form.defaultSets} min={1} max={10}
+                <input type="number" inputMode="numeric" className="ex-form-input ex-form-input--sm" value={form.defaultSets} min={1} max={10}
                   onChange={e => setForm(f => ({ ...f, defaultSets: +e.target.value }))} />
                 <span className="ex-form-x">×</span>
                 <input className="ex-form-input ex-form-input--sm" value={form.defaultReps}
@@ -159,7 +160,8 @@ function EditModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Link2, History, Download as DownloadIcon, Upload,
@@ -402,7 +403,7 @@ export default function Settings() {
       </SettingsSection>
 
       {/* ── Run Setup Again confirmation ── */}
-      {showSetupConfirm && (
+      {showSetupConfirm && createPortal(
         <div className="settings-overlay" onClick={() => setShowSetupConfirm(false)}>
           <div className="settings-confirm-modal" onClick={e => e.stopPropagation()}>
             <h2 className="settings-confirm-title">Run setup again?</h2>
@@ -422,7 +423,8 @@ export default function Settings() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

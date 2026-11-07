@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { getLatestSnapshots, getImportedSources, getLatestWeightRecord, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
+import { getSnapshotForDate, getImportedSources, getLatestWeightRecord, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
 import { getLog } from '../db/logStore'
 import { mockDailySnapshots } from '../data/mock'
 import type { DailySnapshot } from '../types/health'
@@ -30,27 +30,34 @@ export interface LatestSleepInfo {
 }
 
 interface DashboardData {
+  /** The snapshot for the requested date — never silently backfilled from an
+      older date, so anything labeled "Today" is only ever actually today's. */
   today: DailySnapshot
   yesterday: DailySnapshot
-  snapshots: DailySnapshot[]
   dataSource: DataSource
   nutritionSource: 'mock' | 'manual' | 'imported'
   hasNutritionLog: boolean
   sources: string[]
+  /** Most recent weight/body-fat/sleep on record, each with its own date —
+      for UI that wants to show a dated "last known" value explicitly rather
+      than pretending it's current. */
   latestWeight: LatestWeightInfo | null
   latestBodyFat: LatestBodyFatInfo | null
   latestSleep: LatestSleepInfo | null
   loading: boolean
   refresh: () => void
+  /** The date this hook actually loaded — equals todayStr() unless a past date was requested. */
+  date: string
+  isToday: boolean
 }
 
 function todayStr() {
   return new Date().toISOString().split('T')[0]
 }
 
-function yesterdayStr() {
-  const d = new Date()
-  d.setDate(d.getDate() - 1)
+function offsetDate(dateStr: string, deltaDays: number): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() + deltaDays)
   return d.toISOString().split('T')[0]
 }
 
@@ -75,15 +82,24 @@ function logHasNutrition(log: DailyLog | null): boolean {
   return !!(log.caloriesIn || log.proteinG || log.carbsG || log.fatG || log.waterMl)
 }
 
-export function useDashboardData(): DashboardData {
+/**
+ * @param targetDate Defaults to today. Pass a past 'YYYY-MM-DD' to look back
+ * at that day's dashboard instead — used by the Dashboard's history nav.
+ */
+export function useDashboardData(targetDate?: string): DashboardData {
   const { mockMode } = useApp()
-  const [realSnapshots, setRealSnapshots] = useState<DailySnapshot[]>([])
-  const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
-  const [yesterdayLog, setYesterdayLog] = useState<DailyLog | null>(null)
-  const [sources, setSources] = useState<string[]>([])
-  const [latestWeightInfo, setLatestWeightInfo] = useState<LatestWeightInfo | null>(null)
-  const [latestBodyFatInfo, setLatestBodyFatInfo] = useState<LatestBodyFatInfo | null>(null)
-  const [latestSleepInfo, setLatestSleepInfo] = useState<LatestSleepInfo | null>(null)
+  const date = targetDate ?? todayStr()
+  const prevDate = offsetDate(date, -1)
+  const isToday = date === todayStr()
+
+  const [snapshot,     setSnapshot]     = useState<DailySnapshot | null>(null)
+  const [prevSnapshot, setPrevSnapshot] = useState<DailySnapshot | null>(null)
+  const [dayLog,       setDayLog]       = useState<DailyLog | null>(null)
+  const [prevLog,      setPrevLog]      = useState<DailyLog | null>(null)
+  const [sources,      setSources]      = useState<string[]>([])
+  const [latestWeightInfo,   setLatestWeightInfo]   = useState<LatestWeightInfo | null>(null)
+  const [latestBodyFatInfo,  setLatestBodyFatInfo]  = useState<LatestBodyFatInfo | null>(null)
+  const [latestSleepInfo,    setLatestSleepInfo]    = useState<LatestSleepInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
 
@@ -93,20 +109,22 @@ export function useDashboardData(): DashboardData {
 
     async function load() {
       try {
-        const [snaps, srcs, todayL, yestL, latestWt, latestBf, latestSl] = await Promise.all([
-          getLatestSnapshots(7),
+        const [snap, prevSnap, srcs, dayL, prevL, latestWt, latestBf, latestSl] = await Promise.all([
+          getSnapshotForDate(date),
+          getSnapshotForDate(prevDate),
           getImportedSources(),
-          getLog(todayStr()),
-          getLog(yesterdayStr()),
+          getLog(date),
+          getLog(prevDate),
           getLatestWeightRecord(),
           getLatestBodyFatRecord(),
           getLatestSleepRecord(),
         ])
         if (!cancelled) {
-          setRealSnapshots(snaps)
+          setSnapshot(snap)
+          setPrevSnapshot(prevSnap)
           setSources(srcs)
-          setTodayLog(todayL)
-          setYesterdayLog(yestL)
+          setDayLog(dayL)
+          setPrevLog(prevL)
           setLatestWeightInfo(latestWt)
           setLatestBodyFatInfo(latestBf)
           setLatestSleepInfo(latestSl)
@@ -119,7 +137,7 @@ export function useDashboardData(): DashboardData {
 
     load()
     return () => { cancelled = true }
-  }, [tick])
+  }, [date, prevDate, tick])
 
   useEffect(() => {
     function onDataCleared() { setTick(t => t + 1) }
@@ -135,15 +153,14 @@ export function useDashboardData(): DashboardData {
     return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
   }, [])
 
-  const hasAH  = realSnapshots.length > 0
-  const hasLog = todayLog !== null
+  const hasAH  = snapshot !== null
+  const hasLog = dayLog !== null
 
   // Developer mock mode: show synthetic data (only toggled from DevDiagnostics)
   if (mockMode) {
     return {
       today:           mockDailySnapshots[0],
       yesterday:       mockDailySnapshots[1],
-      snapshots:       mockDailySnapshots,
       dataSource:      'mock',
       nutritionSource: 'mock',
       hasNutritionLog: false,
@@ -153,53 +170,41 @@ export function useDashboardData(): DashboardData {
       latestSleep:     null,
       loading,
       refresh:         () => setTick(t => t + 1),
+      date, isToday,
     }
   }
 
-  // No real data yet — return empty snapshots so Dashboard shows empty states
+  // No real data for this date — return an empty snapshot so the UI shows empty states
+  // rather than inventing a day that never happened.
   if (!hasAH && !hasLog) {
     return {
-      today:           { date: todayStr() } as DailySnapshot,
-      yesterday:       { date: yesterdayStr() } as DailySnapshot,
-      snapshots:       [],
+      today:           { date } as DailySnapshot,
+      yesterday:       { date: prevDate } as DailySnapshot,
       dataSource:      'mock',
       nutritionSource: 'mock',
       hasNutritionLog: false,
       sources:         [],
-      latestWeight:    null,
-      latestBodyFat:   null,
-      latestSleep:     null,
+      latestWeight:    latestWeightInfo,
+      latestBodyFat:   latestBodyFatInfo,
+      latestSleep:     latestSleepInfo,
       loading,
       refresh:         () => setTick(t => t + 1),
+      date, isToday,
     }
   }
 
-  const baseToday     = hasAH ? realSnapshots[0] : { date: todayStr() }
-  const baseYesterday = hasAH && realSnapshots.length > 1 ? realSnapshots[1] : { date: yesterdayStr() }
+  const baseToday     = snapshot     ?? ({ date } as DailySnapshot)
+  const baseYesterday = prevSnapshot ?? ({ date: prevDate } as DailySnapshot)
 
-  const mergedToday     = mergeLogIntoSnapshot(baseToday, todayLog)
-  const mergedYesterday = mergeLogIntoSnapshot(baseYesterday, yesterdayLog)
+  const mergedToday     = mergeLogIntoSnapshot(baseToday, dayLog)
+  const mergedYesterday = mergeLogIntoSnapshot(baseYesterday, prevLog)
 
   const dataSource: DataSource = hasAH && hasLog ? 'merged' : hasAH ? 'imported' : 'manual'
-  const nutritionLogged = logHasNutrition(todayLog)
-
-  // Backfill composition + sleep when today's snapshot lacks them.
-  // Weight/bodyFat: RENPHO measures weekly; sleepHours: RingConn writes to yesterday's wakeup date
-  // if today's sync captured steps but not sleep yet.
-  const withWeight: DailySnapshot = mergedToday.weight == null && latestWeightInfo
-    ? { ...mergedToday, weight: latestWeightInfo.valueKg }
-    : mergedToday
-  const withBodyFat: DailySnapshot = withWeight.bodyFatPct == null && latestBodyFatInfo
-    ? { ...withWeight, bodyFatPct: latestBodyFatInfo.valuePct }
-    : withWeight
-  const finalToday: DailySnapshot = withBodyFat.sleepHours == null && latestSleepInfo
-    ? { ...withBodyFat, sleepHours: latestSleepInfo.valueH }
-    : withBodyFat
+  const nutritionLogged = logHasNutrition(dayLog)
 
   return {
-    today:           finalToday,
+    today:           mergedToday,
     yesterday:       mergedYesterday,
-    snapshots:       hasAH ? realSnapshots : [],
     dataSource,
     nutritionSource: nutritionLogged ? 'manual' : hasAH ? 'imported' : 'mock',
     hasNutritionLog: nutritionLogged,
@@ -209,5 +214,6 @@ export function useDashboardData(): DashboardData {
     latestSleep:     latestSleepInfo,
     loading,
     refresh:         () => setTick(t => t + 1),
+    date, isToday,
   }
 }

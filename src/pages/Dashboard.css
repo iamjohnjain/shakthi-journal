@@ -7,9 +7,15 @@
   animation: fadeUp 0.5s ease both;
 }
 
+/* Opacity-only on purpose — see the matching note in layout/Layout.css.
+   A `transform` here makes Safari/WKWebView treat every page using this
+   animation as a containing block for its modals' `position: fixed`
+   overlays, which breaks their stacking above the bottom nav. This single
+   keyframe is shared by `animation: fadeUp` references across several
+   page stylesheets, so fixing it here fixes all of them. */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ─── Header ─────────────────────────────────────────────── */
@@ -33,6 +39,62 @@
   font-size: 0.92rem;
   color: var(--text-tertiary);
   font-weight: 400;
+}
+
+/* ─── Date nav — browse a previous day's dashboard ──────── */
+
+.dash-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -16px;
+}
+
+.dash-date-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dash-date-nav-btn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.dash-date-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.dash-date-nav-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.dash-date-nav-today {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.dash-date-nav-today:hover {
+  background: var(--bg-card-hover);
 }
 
 /* ─── "Here's where things stand" label ─────────────────── */

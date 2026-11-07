@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
@@ -135,7 +136,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
     onClose()
   }
 
-  return (
+  return createPortal(
     <div className="profile-modal-overlay" onClick={onClose}>
       <div className="profile-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="profile-modal-header" {...swipe.handlers}>
@@ -172,7 +173,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
             </div>
             <div className="profile-edit-field">
               <label>Height (cm)</label>
-              <input type="number" value={heightCm} onChange={e => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))} />
+              <input type="number" inputMode="numeric" value={heightCm} onChange={e => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Tracking since</label>
@@ -180,19 +181,19 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
             </div>
             <div className="profile-edit-field">
               <label>Starting weight (lbs)</label>
-              <input type="number" step="0.1" value={startWeightLbs} onChange={e => setStartWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
+              <input type="number" inputMode="decimal" step="0.1" value={startWeightLbs} onChange={e => setStartWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Starting body fat %</label>
-              <input type="number" step="0.1" min="3" max="60" value={startBF} onChange={e => setStartBF(e.target.value === '' ? '' : Number(e.target.value))} />
+              <input type="number" inputMode="decimal" step="0.1" min="3" max="60" value={startBF} onChange={e => setStartBF(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Goal weight (lbs)</label>
-              <input type="number" step="0.1" value={goalWeightLbs} onChange={e => setGoalWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
+              <input type="number" inputMode="decimal" step="0.1" value={goalWeightLbs} onChange={e => setGoalWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
               <label>Goal body fat %</label>
-              <input type="number" step="0.1" min="3" max="60" value={goalBF} onChange={e => setGoalBF(e.target.value === '' ? '' : Number(e.target.value))} />
+              <input type="number" inputMode="decimal" step="0.1" min="3" max="60" value={goalBF} onChange={e => setGoalBF(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
           </div>
 
@@ -213,7 +214,8 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
