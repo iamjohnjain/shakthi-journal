@@ -21,16 +21,16 @@ function calcCaloriesFromMacros(p: number, c: number, f: number) {
 }
 
 export function useNutritionSettings() {
-  const [mealStyle,   setMealStyleState]   = useState<MealStyle>('numbered')
-  const [mealLabels,  setMealLabelsState]  = useState<string[]>(DEFAULT_NUMBERED_LABELS)
+  const [mealStyle,   setMealStyleState]   = useState<MealStyle>('standard')
+  const [mealLabels,  setMealLabelsState]  = useState<string[]>(DEFAULT_STANDARD_LABELS)
   const [activeMeals, setActiveMealsState] = useState(4)
   const [goals,       setGoalsState]       = useState<NutritionGoals>(DEFAULT_GOALS)
   const [loaded,      setLoaded]           = useState(false)
 
   useEffect(() => {
     Promise.all([
-      getSetting<MealStyle>('meal-style', 'numbered'),
-      getSetting<string[]>('meal-labels', DEFAULT_NUMBERED_LABELS),
+      getSetting<MealStyle>('meal-style', 'standard'),
+      getSetting<string[]>('meal-labels', DEFAULT_STANDARD_LABELS),
       getSetting<number>('active-meals', 4),
       getSetting<NutritionGoals>('nutrition-goals', DEFAULT_GOALS),
     ]).then(([style, labels, active, g]) => {

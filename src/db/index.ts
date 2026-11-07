@@ -430,12 +430,16 @@ export interface ShakthiDB extends DBSchema {
 const DB_NAME = 'shakthi-journal'
 const DB_VERSION = 7
 
-let _db: IDBPDatabase<ShakthiDB> | null = null
+// Cache the in-flight promise, not just the resolved value — otherwise concurrent
+// callers before the first openDB() resolves each start their own openDB() call,
+// which on a brand-new database (first-ever upgrade, creating all stores) can
+// collide badly enough to hang the page indefinitely.
+let _dbPromise: Promise<IDBPDatabase<ShakthiDB>> | null = null
 
 export async function getDB(): Promise<IDBPDatabase<ShakthiDB>> {
-  if (_db) return _db
+  if (_dbPromise) return _dbPromise
 
-  _db = await openDB<ShakthiDB>(DB_NAME, DB_VERSION, {
+  _dbPromise = openDB<ShakthiDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         const metrics = db.createObjectStore('health_metrics', { keyPath: 'id' })
@@ -509,7 +513,7 @@ export async function getDB(): Promise<IDBPDatabase<ShakthiDB>> {
     },
   })
 
-  return _db
+  return _dbPromise
 }
 
 // ─── Settings helpers ─────────────────────────────────────────────────────────

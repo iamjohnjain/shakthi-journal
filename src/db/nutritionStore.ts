@@ -2,6 +2,7 @@ import { getDB } from './index'
 import type { NutritionEntry } from './index'
 import { syncEngine } from './syncEngine'
 import { showToast } from '../utils/toast'
+import type { ChartPoint } from './timelineStore'
 
 export type { NutritionEntry }
 
@@ -61,6 +62,53 @@ export async function getDailyTotals(date: string): Promise<{
     fatG:       entries.reduce((n, e) => n + (e.fatG ?? 0), 0),
     entryCount: entries.length,
   }
+}
+
+function dateNDaysAgo(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** All entries dated within the last N days (inclusive of today), fetched in one indexed range query. */
+async function getEntriesSince(days: number): Promise<NutritionEntry[]> {
+  const db = await getDB()
+  const range = IDBKeyRange.bound(dateNDaysAgo(days - 1), dateNDaysAgo(0))
+  return db.getAllFromIndex('nutrition_entries', 'by-date', range)
+}
+
+/** Daily calorie totals for the last N days (oldest first), for the trend chart. */
+export async function getCalorieHistory(days: number): Promise<ChartPoint[]> {
+  const entries = await getEntriesSince(days)
+  const byDate = new Map<string, number>()
+  for (const e of entries) byDate.set(e.date, (byDate.get(e.date) ?? 0) + e.calories)
+  const points: ChartPoint[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const dateStr = dateNDaysAgo(i)
+    points.push({ date: dateStr, value: byDate.get(dateStr) ?? 0 })
+  }
+  return points
+}
+
+/** Which of the given dates have at least one logged entry. Dates must be within the last 90 days. */
+export async function getLoggedDatesInList(dates: string[]): Promise<Set<string>> {
+  const logged = await getLoggedDates(90)
+  return new Set(dates.filter(d => logged.has(d)))
+}
+
+/** Which of the last N days have at least one logged entry — used by the streak count, fetched in one query. */
+async function getLoggedDates(days: number): Promise<Set<string>> {
+  const entries = await getEntriesSince(days)
+  return new Set(entries.map(e => e.date))
+}
+
+/** Consecutive days ending today (or yesterday, if nothing logged yet today) with a logged entry. */
+export async function getCurrentStreak(): Promise<number> {
+  const logged = await getLoggedDates(90)
+  let streak = 0
+  let i = logged.has(dateNDaysAgo(0)) ? 0 : 1
+  while (logged.has(dateNDaysAgo(i))) { streak++; i++ }
+  return streak
 }
 
 // ─── Quick-add presets ────────────────────────────────────────────────────────

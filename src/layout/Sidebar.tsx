@@ -18,7 +18,7 @@ const MAIN_NAV: NavItem[] = [
   { path: '/ai-coach',  label: 'Coach',     icon: Sparkles },
   { path: '/timeline',  label: 'Timeline',  icon: Clock },
   { path: '/recovery',  label: 'Recovery',  icon: Zap },
-  { path: '/nutrition', label: 'Nutrition', icon: Apple },
+  { path: '/nutrition', label: 'Meals',     icon: Apple },
   { path: '/workouts',  label: 'Workouts',  icon: Dumbbell },
   { path: '/goals',     label: 'Goals',     icon: Target },
   { path: '/progress',  label: 'Progress',  icon: TrendingUp },

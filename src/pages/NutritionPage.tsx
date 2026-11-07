@@ -1,17 +1,76 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, X, Pencil, UtensilsCrossed } from 'lucide-react'
+import { Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check } from 'lucide-react'
 import {
   addNutritionEntry, deleteNutritionEntry, updateNutritionEntry,
   getEntriesForDate, getDailyTotals, getNutritionEntryCount, QUICK_FOODS,
+  getCalorieHistory, getCurrentStreak, getLoggedDatesInList,
 } from '../db/nutritionStore'
 import type { NutritionEntry } from '../db/nutritionStore'
+import type { ChartPoint } from '../db/timelineStore'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
 import DataBadge from '../components/DataBadge'
+import TrendChart from '../components/TrendChart'
 // logStore removed — water logging retired
 import './NutritionPage.css'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
+
+function startOfWeek(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() - d.getDay())
+  return d.toISOString().slice(0, 10)
+}
+
+function weekDates(startStr: string): string[] {
+  const start = new Date(startStr + 'T12:00:00')
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    return d.toISOString().slice(0, 10)
+  })
+}
+
+// ─── Weekly streak bar ─────────────────────────────────────────────────────────
+
+const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+function WeekStreakBar({ dates, logged, today, streak }: {
+  dates: string[]
+  logged: Set<string>
+  today: string
+  streak: number
+}) {
+  return (
+    <div className="week-streak-bar">
+      <div className="week-streak-days">
+        {dates.map((d, i) => {
+          const isLogged = logged.has(d)
+          const isToday  = d === today
+          const isFuture = d > today
+          return (
+            <div key={d} className="week-streak-day">
+              <span className="week-streak-letter">{DAY_LETTERS[i]}</span>
+              <span className={[
+                'week-streak-dot',
+                isLogged ? 'week-streak-dot--logged' : '',
+                isToday ? 'week-streak-dot--today' : '',
+                isFuture ? 'week-streak-dot--future' : '',
+              ].filter(Boolean).join(' ')}>
+                {isLogged && <Check size={13} strokeWidth={3} />}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="week-streak-divider" />
+      <div className="week-streak-counter" title="Consecutive days logged">
+        <Utensils size={20} className="week-streak-icon" />
+        <span className="week-streak-count">{streak}</span>
+      </div>
+    </div>
+  )
+}
 
 function MacroBar({ label, value, goal, color }: { label: string; value: number; goal: number; color: string }) {
   if (goal <= 0) return null
@@ -133,17 +192,17 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                 <div className="custom-field">
                   <label>Calories*</label>
                   <div className="field-with-unit">
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
+                    <input autoFocus type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
                       onChange={e => setCalories(e.target.value.replace(/[^0-9]/g, ''))}
                       onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>kcal</span>
                   </div>
                 </div>
                 <div className="custom-field">
-                  <label>Protein*</label>
+                  <label>Carbohydrates</label>
                   <div className="field-with-unit">
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={protein} placeholder="0"
-                      onChange={e => setProtein(e.target.value.replace(/[^0-9]/g, ''))}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbs} placeholder="0"
+                      onChange={e => setCarbs(e.target.value.replace(/[^0-9]/g, ''))}
                       onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>g</span>
                   </div>
@@ -151,10 +210,10 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
               </div>
               <div className="custom-fields-row">
                 <div className="custom-field">
-                  <label>Carbs</label>
+                  <label>Protein*</label>
                   <div className="field-with-unit">
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbs} placeholder="0"
-                      onChange={e => setCarbs(e.target.value.replace(/[^0-9]/g, ''))}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={protein} placeholder="0"
+                      onChange={e => setProtein(e.target.value.replace(/[^0-9]/g, ''))}
                       onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>g</span>
                   </div>
@@ -201,7 +260,12 @@ export default function NutritionPage() {
   const [editEntry,     setEditEntry]    = useState<NutritionEntry | null>(null)
   const [addToMealId,   setAddToMealId]  = useState<string | undefined>()
   const [hasEverLogged, setHasEverLogged] = useState<boolean | null>(null)
+  const [calorieHistory, setCalorieHistory] = useState<ChartPoint[]>([])
+  const [streak,         setStreak]         = useState(0)
+  const [weekLogged,     setWeekLogged]     = useState<Set<string>>(new Set())
   const date = todayStr()
+  const weekStart = startOfWeek(date)
+  const thisWeekDates = weekDates(weekStart)
 
   const load = useCallback(async () => {
     const [all, t] = await Promise.all([getEntriesForDate(date), getDailyTotals(date)])
@@ -215,9 +279,24 @@ export default function NutritionPage() {
     getNutritionEntryCount().then(c => setHasEverLogged(c > 0))
   }, [])
 
+  const loadStreak = useCallback(async () => {
+    const [hist, s, week] = await Promise.all([
+      getCalorieHistory(7),
+      getCurrentStreak(),
+      getLoggedDatesInList(thisWeekDates),
+    ])
+    setCalorieHistory(hist)
+    setStreak(s)
+    setWeekLogged(week)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date])
+
+  useEffect(() => { loadStreak() }, [loadStreak])
+
   async function handleDelete(id: string) {
     await deleteNutritionEntry(id)
     load()
+    loadStreak()
     getNutritionEntryCount().then(c => setHasEverLogged(c > 0))
   }
 
@@ -247,7 +326,7 @@ export default function NutritionPage() {
     <div className="nutrition-page">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Nutrition</h1>
+          <h1 className="page-title">Meals</h1>
           <p className="page-subtitle">{new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
           {entries.length > 0 && <DataBadge mode="manual" source="Logged by you" />}
         </div>
@@ -255,6 +334,8 @@ export default function NutritionPage() {
           <Plus size={16} /> Add Food
         </button>
       </header>
+
+      <WeekStreakBar dates={thisWeekDates} logged={weekLogged} today={date} streak={streak} />
 
       {/* Summary ring + macro bars */}
       <div className="nutrition-summary">
@@ -277,11 +358,27 @@ export default function NutritionPage() {
         </div>
 
         <div className="macro-bars">
-          <MacroBar label="Protein" value={totals.proteinG} goal={goals.proteinG} color="var(--accent)" />
-          <MacroBar label="Carbs"   value={totals.carbsG}   goal={goals.carbsG}   color="var(--yellow)" />
-          <MacroBar label="Fat"     value={totals.fatG}     goal={goals.fatG}     color="var(--orange)" />
+          <MacroBar label="Protein"      value={totals.proteinG} goal={goals.proteinG} color="var(--accent)" />
+          <MacroBar label="Carbohydrates" value={totals.carbsG}   goal={goals.carbsG}   color="var(--yellow)" />
+          <MacroBar label="Fat"          value={totals.fatG}     goal={goals.fatG}     color="var(--orange)" />
         </div>
       </div>
+
+      {/* Calorie trend — only once there's enough history to be worth a chart */}
+      {calorieHistory.some(p => p.value > 0) && (
+        <div className="nutrition-trend-card">
+          <h2 className="nutrition-trend-title">Calories</h2>
+          <TrendChart
+            data={calorieHistory}
+            period="7d"
+            color="var(--accent)"
+            unit=" cal"
+            formatValue={v => Math.round(v).toLocaleString()}
+            goalValue={goals.calories}
+            height={110}
+          />
+        </div>
+      )}
 
       {/* Smart nutrition callout — only when there's something logged */}
       {entries.length > 0 && protPct < 100 && (() => {
@@ -408,7 +505,7 @@ export default function NutritionPage() {
           existing={editEntry ?? undefined}
           defaultMealId={addToMealId}
           onClose={() => { setShowModal(false); setEditEntry(null) }}
-          onSaved={() => { load(); setHasEverLogged(true) }} />
+          onSaved={() => { load(); loadStreak(); setHasEverLogged(true) }} />
       )}
     </div>
   )

@@ -5,8 +5,10 @@
 }
 
 :root {
-  /* Backgrounds */
-  --bg: #000000;
+  /* Backgrounds — a subtle dark navy undertone instead of flat black.
+     Kept low-contrast on purpose: a mood, not a glow. */
+  --bg: #06070b;
+  --bg-gradient: linear-gradient(180deg, #0a0f1d 0%, #06070b 45%, #000000 100%);
   --bg-elevated: #0c0c0e;
   --bg-card: rgba(255, 255, 255, 0.045);
   --bg-card-hover: rgba(255, 255, 255, 0.075);
@@ -80,7 +82,8 @@ html, body, #root {
 }
 
 body {
-  background: var(--bg);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;

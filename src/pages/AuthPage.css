@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: var(--bg-gradient);
   padding: 24px 16px;
   padding-bottom: max(24px, env(safe-area-inset-bottom));
 }

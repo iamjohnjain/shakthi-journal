@@ -12,7 +12,7 @@ export function isInsideNativeApp(): boolean {
 const TABS = [
   { path: '/',          label: 'Today', icon: LayoutDashboard, end: true },
   { path: '/workouts',  label: 'Train', icon: Dumbbell },
-  { path: '/nutrition', label: 'Eat',   icon: Apple },
+  { path: '/nutrition', label: 'Meals', icon: Apple },
   { path: '/goals',     label: 'Goals', icon: Target },
   { path: '/profile',   label: 'Me',    icon: UserCircle },
 ]

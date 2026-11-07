@@ -8,7 +8,8 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--bg);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   position: relative;
   /* Smooth momentum scrolling on iOS */
   -webkit-overflow-scrolling: touch;
