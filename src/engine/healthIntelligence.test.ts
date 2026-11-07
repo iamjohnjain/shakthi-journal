@@ -133,15 +133,16 @@ describe('generateDailyInsights', () => {
   })
 
   it('generates weight-plateau insight with enough flat data', () => {
+    // WeightPoint[] contract is "most recent first" (see EngineInput.weightHistory doc).
     const history: WeightPoint[] = [
-      { date: '2026-06-18', weightKg: 82.5 },
-      { date: '2026-06-19', weightKg: 82.4 },
-      { date: '2026-06-20', weightKg: 82.6 },
-      { date: '2026-06-21', weightKg: 82.5 },
-      { date: '2026-06-22', weightKg: 82.5 },
-      { date: '2026-06-23', weightKg: 82.4 },
-      { date: '2026-06-24', weightKg: 82.5 },
       { date: '2026-06-25', weightKg: 82.5 },
+      { date: '2026-06-24', weightKg: 82.5 },
+      { date: '2026-06-23', weightKg: 82.4 },
+      { date: '2026-06-22', weightKg: 82.5 },
+      { date: '2026-06-21', weightKg: 82.5 },
+      { date: '2026-06-20', weightKg: 82.6 },
+      { date: '2026-06-19', weightKg: 82.4 },
+      { date: '2026-06-18', weightKg: 82.5 },
     ]
     const input: EngineInput = { ...baseInput, weightHistory: history, goalTypes: ['fat-loss'] }
     const insights = generateDailyInsights(input)
@@ -150,11 +151,13 @@ describe('generateDailyInsights', () => {
   })
 
   it('generates wrong-direction insight when gaining weight during fat-loss phase', () => {
+    // Most-recent-first, and the latest point matches `dateStr` so the trend
+    // reads as current rather than stale.
     const history: WeightPoint[] = [
-      { date: '2026-06-18', weightKg: 80.0 },
-      { date: '2026-06-20', weightKg: 80.7 },
+      { date: '2026-06-25', weightKg: 81.8 },
       { date: '2026-06-22', weightKg: 81.2 },
-      { date: '2026-06-24', weightKg: 81.8 },
+      { date: '2026-06-20', weightKg: 80.7 },
+      { date: '2026-06-18', weightKg: 80.0 },
     ]
     const input: EngineInput = {
       ...baseInput,
@@ -164,6 +167,26 @@ describe('generateDailyInsights', () => {
     const insights = generateDailyInsights(input)
     const wrong = insights.find(i => i.id === 'weight-wrong-direction')
     expect(wrong).toBeDefined()
+  })
+
+  it('does not claim a stale weight trend is current when the last weigh-in is old', () => {
+    // Plenty of flat data, but the most recent point is 10 days before `dateStr` —
+    // this must NOT produce "weight-plateau" (a "stable this week" claim that isn't true).
+    const history: WeightPoint[] = [
+      { date: '2026-06-15', weightKg: 82.5 },
+      { date: '2026-06-14', weightKg: 82.4 },
+      { date: '2026-06-13', weightKg: 82.6 },
+      { date: '2026-06-12', weightKg: 82.5 },
+      { date: '2026-06-11', weightKg: 82.5 },
+      { date: '2026-06-10', weightKg: 82.4 },
+      { date: '2026-06-09', weightKg: 82.5 },
+    ]
+    const input: EngineInput = { ...baseInput, weightHistory: history, goalTypes: ['fat-loss'] }
+    const insights = generateDailyInsights(input)
+    expect(insights.find(i => i.id === 'weight-plateau')).toBeUndefined()
+    const stale = insights.find(i => i.id === 'weight-stale')
+    expect(stale).toBeDefined()
+    expect(stale?.title).toContain('10 days')
   })
 
   it('generates progressive-overload insight when previous exercise data exists', () => {

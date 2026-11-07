@@ -549,9 +549,11 @@ export default function Dashboard() {
           {/* ── Quick Actions (immediately below greeting) ── */}
           {isVisible('quick-actions') && <QuickActions />}
 
-          {/* ── Goal Ring (weight goal circle) ── */}
-          {isVisible('goal-ring') && !isEmpty && (
-            <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
+          {/* ── Goal Ring (weight goal circle) — always shown on Today; falls
+               back to the last logged weight (or a "log now" prompt) when
+               nothing's been entered yet today, instead of disappearing. ── */}
+          {isVisible('goal-ring') && (
+            <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} mockMode={mockMode} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
           )}
 
           {/* ── "Here's where things stand" ── */}

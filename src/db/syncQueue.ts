@@ -46,6 +46,25 @@ export async function getPending(userId: string): Promise<SyncQueueEntry[]> {
   return all.filter(e => e.attempts < 5)
 }
 
+export async function getFailedEntries(userId: string): Promise<SyncQueueEntry[]> {
+  const db = await getDB()
+  const all = await db.getAllFromIndex('sync_queue', 'by-user', userId)
+  return all.filter(e => e.attempts >= 5)
+}
+
+/** Resets attempt counts so a manual retry actually re-tries permanently-failed
+    entries — `getPending` otherwise excludes them forever once attempts >= 5. */
+export async function resetFailedEntries(userId: string): Promise<void> {
+  const db = await getDB()
+  const failed = await getFailedEntries(userId)
+  await Promise.all(failed.map(e => db.put('sync_queue', { ...e, attempts: 0, lastError: undefined })))
+}
+
+export async function discardEntry(id: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('sync_queue', id)
+}
+
 export async function markSuccess(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('sync_queue', id)

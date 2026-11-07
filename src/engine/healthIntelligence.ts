@@ -108,14 +108,23 @@ export function calcWeightTrend(
 ): { rateKgPerWeek: number; rateLbsPerWeek: number; direction: 'down' | 'up' | 'flat' } | null {
   if (history.length < 4) return null
   const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date))
-  const n = sorted.length
+  // Restrict to the trailing 7 days ending at the most recent weigh-in —
+  // without this, sparse weigh-ins spread across months (e.g. getLatestSnapshots
+  // returning "the 14 most recent dates with data," not "the last 14 days")
+  // get averaged together and misread as a one-week trend.
+  const newestDate = new Date(sorted[sorted.length - 1].date)
+  const windowStart = new Date(newestDate)
+  windowStart.setDate(windowStart.getDate() - 7)
+  const windowed = sorted.filter(p => new Date(p.date) >= windowStart)
+  if (windowed.length < 4) return null
+
+  const n = windowed.length
   const half = Math.floor(n / 2)
-  const older = sorted.slice(0, half)
-  const newer = sorted.slice(n - half)
+  const older = windowed.slice(0, half)
+  const newer = windowed.slice(n - half)
   const olderAvg = older.reduce((s, p) => s + p.weightKg, 0) / older.length
   const newerAvg = newer.reduce((s, p) => s + p.weightKg, 0) / newer.length
-  // Assume oldest→newest span ≈ 7 days; normalise to per-week rate
-  const days = Math.max(1, (new Date(sorted[n - 1].date).getTime() - new Date(sorted[0].date).getTime()) / 86_400_000)
+  const days = Math.max(1, (new Date(windowed[n - 1].date).getTime() - new Date(windowed[0].date).getTime()) / 86_400_000)
   const rateKgPerWeek = ((newerAvg - olderAvg) / days) * 7
   const rateLbsPerWeek = kgToLbs(rateKgPerWeek)
   const direction =
@@ -565,6 +574,8 @@ function weightInsights(input: EngineInput): HealthInsight[] {
 
   const trend = calcWeightTrend(weightHistory)
   const latestWeight = weightHistory[0]?.weightKg ?? null
+  const daysSinceLastWeighIn = weightHistory[0] ? Math.round(daysBetween(weightHistory[0].date, input.dateStr)) : Infinity
+  const trendIsCurrent = daysSinceLastWeighIn <= 3
 
   // Progress toward goal
   if (latestWeight !== null && goalWeightKg !== null) {
@@ -605,8 +616,10 @@ function weightInsights(input: EngineInput): HealthInsight[] {
     }
   }
 
-  // Trend-based insight
-  if (trend !== null) {
+  // Trend-based insight — only when the most recent weigh-in is recent enough
+  // that "this week" / "7-day trend" is actually true, not stale data dressed
+  // up as a current observation.
+  if (trend !== null && trendIsCurrent) {
     const isFatLoss = goalTypes.includes('fat-loss')
     const isMuscleGain = goalTypes.includes('muscle-gain')
     const rateLbsAbs = Math.abs(trend.rateLbsPerWeek)
@@ -714,6 +727,25 @@ function weightInsights(input: EngineInput): HealthInsight[] {
       whyItMatters: 'Daily weight fluctuates 1–5 lbs due to water, food, and hormones. A rolling average over 7+ days shows the real trend.',
       action: 'Log your weight each morning under the same conditions (before eating, after bathroom).',
       dataSources: ['Manual Log', 'Apple Health'],
+    })
+  } else if (weightHistory.length >= 4 && !trendIsCurrent) {
+    // Either the last weigh-in is stale, or recent weigh-ins are too sparse to
+    // form a real 7-day window — either way, say that plainly instead of
+    // asserting a "this week" trend that isn't backed by this week's data.
+    results.push({
+      id: 'weight-stale',
+      category: 'weight',
+      priority: 50,
+      severity: 'info',
+      confidence: 'high',
+      emoji: '📅',
+      title: daysSinceLastWeighIn === Infinity
+        ? 'Not enough recent weigh-ins for a trend'
+        : `No weigh-in in ${daysSinceLastWeighIn} day${daysSinceLastWeighIn === 1 ? '' : 's'} — trend is stale`,
+      observation: `Last logged weight was ${weightHistory[0].date}. Trend and plateau detection need weigh-ins within the last few days to be accurate.`,
+      whyItMatters: 'A trend computed from old or sparse data can show "stable" simply because nothing recent was logged — not because your weight actually held steady.',
+      action: 'Weigh in this morning to refresh your trend.',
+      dataSources: ['Manual Log'],
     })
   }
 

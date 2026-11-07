@@ -81,6 +81,10 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
 
 function clamp(v: number) { return Math.min(100, Math.max(0, v)) }
 
+function shortDate(dateStr: string): string {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 function ringPct(current: number, start: number, goal: number, higher: boolean): number {
   if (start === goal) return 0
   return clamp(higher
@@ -92,12 +96,16 @@ interface Props {
   snapshot: DailySnapshot
   yesterday?: DailySnapshot
   dataSource: string
+  /** True only in developer mock mode (simulated data). `dataSource` also
+      reads 'mock' when there's simply no real data yet for the day — that's
+      not the same thing, and shouldn't be badged "MOCK DATA". */
+  mockMode?: boolean
   latestWeight?: import('../hooks/useDashboardData').LatestWeightInfo
   latestBodyFat?: import('../hooks/useDashboardData').LatestBodyFatInfo
   latestSleep?: import('../hooks/useDashboardData').LatestSleepInfo
 }
 
-export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight, latestBodyFat, latestSleep }: Props) {
+export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, latestWeight, latestBodyFat, latestSleep }: Props) {
   const navigate = useNavigate()
   const [typeIdx, setTypeIdx] = useState(0)
   const [profile,        setProfile]        = useState<ProfileData | null>(null)
@@ -105,7 +113,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
   const [stepGoal,       setStepGoal]       = useState(10_000)
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
-  const isMock = dataSource === 'mock'
+  const isMock = !!mockMode
 
   function sourceLabel(sourceId: string): string {
     if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
@@ -132,7 +140,15 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
   const goalType = GOAL_TYPES[typeIdx]
   const cfg = CONFIGS[goalType]
 
-  const current  = cfg.current(snapshot)
+  const rawCurrent = cfg.current(snapshot)
+  // Weight isn't a daily reset like steps — if today's own reading is missing,
+  // fall back to the last known weigh-in rather than showing a blank ring.
+  const weightFallback = goalType === 'weight' && rawCurrent == null && latestWeight
+    ? kgToLbs(latestWeight.valueKg)
+    : undefined
+  const current  = rawCurrent ?? weightFallback
+  const isStaleWeight = goalType === 'weight' && rawCurrent == null && current != null
+  const neverWeighed  = goalType === 'weight' && current == null
   const goalVal  = goalType === 'steps' ? stepGoal : cfg.goal(profile, nutritionGoals)
   const startVal = cfg.start(profile, snapshot)
   const pct = goalVal != null && current != null && startVal != null
@@ -147,6 +163,8 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
   const hasProfile = startVal != null
 
   const badgeMode: DataBadgeMode = isMock ? 'mock' : dataSource === 'manual' ? 'manual' : 'imported'
+  // Nothing to badge when the ring is showing its empty state for real (not mock mode).
+  const showBadge = isMock || current != null
 
   const touchStartX = useRef<number>(0)
   const didSwipe = useRef<boolean>(false)
@@ -189,7 +207,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
 
         <div className="goal-ring-header">
           <span className="goal-ring-type-label">{cfg.label}</span>
-          <DataBadge mode={badgeMode} size="sm" />
+          {showBadge && <DataBadge mode={badgeMode} size="sm" />}
         </div>
 
         <div className="goal-ring-body">
@@ -234,14 +252,14 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
                   <text x="104" y="132" textAnchor="middle"
                     fill="rgba(255,255,255,0.26)" fontSize="10"
                     fontFamily="-apple-system,sans-serif">
-                    {Math.round(pct)}% of goal
+                    {isStaleWeight && latestWeight ? `Last entered ${shortDate(latestWeight.date)}` : `${Math.round(pct)}% of goal`}
                   </text>
                 </>
               ) : (
                 <text x="104" y="104" textAnchor="middle" dominantBaseline="middle"
                   fill="rgba(255,255,255,0.25)" fontSize="14"
                   fontFamily="-apple-system,sans-serif">
-                  No data yet
+                  {neverWeighed ? 'No weigh-ins yet' : 'No data yet'}
                 </text>
               )}
             </svg>
@@ -253,6 +271,15 @@ export default function GoalRing({ snapshot, yesterday, dataSource, latestWeight
                   style={i === typeIdx ? { background: cfg.color } : undefined} />
               ))}
             </div>
+
+            {neverWeighed && (
+              <button
+                className="goal-ring-cta"
+                onClick={e => { e.stopPropagation(); navigate('/log') }}
+              >
+                Log your weight
+              </button>
+            )}
           </div>
 
           <button className="goal-ring-nav" onClick={e => { e.stopPropagation(); next() }} aria-label="Next goal">

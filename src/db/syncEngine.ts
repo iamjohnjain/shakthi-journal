@@ -1,6 +1,10 @@
 import { getDB, getSetting, setSetting } from './index'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { enqueue, getPending, markSuccess, markFailure, clearQueueForUser } from './syncQueue'
+import {
+  enqueue, getPending, markSuccess, markFailure, clearQueueForUser,
+  getFailedEntries, resetFailedEntries, discardEntry,
+} from './syncQueue'
+import type { SyncQueueEntry } from './syncQueue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,9 +69,30 @@ class SyncEngine {
     return () => this._listeners.delete(cb)
   }
 
+  /** Manual sync trigger (e.g. "Tap to retry"). Unlike the background sync
+      loop, this also resets permanently-failed entries so they get one more
+      real attempt instead of staying stuck at `needs_attention` forever. */
   async syncNow(): Promise<void> {
     if (!this._userId || !isSupabaseConfigured) return
+    if (this._status.type === 'needs_attention') {
+      await resetFailedEntries(this._userId)
+    }
     await this._runSync()
+  }
+
+  /** Failed entries with their last error, for a details view. */
+  async getFailedEntryDetails(): Promise<SyncQueueEntry[]> {
+    if (!this._userId) return []
+    return getFailedEntries(this._userId)
+  }
+
+  /** Give up on one stuck entry (e.g. a record the user no longer cares about). */
+  async discardFailedEntry(id: string): Promise<void> {
+    await discardEntry(id)
+    if (this._userId) {
+      const failedCount = await this._countFailedEntries(this._userId)
+      this._setStatus(failedCount > 0 ? { type: 'needs_attention', failed: failedCount } : { type: 'synced', at: Date.now() })
+    }
   }
 
   /** Called by stores after any local write. No-op in guest mode. */
@@ -302,9 +327,17 @@ class SyncEngine {
         }
         await markSuccess(entry.id)
       } catch (e) {
-        await markFailure(entry.id, String(e))
+        await markFailure(entry.id, this._describeError(e))
       }
     }
+  }
+
+  /** Supabase errors are plain objects with a `.message` (no useful
+      `toString()`), so `String(e)` collapses to "[object Object]". */
+  private _describeError(e: unknown): string {
+    if (e instanceof Error) return e.message
+    if (e && typeof e === 'object' && 'message' in e) return String((e as { message: unknown }).message)
+    return String(e)
   }
 
   private async _pullChanges(userId: string): Promise<void> {

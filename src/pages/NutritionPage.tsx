@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check } from 'lucide-react'
+import { Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   addNutritionEntry, deleteNutritionEntry, updateNutritionEntry,
   getEntriesForDate, getDailyTotals, getNutritionEntryCount, QUICK_FOODS,
@@ -18,6 +18,12 @@ import WheelPicker from '../components/WheelPicker'
 import './NutritionPage.css'
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
+
+function offsetDateStr(dateStr: string, deltaDays: number): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() + deltaDays)
+  return d.toISOString().split('T')[0]
+}
 
 function startOfWeek(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
@@ -38,11 +44,13 @@ function weekDates(startStr: string): string[] {
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
-function WeekStreakBar({ dates, logged, today, streak }: {
+function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }: {
   dates: string[]
   logged: Set<string>
   today: string
   streak: number
+  viewDate: string
+  onSelectDate: (d: string) => void
 }) {
   return (
     <div className="week-streak-bar">
@@ -51,18 +59,20 @@ function WeekStreakBar({ dates, logged, today, streak }: {
           const isLogged = logged.has(d)
           const isToday  = d === today
           const isFuture = d > today
+          const isViewed = d === viewDate
           return (
-            <div key={d} className="week-streak-day">
+            <button key={d} className="week-streak-day" onClick={() => onSelectDate(d)} aria-label={d}>
               <span className="week-streak-letter">{DAY_LETTERS[i]}</span>
               <span className={[
                 'week-streak-dot',
                 isLogged ? 'week-streak-dot--logged' : '',
                 isToday ? 'week-streak-dot--today' : '',
                 isFuture ? 'week-streak-dot--future' : '',
+                isViewed ? 'week-streak-dot--viewed' : '',
               ].filter(Boolean).join(' ')}>
                 {isLogged && <Check size={13} strokeWidth={3} />}
               </span>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -360,7 +370,10 @@ export default function NutritionPage() {
   const [calorieHistory, setCalorieHistory] = useState<ChartPoint[]>([])
   const [streak,         setStreak]         = useState(0)
   const [weekLogged,     setWeekLogged]     = useState<Set<string>>(new Set())
-  const date = todayStr()
+  const [viewDate,       setViewDate]       = useState(todayStr)
+  const realToday = todayStr()
+  const date = viewDate
+  const isToday = date === realToday
   const weekStart = startOfWeek(date)
   const thisWeekDates = weekDates(weekStart)
 
@@ -431,7 +444,21 @@ export default function NutritionPage() {
         </button>
       </header>
 
-      <WeekStreakBar dates={thisWeekDates} logged={weekLogged} today={date} streak={streak} />
+      {/* ── Date nav — log or review any day, past or future ── */}
+      <div className="nutr-date-nav">
+        <button className="nutr-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, -1))} aria-label="Previous day">
+          <ChevronLeft size={16} />
+        </button>
+        <span className="nutr-date-nav-label">{isToday ? 'Today' : new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <button className="nutr-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, 1))} aria-label="Next day">
+          <ChevronRight size={16} />
+        </button>
+        {!isToday && (
+          <button className="nutr-date-nav-today" onClick={() => setViewDate(realToday)}>Jump to Today</button>
+        )}
+      </div>
+
+      <WeekStreakBar dates={thisWeekDates} logged={weekLogged} today={realToday} viewDate={viewDate} onSelectDate={setViewDate} streak={streak} />
 
       {/* Summary ring + macro bars */}
       <div className="nutrition-summary">
