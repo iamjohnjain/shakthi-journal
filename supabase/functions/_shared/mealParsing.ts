@@ -93,7 +93,12 @@ export function parseModelContent(content: string): MealParseResult {
 export function corsHeaders(origin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin ?? '*',
-    'Access-Control-Allow-Headers': 'content-type, authorization, apikey',
+    // supabase-js's functions.invoke() sends x-client-info (and sometimes
+    // x-supabase-api-version) on every call — missing either from this list
+    // makes the browser's CORS preflight fail silently before the request
+    // ever reaches this function. curl/Postman don't enforce CORS, so this
+    // class of bug only shows up in an actual browser.
+    'Access-Control-Allow-Headers': 'content-type, authorization, apikey, x-client-info, x-supabase-api-version',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   }
 }
