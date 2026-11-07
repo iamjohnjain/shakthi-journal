@@ -381,6 +381,7 @@
   flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
   color: var(--text-tertiary); padding: 10px; font-size: 14px; cursor: pointer;
   margin-bottom: -1px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
 }
 .add-modal-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
 
@@ -460,3 +461,108 @@
   border: none; border-radius: 10px; padding: 11px; font-size: 15px; font-weight: 700; cursor: pointer;
 }
 .add-modal-save:disabled { opacity: .5; }
+
+/* ─── AI describe-your-meal tab ──────────────────────────────────── */
+
+.ai-describe { display: flex; flex-direction: column; gap: 12px; }
+
+.ai-describe-hint { font-size: 12.5px; color: var(--text-tertiary); line-height: 1.4; margin: 0; }
+
+.ai-describe-input-wrap { position: relative; }
+
+.ai-describe-textarea {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 12px;
+  padding: 12px 44px 12px 12px; font-size: 14px; line-height: 1.4;
+  font-family: inherit; resize: vertical;
+}
+.ai-describe-textarea:disabled { opacity: .6; }
+
+.ai-mic-btn {
+  position: absolute; right: 8px; bottom: 8px;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-secondary); cursor: pointer;
+}
+.ai-mic-btn--active {
+  background: var(--red-dim); border-color: var(--red); color: var(--red);
+  animation: ai-mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ai-mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+
+.ai-estimate-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.ai-estimate-btn:disabled { opacity: .5; cursor: default; }
+
+.ai-spin { animation: ai-spin-rotate .8s linear infinite; }
+@keyframes ai-spin-rotate { to { transform: rotate(360deg); } }
+
+.ai-error {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--red-dim); border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+  color: var(--text-secondary); border-radius: 10px; padding: 12px;
+  font-size: 13px; line-height: 1.4;
+}
+.ai-error svg { color: var(--red); flex-shrink: 0; margin-top: 1px; }
+.ai-error p { margin: 0; }
+
+.ai-describe-back {
+  background: none; border: none; color: var(--text-tertiary);
+  font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px 0;
+  align-self: center;
+}
+
+.ai-review-empty { font-size: 13px; color: var(--text-tertiary); text-align: center; padding: 20px 0; }
+
+.ai-review-list { display: flex; flex-direction: column; gap: 12px; }
+
+.ai-review-card {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px;
+}
+
+.ai-review-card-top { display: flex; align-items: center; gap: 8px; }
+
+.ai-review-food-input {
+  flex: 1; min-width: 0;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 8px; padding: 8px 10px;
+  font-size: 14px; font-weight: 600; box-sizing: border-box;
+}
+
+.ai-review-remove {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-tertiary); cursor: pointer;
+}
+.ai-review-remove:hover { color: var(--red); border-color: var(--red); }
+
+.ai-confidence {
+  align-self: flex-start;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  border-radius: var(--r-full); padding: 3px 8px;
+}
+.ai-confidence--high   { color: var(--green);  background: var(--green-dim); }
+.ai-confidence--medium { color: var(--orange); background: var(--orange-dim); }
+.ai-confidence--low    { color: var(--red);    background: var(--red-dim); }
+
+.ai-review-actions {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 4px;
+}
+.ai-review-actions .add-modal-save { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; }
+
+.ai-logging {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 40px 0; color: var(--text-tertiary); font-size: 14px;
+}

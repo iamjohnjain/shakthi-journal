@@ -1,7 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
+  Sparkles, Mic, Loader2, AlertCircle,
+} from 'lucide-react'
+import { parseMealDescription, isAiMealParsingAvailable } from '../lib/aiMealParser'
+import type { ParsedMealItem } from '../lib/aiMealParser'
 import {
   addNutritionEntry, deleteNutritionEntry, updateNutritionEntry,
   getEntriesForDate, getDailyTotals, getNutritionEntryCount, QUICK_FOODS,
@@ -106,7 +111,7 @@ function MacroBar({ label, value, goal, color }: { label: string; value: number;
 // ─── Quantity: number + unit, both scrollable and directly typeable ──────────
 
 const WEIGHT_UNITS = ['g', 'oz']
-const COUNT_UNITS  = ['scoop', 'cup', 'tbsp', 'piece', 'slice', 'serving']
+const COUNT_UNITS  = ['scoop', 'cup', 'tbsp', 'piece', 'slice', 'serving', 'bottle', 'can']
 const QTY_UNITS    = [...WEIGHT_UNITS, ...COUNT_UNITS]
 
 function numberValuesFor(unit: string): number[] {
@@ -154,6 +159,230 @@ function QuantityPicker({ num, unit, onNumChange, onUnitChange }: {
   )
 }
 
+// ─── AI describe-your-meal tab ─────────────────────────────────────────────────
+
+// Minimal shape for the Web Speech API — not in TS's DOM lib, and only some
+// browsers implement it (notably: not reliably in WKWebView, where the OS
+// keyboard's own dictation button already covers voice input for any text
+// field, so this is a nice-to-have on top of that, not the only way in).
+interface SpeechRecognitionLike {
+  lang: string
+  interimResults: boolean
+  maxAlternatives: number
+  start(): void
+  stop(): void
+  onresult: ((e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+}
+
+function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  const w = window as unknown as Record<string, unknown>
+  return (w.SpeechRecognition ?? w.webkitSpeechRecognition) as (new () => SpeechRecognitionLike) | null ?? null
+}
+
+interface AiDraftItem extends ParsedMealItem {
+  _key: string
+}
+
+const CONFIDENCE_LABEL: Record<ParsedMealItem['confidence'], string> = {
+  high: 'Estimated',
+  medium: 'Rough estimate',
+  low: 'Low-confidence guess',
+}
+
+function AiMealTab({ onLogged }: {
+  onLogged: (items: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) => void
+}) {
+  const [description, setDescription] = useState('')
+  const [status, setStatus] = useState<'input' | 'loading' | 'review' | 'error'>('input')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [items, setItems] = useState<AiDraftItem[]>([])
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const speechCtor = getSpeechRecognitionCtor()
+
+  function toggleListening() {
+    if (listening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    if (!speechCtor) return
+    const rec = new speechCtor()
+    rec.lang = 'en-US'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.onresult = e => {
+      const transcript = e.results[0]?.[0]?.transcript
+      if (transcript) setDescription(d => (d ? `${d} ${transcript}` : transcript))
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    recognitionRef.current = rec
+    rec.start()
+    setListening(true)
+  }
+
+  async function handleEstimate() {
+    if (!description.trim()) return
+    setStatus('loading')
+    setErrorMsg('')
+    try {
+      const parsed = await parseMealDescription(description)
+      setItems(parsed.map((p, i) => ({ ...p, _key: `${Date.now()}-${i}` })))
+      setStatus('review')
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Something went wrong estimating that.')
+      setStatus('error')
+    }
+  }
+
+  function updateItem(key: string, patch: Partial<AiDraftItem>) {
+    setItems(prev => prev.map(it => (it._key === key ? { ...it, ...patch } : it)))
+  }
+
+  function removeItem(key: string) {
+    setItems(prev => prev.filter(it => it._key !== key))
+  }
+
+  function reset() {
+    setStatus('input')
+    setItems([])
+    setErrorMsg('')
+  }
+
+  function numField(value: number, onChange: (n: number) => void) {
+    return (
+      <input type="text" inputMode="numeric" pattern="[0-9]*" value={value}
+        onChange={e => onChange(+e.target.value.replace(/[^0-9]/g, '') || 0)}
+        onFocus={e => e.target.select()} />
+    )
+  }
+
+  if (status === 'input' || status === 'loading') {
+    return (
+      <div className="ai-describe">
+        <p className="ai-describe-hint">
+          Describe what you ate, in your own words — it'll split into separate items and estimate nutrition for each.
+        </p>
+        <div className="ai-describe-input-wrap">
+          <textarea
+            className="ai-describe-textarea"
+            placeholder={`e.g. "4 slices of Costco pizza, a bottle of coke, and I drizzled 10g of olive oil on top"`}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={4}
+            disabled={status === 'loading'}
+          />
+          {speechCtor && (
+            <button type="button" className={`ai-mic-btn ${listening ? 'ai-mic-btn--active' : ''}`}
+              onClick={toggleListening} aria-label={listening ? 'Stop dictating' : 'Dictate'}>
+              <Mic size={16} />
+            </button>
+          )}
+        </div>
+        <button className="ai-estimate-btn" onClick={handleEstimate} disabled={!description.trim() || status === 'loading'}>
+          {status === 'loading'
+            ? <><Loader2 size={15} className="ai-spin" /> Estimating…</>
+            : <><Sparkles size={15} /> Estimate Nutrition</>}
+        </button>
+      </div>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="ai-describe">
+        <div className="ai-error">
+          <AlertCircle size={18} />
+          <p>{errorMsg}</p>
+        </div>
+        <button className="ai-estimate-btn" onClick={handleEstimate}><Sparkles size={15} /> Try Again</button>
+        <button className="ai-describe-back" onClick={reset}>Rewrite description</button>
+      </div>
+    )
+  }
+
+  // review
+  return (
+    <div className="ai-describe">
+      <p className="ai-describe-hint">Estimated — review and adjust before logging.</p>
+      {items.length === 0 ? (
+        <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
+      ) : (
+        <div className="ai-review-list">
+          {items.map(it => (
+            <div key={it._key} className="ai-review-card">
+              <div className="ai-review-card-top">
+                <input className="ai-review-food-input" value={it.food}
+                  onChange={e => updateItem(it._key, { food: e.target.value })} />
+                <button className="ai-review-remove" onClick={() => removeItem(it._key)} aria-label="Remove item">
+                  <X size={14} />
+                </button>
+              </div>
+              <span className={`ai-confidence ai-confidence--${it.confidence}`}>{CONFIDENCE_LABEL[it.confidence]}</span>
+
+              <div className="custom-field custom-field--full">
+                <label>Quantity</label>
+                <QuantityPicker num={it.qtyNum} unit={it.qtyUnit}
+                  onNumChange={n => updateItem(it._key, { qtyNum: n })}
+                  onUnitChange={u => updateItem(it._key, { qtyUnit: u })} />
+              </div>
+
+              <div className="custom-fields-row">
+                <div className="custom-field">
+                  <label>Calories</label>
+                  <div className="field-with-unit">
+                    {numField(it.calories, n => updateItem(it._key, { calories: n }))}
+                    <span>kcal</span>
+                  </div>
+                </div>
+                <div className="custom-field">
+                  <label>Protein</label>
+                  <div className="field-with-unit">
+                    {numField(it.proteinG, n => updateItem(it._key, { proteinG: n }))}
+                    <span>g</span>
+                  </div>
+                </div>
+              </div>
+              <div className="custom-fields-row">
+                <div className="custom-field">
+                  <label>Carbs</label>
+                  <div className="field-with-unit">
+                    {numField(it.carbsG, n => updateItem(it._key, { carbsG: n }))}
+                    <span>g</span>
+                  </div>
+                </div>
+                <div className="custom-field">
+                  <label>Fat</label>
+                  <div className="field-with-unit">
+                    {numField(it.fatG, n => updateItem(it._key, { fatG: n }))}
+                    <span>g</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {items.length > 0 && (
+        <div className="ai-review-actions">
+          <button className="ai-describe-back" onClick={reset}>Start over</button>
+          <button
+            className="add-modal-save"
+            onClick={() => onLogged(items.map(it => ({
+              food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
+              quantity: `${it.qtyNum} ${it.qtyUnit}`,
+            })))}
+          >
+            <Check size={15} /> Log {items.length} {items.length === 1 ? 'Item' : 'Items'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Add / Edit Entry Modal ───────────────────────────────────────────────────
 
 interface EntryModalProps {
@@ -168,7 +397,10 @@ interface EntryModalProps {
 
 function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClose, onSaved }: EntryModalProps) {
   const isEdit = !!existing
-  const [tab,      setTab]      = useState<'quick' | 'custom'>(isEdit ? 'custom' : 'quick')
+  const [tab,      setTab]      = useState<'quick' | 'custom' | 'ai'>(
+    isEdit ? 'custom' : isAiMealParsingAvailable ? 'ai' : 'quick'
+  )
+  const [loggingAi, setLoggingAi] = useState(false)
   const [mealId,   setMealId]   = useState(existing?.mealType ?? defaultMealId ?? mealIds[0])
   const [food,     setFood]     = useState(existing?.food ?? '')
   const [calories, setCalories] = useState(existing ? String(existing.calories) : '')
@@ -216,6 +448,16 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     onClose()
   }
 
+  async function handleLogAiItems(aiItems: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) {
+    setLoggingAi(true)
+    for (const it of aiItems) {
+      await addNutritionEntry({ date, mealType: mealId, ...it })
+    }
+    setLoggingAi(false)
+    onSaved()
+    onClose()
+  }
+
   const searchLower = search.trim().toLowerCase()
   const visibleCustom = customFoods.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
   const visiblePresets = QUICK_FOODS.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
@@ -239,13 +481,24 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
         {!isEdit && (
           <div className="add-modal-tabs">
+            {isAiMealParsingAvailable && (
+              <button className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>
+                <Sparkles size={13} /> Describe
+              </button>
+            )}
             <button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>Quick Add</button>
             <button className={tab === 'custom' ? 'active' : ''} onClick={() => setTab('custom')}>Custom</button>
           </div>
         )}
 
         <div className="add-modal-body">
-          {tab === 'quick' ? (
+          {tab === 'ai' ? (
+            loggingAi ? (
+              <div className="ai-logging"><Loader2 size={18} className="ai-spin" /> Logging…</div>
+            ) : (
+              <AiMealTab onLogged={handleLogAiItems} />
+            )
+          ) : tab === 'quick' ? (
             <>
               <input
                 className="quick-food-search"
