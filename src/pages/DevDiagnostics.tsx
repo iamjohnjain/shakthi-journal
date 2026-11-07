@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { getDBStats } from '../db'
@@ -76,7 +77,16 @@ const STATUS_COLOR: Record<Integration['realStatus'], string> = {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// Never reachable in a shipped build, even by direct URL — the Settings menu
+// entry is also gated the same way, but this is the hard backstop. Kept as a
+// thin wrapper (rather than an early return inside the component below) so
+// the real component's hooks are always called unconditionally.
 export default function DevDiagnostics() {
+  if (import.meta.env.PROD) return <Navigate to="/" replace />
+  return <DevDiagnosticsPanel />
+}
+
+function DevDiagnosticsPanel() {
   const { mockMode, setMockMode, dbStatus, dbError, appVersion } = useApp()
   const [dbStats, setDbStats] = useState<DBStats | null>(null)
   const [refreshing, setRefreshing] = useState(false)

@@ -17,6 +17,10 @@ export async function saveLog(entry: Omit<DailyLog, 'createdAt' | 'updatedAt'> &
   }
   await db.put('daily_logs', saved)
   void syncEngine.queueWrite('daily_logs', 'upsert', entry.date, saved)
+  // Lets the dashboard (which stays mounted — no route change to trigger a
+  // natural refetch, unlike navigating to/from the full /log page) refresh
+  // immediately after a quick inline save like the weight modal.
+  window.dispatchEvent(new CustomEvent('daily-log-updated'))
 }
 
 export async function deleteLog(date: string): Promise<void> {

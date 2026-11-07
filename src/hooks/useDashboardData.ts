@@ -153,6 +153,15 @@ export function useDashboardData(targetDate?: string): DashboardData {
     return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
   }, [])
 
+  // Fired by saveLog() — covers inline saves (e.g. the dashboard's quick
+  // weight modal) that don't navigate away and back, so there'd otherwise
+  // be no natural refetch.
+  useEffect(() => {
+    function onLogUpdated() { setTick(t => t + 1) }
+    window.addEventListener('daily-log-updated', onLogUpdated)
+    return () => window.removeEventListener('daily-log-updated', onLogUpdated)
+  }, [])
+
   const hasAH  = snapshot !== null
   const hasLog = dayLog !== null
 

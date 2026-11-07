@@ -15,6 +15,7 @@ import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
 import TodayCard from '../components/TodayCard'
+import QuickWeightModal from '../components/QuickWeightModal'
 import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
 import type { DataBadgeMode } from '../components/DataBadge'
 import { isInsideNativeApp } from '../layout/BottomNav'
@@ -179,22 +180,26 @@ function EmptyState({
 
 function QuickActions() {
   const navigate = useNavigate()
+  const [showWeightModal, setShowWeightModal] = useState(false)
   const actions = [
-    { icon: Scale,    label: 'Log Weight',  path: '/log',                color: 'var(--purple)' },
-    { icon: Dumbbell, label: 'Log Workout', path: '/workouts',           color: 'var(--blue)'   },
-    { icon: Utensils, label: 'Log Meals',   path: '/nutrition',          color: 'var(--green)'  },
-    { icon: Camera,   label: 'Snap Meal',   path: '/nutrition?quick=photo', color: 'var(--orange)' },
+    { icon: Scale,    label: 'Log Weight',  action: () => setShowWeightModal(true), color: 'var(--purple)' },
+    { icon: Dumbbell, label: 'Log Workout', action: () => navigate('/workouts'),           color: 'var(--blue)'   },
+    { icon: Utensils, label: 'Log Meals',   action: () => navigate('/nutrition'),          color: 'var(--green)'  },
+    { icon: Camera,   label: 'Snap Meal',   action: () => navigate('/nutrition?quick=photo'), color: 'var(--orange)' },
   ]
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
       {actions.map(a => (
-        <button key={a.path} className="quick-action-btn" onClick={() => navigate(a.path)} aria-label={a.label}>
+        <button key={a.label} className="quick-action-btn" onClick={a.action} aria-label={a.label}>
           <span className="quick-action-icon" style={{ color: a.color }} aria-hidden="true">
             <a.icon size={17} />
           </span>
           <span className="quick-action-label" aria-hidden="true">{a.label}</span>
         </button>
       ))}
+      {showWeightModal && (
+        <QuickWeightModal onClose={() => setShowWeightModal(false)} onSaved={() => {}} />
+      )}
     </div>
   )
 }

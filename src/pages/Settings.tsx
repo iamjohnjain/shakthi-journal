@@ -348,19 +348,17 @@ export default function Settings() {
         </SettingsSection>
       )}
 
-      {/* ── Developer ── */}
-      <SettingsSection title="Developer">
-        <SettingsRow
-          icon={FlaskConical}
-          label="Developer Diagnostics"
-          description="DB status, mock mode, sync queue inspection"
-          onClick={() => navigate('/dev')}
-        />
-        <SettingsRow
-          label="App version"
-          value={`v${appVersion}`}
-        />
-      </SettingsSection>
+      {/* ── Developer (dev builds only — never shipped to real users) ── */}
+      {import.meta.env.DEV && (
+        <SettingsSection title="Developer">
+          <SettingsRow
+            icon={FlaskConical}
+            label="Developer Diagnostics"
+            description="DB status, mock mode, sync queue inspection"
+            onClick={() => navigate('/dev')}
+          />
+        </SettingsSection>
+      )}
 
       {/* ── Install as App ── */}
       <SettingsSection title="Install as App">
