@@ -42,7 +42,7 @@ export default function Sidebar() {
     return () => window.removeEventListener('profile-updated', onProfileUpdated)
   }, [])
 
-  const displayName = profile?.name ?? 'Guest'
+  const displayName = profile?.name || 'Guest'
   const isGuest = mode === 'guest' || !profile?.name
 
   return (

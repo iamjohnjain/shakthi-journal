@@ -568,6 +568,9 @@
 }
 .profile-edit-field input:focus,
 .profile-edit-field textarea:focus { border-color: rgba(255,255,255,0.22); }
+
+.profile-edit-height-row { display: flex; gap: 8px; }
+.profile-edit-height-row input { width: 0; flex: 1; }
 .profile-edit-field textarea { resize: vertical; }
 
 .profile-modal-footer {

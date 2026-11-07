@@ -376,11 +376,14 @@
 .add-modal-tabs {
   display: flex; border-bottom: 1px solid var(--border);
   padding: 0 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.add-modal-tabs::-webkit-scrollbar { display: none; }
 .add-modal-tabs button {
-  flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--text-tertiary); padding: 10px; font-size: 14px; cursor: pointer;
-  margin-bottom: -1px;
+  flex: 0 0 auto; background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-tertiary); padding: 10px 12px; font-size: 13.5px; cursor: pointer;
+  margin-bottom: -1px; white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
 }
 .add-modal-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -566,3 +569,62 @@
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 40px 0; color: var(--text-tertiary); font-size: 14px;
 }
+
+/* ─── Photo tab ───────────────────────────────────────────────────── */
+
+.ai-photo-preview {
+  width: 100%; max-height: 220px; object-fit: cover;
+  border-radius: 12px; border: 1px solid var(--border);
+}
+
+.ai-photo-btn {
+  background: var(--accent);
+}
+
+.ai-confidence--barcode { color: var(--blue); background: var(--blue-dim); }
+
+/* ─── Clarification follow-up ────────────────────────────────────── */
+
+.ai-clarify {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-tertiary); border: 1px solid var(--accent);
+  border-radius: 12px; padding: 12px;
+}
+
+.ai-clarify-q { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+
+.ai-clarify-options { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ai-clarify-chip {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: var(--r-full);
+  padding: 7px 13px; font-size: 12.5px; cursor: pointer;
+}
+.ai-clarify-chip:hover { border-color: var(--accent); }
+.ai-clarify-chip:disabled { opacity: .5; cursor: default; }
+
+.ai-clarify-custom { display: flex; gap: 6px; align-items: center; }
+.ai-clarify-custom input {
+  flex: 1; min-width: 0;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+}
+
+.ai-clarify-mic, .ai-clarify-send {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-secondary); cursor: pointer;
+}
+.ai-clarify-send:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+.ai-clarify-mic:disabled, .ai-clarify-send:disabled { opacity: .4; cursor: default; }
+
+/* ─── Soft note (replaces a blocking error state) ────────────────── */
+
+.ai-note {
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 12px; padding: 14px;
+  font-size: 13px; line-height: 1.4;
+}
+.ai-note p { margin: 0; }

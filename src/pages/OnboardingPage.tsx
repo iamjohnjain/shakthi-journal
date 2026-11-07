@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader,
 } from 'lucide-react'
-import { setSetting } from '../db'
+import { setSetting, getSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
 import { setOwnedDevices, GATEABLE_DEVICES } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
@@ -81,6 +81,10 @@ interface OBData {
 }
 
 type AuthSubView = 'choose' | 'email-signup' | 'email-signin'
+
+// Autosaved so a backgrounded/reloaded tab resumes where the user left off,
+// instead of silently restarting onboarding from the welcome screen.
+const ONBOARDING_DRAFT_KEY = 'onboarding.draft'
 
 interface StepProps {
   data: OBData
@@ -472,7 +476,9 @@ function StepHeight({ data, patch, onNext, dir }: StepProps) {
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-        <button className="ob-skip" onClick={onNext}>Skip for now</button>
+        <button className="ob-skip" onClick={() => { patch({ heightFt: '', heightIn: '' }); onNext() }}>
+          Skip for now
+        </button>
       </div>
     </StepShell>
   )
@@ -614,11 +620,11 @@ function StepTraining({ data, patch, onNext, dir }: StepProps) {
     <StepShell dir={dir}>
       <div className="ob-question">
         <h1 className="ob-q-title">How many days<br/>do you train?</h1>
-        <p className="ob-q-sub">Per week on average.</p>
+        <p className="ob-q-sub">Per week on average — 0 is fine if you're just getting started.</p>
       </div>
       <div className="ob-input-zone">
         <div className="ob-day-selector ob-day-selector--large">
-          {[2, 3, 4, 5, 6, 7].map(d => (
+          {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
             <button
               key={d}
               type="button"
@@ -633,6 +639,7 @@ function StepTraining({ data, patch, onNext, dir }: StepProps) {
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
+        <button className="ob-skip" onClick={onNext}>Skip for now</button>
       </div>
     </StepShell>
   )
@@ -1051,6 +1058,35 @@ export default function OnboardingPage() {
 
   function patch(u: Partial<OBData>) { setData(prev => ({ ...prev, ...u })) }
 
+  // ── Resume an in-progress onboarding after a reload/backgrounded tab ───────
+  // `draftReady` gates the autosave effect below so it can't fire (and wipe
+  // out a real saved draft with the blank initial state) before this load
+  // has had a chance to restore it.
+  const [draftReady, setDraftReady] = useState(isEdit)
+
+  useEffect(() => {
+    if (isEdit) return
+    let cancelled = false
+    getSetting<{ data: OBData; step: number } | null>(ONBOARDING_DRAFT_KEY, null).then(draft => {
+      if (cancelled) return
+      if (draft && draft.step > 0) {
+        setData(prev => ({ ...prev, ...draft.data }))
+        setStep(draft.step)
+      }
+      setDraftReady(true)
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (isEdit || !draftReady) return
+    const t = setTimeout(() => {
+      void setSetting(ONBOARDING_DRAFT_KEY, { data, step })
+    }, 400)
+    return () => clearTimeout(t)
+  }, [data, step, isEdit, draftReady])
+
   function prefillFromProfile(p: ProfileData) {
     const ft = p.heightCm ? Math.floor(p.heightCm / 30.48) : undefined
     const inches = p.heightCm && ft !== undefined ? Math.round((p.heightCm - ft * 30.48) / 2.54) : undefined
@@ -1129,8 +1165,11 @@ export default function OnboardingPage() {
         goalBodyFatPct:  existing?.goalBodyFatPct,
         bio:             existing?.bio,
         photoDataUrl:    data.photoDataUrl ?? existing?.photoDataUrl,
-        // Onboarding-managed fields
-        name:            data.name.trim() || 'Me',
+        // Onboarding-managed fields — empty string, not a fake "Me", when
+        // skipped: every consumer of profile.name already falls back
+        // gracefully on an empty/missing name (see Dashboard greeting,
+        // Sidebar display name).
+        name:            data.name.trim(),
         dob:             data.dob         || undefined,
         sex:             data.sex         || undefined,
         activityLevel:   data.activityLevel || undefined,
@@ -1163,6 +1202,7 @@ export default function OnboardingPage() {
         carbsG: nut.carbsG, fatG: nut.fatG, waterMl: nut.waterMl,
       })
       await setSetting('onboarding.completed', true)
+      await setSetting(ONBOARDING_DRAFT_KEY, null)
       await setSetting('onboarding.goals', data.primaryGoals)
       await setSetting('onboarding.intendToConnect', data.intendToConnect)
       await setOwnedDevices(data.ownedDevices)

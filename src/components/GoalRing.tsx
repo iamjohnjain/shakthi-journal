@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs } from '../data/config'
+import { useUnits } from '../hooks/useUnits'
 import { getProfile } from '../db/profileStore'
 import { getSetting } from '../db'
 import type { ProfileData, NutritionGoals } from '../db'
@@ -33,10 +34,13 @@ interface GoalCfg {
 
 const CONFIGS: Record<GoalType, GoalCfg> = {
   weight: {
+    // Raw kg here — converted to the user's chosen display unit (lbs/kg) in
+    // the component below, since CONFIGS is a static table with no access
+    // to the unit-system setting.
     label: 'Weight Goal', unit: 'lbs', color: 'var(--blue)',
-    current: s => s.weight ? kgToLbs(s.weight) : undefined,
-    start:   (p, s) => p?.startWeightKg ? kgToLbs(p.startWeightKg) : (s.weight ? +(kgToLbs(s.weight) + 15).toFixed(1) : undefined),
-    goal:    p => p?.goalWeightKg ? kgToLbs(p.goalWeightKg) : undefined,
+    current: s => s.weight ?? undefined,
+    start:   (p, s) => p?.startWeightKg ?? (s.weight ? +(s.weight + 6.8).toFixed(1) : undefined),
+    goal:    p => p?.goalWeightKg ?? undefined,
     higherIsBetter: false,
     format:  v => v.toFixed(1),
     desc:    'toward target weight',
@@ -107,6 +111,7 @@ interface Props {
 
 export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, latestWeight, latestBodyFat, latestSleep }: Props) {
   const navigate = useNavigate()
+  const units = useUnits()
   const [typeIdx, setTypeIdx] = useState(0)
   const [profile,        setProfile]        = useState<ProfileData | null>(null)
   const [nutritionGoals, setNutritionGoals] = useState<Pick<NutritionGoals, 'proteinG'>>({ proteinG: 200 })
@@ -140,17 +145,27 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
   const goalType = GOAL_TYPES[typeIdx]
   const cfg = CONFIGS[goalType]
 
+  // Weight values flow through CONFIGS in raw kg; converted here to whichever
+  // unit the user has chosen in Settings → Unit System. Other goal types pass
+  // through unchanged.
+  const toDisplay = (v: number) => goalType === 'weight'
+    ? (units.weight === 'kg' ? +v.toFixed(1) : kgToLbs(v))
+    : v
+  const displayUnit = goalType === 'weight' ? units.weight : cfg.unit
+
   const rawCurrent = cfg.current(snapshot)
   // Weight isn't a daily reset like steps — if today's own reading is missing,
   // fall back to the last known weigh-in rather than showing a blank ring.
   const weightFallback = goalType === 'weight' && rawCurrent == null && latestWeight
-    ? kgToLbs(latestWeight.valueKg)
+    ? latestWeight.valueKg
     : undefined
-  const current  = rawCurrent ?? weightFallback
+  const current  = (rawCurrent ?? weightFallback) != null ? toDisplay(rawCurrent ?? weightFallback!) : undefined
   const isStaleWeight = goalType === 'weight' && rawCurrent == null && current != null
   const neverWeighed  = goalType === 'weight' && current == null
-  const goalVal  = goalType === 'steps' ? stepGoal : cfg.goal(profile, nutritionGoals)
-  const startVal = cfg.start(profile, snapshot)
+  const goalValRaw  = goalType === 'steps' ? stepGoal : cfg.goal(profile, nutritionGoals)
+  const startValRaw = cfg.start(profile, snapshot)
+  const goalVal  = goalValRaw  != null ? toDisplay(goalValRaw)  : undefined
+  const startVal = startValRaw != null ? toDisplay(startValRaw) : undefined
   const pct = goalVal != null && current != null && startVal != null
     ? ringPct(current, startVal, goalVal, cfg.higherIsBetter)
     : goalVal != null && current != null
@@ -247,7 +262,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
                   <text x="104" y="114" textAnchor="middle"
                     fill="rgba(255,255,255,0.38)" fontSize="12"
                     fontFamily="-apple-system,sans-serif">
-                    {cfg.unit}
+                    {displayUnit}
                   </text>
                   <text x="104" y="132" textAnchor="middle"
                     fill="rgba(255,255,255,0.26)" fontSize="10"
@@ -330,11 +345,11 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
 
               <div className="goal-ring-modal-rows">
                 {([
-                  ['Current',      hasData     ? (goalType === 'weight' && latestWeight ? `${cfg.format(current!)} ${cfg.unit} · ${sourceLabel(latestWeight.sourceId)} · ${latestWeight.date}` : goalType === 'bodyFat' && latestBodyFat ? `${cfg.format(current!)} ${cfg.unit} · ${sourceLabel(latestBodyFat.sourceId)} · ${latestBodyFat.date}` : goalType === 'sleep' && latestSleep ? `${cfg.format(current!)} ${cfg.unit} · ${sourceLabel(latestSleep.sourceId)} · ${latestSleep.date}` : `${cfg.format(current!)} ${cfg.unit}`) : '—',      undefined    ],
-                  ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${cfg.unit}`   : '— Set in Profile', undefined],
-                  ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${cfg.unit}` : '— Set in Profile',   undefined],
-                  ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${cfg.unit}` : '—', changeColor],
-                  ['Remaining',    remaining != null ? `${cfg.format(remaining)} ${cfg.unit} to go` : '—', undefined],
+                  ['Current',      hasData     ? (goalType === 'weight' && latestWeight ? `${cfg.format(current!)} ${displayUnit} · ${sourceLabel(latestWeight.sourceId)} · ${latestWeight.date}` : goalType === 'bodyFat' && latestBodyFat ? `${cfg.format(current!)} ${displayUnit} · ${sourceLabel(latestBodyFat.sourceId)} · ${latestBodyFat.date}` : goalType === 'sleep' && latestSleep ? `${cfg.format(current!)} ${displayUnit} · ${sourceLabel(latestSleep.sourceId)} · ${latestSleep.date}` : `${cfg.format(current!)} ${displayUnit}`) : '—',      undefined    ],
+                  ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${displayUnit}`   : '— Set in Profile', undefined],
+                  ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${displayUnit}` : '— Set in Profile',   undefined],
+                  ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${displayUnit}` : '—', changeColor],
+                  ['Remaining',    remaining != null ? `${cfg.format(remaining)} ${displayUnit} to go` : '—', undefined],
                 ] as [string, string, string | undefined][]).map(([label, val, color]) => (
                   <div key={label} className="goal-ring-modal-row">
                     <span className="goal-ring-modal-row-label">{label}</span>
@@ -342,7 +357,8 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
                   </div>
                 ))}
                 {(() => {
-                  const yestVal = yesterday ? cfg.current(yesterday) : undefined
+                  const yestValRaw = yesterday ? cfg.current(yesterday) : undefined
+                  const yestVal = yestValRaw != null ? toDisplay(yestValRaw) : undefined
                   const vstYest = yestVal != null && current != null ? current - yestVal : null
                   if (vstYest == null) return null
                   const c = (cfg.higherIsBetter ? vstYest > 0 : vstYest < 0) ? 'var(--green)' : 'var(--orange)'
@@ -350,7 +366,7 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
                     <div className="goal-ring-modal-row">
                       <span className="goal-ring-modal-row-label">vs Yesterday</span>
                       <span className="goal-ring-modal-row-val" style={{ color: c }}>
-                        {vstYest > 0 ? '+' : ''}{cfg.format(Math.abs(vstYest))} {cfg.unit}
+                        {vstYest > 0 ? '+' : ''}{cfg.format(Math.abs(vstYest))} {displayUnit}
                       </span>
                     </div>
                   )

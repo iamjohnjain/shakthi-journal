@@ -398,6 +398,9 @@ deno_version = 2
 # this function doesn't touch the database, so it doesn't need a user JWT.
 verify_jwt = false
 
+[functions.analyze-meal-photo]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

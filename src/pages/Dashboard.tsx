@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronLeft, ChevronRight, Target } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronLeft, ChevronRight, Target, Camera } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate } from '../data/config'
 import { getSetting } from '../db'
@@ -180,9 +180,10 @@ function EmptyState({
 function QuickActions() {
   const navigate = useNavigate()
   const actions = [
-    { icon: Scale,    label: 'Log Weight',  path: '/log',       color: 'var(--purple)' },
-    { icon: Dumbbell, label: 'Log Workout', path: '/workouts',  color: 'var(--blue)'   },
-    { icon: Utensils, label: 'Log Meals',   path: '/nutrition', color: 'var(--green)'  },
+    { icon: Scale,    label: 'Log Weight',  path: '/log',                color: 'var(--purple)' },
+    { icon: Dumbbell, label: 'Log Workout', path: '/workouts',           color: 'var(--blue)'   },
+    { icon: Utensils, label: 'Log Meals',   path: '/nutrition',          color: 'var(--green)'  },
+    { icon: Camera,   label: 'Snap Meal',   path: '/nutrition?quick=photo', color: 'var(--orange)' },
   ]
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
@@ -479,7 +480,7 @@ export default function Dashboard() {
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
-      setUserName(p.name ?? null)
+      setUserName(p.name || null)
       setProfileData(p)
     }
     window.addEventListener('profile-updated', onProfileUpdated)

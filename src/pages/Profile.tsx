@@ -6,6 +6,7 @@ import {
   TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut,
 } from 'lucide-react'
 import { kgToLbs } from '../data/config'
+import { useUnits } from '../hooks/useUnits'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { getProfile, saveProfile } from '../db/profileStore'
 import { getDBStats } from '../db'
@@ -88,8 +89,13 @@ interface EditModalProps {
 
 function EditModal({ initial, onClose, onSave }: EditModalProps) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const units = useUnits()
   const [name,           setName]           = useState(initial.name ?? '')
   const [heightCm,       setHeightCm]       = useState<number | ''>(initial.heightCm ?? '')
+  const [heightFt,       setHeightFt]       = useState<number | ''>(initial.heightCm ? Math.floor(initial.heightCm / 30.48) : '')
+  const [heightIn,       setHeightIn]       = useState<number | ''>(
+    initial.heightCm ? Math.round((initial.heightCm - Math.floor(initial.heightCm / 30.48) * 30.48) / 2.54) : ''
+  )
   const [startDate,      setStartDate]      = useState(initial.startDate ?? '')
   const [startWeightLbs, setStartWeightLbs] = useState<number | ''>(initial.startWeightKg ? kgToLbs(initial.startWeightKg) : '')
   const [startBF,        setStartBF]        = useState<number | ''>(initial.startBodyFatPct ?? '')
@@ -117,11 +123,15 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
     if (id) setPhoto('') // animal avatar overrides photo
   }
 
+  const heightCmToSave = units.height === 'cm'
+    ? (heightCm !== '' ? Number(heightCm) : undefined)
+    : (heightFt !== '' ? Math.round(Number(heightFt) * 30.48 + (heightIn !== '' ? Number(heightIn) : 0) * 2.54) : undefined)
+
   async function handleSave() {
     setSaving(true)
     await onSave({
       name: name.trim() || 'User',
-      heightCm: heightCm !== '' ? Number(heightCm) : undefined,
+      heightCm: heightCmToSave,
       startDate: startDate || undefined,
       startWeightKg: startWeightLbs !== '' ? +(Number(startWeightLbs) / 2.20462).toFixed(2) : undefined,
       startBodyFatPct: startBF !== '' ? Number(startBF) : undefined,
@@ -172,8 +182,22 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
               <input value={name} onChange={e => setName(e.target.value)} />
             </div>
             <div className="profile-edit-field">
-              <label>Height (cm)</label>
-              <input type="number" inputMode="numeric" value={heightCm} onChange={e => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))} />
+              {units.height === 'cm' ? (
+                <>
+                  <label>Height (cm)</label>
+                  <input type="number" inputMode="numeric" value={heightCm} onChange={e => setHeightCm(e.target.value === '' ? '' : Number(e.target.value))} />
+                </>
+              ) : (
+                <>
+                  <label>Height (ft/in)</label>
+                  <div className="profile-edit-height-row">
+                    <input type="number" inputMode="numeric" placeholder="ft" value={heightFt}
+                      onChange={e => setHeightFt(e.target.value === '' ? '' : Number(e.target.value))} />
+                    <input type="number" inputMode="numeric" placeholder="in" value={heightIn}
+                      onChange={e => setHeightIn(e.target.value === '' ? '' : Number(e.target.value))} />
+                  </div>
+                </>
+              )}
             </div>
             <div className="profile-edit-field">
               <label>Tracking since</label>
@@ -244,7 +268,7 @@ export default function Profile() {
     setProfileData(updated)
   }
 
-  const name     = profileData?.name ?? 'Guest'
+  const name     = profileData?.name || 'Guest'
   const bio      = profileData?.bio ?? ''
   const heightCm = profileData?.heightCm
   const photo    = profileData?.photoDataUrl

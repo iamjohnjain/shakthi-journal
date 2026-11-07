@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
-  Sparkles, Mic, Loader2, AlertCircle,
+  Sparkles, Mic, Loader2, Camera, Zap,
 } from 'lucide-react'
-import { parseMealDescription, isAiMealParsingAvailable } from '../lib/aiMealParser'
-import type { ParsedMealItem } from '../lib/aiMealParser'
+import {
+  parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, isAiMealParsingAvailable,
+} from '../lib/aiMealParser'
+import type { ParsedMealItem, Clarification, MealParseResult } from '../lib/aiMealParser'
+import { decodeBarcodeFromImage, lookupBarcode } from '../lib/barcodeScan'
+import { compressImageToDataUrl } from '../lib/imageUtils'
 import {
   addNutritionEntry, deleteNutritionEntry, updateNutritionEntry,
   getEntriesForDate, getDailyTotals, getNutritionEntryCount, QUICK_FOODS,
@@ -159,7 +163,7 @@ function QuantityPicker({ num, unit, onNumChange, onUnitChange }: {
   )
 }
 
-// ─── AI describe-your-meal tab ─────────────────────────────────────────────────
+// ─── AI meal logging — shared pieces (describe / photo / quick log) ───────────
 
 // Minimal shape for the Web Speech API — not in TS's DOM lib, and only some
 // browsers implement it (notably: not reliably in WKWebView, where the OS
@@ -183,6 +187,7 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
 
 interface AiDraftItem extends ParsedMealItem {
   _key: string
+  source?: 'barcode'
 }
 
 const CONFIDENCE_LABEL: Record<ParsedMealItem['confidence'], string> = {
@@ -191,30 +196,106 @@ const CONFIDENCE_LABEL: Record<ParsedMealItem['confidence'], string> = {
   low: 'Low-confidence guess',
 }
 
-function AiMealTab({ onLogged }: {
-  onLogged: (items: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) => void
+function draftItemsFrom(items: ParsedMealItem[]): AiDraftItem[] {
+  return items.map((p, i) => ({ ...p, _key: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}` }))
+}
+
+function numField(value: number, onChange: (n: number) => void) {
+  return (
+    <input type="text" inputMode="numeric" pattern="[0-9]*" value={value}
+      onChange={e => onChange(+e.target.value.replace(/[^0-9]/g, '') || 0)}
+      onFocus={e => e.target.select()} />
+  )
+}
+
+/** The editable best-guess item cards — shared by Describe and Photo tabs. */
+function MealReviewList({ items, onUpdate, onRemove }: {
+  items: AiDraftItem[]
+  onUpdate: (key: string, patch: Partial<AiDraftItem>) => void
+  onRemove: (key: string) => void
 }) {
-  const [description, setDescription] = useState('')
-  const [status, setStatus] = useState<'input' | 'loading' | 'review' | 'error'>('input')
-  const [errorMsg, setErrorMsg] = useState('')
-  const [items, setItems] = useState<AiDraftItem[]>([])
+  return (
+    <div className="ai-review-list">
+      {items.map(it => (
+        <div key={it._key} className="ai-review-card">
+          <div className="ai-review-card-top">
+            <input className="ai-review-food-input" value={it.food}
+              onChange={e => onUpdate(it._key, { food: e.target.value })} />
+            <button className="ai-review-remove" onClick={() => onRemove(it._key)} aria-label="Remove item">
+              <X size={14} />
+            </button>
+          </div>
+          <span className={`ai-confidence ${it.source === 'barcode' ? 'ai-confidence--barcode' : `ai-confidence--${it.confidence}`}`}>
+            {it.source === 'barcode' ? 'Scanned from barcode' : CONFIDENCE_LABEL[it.confidence]}
+          </span>
+
+          <div className="custom-field custom-field--full">
+            <label>Quantity</label>
+            <QuantityPicker num={it.qtyNum} unit={it.qtyUnit}
+              onNumChange={n => onUpdate(it._key, { qtyNum: n })}
+              onUnitChange={u => onUpdate(it._key, { qtyUnit: u })} />
+          </div>
+
+          <div className="custom-fields-row">
+            <div className="custom-field">
+              <label>Calories</label>
+              <div className="field-with-unit">
+                {numField(it.calories, n => onUpdate(it._key, { calories: n }))}
+                <span>kcal</span>
+              </div>
+            </div>
+            <div className="custom-field">
+              <label>Protein</label>
+              <div className="field-with-unit">
+                {numField(it.proteinG, n => onUpdate(it._key, { proteinG: n }))}
+                <span>g</span>
+              </div>
+            </div>
+          </div>
+          <div className="custom-fields-row">
+            <div className="custom-field">
+              <label>Carbs</label>
+              <div className="field-with-unit">
+                {numField(it.carbsG, n => onUpdate(it._key, { carbsG: n }))}
+                <span>g</span>
+              </div>
+            </div>
+            <div className="custom-field">
+              <label>Fat</label>
+              <div className="field-with-unit">
+                {numField(it.fatG, n => onUpdate(it._key, { fatG: n }))}
+                <span>g</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The non-blocking follow-up question — tappable options plus a free-text/
+    voice answer, shown alongside whatever best-guess items already exist.
+    Never a dead end: the user can always just log the best guess as-is
+    instead of answering. */
+function ClarificationBlock({ clarification, onAnswer, busy }: {
+  clarification: Clarification
+  onAnswer: (answer: string) => void
+  busy: boolean
+}) {
+  const [custom, setCustom] = useState('')
+  const speechCtor = getSpeechRecognitionCtor()
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const speechCtor = getSpeechRecognitionCtor()
 
   function toggleListening() {
-    if (listening) {
-      recognitionRef.current?.stop()
-      return
-    }
+    if (listening) { recognitionRef.current?.stop(); return }
     if (!speechCtor) return
     const rec = new speechCtor()
-    rec.lang = 'en-US'
-    rec.interimResults = false
-    rec.maxAlternatives = 1
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1
     rec.onresult = e => {
-      const transcript = e.results[0]?.[0]?.transcript
-      if (transcript) setDescription(d => (d ? `${d} ${transcript}` : transcript))
+      const t = e.results[0]?.[0]?.transcript
+      if (t) setCustom(c => (c ? `${c} ${t}` : t))
     }
     rec.onend = () => setListening(false)
     rec.onerror = () => setListening(false)
@@ -223,43 +304,117 @@ function AiMealTab({ onLogged }: {
     setListening(true)
   }
 
+  return (
+    <div className="ai-clarify">
+      <p className="ai-clarify-q">{clarification.question}</p>
+      {clarification.options.length > 0 && (
+        <div className="ai-clarify-options">
+          {clarification.options.map(opt => (
+            <button key={opt} className="ai-clarify-chip" onClick={() => onAnswer(opt)} disabled={busy}>{opt}</button>
+          ))}
+        </div>
+      )}
+      <div className="ai-clarify-custom">
+        <input
+          placeholder="Or type your own…"
+          value={custom}
+          onChange={e => setCustom(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && custom.trim()) onAnswer(custom.trim()) }}
+          disabled={busy}
+        />
+        {speechCtor && (
+          <button type="button" className={`ai-clarify-mic ${listening ? 'ai-mic-btn--active' : ''}`}
+            onClick={toggleListening} aria-label={listening ? 'Stop dictating' : 'Dictate'} disabled={busy}>
+            <Mic size={14} />
+          </button>
+        )}
+        <button className="ai-clarify-send" onClick={() => custom.trim() && onAnswer(custom.trim())}
+          disabled={!custom.trim() || busy} aria-label="Send answer">
+          <Check size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** A soft, non-alarming note for the rare total-failure case — paired with
+    a direct shortcut into manual entry rather than a dead-end error. */
+function SoftNote({ note, onManual }: { note: string; onManual: () => void }) {
+  return (
+    <div className="ai-note">
+      <p>{note}</p>
+      <button className="ai-describe-back" onClick={onManual}>Add it manually instead</button>
+    </div>
+  )
+}
+
+// ─── Describe tab (free text / voice) ──────────────────────────────────────────
+
+function AiMealTab({ onLogged, onFallbackToManual }: {
+  onLogged: (items: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) => void
+  onFallbackToManual: () => void
+}) {
+  const [description, setDescription] = useState('')
+  const [status, setStatus] = useState<'input' | 'loading'>('input')
+  const [items, setItems] = useState<AiDraftItem[]>([])
+  const [clarification, setClarification] = useState<Clarification | null>(null)
+  const [note, setNote] = useState('')
+  const [answering, setAnswering] = useState(false)
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const speechCtor = getSpeechRecognitionCtor()
+
+  function toggleListening() {
+    if (listening) { recognitionRef.current?.stop(); return }
+    if (!speechCtor) return
+    const rec = new speechCtor()
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1
+    rec.onresult = e => {
+      const t = e.results[0]?.[0]?.transcript
+      if (t) setDescription(d => (d ? `${d} ${t}` : t))
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    recognitionRef.current = rec
+    rec.start()
+    setListening(true)
+  }
+
+  function applyResult(result: MealParseResult) {
+    setItems(prev => (result.items.length > 0 ? draftItemsFrom(result.items) : prev))
+    setClarification(result.clarification ?? null)
+    setNote(result.items.length === 0 && !result.clarification ? (result.note ?? '') : '')
+  }
+
   async function handleEstimate() {
     if (!description.trim()) return
     setStatus('loading')
-    setErrorMsg('')
-    try {
-      const parsed = await parseMealDescription(description)
-      setItems(parsed.map((p, i) => ({ ...p, _key: `${Date.now()}-${i}` })))
-      setStatus('review')
-    } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : 'Something went wrong estimating that.')
-      setStatus('error')
-    }
+    const result = await parseMealDescription(description)
+    applyResult(result)
+    setStatus('input') // falls through to the items/clarification/note render below once items/clarification/note are set
+  }
+
+  async function handleAnswer(answer: string) {
+    if (!clarification) return
+    setAnswering(true)
+    const result = await refineMealDescription(description, clarification.question, answer)
+    applyResult(result)
+    setAnswering(false)
   }
 
   function updateItem(key: string, patch: Partial<AiDraftItem>) {
     setItems(prev => prev.map(it => (it._key === key ? { ...it, ...patch } : it)))
   }
-
   function removeItem(key: string) {
     setItems(prev => prev.filter(it => it._key !== key))
   }
-
   function reset() {
-    setStatus('input')
-    setItems([])
-    setErrorMsg('')
+    setStatus('input'); setItems([]); setClarification(null); setNote(''); setDescription('')
   }
 
-  function numField(value: number, onChange: (n: number) => void) {
-    return (
-      <input type="text" inputMode="numeric" pattern="[0-9]*" value={value}
-        onChange={e => onChange(+e.target.value.replace(/[^0-9]/g, '') || 0)}
-        onFocus={e => e.target.select()} />
-    )
-  }
+  const hasResult = items.length > 0 || clarification !== null || note !== ''
 
-  if (status === 'input' || status === 'loading') {
+  if (!hasResult) {
     return (
       <div className="ai-describe">
         <p className="ai-describe-hint">
@@ -290,98 +445,266 @@ function AiMealTab({ onLogged }: {
     )
   }
 
-  if (status === 'error') {
+  if (items.length === 0 && note) {
     return (
       <div className="ai-describe">
-        <div className="ai-error">
-          <AlertCircle size={18} />
-          <p>{errorMsg}</p>
-        </div>
-        <button className="ai-estimate-btn" onClick={handleEstimate}><Sparkles size={15} /> Try Again</button>
-        <button className="ai-describe-back" onClick={reset}>Rewrite description</button>
+        <SoftNote note={note} onManual={onFallbackToManual} />
+        <button className="ai-describe-back" onClick={reset}>Try again</button>
       </div>
     )
   }
 
-  // review
   return (
     <div className="ai-describe">
       <p className="ai-describe-hint">Estimated — review and adjust before logging.</p>
+      {clarification && <ClarificationBlock clarification={clarification} onAnswer={handleAnswer} busy={answering} />}
       {items.length === 0 ? (
         <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
       ) : (
-        <div className="ai-review-list">
-          {items.map(it => (
-            <div key={it._key} className="ai-review-card">
-              <div className="ai-review-card-top">
-                <input className="ai-review-food-input" value={it.food}
-                  onChange={e => updateItem(it._key, { food: e.target.value })} />
-                <button className="ai-review-remove" onClick={() => removeItem(it._key)} aria-label="Remove item">
-                  <X size={14} />
-                </button>
-              </div>
-              <span className={`ai-confidence ai-confidence--${it.confidence}`}>{CONFIDENCE_LABEL[it.confidence]}</span>
-
-              <div className="custom-field custom-field--full">
-                <label>Quantity</label>
-                <QuantityPicker num={it.qtyNum} unit={it.qtyUnit}
-                  onNumChange={n => updateItem(it._key, { qtyNum: n })}
-                  onUnitChange={u => updateItem(it._key, { qtyUnit: u })} />
-              </div>
-
-              <div className="custom-fields-row">
-                <div className="custom-field">
-                  <label>Calories</label>
-                  <div className="field-with-unit">
-                    {numField(it.calories, n => updateItem(it._key, { calories: n }))}
-                    <span>kcal</span>
-                  </div>
-                </div>
-                <div className="custom-field">
-                  <label>Protein</label>
-                  <div className="field-with-unit">
-                    {numField(it.proteinG, n => updateItem(it._key, { proteinG: n }))}
-                    <span>g</span>
-                  </div>
-                </div>
-              </div>
-              <div className="custom-fields-row">
-                <div className="custom-field">
-                  <label>Carbs</label>
-                  <div className="field-with-unit">
-                    {numField(it.carbsG, n => updateItem(it._key, { carbsG: n }))}
-                    <span>g</span>
-                  </div>
-                </div>
-                <div className="custom-field">
-                  <label>Fat</label>
-                  <div className="field-with-unit">
-                    {numField(it.fatG, n => updateItem(it._key, { fatG: n }))}
-                    <span>g</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {items.length > 0 && (
-        <div className="ai-review-actions">
-          <button className="ai-describe-back" onClick={reset}>Start over</button>
-          <button
-            className="add-modal-save"
-            onClick={() => onLogged(items.map(it => ({
+        <>
+          <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} />
+          <div className="ai-review-actions">
+            <button className="ai-describe-back" onClick={reset}>Start over</button>
+            <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
               food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
               quantity: `${it.qtyNum} ${it.qtyUnit}`,
-            })))}
-          >
-            <Check size={15} /> Log {items.length} {items.length === 1 ? 'Item' : 'Items'}
-          </button>
-        </div>
+            })))}>
+              <Check size={15} /> Log {items.length} {items.length === 1 ? 'Item' : 'Items'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
 }
+
+// ─── Photo tab (food photo / receipt / barcode, all through one button) ───────
+
+function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
+  onLogged: (items: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) => void
+  onFallbackToManual: () => void
+  autoOpen?: boolean
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [status, setStatus] = useState<'idle' | 'scanning' | 'analyzing'>('idle')
+  const [items, setItems] = useState<AiDraftItem[]>([])
+  const [clarification, setClarification] = useState<Clarification | null>(null)
+  const [note, setNote] = useState('')
+  const [answering, setAnswering] = useState(false)
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const autoOpened = useRef(false)
+
+  useEffect(() => {
+    if (autoOpen && !autoOpened.current) {
+      autoOpened.current = true
+      fileRef.current?.click()
+    }
+  }, [autoOpen])
+
+  function openCamera() { fileRef.current?.click() }
+
+  function applyResult(result: MealParseResult) {
+    setItems(prev => (result.items.length > 0 ? draftItemsFrom(result.items) : prev))
+    setClarification(result.clarification ?? null)
+    setNote(result.items.length === 0 && !result.clarification ? (result.note ?? '') : '')
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file) })
+    setStatus('scanning')
+
+    // 1. Try a local barcode/QR decode first — instant, free, no AI call needed.
+    const barcode = await decodeBarcodeFromImage(file)
+    if (barcode) {
+      const product = await lookupBarcode(barcode)
+      if (product) {
+        setItems([{
+          _key: `${Date.now()}`,
+          source: 'barcode',
+          food: product.food,
+          qtyNum: product.qtyNum, qtyUnit: product.qtyUnit,
+          calories: product.calories, proteinG: product.proteinG, carbsG: product.carbsG, fatG: product.fatG,
+          confidence: 'high',
+        }])
+        setStatus('idle')
+        return
+      }
+      // Decoded a barcode but it's not in Open Food Facts — fall through to
+      // vision AI, which might still recognize the product from the photo.
+    }
+
+    // 2. Vision AI — compress first to keep the payload small and the round-trip fast.
+    setStatus('analyzing')
+    try {
+      const dataUrl = await compressImageToDataUrl(file)
+      setImageDataUrl(dataUrl)
+      const result = await analyzeMealPhoto(dataUrl)
+      applyResult(result)
+    } catch {
+      setNote("Couldn't read that photo — add it yourself below.")
+    }
+    setStatus('idle')
+  }
+
+  async function handleAnswer(answer: string) {
+    if (!clarification || !imageDataUrl) return
+    setAnswering(true)
+    const result = await refineMealPhoto(imageDataUrl, clarification.question, answer)
+    applyResult(result)
+    setAnswering(false)
+  }
+
+  function updateItem(key: string, patch: Partial<AiDraftItem>) {
+    setItems(prev => prev.map(it => (it._key === key ? { ...it, ...patch } : it)))
+  }
+  function removeItem(key: string) {
+    setItems(prev => prev.filter(it => it._key !== key))
+  }
+  function reset() {
+    setStatus('idle'); setItems([]); setClarification(null); setNote('')
+    setImageDataUrl(null)
+    setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null })
+  }
+
+  const hasResult = items.length > 0 || clarification !== null || note !== ''
+  const busy = status === 'scanning' || status === 'analyzing'
+
+  const fileInput = (
+    <input ref={fileRef} type="file" accept="image/*" capture="environment"
+      onChange={handleFile} style={{ display: 'none' }} />
+  )
+
+  if (!hasResult) {
+    return (
+      <div className="ai-describe">
+        {fileInput}
+        {previewUrl && <img src={previewUrl} alt="" className="ai-photo-preview" />}
+        <p className="ai-describe-hint">
+          Snap a photo of your food, a receipt, or a barcode — it figures out which and estimates nutrition.
+        </p>
+        <button className="ai-estimate-btn ai-photo-btn" onClick={openCamera} disabled={busy}>
+          {busy
+            ? <><Loader2 size={15} className="ai-spin" /> {status === 'scanning' ? 'Checking for a barcode…' : 'Analyzing photo…'}</>
+            : <><Camera size={16} /> Take a Photo</>}
+        </button>
+      </div>
+    )
+  }
+
+  if (items.length === 0 && note) {
+    return (
+      <div className="ai-describe">
+        {fileInput}
+        <SoftNote note={note} onManual={onFallbackToManual} />
+        <button className="ai-describe-back" onClick={reset}>Try another photo</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="ai-describe">
+      {fileInput}
+      <p className="ai-describe-hint">Estimated from your photo — review and adjust before logging.</p>
+      {clarification && <ClarificationBlock clarification={clarification} onAnswer={handleAnswer} busy={answering} />}
+      {items.length === 0 ? (
+        <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
+      ) : (
+        <>
+          <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} />
+          <div className="ai-review-actions">
+            <button className="ai-describe-back" onClick={reset}>Retake</button>
+            <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
+              food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
+              quantity: `${it.qtyNum} ${it.qtyUnit}`,
+            })))}>
+              <Check size={15} /> Log {items.length} {items.length === 1 ? 'Item' : 'Items'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Quick Log tab (manual numbers, no name required) ──────────────────────────
+
+function QuickLogTab({ onLogged }: {
+  onLogged: (item: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }) => void
+}) {
+  const [food,     setFood]     = useState('')
+  const [calories, setCalories] = useState('')
+  const [protein,  setProtein]  = useState('')
+  const [carbs,    setCarbs]    = useState('')
+  const [fat,      setFat]      = useState('')
+
+  function handleLog() {
+    if (!calories) return
+    onLogged({
+      food: food.trim() || `Quick entry — ${calories} cal`,
+      calories: +calories, proteinG: +protein || 0, carbsG: +carbs || 0, fatG: +fat || 0,
+      quantity: '1 serving',
+    })
+  }
+
+  return (
+    <div className="custom-form">
+      <p className="ai-describe-hint">Just the numbers — no need to name it unless you want to.</p>
+      <div className="custom-field custom-field--full">
+        <label>Name (optional)</label>
+        <input value={food} onChange={e => setFood(e.target.value)} placeholder="e.g. Leftovers" />
+      </div>
+      <div className="custom-fields-row">
+        <div className="custom-field">
+          <label>Calories*</label>
+          <div className="field-with-unit">
+            <input autoFocus type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
+              onChange={e => setCalories(e.target.value.replace(/[^0-9]/g, ''))}
+              onFocus={e => e.target.select()} />
+            <span>kcal</span>
+          </div>
+        </div>
+        <div className="custom-field">
+          <label>Protein</label>
+          <div className="field-with-unit">
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={protein} placeholder="0"
+              onChange={e => setProtein(e.target.value.replace(/[^0-9]/g, ''))}
+              onFocus={e => e.target.select()} />
+            <span>g</span>
+          </div>
+        </div>
+      </div>
+      <div className="custom-fields-row">
+        <div className="custom-field">
+          <label>Carbs</label>
+          <div className="field-with-unit">
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbs} placeholder="0"
+              onChange={e => setCarbs(e.target.value.replace(/[^0-9]/g, ''))}
+              onFocus={e => e.target.select()} />
+            <span>g</span>
+          </div>
+        </div>
+        <div className="custom-field">
+          <label>Fat</label>
+          <div className="field-with-unit">
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={fat} placeholder="0"
+              onChange={e => setFat(e.target.value.replace(/[^0-9]/g, ''))}
+              onFocus={e => e.target.select()} />
+            <span>g</span>
+          </div>
+        </div>
+      </div>
+      <button className="add-modal-save" onClick={handleLog} disabled={!calories}>
+        <Check size={15} /> Log Entry
+      </button>
+    </div>
+  )
+}
+
 
 // ─── Add / Edit Entry Modal ───────────────────────────────────────────────────
 
@@ -393,12 +716,14 @@ interface EntryModalProps {
   defaultMealId?: string
   onClose: () => void
   onSaved: () => void
+  /** Opens straight into the camera — used by the dashboard's "Snap Meal" quick action. */
+  autoOpenPhoto?: boolean
 }
 
-function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClose, onSaved }: EntryModalProps) {
+function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClose, onSaved, autoOpenPhoto }: EntryModalProps) {
   const isEdit = !!existing
-  const [tab,      setTab]      = useState<'quick' | 'custom' | 'ai'>(
-    isEdit ? 'custom' : isAiMealParsingAvailable ? 'ai' : 'quick'
+  const [tab,      setTab]      = useState<'quick' | 'custom' | 'ai' | 'photo' | 'quicklog'>(
+    isEdit ? 'custom' : isAiMealParsingAvailable ? 'photo' : 'quick'
   )
   const [loggingAi, setLoggingAi] = useState(false)
   const [mealId,   setMealId]   = useState(existing?.mealType ?? defaultMealId ?? mealIds[0])
@@ -458,6 +783,16 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     onClose()
   }
 
+  async function handleLogQuickItem(item: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }) {
+    setLoggingAi(true)
+    await addNutritionEntry({ date, mealType: mealId, ...item })
+    setLoggingAi(false)
+    onSaved()
+    onClose()
+  }
+
+  function goToManualEntry() { setTab('quicklog') }
+
   const searchLower = search.trim().toLowerCase()
   const visibleCustom = customFoods.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
   const visiblePresets = QUICK_FOODS.filter(f => !searchLower || f.food.toLowerCase().includes(searchLower))
@@ -482,22 +817,32 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
         {!isEdit && (
           <div className="add-modal-tabs">
             {isAiMealParsingAvailable && (
+              <button className={tab === 'photo' ? 'active' : ''} onClick={() => setTab('photo')}>
+                <Camera size={13} /> Photo
+              </button>
+            )}
+            {isAiMealParsingAvailable && (
               <button className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>
                 <Sparkles size={13} /> Describe
               </button>
             )}
             <button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>Quick Add</button>
+            <button className={tab === 'quicklog' ? 'active' : ''} onClick={() => setTab('quicklog')}>
+              <Zap size={13} /> Quick Log
+            </button>
             <button className={tab === 'custom' ? 'active' : ''} onClick={() => setTab('custom')}>Custom</button>
           </div>
         )}
 
         <div className="add-modal-body">
-          {tab === 'ai' ? (
-            loggingAi ? (
-              <div className="ai-logging"><Loader2 size={18} className="ai-spin" /> Logging…</div>
-            ) : (
-              <AiMealTab onLogged={handleLogAiItems} />
-            )
+          {loggingAi ? (
+            <div className="ai-logging"><Loader2 size={18} className="ai-spin" /> Logging…</div>
+          ) : tab === 'photo' ? (
+            <PhotoMealTab onLogged={handleLogAiItems} onFallbackToManual={goToManualEntry} autoOpen={autoOpenPhoto} />
+          ) : tab === 'ai' ? (
+            <AiMealTab onLogged={handleLogAiItems} onFallbackToManual={goToManualEntry} />
+          ) : tab === 'quicklog' ? (
+            <QuickLogTab onLogged={handleLogQuickItem} />
           ) : tab === 'quick' ? (
             <>
               <input
@@ -613,10 +958,14 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
 export default function NutritionPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { mealIds, activeMealLabels, goals, loaded } = useNutritionSettings()
   const [entries,       setEntries]      = useState<NutritionEntry[]>([])
   const [totals,        setTotals]       = useState({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, entryCount: 0 })
-  const [showModal,     setShowModal]    = useState(false)
+  // "Snap Meal" dashboard quick action links here with ?quick=photo — jump
+  // straight into the camera with no extra taps.
+  const [showModal,     setShowModal]    = useState(searchParams.get('quick') === 'photo')
+  const [autoOpenPhoto, setAutoOpenPhoto] = useState(searchParams.get('quick') === 'photo')
   const [editEntry,     setEditEntry]    = useState<NutritionEntry | null>(null)
   const [addToMealId,   setAddToMealId]  = useState<string | undefined>()
   const [hasEverLogged, setHasEverLogged] = useState<boolean | null>(null)
@@ -629,6 +978,13 @@ export default function NutritionPage() {
   const isToday = date === realToday
   const weekStart = startOfWeek(date)
   const thisWeekDates = weekDates(weekStart)
+
+  useEffect(() => {
+    if (searchParams.get('quick') === 'photo') {
+      setSearchParams(prev => { prev.delete('quick'); return prev }, { replace: true })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const load = useCallback(async () => {
     const [all, t] = await Promise.all([getEntriesForDate(date), getDailyTotals(date)])
@@ -880,7 +1236,8 @@ export default function NutritionPage() {
           mealLabels={activeMealLabels}
           existing={editEntry ?? undefined}
           defaultMealId={addToMealId}
-          onClose={() => { setShowModal(false); setEditEntry(null) }}
+          autoOpenPhoto={autoOpenPhoto}
+          onClose={() => { setShowModal(false); setEditEntry(null); setAutoOpenPhoto(false) }}
           onSaved={() => { load(); loadStreak(); setHasEverLogged(true) }} />
       )}
     </div>

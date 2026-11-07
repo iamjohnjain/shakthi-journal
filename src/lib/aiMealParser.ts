@@ -11,32 +11,67 @@ export interface ParsedMealItem {
   confidence: 'high' | 'medium' | 'low'
 }
 
+export interface Clarification {
+  question: string
+  options: string[]
+}
+
+export interface MealParseResult {
+  items: ParsedMealItem[]
+  /** A follow-up question when the AI can't tell what something was —
+      shown alongside whatever best-guess items it already found, never
+      instead of them. */
+  clarification?: Clarification
+  /** A soft, non-alarming note for the rare total-failure case. Never
+      rendered as an error — paired with a one-tap manual-entry shortcut. */
+  note?: string
+}
+
 export const isAiMealParsingAvailable = isSupabaseConfigured
 
-/**
- * Sends a free-text (or voice-dictated) meal description to the `parse-meal`
- * edge function and returns itemized, estimated nutrition for review before
- * logging. Never logs anything itself — the caller always shows these for
- * confirmation/editing first.
- */
-export async function parseMealDescription(description: string): Promise<ParsedMealItem[]> {
+const EMPTY_RESULT: MealParseResult = { items: [] }
+
+function softFailure(note: string): MealParseResult {
+  return { items: [], note }
+}
+
+async function invoke(fn: string, body: Record<string, unknown>): Promise<MealParseResult> {
+  if (!supabase) return softFailure("AI estimation isn't available in this build — add it yourself below.")
+  try {
+    const { data, error } = await supabase.functions.invoke<MealParseResult>(fn, { body })
+    if (error) return softFailure("Couldn't reach the AI estimator — add it yourself below.")
+    if (!data) return EMPTY_RESULT
+    return data
+  } catch {
+    return softFailure("Couldn't reach the AI estimator — add it yourself below.")
+  }
+}
+
+/** Parses a free-text (or voice-dictated) meal description. Never throws —
+    always returns something the UI can render (items, a clarifying
+    question, or a soft note), per the "no dead-end error screens" rule. */
+export async function parseMealDescription(description: string): Promise<MealParseResult> {
   const trimmed = description.trim()
-  if (!trimmed) throw new Error('Describe what you ate first.')
-  if (!supabase) throw new Error('AI meal description isn\'t available in this build.')
+  if (!trimmed) return softFailure('Describe what you ate first.')
+  return invoke('parse-meal', { description: trimmed })
+}
 
-  const { data, error } = await supabase.functions.invoke<{ items?: ParsedMealItem[]; error?: string }>(
-    'parse-meal',
-    { body: { description: trimmed } },
-  )
+/** Re-asks with the user's answer to a clarifying question folded in. */
+export async function refineMealDescription(
+  description: string, priorQuestion: string, userAnswer: string,
+): Promise<MealParseResult> {
+  return invoke('parse-meal', { description, priorQuestion, userAnswer })
+}
 
-  if (error) {
-    throw new Error('Could not reach the AI estimator — check your connection and try again.')
-  }
-  if (data?.error) {
-    throw new Error(data.error)
-  }
-  if (!data?.items || data.items.length === 0) {
-    throw new Error("Didn't catch any food in that — try describing it a bit differently.")
-  }
-  return data.items
+/** Analyzes a captured photo (food photo or receipt) — `imageDataUrl` is a
+    `data:image/...;base64,...` string. Same never-throws contract. */
+export async function analyzeMealPhoto(imageDataUrl: string): Promise<MealParseResult> {
+  if (!imageDataUrl.startsWith('data:image/')) return softFailure("That photo didn't come through — try again.")
+  return invoke('analyze-meal-photo', { image: imageDataUrl })
+}
+
+export async function refineMealPhoto(
+  imageDataUrl: string, priorQuestion: string, userAnswer: string,
+): Promise<MealParseResult> {
+  return invoke('analyze-meal-photo', { image: imageDataUrl, priorQuestion, userAnswer })
 }
