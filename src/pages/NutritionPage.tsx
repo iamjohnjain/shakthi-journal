@@ -383,7 +383,12 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
   function applyResult(result: MealParseResult) {
     setItems(prev => (result.items.length > 0 ? draftItemsFrom(result.items) : prev))
     setClarification(result.clarification ?? null)
-    setNote(result.items.length === 0 && !result.clarification ? (result.note ?? '') : '')
+    // A genuinely-empty result (model found no food, no note set) must still
+    // show *something* — otherwise the UI silently reverts to the input
+    // screen with zero feedback, which reads as "nothing happened."
+    setNote(result.items.length === 0 && !result.clarification
+      ? (result.note || "Didn't catch any food in that — try describing it a bit differently.")
+      : '')
   }
 
   async function handleEstimate() {
@@ -590,7 +595,11 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
   function applyResult(result: MealParseResult) {
     setItems(prev => (result.items.length > 0 ? draftItemsFrom(result.items) : prev))
     setClarification(result.clarification ?? null)
-    setNote(result.items.length === 0 && !result.clarification ? (result.note ?? '') : '')
+    // Same reasoning as the Describe tab: a genuinely-empty result with no
+    // note must still show something, not silently revert to "Take a Photo."
+    setNote(result.items.length === 0 && !result.clarification
+      ? (result.note || "Didn't spot any food in that photo — try again, or add it yourself below.")
+      : '')
   }
 
   async function processImage(blob: Blob) {
