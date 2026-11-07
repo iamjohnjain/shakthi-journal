@@ -254,7 +254,7 @@ export default function DailyLog() {
           resting HR from a 60-second pulse count. Kept separate from HRV/SpO2,
           which nobody can self-measure, so we never invite a guess at those. */}
       <LogSection title="Body">
-        <NumberField label="Weight" value={weightLbs} onChange={v => { setWeightLbs(v); markDirty() }} unit="lbs" step={0.1} min={50} max={500} placeholder={String(199)} />
+        <NumberField label="Weight" value={weightLbs} onChange={v => { setWeightLbs(v); markDirty() }} unit="lbs" step={0.1} min={50} max={500} placeholder="0" />
         <NumberField label="Resting heart rate" value={restingHR} onChange={v => { setRestingHR(v); markDirty() }} unit="bpm" step={1} min={30} max={220} placeholder="62" />
       </LogSection>
 
