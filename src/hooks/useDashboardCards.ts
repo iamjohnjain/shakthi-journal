@@ -15,18 +15,17 @@ export interface CardConfig {
 }
 
 export const CARD_REGISTRY: CardConfig[] = [
-  { id: 'goal-ring',     label: 'Main Goal Ring',       group: 'Overview',  description: 'Animated progress ring toward your primary goal',         defaultVisible: true  },
-  { id: 'quick-actions', label: 'Quick Actions',        group: 'Overview',  description: 'Log Food, Log Workout, Import, Compare buttons',          defaultVisible: true  },
+  { id: 'goal-ring',     label: 'Main Goal Ring',       group: 'Overview',  description: 'Animated progress ring toward weight and daily steps',    defaultVisible: true  },
+  { id: 'quick-actions', label: 'Quick Actions',        group: 'Overview',  description: 'Log Weight, Log Workout, Log Meals buttons',              defaultVisible: true  },
   { id: 'body',          label: 'Body Composition',     group: 'Health',    description: 'Weight, body fat %, muscle mass cards',                   defaultVisible: true  },
   { id: 'activity',      label: 'Activity & Steps',     group: 'Health',    description: 'Daily steps and active calorie progress',                 defaultVisible: true  },
-  { id: 'nutrition',     label: 'Nutrition',            group: 'Health',    description: 'Protein, calories, and macro cards',                      defaultVisible: true  },
   { id: 'vitals',        label: 'Vitals',               group: 'Health',    description: 'HRV and resting heart rate cards',                        defaultVisible: true  },
   { id: 'coach-notes',   label: 'Coach Notes',          group: 'Insights',  description: 'Rule-based daily recommendations (no AI)',                defaultVisible: true  },
   { id: 'import-status', label: 'Import Status Banner', group: 'Data',      description: 'Shows when data was last imported',                       defaultVisible: true  },
 ]
 
 // Sections that appear in the reorderable area below the fixed header
-export const REORDERABLE_IDS = ['body', 'activity', 'nutrition', 'vitals']
+export const REORDERABLE_IDS = ['body', 'activity', 'vitals']
 const DEFAULT_ORDER = REORDERABLE_IDS
 
 const VISIBILITY_KEY = 'dashboard-cards'
@@ -134,7 +133,7 @@ export function useDashboardCards() {
   }
 
   async function setMinimal() {
-    const minimalVisible = new Set(['goal-ring', 'quick-actions', 'nutrition'])
+    const minimalVisible = new Set(['goal-ring', 'quick-actions'])
     const next: Record<string, boolean> = {}
     CARD_REGISTRY.forEach(c => { next[c.id] = minimalVisible.has(c.id) })
     setVisibility(next)

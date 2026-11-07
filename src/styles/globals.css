@@ -173,3 +173,12 @@ a {
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+/* Safari auto-zooms the page on focusing any text input smaller than 16px.
+   Every form field needs to clear that threshold on mobile, regardless of
+   what size an individual component's CSS otherwise sets. */
+@media (max-width: 900px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}

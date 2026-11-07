@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
-import type { HealthInsight, InsightSeverity, InsightConfidence } from '../engine/healthIntelligence'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
+import type { HealthInsight, InsightSeverity, InsightCategory } from '../engine/healthIntelligence'
 import './DailyBrief.css'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -14,18 +15,24 @@ function severityClass(s: InsightSeverity): string {
   }[s]
 }
 
-function confidenceLabel(c: InsightConfidence): string {
-  return { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' }[c]
-}
-
-function confidenceClass(c: InsightConfidence): string {
-  return { high: 'conf--high', medium: 'conf--medium', low: 'conf--low' }[c]
+// Where "do something about this" actually happens for each insight category.
+// 'activity' has no dedicated page of its own — steps/calories already live on
+// this same Dashboard — so it gets no link rather than a pointless self-link.
+const CATEGORY_LINK: Partial<Record<InsightCategory, { path: string; label: string }>> = {
+  recovery:  { path: '/recovery',           label: 'View Recovery' },
+  nutrition: { path: '/nutrition',          label: 'Log a meal' },
+  hydration: { path: '/nutrition',          label: 'Log water' },
+  training:  { path: '/workouts',           label: 'Log a workout' },
+  weight:    { path: '/log',                label: 'Log weight' },
+  setup:     { path: '/connected-accounts', label: 'Connect a source' },
 }
 
 // ─── Insight Card ─────────────────────────────────────────────────────────────
 
 function InsightCard({ insight }: { insight: HealthInsight }) {
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
+  const link = CATEGORY_LINK[insight.category]
 
   return (
     <div className={`insight-card ${severityClass(insight.severity)}`}>
@@ -56,9 +63,6 @@ function InsightCard({ insight }: { insight: HealthInsight }) {
             <p className="insight-text insight-action">{insight.action}</p>
           </div>
           <div className="insight-footer">
-            <span className={`insight-confidence ${confidenceClass(insight.confidence)}`}>
-              {confidenceLabel(insight.confidence)}
-            </span>
             {insight.dataSources.length > 0 && (
               <div className="insight-sources">
                 {insight.dataSources.map(src => (
@@ -72,6 +76,12 @@ function InsightCard({ insight }: { insight: HealthInsight }) {
               </div>
             )}
           </div>
+
+          {link && (
+            <button className="insight-link-btn" onClick={() => navigate(link.path)}>
+              {link.label} <ArrowRight size={13} />
+            </button>
+          )}
         </div>
       )}
     </div>

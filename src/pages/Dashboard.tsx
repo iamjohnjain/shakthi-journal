@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ArrowLeftRight, ChevronRight, Target } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronRight, Target } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate } from '../data/config'
 
@@ -171,10 +171,9 @@ function EmptyState({
 function QuickActions() {
   const navigate = useNavigate()
   const actions = [
-    { icon: Utensils,       label: 'Log Food',    path: '/nutrition', color: 'var(--green)'  },
-    { icon: Dumbbell,       label: 'Log Workout', path: '/workouts',  color: 'var(--blue)'   },
-    { icon: Scale,          label: 'Log Weight',  path: '/log',       color: 'var(--purple)' },
-    { icon: ArrowLeftRight, label: 'Compare',     path: '/compare',   color: 'var(--orange)' },
+    { icon: Scale,    label: 'Log Weight',  path: '/log',       color: 'var(--purple)' },
+    { icon: Dumbbell, label: 'Log Workout', path: '/workouts',  color: 'var(--blue)'   },
+    { icon: Utensils, label: 'Log Meals',   path: '/nutrition', color: 'var(--green)'  },
   ]
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
@@ -270,10 +269,7 @@ interface SectionCtx {
   today: ReturnType<typeof useDashboardData>['today']
   yesterday: ReturnType<typeof useDashboardData>['yesterday']
   dataSource: ReturnType<typeof useDashboardData>['dataSource']
-  nutritionSource: ReturnType<typeof useDashboardData>['nutritionSource']
-  hasNutritionLog: ReturnType<typeof useDashboardData>['hasNutritionLog']
   todayProgress: ReturnType<typeof useHealthInsights>['todayProgress']
-  nutritionGoals: ReturnType<typeof useNutritionSettings>['goals']
   sectionOrder: string[]
   inNative: boolean
   menuFor: (id: string) => React.ComponentProps<typeof CardMenu>
@@ -353,7 +349,7 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
 
 function ActivitySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, todayProgress, nutritionGoals: _ng, inNative, menuFor } = ctx
+  const { today, todayProgress, inNative, menuFor } = ctx
   const steps    = today.steps
   const stepsPct = steps ? Math.round((steps / STEP_GOAL) * 100) : 0
   const hasActivity = steps != null || today.activeCalories != null || todayProgress.workoutLogged
@@ -401,62 +397,6 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
   )
 }
 
-function NutritionSection({ ctx }: { ctx: SectionCtx }) {
-  const navigate = useNavigate()
-  const { today, hasNutritionLog, nutritionSource, nutritionGoals, menuFor } = ctx
-  const protein   = today.proteinG
-  const calories  = today.caloriesIn
-  const proteinPct = protein  ? Math.round((protein  / nutritionGoals.proteinG) * 100) : 0
-  const caloriePct = calories ? Math.round((calories / nutritionGoals.calories)  * 100) : 0
-  const hasNutrition = hasNutritionLog || !!protein
-  const badge: DataBadgeMode | undefined = hasNutrition && nutritionSource !== 'mock'
-    ? (nutritionSource as DataBadgeMode)
-    : undefined
-
-  return (
-    <Section title="Nutrition" badgeMode={badge} badgeSource={nutritionSource === 'manual' ? 'Manual Log' : 'Imported'} menuProps={menuFor('nutrition')}>
-      {hasNutritionLog || protein ? (
-        <>
-          <MetricCard
-            label="Protein"
-            value={protein}
-            unit={`/ ${nutritionGoals.proteinG}g`}
-            sub={protein ? `${proteinPct}% of daily goal` : undefined}
-            trend={proteinPct >= 100 ? 'up' : 'neutral'}
-            trendLabel={proteinPct >= 100 ? 'Goal hit' : protein ? `${nutritionGoals.proteinG - protein}g left` : undefined}
-            trendPositive={true}
-            progress={protein ?? 0}
-            progressMax={nutritionGoals.proteinG}
-            progressColor="var(--green)"
-            accentColor="var(--green)"
-            empty={!protein}
-            emptyPrompt="Log a meal"
-            onEmptyClick={() => navigate('/nutrition')}
-          />
-          <MetricCard
-            label="Calories In"
-            value={calories ? calories.toLocaleString() : undefined}
-            unit={`/ ${nutritionGoals.calories.toLocaleString()}`}
-            sub={calories ? `${caloriePct}% of budget` : undefined}
-            progress={calories ?? 0}
-            progressMax={nutritionGoals.calories}
-            progressColor="var(--blue)"
-            empty={!calories}
-            emptyPrompt="Log a meal"
-            onEmptyClick={() => navigate('/nutrition')}
-          />
-        </>
-      ) : (
-        <EmptyState
-          icon="🥗"
-          message="No nutrition logged today"
-          primaryLabel="Log a meal"
-          primaryPath="/nutrition"
-        />
-      )}
-    </Section>
-  )
-}
 
 function VitalsSection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
@@ -501,10 +441,9 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
 
 // Map section IDs to their render components
 const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>> = {
-  body:      BodySection,
-  activity:  ActivitySection,
-  nutrition: NutritionSection,
-  vitals:    VitalsSection,
+  body:     BodySection,
+  activity: ActivitySection,
+  vitals:   VitalsSection,
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -512,7 +451,7 @@ const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>
 export default function Dashboard() {
   const navigate = useNavigate()
   const { mockMode } = useApp()
-  const { today, yesterday, dataSource, nutritionSource, hasNutritionLog, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData()
+  const { today, yesterday, dataSource, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData()
   const { insights, todayProgress, loading: insightsLoading } = useHealthInsights(mockMode)
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
@@ -554,8 +493,8 @@ export default function Dashboard() {
   }
 
   const sectionCtx: SectionCtx = {
-    today, yesterday, dataSource, nutritionSource, hasNutritionLog,
-    todayProgress, nutritionGoals, sectionOrder,
+    today, yesterday, dataSource,
+    todayProgress, sectionOrder,
     inNative,
     menuFor,
   }
@@ -592,7 +531,6 @@ export default function Dashboard() {
           <TodayCard
             today={today}
             todayProgress={todayProgress}
-            nutritionGoals={nutritionGoals}
             dataSource={dataSource}
           />
         </>

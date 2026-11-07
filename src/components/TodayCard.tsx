@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { DailySnapshot } from '../types/health'
 import type { TodayProgress } from '../hooks/useHealthInsights'
-import type { NutritionGoals } from '../db'
 import './TodayCard.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,19 +46,6 @@ function interpretRecovery(today: DailySnapshot): Insight | null {
   return null
 }
 
-function interpretProtein(todayProgress: TodayProgress, proteinGoal: number): Insight | null {
-  if (todayProgress.proteinTotal === 0) return null
-
-  const remaining = todayProgress.proteinRemaining
-  const hit = remaining <= 0
-  const status: InsightStatus = hit ? 'good' : remaining > proteinGoal * 0.5 ? 'action' : 'warning'
-  const value = hit
-    ? `${todayProgress.proteinTotal}g — goal hit`
-    : `${todayProgress.proteinTotal}g of ${proteinGoal}g`
-
-  return { emoji: '🥩', label: 'Protein', value, status, path: '/nutrition' }
-}
-
 function interpretWorkout(todayProgress: TodayProgress): Insight | null {
   if (!todayProgress.workoutLogged) return null
   const type = todayProgress.workoutType
@@ -92,7 +78,6 @@ function getHeadline(insights: Insight[], hasAnyData: boolean): string {
 
   const recovery = insights.find(i => i.label === 'Recovery' || i.label === 'Sleep')
   const workout  = insights.find(i => i.label === 'Training')
-  const protein  = insights.find(i => i.label === 'Protein')
 
   if (recovery?.status === 'excellent') {
     return workout?.status === 'good' ? 'Strong day.' : 'Great day to push hard.'
@@ -104,10 +89,7 @@ function getHeadline(insights: Insight[], hasAnyData: boolean): string {
     return 'Easy pace today.'
   }
   if (workout?.status === 'good') {
-    return protein?.status === 'action' ? 'Workout done — hit your protein.' : 'Workout in the books.'
-  }
-  if (protein?.status === 'action') {
-    return 'Protein needs attention.'
+    return 'Workout in the books.'
   }
 
   const goodCount = insights.filter(i => ['good', 'excellent'].includes(i.status)).length
@@ -121,18 +103,16 @@ function getHeadline(insights: Insight[], hasAnyData: boolean): string {
 interface Props {
   today: DailySnapshot
   todayProgress: TodayProgress
-  nutritionGoals: Pick<NutritionGoals, 'proteinG'>
   dataSource: string
 }
 
-export default function TodayCard({ today, todayProgress, nutritionGoals, dataSource }: Props) {
+export default function TodayCard({ today, todayProgress, dataSource }: Props) {
   const navigate  = useNavigate()
   const hasData   = dataSource !== 'mock'
 
   const insights: Insight[] = [
     interpretRecovery(today),
     interpretWorkout(todayProgress),
-    interpretProtein(todayProgress, nutritionGoals.proteinG),
     interpretSteps(today),
     interpretWeight(today),
   ].filter((x): x is Insight => x !== null).slice(0, 4)

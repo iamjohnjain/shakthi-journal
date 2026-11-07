@@ -14,7 +14,9 @@ const SLEEP_GOAL_H  = 8       // universally recommended
 const STEP_GOAL_DAY = 10_000  // universal daily target
 
 type GoalType = 'weight' | 'bodyFat' | 'steps' | 'protein' | 'sleep'
-const GOAL_TYPES: GoalType[] = ['weight', 'bodyFat', 'steps', 'protein', 'sleep']
+// Only metrics every iPhone provides via Apple Health, with no optional equipment
+// required — bodyFat/protein/sleep need a scale, manual logging, or a wearable.
+const GOAL_TYPES: GoalType[] = ['weight', 'steps']
 
 interface GoalCfg {
   label: string
