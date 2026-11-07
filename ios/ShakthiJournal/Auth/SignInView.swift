@@ -107,8 +107,58 @@ struct SignInView: View {
             errorView
 
             actionButton
+
+            divider
+
+            googleButton
         }
         .padding(.horizontal, 28)
+    }
+
+    // MARK: - Google sign-in
+
+    private var divider: some View {
+        HStack(spacing: 10) {
+            Rectangle().fill(Color(white: 0.15)).frame(height: 1)
+            Text("or").font(.caption).foregroundStyle(Color(white: 0.4))
+            Rectangle().fill(Color(white: 0.15)).frame(height: 1)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var googleButton: some View {
+        VStack(spacing: 8) {
+            Button {
+                auth.signInWithGoogle()
+            } label: {
+                HStack(spacing: 10) {
+                    if auth.isSigningInWithGoogle {
+                        ProgressView().tint(.black)
+                    } else {
+                        Text("G").fontWeight(.bold).foregroundStyle(Color(hex: "#4285F4"))
+                    }
+                    Text("Continue with Google").fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+            }
+            .background(Color.white)
+            .foregroundStyle(.black)
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .disabled(auth.isSigningInWithGoogle)
+
+            if let error = auth.googleSignInError {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.red).font(.footnote)
+                    Text(error)
+                        .font(.footnote).foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+            }
+        }
     }
 
     private func passwordField(placeholder: String, binding: Binding<String>) -> some View {

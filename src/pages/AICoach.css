@@ -62,51 +62,6 @@
   color: var(--text-primary);
 }
 
-/* ─── Coming soon card ───────────────────────────────────── */
-
-.ai-coming-soon-card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 18px 20px;
-  background: linear-gradient(135deg, rgba(191,90,242,0.07), rgba(10,132,255,0.05));
-  border: 1px solid rgba(191,90,242,0.2);
-  border-radius: var(--r-xl);
-  margin-top: 8px;
-}
-
-.ai-coming-soon-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(191,90,242,0.3), rgba(10,132,255,0.2));
-  border: 1px solid rgba(191,90,242,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #d4a8ff;
-  flex-shrink: 0;
-}
-
-.ai-coming-soon-text {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ai-coming-soon-text strong {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.ai-coming-soon-text p {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.55;
-  margin: 0;
-}
-
 /* ─── Mobile ─────────────────────────────────────────────── */
 
 @media (max-width: 900px) {

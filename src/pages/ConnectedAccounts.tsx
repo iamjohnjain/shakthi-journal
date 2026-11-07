@@ -7,6 +7,8 @@ import {
 import DataBadge from '../components/DataBadge'
 import { getSyncHistory } from '../db'
 import { getImportedSources, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
+import { getOwnedDevices, setOwnedDevices, owns, GATEABLE_DEVICES } from '../db/deviceStore'
+import type { DeviceId } from '../db/deviceStore'
 import { isInsideNativeApp } from '../layout/BottomNav'
 import './ConnectedAccounts.css'
 
@@ -182,7 +184,6 @@ function AccountCard({
             <Info size={13} /> View Setup
           </button>
         )}
-        {/* Strava OAuth disabled for beta — requires server-side token exchange */}
       </div>
     </div>
   )
@@ -211,7 +212,7 @@ const PRIMARY_IDS = ['apple_health', 'apple_watch', 'renpho', 'ringconn']
 
 const COMING_SOON_PROVIDERS = [
   { id: 'myfitnesspal', icon: '🥗', name: 'MyFitnessPal',   method: 'Via Apple Health · or CSV from myfitnesspal.com' },
-  { id: 'strava',       icon: '🏃', name: 'Strava',         method: 'OAuth 2.0 API · requires server-side proxy' },
+  { id: 'strava',       icon: '🏃', name: 'Strava',         method: 'CSV export · Settings → Download Your Data' },
   { id: 'garmin',       icon: '⌚', name: 'Garmin Connect', method: 'Via Apple Health · enable in Garmin Connect app' },
   { id: 'whoop',        icon: '⚡', name: 'WHOOP',          method: 'Via Apple Health · enable in WHOOP app' },
   { id: 'oura',         icon: '💍', name: 'Oura Ring',      method: 'Via Apple Health · enable in Oura app' },
@@ -226,6 +227,7 @@ export default function ConnectedAccounts() {
   const [detectedSources, setDetectedSources] = useState<string[]>([])
   const [latestBodyFat, setLatestBodyFat] = useState<{ valuePct: number; date: string; sourceId: string; sourceName: string } | null>(null)
   const [latestSleep, setLatestSleep] = useState<{ valueH: number; date: string; sourceId: string; sourceName: string } | null>(null)
+  const [ownedDevices, setOwnedDevicesState] = useState<DeviceId[] | null>(null)
 
   const loadData = useCallback(function loadData() {
     getSyncHistory(200).then(entries => {
@@ -243,7 +245,15 @@ export default function ConnectedAccounts() {
     getImportedSources().then(setDetectedSources)
     getLatestBodyFatRecord().then(setLatestBodyFat)
     getLatestSleepRecord().then(setLatestSleep)
+    getOwnedDevices().then(setOwnedDevicesState)
   }, [])
+
+  async function toggleOwnedDevice(id: DeviceId) {
+    const current = ownedDevices ?? GATEABLE_DEVICES.map(d => d.id)
+    const next = current.includes(id) ? current.filter(d => d !== id) : [...current, id]
+    setOwnedDevicesState(next)
+    await setOwnedDevices(next)
+  }
 
   useEffect(() => {
     loadData()
@@ -381,7 +391,10 @@ export default function ConnectedAccounts() {
     setTimeout(() => setDisconnectMsg(''), 4000)
   }
 
-  const primaryAccounts = accounts.filter(a => PRIMARY_IDS.includes(a.id))
+  const primaryAccounts = accounts.filter(a =>
+    PRIMARY_IDS.includes(a.id) &&
+    (a.id === 'apple_health' || owns(ownedDevices, a.id as DeviceId))
+  )
   const connectedCount  = primaryAccounts.filter(a => a.status === 'connected').length
   const importReadyCount = primaryAccounts.filter(a => a.status === 'import_ready').length
   const needsSetupCount  = primaryAccounts.filter(a => a.status === 'needs_setup').length
@@ -433,6 +446,32 @@ export default function ConnectedAccounts() {
         </div>
       </div>
 
+      {/* Your equipment — what's shown elsewhere in the app is gated on this */}
+      <div className="accounts-coming-soon">
+        <h3 className="accounts-cs-heading">Your equipment</h3>
+        <p className="accounts-cs-sub">
+          Only checked equipment shows up in Recovery, Profile, and here. Uncheck anything you don't own.
+        </p>
+        {GATEABLE_DEVICES.map(d => {
+          const checked = owns(ownedDevices, d.id)
+          return (
+            <button
+              key={d.id}
+              type="button"
+              className="accounts-cs-row accounts-cs-row--toggle"
+              onClick={() => toggleOwnedDevice(d.id)}
+              aria-pressed={checked}
+            >
+              <span className="accounts-cs-icon">{d.icon}</span>
+              <span className="accounts-cs-name">{d.name}</span>
+              <span className={`accounts-device-check ${checked ? 'accounts-device-check--on' : ''}`}>
+                {checked ? 'I have this' : "I don't have this"}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* Primary accounts list */}
       <div className="accounts-list">
         {primaryAccounts.map(account => (
@@ -481,13 +520,13 @@ export default function ConnectedAccounts() {
                 <strong>Real today (native app):</strong> Apple Health and Apple Watch via HealthKit — steps, heart rate, HRV, sleep, weight, calories, and body fat sync automatically. RENPHO data appears here automatically if you've enabled Apple Health sync in the RENPHO app.
               </div>
               <div className="honesty-item honesty-item--no">
-                <strong>Not yet real:</strong> Background auto-sync (you tap Sync Now to pull fresh data), Strava direct API (requires server-side proxy), RingConn/WHOOP/Oura direct APIs (don't exist publicly — Apple Health is the only path). RingConn Sleep Score, Stress, and Recovery Score are not exposed to Apple Health by RingConn.
+                <strong>Not yet real:</strong> Background auto-sync (you tap Sync Now to pull fresh data). RingConn/WHOOP/Oura direct APIs (don't exist publicly — Apple Health is the only path). RingConn Sleep Score, Stress, and Recovery Score are not exposed to Apple Health by RingConn.
               </div>
             </>
           ) : (
             <>
               <div className="honesty-item honesty-item--yes">
-                <strong>Real today:</strong> Manual file import from Apple Health XML, RENPHO CSV, or MFP CSV. Strava OAuth once you add credentials.
+                <strong>Real today:</strong> Manual file import from Apple Health XML, RENPHO CSV, MFP CSV, or Strava CSV.
               </div>
               <div className="honesty-item honesty-item--no">
                 <strong>Not yet real:</strong> Automatic background sync, live API polling, Apple Watch direct access, RingConn API (doesn't exist publicly).

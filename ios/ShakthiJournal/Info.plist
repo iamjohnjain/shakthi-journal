@@ -18,6 +18,18 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>A future update will allow Shakthi to log workouts and body measurements back to Apple Health. Write permission is requested now to avoid a second dialog later.</string>
 
+	<!-- Google sign-in redirect — caught by ASWebAuthenticationSession, not app URL
+	     handling, but registered here too so the scheme is reserved and documented. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.shakthijournal.app</string>
+			</array>
+		</dict>
+	</array>
+
 	<!-- Standard iOS keys -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>

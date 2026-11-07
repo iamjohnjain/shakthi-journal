@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Zap, Moon, Heart, Activity, TrendingUp } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Zap, Moon, Heart, Activity, TrendingUp, PenLine } from 'lucide-react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { getMetricHistory } from '../db/timelineStore'
+import DataBadge from '../components/DataBadge'
+import type { DataBadgeMode } from '../components/DataBadge'
+import { getOwnedDevices, owns } from '../db/deviceStore'
+import type { DeviceId } from '../db/deviceStore'
 import './RecoveryPage.css'
 
 function MetricCard({
-  icon: Icon, label, value, unit, color, note,
+  icon: Icon, label, value, unit, color, note, loggable,
 }: {
   icon: React.ElementType
   label: string
@@ -13,7 +18,12 @@ function MetricCard({
   unit?: string
   color: string
   note?: string
+  /** True for metrics a person can self-report (sleep, resting HR) — false for
+      HRV/SpO2/respiratory, which nobody can know without a device. Only
+      loggable metrics get a "Log it" nudge instead of a dead-end "No data". */
+  loggable?: boolean
 }) {
+  const navigate = useNavigate()
   const hasData = value !== undefined && value !== null
   return (
     <div className="recovery-metric-card">
@@ -27,6 +37,10 @@ function MetricCard({
             {typeof value === 'number' ? value.toFixed(value % 1 === 0 ? 0 : 1) : '—'}
             {unit && <span className="recovery-metric-unit">{unit}</span>}
           </span>
+        ) : loggable ? (
+          <button className="recovery-metric-log-btn" onClick={() => navigate('/log')}>
+            <PenLine size={11} /> Log it
+          </button>
         ) : (
           <span className="recovery-metric-missing">No data</span>
         )}
@@ -89,12 +103,23 @@ function useBaseline(metricType: string, currentValue?: number | null) {
 }
 
 export default function RecoveryPage() {
-  const { today, loading } = useDashboardData()
+  const navigate = useNavigate()
+  const { today, dataSource, loading } = useDashboardData()
   const hrvBaseline   = useBaseline('hrv', today.hrv)
   const sleepBaseline = useBaseline('sleepHours', today.sleepHours)
   const hrBaseline    = useBaseline('restingHeartRate', today.restingHeartRate)
+  const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
+
+  useEffect(() => { getOwnedDevices().then(setOwnedDevices) }, [])
 
   if (loading) return <div className="recovery-page"><p style={{ color: 'var(--text-tertiary)', padding: 24 }}>Loading…</p></div>
+
+  const hasRingConn = owns(ownedDevices, 'ringconn')
+
+  const hasData = today.recoveryScore != null || today.sleepHours != null || today.hrv != null || today.restingHeartRate != null
+  const badgeMode: DataBadgeMode | undefined = hasData && dataSource !== 'mock'
+    ? (dataSource === 'manual' ? 'manual' : 'imported')
+    : undefined
 
   return (
     <div className="recovery-page">
@@ -103,6 +128,7 @@ export default function RecoveryPage() {
           <h1 className="page-title">Recovery</h1>
           <p className="page-subtitle">Sleep · HRV · Readiness</p>
         </div>
+        {badgeMode && <DataBadge mode={badgeMode} source={dataSource === 'manual' ? 'Manual Log' : 'Apple Health'} />}
       </header>
 
       <div className="recovery-hero">
@@ -115,6 +141,7 @@ export default function RecoveryPage() {
             value={today.sleepHours}
             unit="hrs"
             color="var(--purple)"
+            loggable
             note={
               sleepBaseline
                 ? `${Math.abs(sleepBaseline.pct)}% ${sleepBaseline.above ? 'above' : 'below'} your normal`
@@ -139,6 +166,7 @@ export default function RecoveryPage() {
             value={today.restingHeartRate}
             unit="bpm"
             color="var(--red)"
+            loggable
             note={
               hrBaseline
                 ? `${Math.abs(hrBaseline.pct)}% ${hrBaseline.above ? 'above' : 'below'} your normal`
@@ -169,34 +197,38 @@ export default function RecoveryPage() {
           <Zap size={32} style={{ opacity: 0.25, marginBottom: 12 }} />
           <p className="recovery-empty-title">No recovery data yet</p>
           <p className="recovery-empty-desc">
-            RingConn, Apple Watch, and other wearables write sleep, HRV, resting heart rate, SpO2, and respiratory rate to Apple Health automatically.
-            <br /><br />
-            In the native app, tap <strong>Sync Now</strong> after enabling Apple Health sync in your RingConn app. On web, go to <strong>Settings → Import Data</strong> and import an Apple Health export.
+            No equipment needed to start: log how you slept and your resting heart rate yourself, right now.
+            {' '}HRV, SpO2, and respiratory rate do need a wearable — those come in automatically if you have an Apple Watch, RingConn, or similar synced through Apple Health.
           </p>
+          <button className="recovery-empty-log-btn" onClick={() => navigate('/log')}>
+            <PenLine size={14} /> Log today
+          </button>
         </div>
       )}
 
-      <div className="recovery-honesty-box" style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
-        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>What Apple Health exposes from RingConn</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {[
-            { label: 'Sleep duration', available: true },
-            { label: 'HRV (SDNN)', available: true },
-            { label: 'Resting heart rate', available: true },
-            { label: 'SpO2 (blood oxygen)', available: true },
-            { label: 'Respiratory rate', available: true },
-            { label: 'Sleep score', available: false, reason: 'RingConn keeps this in-app only' },
-            { label: 'Stress / Relax score', available: false, reason: 'Not exposed to Apple Health' },
-            { label: 'Recovery score', available: false, reason: 'Not exposed to Apple Health' },
-          ].map(({ label, available, reason }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13 }}>
-              <span style={{ color: available ? 'var(--green)' : 'var(--text-tertiary)', minWidth: 14 }}>{available ? '✓' : '✗'}</span>
-              <span style={{ color: available ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>{label}</span>
-              {!available && reason && <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>— {reason}</span>}
-            </div>
-          ))}
+      {hasRingConn && (
+        <div className="recovery-honesty-box" style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>What Apple Health exposes from RingConn</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[
+              { label: 'Sleep duration', available: true },
+              { label: 'HRV (SDNN)', available: true },
+              { label: 'Resting heart rate', available: true },
+              { label: 'SpO2 (blood oxygen)', available: true },
+              { label: 'Respiratory rate', available: true },
+              { label: 'Sleep score', available: false, reason: 'RingConn keeps this in-app only' },
+              { label: 'Stress / Relax score', available: false, reason: 'Not exposed to Apple Health' },
+              { label: 'Recovery score', available: false, reason: 'Not exposed to Apple Health' },
+            ].map(({ label, available, reason }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13 }}>
+                <span style={{ color: available ? 'var(--green)' : 'var(--text-tertiary)', minWidth: 14 }}>{available ? '✓' : '✗'}</span>
+                <span style={{ color: available ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>{label}</span>
+                {!available && reason && <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>— {reason}</span>}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="recovery-coming-section">
         <p className="recovery-coming-label">Coming next</p>

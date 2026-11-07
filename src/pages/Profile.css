@@ -208,6 +208,13 @@
   color: var(--text-tertiary);
 }
 
+.profile-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 /* First card (progress) spans full width */
 .profile-content > .profile-card:first-child {
   grid-column: span 2;
@@ -398,6 +405,22 @@
   color: var(--green);
   font-weight: 500;
   white-space: nowrap;
+}
+
+.profile-devices-manage-btn {
+  background: none;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 0;
+}
+
+.profile-devices-empty {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  padding: 4px 0;
 }
 
 /* ─── Edit Modal ─────────────────────────────────────────── */

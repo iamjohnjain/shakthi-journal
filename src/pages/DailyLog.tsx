@@ -132,6 +132,7 @@ export default function DailyLog() {
 
   // form state
   const [weightLbs, setWeightLbs] = useState<number | undefined>()
+  const [restingHR, setRestingHR] = useState<number | undefined>()
   const [calories,  setCalories]  = useState<number | undefined>()
   const [protein,   setProtein]   = useState<number | undefined>()
   const [carbs,     setCarbs]     = useState<number | undefined>()
@@ -139,6 +140,7 @@ export default function DailyLog() {
   const [water,     setWater]     = useState<number | undefined>()
   const [workout,   setWorkout]   = useState(false)
   const [workoutNotes, setWorkoutNotes] = useState('')
+  const [sleepHours, setSleepHours] = useState<number | undefined>()
   const [mood,      setMood]      = useState<1|2|3|4|5 | undefined>()
   const [energy,    setEnergy]    = useState<1|2|3|4|5 | undefined>()
   const [sleepQ,    setSleepQ]    = useState<1|2|3|4|5 | undefined>()
@@ -151,6 +153,7 @@ export default function DailyLog() {
     if (log) {
       setExisting(true)
       setWeightLbs(log.weightKg ? +kgToLbs(log.weightKg).toFixed(1) : undefined)
+      setRestingHR(log.restingHeartRate)
       setCalories(log.caloriesIn)
       setProtein(log.proteinG)
       setCarbs(log.carbsG)
@@ -158,15 +161,16 @@ export default function DailyLog() {
       setWater(log.waterMl ? +(log.waterMl / 1000).toFixed(2) : undefined)
       setWorkout(log.workoutCompleted ?? false)
       setWorkoutNotes(log.workoutNotes ?? '')
+      setSleepHours(log.sleepHours)
       setMood(log.mood)
       setEnergy(log.energyLevel)
       setSleepQ(log.sleepQuality)
       setNotes(log.notes ?? '')
     } else {
       setExisting(false)
-      setWeightLbs(undefined); setCalories(undefined); setProtein(undefined)
+      setWeightLbs(undefined); setRestingHR(undefined); setCalories(undefined); setProtein(undefined)
       setCarbs(undefined); setFat(undefined); setWater(undefined)
-      setWorkout(false); setWorkoutNotes('')
+      setWorkout(false); setWorkoutNotes(''); setSleepHours(undefined)
       setMood(undefined); setEnergy(undefined); setSleepQ(undefined); setNotes('')
     }
     setDirty(false)
@@ -182,6 +186,7 @@ export default function DailyLog() {
       await saveLog({
         date,
         weightKg:         weightLbs != null ? +(weightLbs / 2.20462).toFixed(2) : undefined,
+        restingHeartRate: restingHR,
         caloriesIn:       calories,
         proteinG:         protein,
         carbsG:           carbs,
@@ -189,6 +194,7 @@ export default function DailyLog() {
         waterMl:          water != null ? +(water * 1000) : undefined,
         workoutCompleted: workout,
         workoutNotes:     workoutNotes || undefined,
+        sleepHours,
         mood,
         energyLevel:      energy,
         sleepQuality:     sleepQ,
@@ -242,9 +248,13 @@ export default function DailyLog() {
         </div>
       </header>
 
-      {/* ── Body ── */}
+      {/* ── Body ──
+          No wearable needed for either of these — weight from any scale,
+          resting HR from a 60-second pulse count. Kept separate from HRV/SpO2,
+          which nobody can self-measure, so we never invite a guess at those. */}
       <LogSection title="Body">
         <NumberField label="Weight" value={weightLbs} onChange={v => { setWeightLbs(v); markDirty() }} unit="lbs" step={0.1} min={50} max={500} placeholder={String(199)} />
+        <NumberField label="Resting heart rate" value={restingHR} onChange={v => { setRestingHR(v); markDirty() }} unit="bpm" step={1} min={30} max={220} placeholder="62" />
       </LogSection>
 
       {/* Nutrition is logged via /nutrition — removed from daily log to avoid dual-entry confusion */}
@@ -266,8 +276,15 @@ export default function DailyLog() {
         )}
       </LogSection>
 
-      {/* ── Wellbeing ── */}
-      <LogSection title="Wellbeing">
+      {/* ── Sleep & Wellbeing ── */}
+      <LogSection title="Sleep & Wellbeing">
+        <NumberField label="Sleep" value={sleepHours} onChange={v => { setSleepHours(v); markDirty() }} unit="hrs" step={0.5} min={0} max={16} placeholder="7.5" />
+        <RatingField
+          label="Sleep quality"
+          value={sleepQ}
+          onChange={v => { setSleepQ(v); markDirty() }}
+          labels={['Terrible', 'Poor', 'Okay', 'Good', 'Great']}
+        />
         <RatingField
           label="Mood"
           value={mood}
@@ -279,12 +296,6 @@ export default function DailyLog() {
           value={energy}
           onChange={v => { setEnergy(v); markDirty() }}
           labels={['Drained', 'Low', 'Moderate', 'Good', 'High']}
-        />
-        <RatingField
-          label="Sleep quality"
-          value={sleepQ}
-          onChange={v => { setSleepQ(v); markDirty() }}
-          labels={['Terrible', 'Poor', 'Okay', 'Good', 'Great']}
         />
       </LogSection>
 

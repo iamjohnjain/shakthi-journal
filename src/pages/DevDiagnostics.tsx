@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { getDBStats } from '../db'
-import { stravaCredentialsConfigured, loadStravaToken } from '../services/strava/stravaOAuth'
 import './DevDiagnostics.css'
 
 interface DBStats { metricCount: number; syncCount: number; version: number }
@@ -55,7 +54,7 @@ const INTEGRATIONS: Integration[] = [
   { name: 'Apple Watch',   realStatus: 'via_hub',            note: 'Data flows through Apple Health.' },
   { name: 'RingConn',      realStatus: 'via_hub',            note: 'Enable Apple Health sync in RingConn app.' },
   { name: 'RENPHO',        realStatus: 'import_only',        note: 'CSV export or Apple Health sync. No API.' },
-  { name: 'Strava',        realStatus: stravaCredentialsConfigured() ? 'live_api' : 'needs_credentials', note: stravaCredentialsConfigured() ? 'OAuth 2.0 credentials configured.' : 'Add credentials to .env.' },
+  { name: 'Strava',        realStatus: 'import_only',        note: 'CSV bulk export only — no live OAuth, by design (no third-party API dependency).' },
   { name: 'MyFitnessPal',  realStatus: 'no_api',             note: 'API removed 2019. CSV or Apple Health only.' },
 ]
 
@@ -104,12 +103,6 @@ export default function DevDiagnostics() {
 
   useEffect(() => { refresh() }, [])
 
-  // Env var checks
-  const stravaClientId  = !!import.meta.env.VITE_STRAVA_CLIENT_ID
-  const stravaSecret    = !!import.meta.env.VITE_STRAVA_CLIENT_SECRET
-  const stravaRedirect  = !!import.meta.env.VITE_STRAVA_REDIRECT_URI
-  const stravaToken     = !!loadStravaToken()
-
   return (
     <div className="dev-diagnostics-page">
       <header className="page-header">
@@ -125,9 +118,6 @@ export default function DevDiagnostics() {
 
       {/* ── Environment variables ── */}
       <DiagSection title="Environment Variables">
-        <DiagRow label="VITE_STRAVA_CLIENT_ID"     value={stravaClientId  ? 'Set' : 'Missing'} ok={stravaClientId}  mono />
-        <DiagRow label="VITE_STRAVA_CLIENT_SECRET"  value={stravaSecret   ? 'Set (do not log)' : 'Missing'} ok={stravaSecret}    mono />
-        <DiagRow label="VITE_STRAVA_REDIRECT_URI"   value={import.meta.env.VITE_STRAVA_REDIRECT_URI ?? 'Not set (using default)'} ok={stravaRedirect} mono />
         <DiagRow label="VITE_APP_VERSION"           value={import.meta.env.VITE_APP_VERSION ?? 'Not set'} ok={!!import.meta.env.VITE_APP_VERSION} mono />
         <div className="diag-note">
           Env vars are embedded in the JS bundle at build time (VITE_ prefix). Never log client secrets.
@@ -168,24 +158,6 @@ export default function DevDiagnostics() {
         <div className="diag-note">
           When ON, dashboard shows realistic simulated data with yellow MOCK DATA badges.
           Turn OFF when you have real imported data.
-        </div>
-      </DiagSection>
-
-      {/* ── Strava OAuth state ── */}
-      <DiagSection title="Strava OAuth">
-        <DiagRow label="Credentials configured" value={stravaCredentialsConfigured() ? 'Yes' : 'No'} ok={stravaCredentialsConfigured()} />
-        <DiagRow label="Token stored"           value={stravaToken ? 'Yes — localStorage' : 'No'} ok={stravaToken} />
-        {stravaToken && (() => {
-          const t = loadStravaToken()!
-          const expired = Date.now() / 1000 >= t.expires_at - 60
-          return <>
-            <DiagRow label="Token expires"  value={new Date(t.expires_at * 1000).toLocaleString()} ok={!expired} warn={expired} />
-            <DiagRow label="Athlete"        value={`${t.athlete.firstname} ${t.athlete.lastname} (ID: ${t.athlete.id})`} />
-          </>
-        })()}
-        <div className="diag-note">
-          Strava token is stored in localStorage. Not encrypted — acceptable for personal dev use.
-          Production apps should use a backend token proxy.
         </div>
       </DiagSection>
 

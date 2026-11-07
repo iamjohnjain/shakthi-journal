@@ -47,8 +47,6 @@ function buildMetrics(heightM: number, proteinGoalG = 200): MetricDef[] {
   { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => (s.weight && heightM > 0) ? +(s.weight / (heightM * heightM)).toFixed(1) : undefined },
   { id: 'leanMass',   label: 'Lean Mass',       group: 'Body',      unit: 'lbs',      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => s.muscleMassKg ? kgToLbs(s.muscleMassKg) : undefined },
   { id: 'fatFree',    label: 'Fat-Free Mass',   group: 'Body',      unit: 'lbs',      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => (s.weight && s.bodyFatPct != null) ? kgToLbs(s.weight * (1 - s.bodyFatPct / 100)) : undefined },
-  { id: 'visceralFat',label: 'Visceral Fat',    group: 'Body',      unit: 'level',    higherIsBetter: false, color: 'var(--orange)',format: v => v.toFixed(0),                   get: _s => undefined },
-  { id: 'subcutFat',  label: 'Subcutaneous Fat',group: 'Body',      unit: '%',        higherIsBetter: false, color: 'var(--orange)',format: v => v.toFixed(1),                   get: _s => undefined },
   // Activity
   { id: 'steps',      label: 'Steps',           group: 'Activity',  unit: '',         higherIsBetter: true,  color: 'var(--green)', format: v => Math.round(v).toLocaleString(), get: s => s.steps },
   { id: 'activeKcal', label: 'Active Calories', group: 'Activity',  unit: 'kcal',     higherIsBetter: true,  color: 'var(--orange)',format: v => Math.round(v).toLocaleString(), get: s => s.activeCalories },
@@ -62,10 +60,6 @@ function buildMetrics(heightM: number, proteinGoalG = 200): MetricDef[] {
   { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${proteinGoalG}g`, higherIsBetter: true, color: 'var(--orange)', format: v => Math.round(v).toString(), get: s => s.proteinG },
   { id: 'caloriesIn', label: 'Calories Eaten',  group: 'Nutrition', unit: 'kcal',     higherIsBetter: false, color: 'var(--yellow)',format: v => Math.round(v).toLocaleString(), get: s => s.caloriesIn },
   { id: 'water',      label: 'Water',           group: 'Nutrition', unit: 'oz',       higherIsBetter: true,  color: 'var(--blue)',  format: v => Math.round(v).toString(),       get: s => s.waterMl ? +(s.waterMl / 29.574).toFixed(0) : undefined },
-  // Athletic (manual only — no data yet)
-  { id: 'vertJump',   label: 'Vertical Jump',   group: 'Athletic',  unit: 'in',       higherIsBetter: true,  color: 'var(--yellow)',format: v => v.toFixed(1),                   get: _s => undefined },
-  { id: 'pullups',    label: 'Pull-ups',        group: 'Athletic',  unit: 'reps',     higherIsBetter: true,  color: 'var(--yellow)',format: v => Math.round(v).toString(),       get: _s => undefined },
-  { id: 'runPace',    label: 'Running Pace',    group: 'Athletic',  unit: 'min/mi',   higherIsBetter: false, color: 'var(--green)', format: v => v.toFixed(2),                   get: _s => undefined },
 ]}
 
 const DEFAULT_SELECTED = ['weight', 'bodyFat', 'leanMass', 'steps', 'sleep', 'hrv', 'protein']
@@ -94,10 +88,12 @@ function mergeLog(snap: DailySnapshot | null, log: DailyLog | null, date: string
   const base = snap ?? { date }
   const merged: DailySnapshot = {
     ...base,
-    weight:     log?.weightKg   ?? base.weight,
-    caloriesIn: log?.caloriesIn ?? base.caloriesIn,
-    proteinG:   log?.proteinG   ?? base.proteinG,
-    waterMl:    log?.waterMl    ?? base.waterMl,
+    weight:           log?.weightKg         ?? base.weight,
+    caloriesIn:       log?.caloriesIn        ?? base.caloriesIn,
+    proteinG:         log?.proteinG          ?? base.proteinG,
+    waterMl:          log?.waterMl           ?? base.waterMl,
+    sleepHours:       log?.sleepHours        ?? base.sleepHours,
+    restingHeartRate: log?.restingHeartRate  ?? base.restingHeartRate,
   }
   const source = snap && log ? 'Apple Health + Manual' : snap ? 'Apple Health' : log ? 'Manual Log' : 'No data'
   return { ...merged, _source: source }

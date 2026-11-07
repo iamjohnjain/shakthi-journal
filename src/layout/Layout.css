@@ -38,8 +38,8 @@
   }
 
   .page-content {
-    /* Reserve space for bottom nav + safe area */
-    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom));
+    /* Reserve space for the floating bottom nav (height + its lift gap) + safe area */
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 18px);
     /* Reserve top for iPhone status bar in standalone mode */
     padding-top: var(--safe-top);
   }

@@ -1254,6 +1254,21 @@
   line-height: 1.5;
 }
 
+.ob-connect-subhead {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0 4px;
+  margin: 18px 0 2px;
+}
+
+.ob-connect-subhead-note {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  padding: 0 4px;
+  margin: 0 0 10px;
+}
+
 /* ─── Desktop overrides ───────────────────────────────────────────────────── */
 
 @media (min-width: 640px) {

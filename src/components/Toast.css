@@ -75,7 +75,8 @@
 
 @media (max-width: 640px) {
   .toast-stack {
-    bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 12px);
+    /* Clear the floating glass nav (its own 10px lift gap) with room to spare */
+    bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 24px);
     left: 16px;
     right: 16px;
   }

@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Zap, Apple, Dumbbell,
-  Target, TrendingUp, UserCircle, Settings, Clock,
+  Target, TrendingUp, UserCircle, Settings, Clock, Sparkles,
 } from 'lucide-react'
 import SyncStatusPill from '../components/SyncStatus'
 import { AvatarDisplay } from '../components/Avatar'
@@ -15,6 +15,7 @@ type NavItem = { path: string; label: string; icon: React.ElementType; end?: boo
 
 const MAIN_NAV: NavItem[] = [
   { path: '/',          label: 'Today',     icon: LayoutDashboard, end: true },
+  { path: '/ai-coach',  label: 'Coach',     icon: Sparkles },
   { path: '/timeline',  label: 'Timeline',  icon: Clock },
   { path: '/recovery',  label: 'Recovery',  icon: Zap },
   { path: '/nutrition', label: 'Nutrition', icon: Apple },

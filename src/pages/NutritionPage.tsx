@@ -7,6 +7,7 @@ import {
 } from '../db/nutritionStore'
 import type { NutritionEntry } from '../db/nutritionStore'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
+import DataBadge from '../components/DataBadge'
 // logStore removed — water logging retired
 import './NutritionPage.css'
 
@@ -248,6 +249,7 @@ export default function NutritionPage() {
         <div>
           <h1 className="page-title">Nutrition</h1>
           <p className="page-subtitle">{new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+          {entries.length > 0 && <DataBadge mode="manual" source="Logged by you" />}
         </div>
         <button className="log-workout-btn" onClick={() => openAdd()}>
           <Plus size={16} /> Add Food

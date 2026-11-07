@@ -63,8 +63,6 @@ export async function saveWorkout(workout: Omit<WorkoutSession, 'id' | 'createdA
   await db.put('workouts', full)
   void syncEngine.queueWrite('workouts', 'upsert', full.id, full)
   showToast('Workout saved')
-  // Check achievements asynchronously — never blocks the save
-  void import('../engine/achievementEngine').then(m => m.checkAndAwardAchievements())
   return full
 }
 

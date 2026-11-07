@@ -20,6 +20,9 @@ export interface DailyLog {
   mood?: 1 | 2 | 3 | 4 | 5
   energyLevel?: 1 | 2 | 3 | 4 | 5
   sleepQuality?: 1 | 2 | 3 | 4 | 5
+  /** Self-reported — no device required. Genuinely self-knowable, unlike HRV/SpO2. */
+  sleepHours?: number
+  restingHeartRate?: number
   notes?: string
   createdAt: string
   updatedAt: string

@@ -58,12 +58,15 @@ function mergeLogIntoSnapshot(snap: DailySnapshot, log: DailyLog | null): DailyS
   if (!log) return snap
   return {
     ...snap,
-    weight:     log.weightKg   ?? snap.weight,
-    caloriesIn: log.caloriesIn ?? snap.caloriesIn,
-    proteinG:   log.proteinG   ?? snap.proteinG,
-    carbsG:     log.carbsG     ?? snap.carbsG,
-    fatG:       log.fatG       ?? snap.fatG,
-    waterMl:    log.waterMl    ?? snap.waterMl,
+    weight:           log.weightKg         ?? snap.weight,
+    caloriesIn:       log.caloriesIn        ?? snap.caloriesIn,
+    proteinG:         log.proteinG          ?? snap.proteinG,
+    carbsG:           log.carbsG            ?? snap.carbsG,
+    fatG:             log.fatG              ?? snap.fatG,
+    waterMl:          log.waterMl           ?? snap.waterMl,
+    // Self-reportable without any wearable — fills the gap for phone-only users.
+    sleepHours:       log.sleepHours        ?? snap.sleepHours,
+    restingHeartRate: log.restingHeartRate  ?? snap.restingHeartRate,
   }
 }
 

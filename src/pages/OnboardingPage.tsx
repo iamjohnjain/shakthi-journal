@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import { setSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
+import { setOwnedDevices, GATEABLE_DEVICES } from '../db/deviceStore'
+import type { DeviceId } from '../db/deviceStore'
 import { AvatarPicker, AvatarDisplay } from '../components/Avatar'
 import { useAuth } from '../context/AuthContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
@@ -73,6 +75,7 @@ interface OBData {
   calorieGoal: string
   proteinGoal: string
   trainingDays: number
+  ownedDevices: DeviceId[]
   intendToConnect: string[]
   importAfterSetup?: boolean
 }
@@ -689,19 +692,10 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
 
 // ─── Step 10: Connect Sources ─────────────────────────────────────────────────
 
-const CONNECT_SOURCES = [
-  {
-    id: 'apple-health',
-    icon: '❤️',
-    name: 'iPhone Health',
-    desc: 'Steps, weight, sleep, heart rate, workouts',
-  },
-  {
-    id: 'ringconn',
-    icon: '💍',
-    name: 'RingConn',
-    desc: 'Blood oxygen, heart rate, sleep tracking',
-  },
+// Real, buildable integrations with no fixed equipment — kept separate from
+// GATEABLE_DEVICES above, which drives what hardware-specific UI is shown
+// elsewhere in the app. These are tracked as "notify me" interest only.
+const FUTURE_INTEGRATIONS = [
   {
     id: 'strava',
     icon: '🏃',
@@ -728,7 +722,16 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
     typeof window !== 'undefined' &&
     (window as unknown as Record<string, unknown>).__shakthiNativeApp === true
 
-  function toggle(id: string) {
+  function toggleDevice(id: DeviceId) {
+    const on = data.ownedDevices.includes(id)
+    patch({
+      ownedDevices: on
+        ? data.ownedDevices.filter(d => d !== id)
+        : [...data.ownedDevices, id],
+    })
+  }
+
+  function toggleIntent(id: string) {
     const on = data.intendToConnect.includes(id)
     patch({
       intendToConnect: on
@@ -747,7 +750,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
       </div>
 
       <div className="ob-source-list">
-        {/* ── iPhone Health — platform-aware ── */}
+        {/* ── iPhone Health — platform-aware, always relevant ── */}
         {isNativeApp ? (
           <div className="ob-source-row ob-source-row--connected">
             <span className="ob-source-icon">❤️</span>
@@ -782,16 +785,45 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <span className="ob-source-badge ob-source-badge--native">iPhone app</span>
           </div>
         )}
+      </div>
 
-        {/* ── Other sources — intent tagging + coming soon ── */}
-        {CONNECT_SOURCES.filter(s => s.id !== 'apple-health').map(s => {
+      <p className="ob-connect-subhead">Which of these do you have?</p>
+      <p className="ob-connect-subhead-note">
+        Only the ones you pick will show up in the app — nothing else clutters your dashboard.
+      </p>
+      <div className="ob-source-list">
+        {GATEABLE_DEVICES.map(d => {
+          const on = data.ownedDevices.includes(d.id)
+          return (
+            <button
+              key={d.id}
+              type="button"
+              className={`ob-source-row ob-source-row--device ${on ? 'ob-source-row--intent' : ''}`}
+              onClick={() => toggleDevice(d.id)}
+            >
+              <span className="ob-source-icon">{d.icon}</span>
+              <div className="ob-source-info">
+                <span className="ob-source-name">{d.name}</span>
+                <span className="ob-source-desc">{d.desc}</span>
+              </div>
+              <span className={`ob-source-badge ${on ? 'ob-source-badge--intent' : ''}`}>
+                {on ? <><Check size={13} /> I have this</> : 'I don\'t have this'}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <p className="ob-connect-subhead">Anything else you'd want connected?</p>
+      <div className="ob-source-list">
+        {FUTURE_INTEGRATIONS.map(s => {
           const on = data.intendToConnect.includes(s.id)
           return (
             <button
               key={s.id}
               type="button"
               className={`ob-source-row ob-source-row--soon ${on ? 'ob-source-row--intent' : ''}`}
-              onClick={() => toggle(s.id)}
+              onClick={() => toggleIntent(s.id)}
             >
               <span className="ob-source-icon">{s.icon}</span>
               <div className="ob-source-info">
@@ -808,6 +840,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
 
       <p className="ob-connect-footnote">
         Advanced import (Apple Health export.xml) is available after setup in Settings → Import Data.
+        You can change which equipment you own anytime in Settings → Connected Accounts.
       </p>
 
       <div className="ob-footer">
@@ -899,6 +932,24 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
         </div>
 
         {/* Connections */}
+        {data.ownedDevices.length > 0 && (
+          <div className="ob-review-card">
+            <div className="ob-review-card-header">
+              <span className="ob-review-card-title">Equipment</span>
+              <button className="ob-review-edit-btn" onClick={() => goTo(10)}>Edit</button>
+            </div>
+            <div className="ob-review-row">
+              <span className="ob-review-key">You have</span>
+              <span className="ob-review-val">
+                {data.ownedDevices
+                  .map(id => GATEABLE_DEVICES.find(d => d.id === id)?.name)
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+            </div>
+          </div>
+        )}
+
         {data.intendToConnect.length > 0 && (
           <div className="ob-review-card">
             <div className="ob-review-card-header">
@@ -909,7 +960,7 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
               <span className="ob-review-key">Sources</span>
               <span className="ob-review-val">
                 {data.intendToConnect
-                  .map(id => CONNECT_SOURCES.find(s => s.id === id)?.name)
+                  .map(id => FUTURE_INTEGRATIONS.find(s => s.id === id)?.name)
                   .filter(Boolean)
                   .join(', ')}
               </span>
@@ -995,7 +1046,7 @@ export default function OnboardingPage() {
     name: '', dob: '', sex: '', heightFt: '5', heightIn: '10',
     currentWeightLbs: '', goalWeightLbs: '', activityLevel: '',
     avatarId: undefined, primaryGoals: [], calorieGoal: '', proteinGoal: '',
-    trainingDays: 4, intendToConnect: [],
+    trainingDays: 4, ownedDevices: [], intendToConnect: [],
   })
 
   function patch(u: Partial<OBData>) { setData(prev => ({ ...prev, ...u })) }
@@ -1114,6 +1165,7 @@ export default function OnboardingPage() {
       await setSetting('onboarding.completed', true)
       await setSetting('onboarding.goals', data.primaryGoals)
       await setSetting('onboarding.intendToConnect', data.intendToConnect)
+      await setOwnedDevices(data.ownedDevices)
       await setSetting('training.daysPerWeek', data.trainingDays)
 
       const dest = isEdit ? '/profile' : (data.importAfterSetup ? '/import/apple-health' : '/')

@@ -11,14 +11,18 @@ import { getDBStats } from '../db'
 import type { ProfileData } from '../db/profileStore'
 import { AvatarDisplay, AvatarPicker } from '../components/Avatar'
 import { useAuth } from '../context/AuthContext'
+import DataBadge from '../components/DataBadge'
+import type { DataBadgeMode } from '../components/DataBadge'
+import { getOwnedDevices, owns } from '../db/deviceStore'
+import type { DeviceId } from '../db/deviceStore'
 import './Profile.css'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEVICES = [
-  { name: 'Apple Watch', sub: 'Heart rate · steps · workouts · sleep', icon: Watch, status: 'via Apple Health' },
-  { name: 'RingConn',    sub: 'HRV · sleep stages · recovery',         icon: Radio, status: 'via Apple Health' },
-  { name: 'Renpho Smart Scale', sub: 'Weight · body composition',      icon: Scale, status: 'via Apple Health' },
+const DEVICES: Array<{ id: DeviceId; name: string; sub: string; icon: typeof Watch; status: string }> = [
+  { id: 'apple_watch', name: 'Apple Watch', sub: 'Heart rate · steps · workouts · sleep', icon: Watch, status: 'via Apple Health' },
+  { id: 'ringconn',    name: 'RingConn',    sub: 'HRV · sleep stages · recovery',         icon: Radio, status: 'via Apple Health' },
+  { id: 'renpho',      name: 'Renpho Smart Scale', sub: 'Weight · body composition',      icon: Scale, status: 'via Apple Health' },
 ]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -212,15 +216,19 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 export default function Profile() {
   const navigate = useNavigate()
   const { mode, signOut } = useAuth()
-  const { today } = useDashboardData()
+  const { today, dataSource } = useDashboardData()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [editing,     setEditing]     = useState(false)
   const [dbStats,     setDbStats]     = useState<{ workoutCount: number; logCount: number; nutritionCount: number } | null>(null)
+  const [ownedDevices, setOwnedDevicesState] = useState<DeviceId[] | null>(null)
 
   useEffect(() => {
     getProfile().then(setProfileData)
     getDBStats().then(s => setDbStats({ workoutCount: s.workoutCount, logCount: s.logCount, nutritionCount: s.nutritionCount }))
+    getOwnedDevices().then(setOwnedDevicesState)
   }, [])
+
+  const ownedDeviceRows = DEVICES.filter(d => owns(ownedDevices, d.id))
 
   async function handleSave(data: Omit<ProfileData, 'id' | 'updatedAt'>) {
     await saveProfile(data)
@@ -353,7 +361,15 @@ export default function Profile() {
 
         {/* ── Progress toward goals ── */}
         <section className="profile-card">
-          <h2 className="profile-card-title">Progress Toward Goals</h2>
+          <div className="profile-card-title-row">
+            <h2 className="profile-card-title">Progress Toward Goals</h2>
+            {(currentWeightLbs != null || currentBF != null) && dataSource !== 'mock' && (
+              <DataBadge
+                mode={(dataSource === 'manual' ? 'manual' : 'imported') as DataBadgeMode}
+                source={dataSource === 'manual' ? 'Manual Log' : 'Apple Health'}
+              />
+            )}
+          </div>
           {currentWeightLbs != null && startWeightLbs != null && goalWeightLbs != null && (
             <ProgressBar
               label="Weight"
@@ -452,21 +468,32 @@ export default function Profile() {
 
         {/* ── Connected Devices ── */}
         <section className="profile-card">
-          <h2 className="profile-card-title">Connected Devices</h2>
-          <div className="profile-devices-list">
-            {DEVICES.map(d => (
-              <div key={d.name} className="profile-device-row">
-                <div className="profile-device-icon-wrap">
-                  <d.icon size={18} />
-                </div>
-                <div className="profile-device-info">
-                  <span className="profile-device-name">{d.name}</span>
-                  <span className="profile-device-sub">{d.sub}</span>
-                </div>
-                <span className="profile-device-status">{d.status}</span>
-              </div>
-            ))}
+          <div className="profile-card-title-row">
+            <h2 className="profile-card-title">Connected Devices</h2>
+            <button className="profile-devices-manage-btn" onClick={() => navigate('/connected-accounts')}>
+              Manage
+            </button>
           </div>
+          {ownedDeviceRows.length > 0 ? (
+            <div className="profile-devices-list">
+              {ownedDeviceRows.map(d => (
+                <div key={d.name} className="profile-device-row">
+                  <div className="profile-device-icon-wrap">
+                    <d.icon size={18} />
+                  </div>
+                  <div className="profile-device-info">
+                    <span className="profile-device-name">{d.name}</span>
+                    <span className="profile-device-sub">{d.sub}</span>
+                  </div>
+                  <span className="profile-device-status">{d.status}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="profile-devices-empty">
+              No equipment added yet. Tap Manage to tell us what you have.
+            </p>
+          )}
         </section>
 
       </div>

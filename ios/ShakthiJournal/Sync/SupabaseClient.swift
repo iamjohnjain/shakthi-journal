@@ -114,6 +114,55 @@ enum SupabaseClient {
         return try await session(from: req)
     }
 
+    /// Builds the Supabase-hosted Google OAuth authorize URL. Supabase redirects the
+    /// browser through Google, then back to `redirectTo` with the session tokens
+    /// appended as a URL fragment (`#access_token=...&refresh_token=...`).
+    static func googleAuthorizeURL(redirectTo: String) -> URL {
+        var components = URLComponents(url: authURL("authorize"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "provider", value: "google"),
+            URLQueryItem(name: "redirect_to", value: redirectTo),
+        ]
+        return components.url!
+    }
+
+    /// Parses the `access_token`/`refresh_token` pair out of the fragment of the
+    /// callback URL `ASWebAuthenticationSession` hands back, then fetches the user.
+    static func sessionFromOAuthCallback(_ callbackURL: URL) async throws -> SupabaseSession {
+        guard let fragment = callbackURL.fragment else { throw SupabaseError.malformedResponse }
+        let params = Dictionary(
+            fragment.split(separator: "&").compactMap { pair -> (String, String)? in
+                let parts = pair.split(separator: "=", maxSplits: 1)
+                guard parts.count == 2 else { return nil }
+                return (String(parts[0]), String(parts[1]).removingPercentEncoding ?? String(parts[1]))
+            },
+            uniquingKeysWith: { a, _ in a }
+        )
+        guard let accessToken = params["access_token"], let refreshToken = params["refresh_token"] else {
+            if let errorDescription = params["error_description"] {
+                throw SupabaseError.httpError(statusCode: 400, body: errorDescription)
+            }
+            throw SupabaseError.malformedResponse
+        }
+        let user = try await fetchUser(accessToken: accessToken)
+        return SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, user: user)
+    }
+
+    private static func fetchUser(accessToken: String) async throws -> SupabaseUser {
+        var req = URLRequest(url: authURL("user"))
+        req.httpMethod = "GET"
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        try assertSuccess(response, data: data)
+        guard
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let id    = json["id"]    as? String,
+            let email = json["email"] as? String
+        else { throw SupabaseError.malformedResponse }
+        return SupabaseUser(id: id, email: email)
+    }
+
     // MARK: Data
 
     /// Upserts health_metrics rows. Existing rows with the same (user_id, id)

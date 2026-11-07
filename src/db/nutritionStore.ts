@@ -14,8 +14,6 @@ export async function addNutritionEntry(entry: Omit<NutritionEntry, 'id' | 'crea
   await db.put('nutrition_entries', full)
   void syncEngine.queueWrite('nutrition_entries', 'upsert', full.id, full)
   showToast('Meal logged')
-  // Check protein streak achievements asynchronously
-  void import('../engine/achievementEngine').then(m => m.checkAndAwardAchievements())
   return full
 }
 

@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { Sparkles, ChevronRight } from 'lucide-react'
 import { CoachStory } from '../components/CoachStory'
 import { WeeklyReviewCard, MonthlyReviewCard } from '../components/WeeklyReviewCard'
-import { AchievementRow } from '../components/AchievementCard'
 import { useCoachStory } from '../hooks/useCoachStory'
 import { useCurrentWeekReview, useCurrentMonthReview } from '../hooks/useReviews'
-import { useRecentAchievements } from '../hooks/useAchievements'
 import { useApp } from '../context/AppContext'
 import './AICoach.css'
 
@@ -14,7 +12,6 @@ export default function AICoach() {
   const { story, loading: storyLoading }         = useCoachStory(mockMode)
   const { review: weekReview, loading: weekLoad } = useCurrentWeekReview()
   const { review: monthReview }                  = useCurrentMonthReview()
-  const { achievements }                         = useRecentAchievements(30)
   const [showMonthly, setShowMonthly] = useState(false)
 
   return (
@@ -36,11 +33,6 @@ export default function AICoach() {
         <CoachStory story={story} loading={storyLoading} />
       )}
 
-      {/* Recent Achievements */}
-      {!mockMode && achievements.length > 0 && (
-        <AchievementRow achievements={achievements} />
-      )}
-
       {/* Weekly Review */}
       {!mockMode && !weekLoad && weekReview && (
         <WeeklyReviewCard review={weekReview} />
@@ -59,17 +51,6 @@ export default function AICoach() {
           )}
         </>
       )}
-
-      {/* AI Q&A — coming soon */}
-      <div className="ai-coming-soon-card">
-        <div className="ai-coming-soon-icon" aria-hidden="true">
-          <Sparkles size={18} />
-        </div>
-        <div className="ai-coming-soon-text">
-          <strong>AI Q&amp;A coming soon</strong>
-          <p>Ask questions about your training, nutrition, and recovery — answered by a model that reads your actual health data. Your story, reviews, and achievements above are already live.</p>
-        </div>
-      </div>
 
     </div>
   )

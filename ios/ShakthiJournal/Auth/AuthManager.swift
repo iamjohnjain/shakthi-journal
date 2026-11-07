@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import AuthenticationServices
+import UIKit
 
 @MainActor
 @Observable
@@ -23,6 +25,12 @@ final class AuthManager {
     var signUpError: String?
     var isSigningUp = false
     var emailConfirmationPending = false
+
+    // Google sign-in
+    var googleSignInError: String?
+    var isSigningInWithGoogle = false
+    private var webAuthSession: ASWebAuthenticationSession?
+    private let googlePresentationContextProvider = GooglePresentationContextProvider()
 
     // Convenience accessors used by child views
     var isSignedIn: Bool {
@@ -94,9 +102,56 @@ final class AuthManager {
         }
     }
 
+    /// Launches Supabase's hosted Google OAuth flow in a system web sheet
+    /// (`ASWebAuthenticationSession`) and signs in on success. No Google SDK
+    /// required — Supabase handles the Google side; this just catches the
+    /// redirect back and turns its tokens into a session.
+    func signInWithGoogle() {
+        guard !isSigningInWithGoogle else { return }
+        isSigningInWithGoogle = true
+        googleSignInError = nil
+
+        let redirectScheme = "com.shakthijournal.app"
+        let authURL = SupabaseClient.googleAuthorizeURL(redirectTo: "\(redirectScheme)://auth-callback")
+
+        let session = ASWebAuthenticationSession(
+            url: authURL,
+            callbackURLScheme: redirectScheme
+        ) { [weak self] callbackURL, error in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isSigningInWithGoogle = false
+
+                if let error {
+                    let cancelled = (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin
+                    if !cancelled { self.googleSignInError = error.localizedDescription }
+                    return
+                }
+                guard let callbackURL else { return }
+
+                do {
+                    let newSession = try await SupabaseClient.sessionFromOAuthCallback(callbackURL)
+                    self.persist(newSession)
+                    self.authState = .signedIn(
+                        userId: newSession.user.id,
+                        email: newSession.user.email,
+                        accessToken: newSession.accessToken
+                    )
+                } catch {
+                    self.googleSignInError = error.localizedDescription
+                }
+            }
+        }
+        session.presentationContextProvider = googlePresentationContextProvider
+        session.prefersEphemeralWebBrowserSession = false
+        webAuthSession = session
+        session.start()
+    }
+
     func signOut() {
         KeychainHelper.clearSession()
         emailConfirmationPending = false
+        googleSignInError = nil
         authState = .signedOut
     }
 
@@ -174,5 +229,15 @@ final class AuthManager {
     func updateTokens(accessToken: String) {
         guard case .signedIn(let userId, let email, _) = authState else { return }
         authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
+    }
+}
+
+/// Anchors the Google sign-in web sheet to the app's key window.
+private final class GooglePresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
     }
 }

@@ -304,7 +304,7 @@ export async function generateMonthlyReview(month: string): Promise<MonthlyRevie
     },
     consistencyScore,
     milestones,
-    streaks: [],  // populated by achievementEngine
+    streaks: [],  // reserved field, currently always empty
     confidence,
   }
 
