@@ -34,6 +34,18 @@ function offsetDateStr(dateStr: string, deltaDays: number): string {
   return d.toISOString().split('T')[0]
 }
 
+/** Guesses which meal slot to open into: morning → breakfast, midday → lunch,
+    afternoon on → dinner. Only meaningful in the standard Breakfast/Lunch/
+    Dinner/Snack setup — numbered meal-slot users (no "breakfast" id to key
+    off) just get their first configured slot, same as before this existed. */
+function suggestMealIdByTime(mealIds: string[]): string {
+  if (!mealIds.includes('breakfast')) return mealIds[0]
+  const hour = new Date().getHours()
+  if (hour < 11) return 'breakfast'
+  if (hour < 16) return 'lunch'
+  return 'dinner'
+}
+
 function startOfWeek(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() - d.getDay())
@@ -938,7 +950,11 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     isEdit ? 'custom' : isAiMealParsingAvailable ? 'photo' : 'quick'
   )
   const [loggingAi, setLoggingAi] = useState(false)
-  const [mealId,   setMealId]   = useState(existing?.mealType ?? defaultMealId ?? mealIds[0])
+  const [mealId,   setMealId]   = useState(existing?.mealType ?? defaultMealId ?? suggestMealIdByTime(mealIds))
+  // Once the user explicitly picks a meal tab themselves, the <300-calorie
+  // "assume Snack" auto-switch below backs off and respects their choice.
+  const mealIdTouched = useRef(!!(existing?.mealType ?? defaultMealId))
+  function chooseMealId(id: string) { mealIdTouched.current = true; setMealId(id) }
   const [food,     setFood]     = useState(existing?.food ?? '')
   const [calories, setCalories] = useState(existing ? String(existing.calories) : '')
   const [protein,  setProtein]  = useState(existing ? String(existing.proteinG) : '')
@@ -965,11 +981,21 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     setTab('custom')
   }
 
+  // If the user never explicitly picked a meal tab, a small (<300 kcal) total
+  // is assumed to be a snack rather than whatever the time-of-day guess was —
+  // a banana at noon isn't "lunch." Respects an explicit tap on any meal tab.
+  function resolveMealId(totalCalories: number): string {
+    if (!mealIdTouched.current && mealIds.includes('snack') && totalCalories > 0 && totalCalories < 300) {
+      return 'snack'
+    }
+    return mealId
+  }
+
   async function handleSave() {
     if (!food || !calories || !protein) return
     setSaving(true)
     const data = {
-      date, mealType: mealId, food,
+      date, mealType: isEdit ? mealId : resolveMealId(+calories), food,
       calories: +calories, proteinG: +protein,
       carbsG: carbs ? +carbs : undefined,
       fatG: fat ? +fat : undefined,
@@ -987,8 +1013,9 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
   async function handleLogAiItems(aiItems: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }[]) {
     setLoggingAi(true)
+    const mealType = resolveMealId(aiItems.reduce((sum, it) => sum + it.calories, 0))
     for (const it of aiItems) {
-      await addNutritionEntry({ date, mealType: mealId, ...it })
+      await addNutritionEntry({ date, mealType, ...it })
     }
     setLoggingAi(false)
     onSaved()
@@ -997,7 +1024,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
   async function handleLogQuickItem(item: { food: string; calories: number; proteinG: number; carbsG: number; fatG: number; quantity: string }) {
     setLoggingAi(true)
-    await addNutritionEntry({ date, mealType: mealId, ...item })
+    await addNutritionEntry({ date, mealType: resolveMealId(item.calories), ...item })
     setLoggingAi(false)
     onSaved()
     onClose()
@@ -1020,7 +1047,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
         <div className="add-modal-meal-tabs">
           {mealIds.map((id, i) => (
-            <button key={id} className={`meal-tab ${mealId === id ? 'active' : ''}`} onClick={() => setMealId(id)}>
+            <button key={id} className={`meal-tab ${mealId === id ? 'active' : ''}`} onClick={() => chooseMealId(id)}>
               {mealLabels[i] ?? id}
             </button>
           ))}
