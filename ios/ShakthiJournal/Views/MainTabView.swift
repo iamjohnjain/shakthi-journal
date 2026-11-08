@@ -9,6 +9,7 @@ import SwiftUI
 struct MainTabView: View {
 
     @Environment(AuthManager.self) private var auth
+    @Environment(DeepLinkManager.self) private var deepLink
 
     @State private var showHealthSync = false
 
@@ -33,7 +34,11 @@ struct MainTabView: View {
                 refreshToken: refresh,
                 userId:       uid,
                 userEmail:    email,
-                onMessage:    handleWebMessage
+                onMessage:    handleWebMessage,
+                pendingPath:  Binding(
+                    get: { deepLink.pendingPath },
+                    set: { deepLink.pendingPath = $0 }
+                )
             )
             .ignoresSafeArea(edges: .top)
 

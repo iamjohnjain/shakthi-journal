@@ -21,6 +21,9 @@ struct WebAppView: UIViewRepresentable {
     let userEmail:    String
     /// Called on the main thread when the web app posts a message to the native layer.
     var onMessage: (([String: Any]) -> Void)?
+    /// Set by a deep link (the widget's tap target) — when non-nil, the
+    /// webview navigates here. Cleared immediately once applied.
+    var pendingPath: Binding<String?>?
 
     func makeCoordinator() -> Coordinator { Coordinator(onMessage: onMessage) }
 
@@ -51,6 +54,16 @@ struct WebAppView: UIViewRepresentable {
         // The session is baked into the WKUserScript at construction time.
         // SwiftUI recreates this view (and thus the WKWebView) whenever the
         // signed-in identity changes — no manual reload needed.
+
+        // A deep link (the widget tap) arrived — navigate there and consume
+        // it so this doesn't re-fire on the next unrelated re-render.
+        if let path = pendingPath?.wrappedValue,
+           let target = URL(string: path, relativeTo: Self.appURL) {
+            wv.load(URLRequest(url: target.absoluteURL))
+            DispatchQueue.main.async {
+                pendingPath?.wrappedValue = nil
+            }
+        }
     }
 
     // MARK: - Session injection
