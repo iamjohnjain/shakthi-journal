@@ -25,11 +25,12 @@ import type { ProfileData } from '../db/profileStore'
 import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry, CardioEntry } from '../db'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
+import { localDateStr } from '../data/config'
 import './WorkoutsPage.css'
 
 const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
 
-function todayStr() { return new Date().toISOString().split('T')[0] }
+function todayStr() { return localDateStr() }
 
 // ─── ISO Week helpers ─────────────────────────────────────────────────────────
 

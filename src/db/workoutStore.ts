@@ -2,6 +2,7 @@ import { getDB } from './index'
 import type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet } from './index'
 import { syncEngine } from './syncEngine'
 import { showToast } from '../utils/toast'
+import { localDateStr, addLocalDays } from '../data/config'
 
 export type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet }
 
@@ -111,9 +112,7 @@ export async function getWorkoutsCount(): Promise<number> {
 export async function getWorkoutDates(days = 30): Promise<string[]> {
   const db = await getDB()
   const all = await db.getAll('workouts')
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - days)
-  const cutoffStr = cutoff.toISOString().split('T')[0]
+  const cutoffStr = addLocalDays(localDateStr(), -days)
   return [...new Set(all.filter(w => w.date >= cutoffStr).map(w => w.date))]
 }
 
@@ -143,7 +142,7 @@ export async function getLastExercisePerformance(exerciseName: string): Promise<
   if (!exerciseName.trim()) return null
   const db = await getDB()
   const all = await db.getAll('workouts')
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDateStr()
   const nameLower = exerciseName.toLowerCase().trim()
 
   let allTimePB = 0

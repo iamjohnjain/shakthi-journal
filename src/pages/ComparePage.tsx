@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { TrendingUp, TrendingDown, Minus, ArrowRightLeft, Star, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { kgToLbs } from '../data/config'
+import { kgToLbs, localDateStr, addLocalDays } from '../data/config'
 import { useApp } from '../context/AppContext'
 import { getSetting, setSetting } from '../db'
 import { mockDailySnapshots } from '../data/mock'
@@ -70,9 +70,7 @@ const GROUPS = Array.from(new Set(ALL_GROUPS))
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function daysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(localDateStr(), -n)
 }
 
 function fmtDate(d: string) {

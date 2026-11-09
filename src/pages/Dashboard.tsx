@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { kgToLbs, getGreeting, formatDate } from '../data/config'
+import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { getSetting } from '../db'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useDashboardCards, REORDERABLE_IDS } from '../hooks/useDashboardCards'
@@ -26,13 +26,11 @@ import { isInsideNativeApp } from '../layout/BottomNav'
 import './Dashboard.css'
 
 function todayDateStr() {
-  return new Date().toISOString().split('T')[0]
+  return localDateStr()
 }
 
 function offsetDateStr(dateStr: string, deltaDays: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + deltaDays)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(dateStr, deltaDays)
 }
 
 // Short form for the date-nav trigger — the full weekday+month string wraps
@@ -221,7 +219,9 @@ function QuickActions() {
         <span className="quick-action-label" aria-hidden="true">Snap Meal</span>
       </button>
       <button className="quick-action-btn" onClick={syncData} aria-label="Sync Data">
-        <span className="quick-action-icon quick-action-icon--emoji" style={{ background: 'var(--red-dim)' }} aria-hidden="true">❤️🔄</span>
+        <span className="quick-action-icon" style={{ color: 'var(--red)', background: 'var(--red-dim)' }} aria-hidden="true">
+          <RefreshCw size={17} />
+        </span>
         <span className="quick-action-label" aria-hidden="true">Sync Data</span>
       </button>
       {showWeightModal && (

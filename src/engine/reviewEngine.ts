@@ -11,6 +11,7 @@ import { getProfile } from '../db/profileStore'
 import { getSetting } from '../db/index'
 import type { NutritionGoals } from '../db/index'
 import { calcWeightTrend, kgToLbs } from './healthIntelligence'
+import { localDateStr, addLocalDays } from '../data/config'
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -19,13 +20,11 @@ export function getMondayOfWeek(date: Date): string {
   const day = d.getDay()
   const diff = (day === 0 ? -6 : 1 - day)
   d.setDate(d.getDate() + diff)
-  return d.toISOString().slice(0, 10)
+  return localDateStr(d)
 }
 
 export function addDays(dateStr: string, n: number): string {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return addLocalDays(dateStr, n)
 }
 
 function avg(nums: number[]): number | null {
@@ -207,9 +206,9 @@ export async function generateMonthlyReview(month: string): Promise<MonthlyRevie
 
   // Nutrition totals for all days
   const days: string[] = []
-  const d = new Date(monthStart)
-  while (d.toISOString().slice(0, 10) <= monthEnd) {
-    days.push(d.toISOString().slice(0, 10))
+  const d = new Date(monthStart + 'T12:00:00')
+  while (localDateStr(d) <= monthEnd) {
+    days.push(localDateStr(d))
     d.setDate(d.getDate() + 1)
   }
   const nutTotals = await Promise.all(days.map(day => getDailyTotals(day).catch(() => null)))

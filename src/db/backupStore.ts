@@ -1,4 +1,5 @@
 import { getDB } from './index'
+import { localDateStr } from '../data/config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ export function downloadBackup(data: BackupData): void {
   const json = JSON.stringify(data, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
-  const date = new Date().toISOString().slice(0, 10)
+  const date = localDateStr()
   const a = document.createElement('a')
   a.href = url
   a.download = `shakthi-journal-backup-${date}.json`

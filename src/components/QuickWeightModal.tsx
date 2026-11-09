@@ -6,9 +6,10 @@ import { getLog, saveLog } from '../db/logStore'
 import { useUnits } from '../hooks/useUnits'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
+import { localDateStr } from '../data/config'
 import './QuickWeightModal.css'
 
-function todayStr() { return new Date().toISOString().split('T')[0] }
+function todayStr() { return localDateStr() }
 
 const LBS_PER_KG = 2.20462
 

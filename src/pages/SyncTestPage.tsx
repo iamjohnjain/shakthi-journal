@@ -12,6 +12,7 @@ import { useSync, syncStatusLabel } from '../hooks/useSync'
 import { syncEngine } from '../db/syncEngine'
 import { saveWorkout } from '../db/workoutStore'
 import { addNutritionEntry } from '../db/nutritionStore'
+import { localDateStr } from '../data/config'
 import './SyncTestPage.css'
 
 const STORE_TABLE_MAP: Record<string, string> = {
@@ -165,7 +166,7 @@ export default function SyncTestPage() {
   async function createTestWorkout() {
     setActionBusy(true)
     try {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateStr()
       const w = await saveWorkout({
         date: today,
         type: 'lifting',
@@ -185,7 +186,7 @@ export default function SyncTestPage() {
   async function createTestNutrition() {
     setActionBusy(true)
     try {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateStr()
       const e = await addNutritionEntry({
         date: today,
         mealType: 'snack',

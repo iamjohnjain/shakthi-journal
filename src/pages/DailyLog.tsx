@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Check, Dumbbell } from 'lucide-react'
-import { kgToLbs } from '../data/config'
+import { kgToLbs, localDateStr, addLocalDays } from '../data/config'
 import { saveLog, getLog } from '../db/logStore'
 import type { DailyLog } from '../db/logStore'
 import DataBadge from '../components/DataBadge'
@@ -9,13 +9,11 @@ import './DailyLog.css'
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
+  return localDateStr()
 }
 
 function offsetDate(base: string, delta: number): string {
-  const d = new Date(base + 'T12:00:00')
-  d.setDate(d.getDate() + delta)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(base, delta)
 }
 
 function fmtDate(d: string): string {

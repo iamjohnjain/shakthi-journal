@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
 import { syncEngine } from '../db/syncEngine'
 import type { ProfileData } from '../db'
+import { localDateStr } from '../data/config'
 import './OnboardingPage.css'
 
 // ─── Platform detection ───────────────────────────────────────────────────────
@@ -395,7 +396,7 @@ function StepName({ data, patch, onNext, dir }: StepProps) {
 // ─── Step 2: Identity (DOB + Sex) ─────────────────────────────────────────────
 
 function StepIdentity({ data, patch, onNext, dir }: StepProps) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDateStr()
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
@@ -1157,7 +1158,7 @@ export default function OnboardingPage() {
       const heightCm = !isNaN(ft) && ft > 0
         ? Math.round(ft * 30.48 + (parseInt(data.heightIn) || 0) * 2.54)
         : undefined
-      const today = new Date().toISOString().split('T')[0]
+      const today = localDateStr()
 
       await saveProfile({
         // Preserve non-onboarding fields from existing profile

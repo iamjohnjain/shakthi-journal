@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { Clock } from 'lucide-react'
 import { getTimeline } from '../db/timelineStore'
 import type { TimelineEvent } from '../db/timelineStore'
+import { localDateStr, addLocalDays } from '../data/config'
 import './Timeline.css'
 
 // ─── Date label ───────────────────────────────────────────────────────────────
 
 function dateGroupLabel(dateStr: string): string {
-  const today = new Date().toISOString().slice(0, 10)
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+  const today = localDateStr()
+  const yesterday = addLocalDays(today, -1)
   if (dateStr === today)     return 'Today'
   if (dateStr === yesterday) return 'Yesterday'
   const d = new Date(dateStr + 'T12:00:00')

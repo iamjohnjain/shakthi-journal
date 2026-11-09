@@ -6,6 +6,7 @@ import { getDailyTotals } from '../db/nutritionStore'
 import { getLogsForRange } from '../db/logStore'
 import type { DailySnapshot } from '../types/health'
 import type { DataSource } from './useDashboardData'
+import { localDateStr, addLocalDays } from '../data/config'
 
 const STEP_GOAL = 10_000
 const FALLBACK_GOALS: Pick<NutritionGoals, 'proteinG' | 'calories'> = { proteinG: 200, calories: 2300 }
@@ -37,12 +38,10 @@ export interface TodayStatus {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function todayStr() { return new Date().toISOString().split('T')[0] }
+function todayStr() { return localDateStr() }
 
 function daysAgoStr(n: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(todayStr(), -n)
 }
 
 // ─── Rule engine ──────────────────────────────────────────────────────────────

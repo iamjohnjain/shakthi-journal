@@ -3,6 +3,7 @@ import type { NutritionEntry } from './index'
 import { syncEngine } from './syncEngine'
 import { showToast } from '../utils/toast'
 import type { ChartPoint } from './timelineStore'
+import { localDateStr, addLocalDays } from '../data/config'
 
 export type { NutritionEntry }
 
@@ -65,9 +66,7 @@ export async function getDailyTotals(date: string): Promise<{
 }
 
 function dateNDaysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return addLocalDays(localDateStr(), -n)
 }
 
 /** All entries dated within the last N days (inclusive of today), fetched in one indexed range query. */

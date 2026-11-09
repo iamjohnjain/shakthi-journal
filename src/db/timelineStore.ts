@@ -1,7 +1,7 @@
 import { getDB, getSyncHistory } from './index'
 import { getLogsForRange } from './logStore'
 import { getRecentWorkouts } from './workoutStore'
-import { kgToLbs } from '../data/config'
+import { kgToLbs, localDateStr, addLocalDays } from '../data/config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,12 +32,10 @@ export interface TimelineEvent {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function todayStr() { return new Date().toISOString().slice(0, 10) }
+function todayStr() { return localDateStr() }
 
 function offsetDate(base: string, days: number): string {
-  const d = new Date(base + 'T12:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addLocalDays(base, days)
 }
 
 // ─── Main aggregator ──────────────────────────────────────────────────────────

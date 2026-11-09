@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { type TodaysStory } from '../engine/storyEngine'
 import { useHealthInsights } from './useHealthInsights'
+import { localDateStr } from '../data/config'
 
 const EMPTY: TodaysStory = {
   text: '',
@@ -38,7 +39,7 @@ export function useCoachStory(mockMode: boolean): { story: TodaysStory; loading:
         calories: 2300, proteinG: 180, carbsG: 200, fatG: 60, macroFirstMode: false,
       }
 
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateStr()
       const now   = new Date()
 
       const [snapshots, sessions, dailyTotals, profile, nutritionGoals, goalTypes] = await Promise.all([
@@ -67,7 +68,7 @@ export function useCoachStory(mockMode: boolean): { story: TodaysStory; loading:
       for (let i = 0; i < 7; i++) {
         const d = new Date(now)
         d.setDate(d.getDate() - i)
-        const ds = d.toISOString().slice(0, 10)
+        const ds = localDateStr(d)
         const snap = snapshots.find(s => s.date === ds)
         weeklyProteinG.push(snap?.proteinG ?? 0)
         weeklyCaloriesIn.push(snap?.caloriesIn ?? 0)

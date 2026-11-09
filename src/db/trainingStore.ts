@@ -4,6 +4,7 @@ import type {
   ExerciseLibraryEntry, WorkoutSession, CardioEntry,
 } from './index'
 import { getRecentWorkouts } from './workoutStore'
+import { localDateStr, addLocalDays } from '../data/config'
 export type { TrainingProfile, WorkoutPlan, WorkoutPlanDay, ExerciseLibraryEntry, CardioEntry }
 
 // ─── Calorie estimation ───────────────────────────────────────────────────────
@@ -334,7 +335,7 @@ function getWeekStart(): string {
   const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Monday
   const mon = new Date(d.setDate(diff))
-  return mon.toISOString().split('T')[0]
+  return localDateStr(mon)
 }
 
 function genId(prefix = 'id') {
@@ -456,7 +457,7 @@ export async function getWorkoutSuggestion(
   const sessions = PLAN_SESSIONS[cluster]
 
   // Find what was done recently to avoid back-to-back same sessions
-  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  const yesterdayStr = addLocalDays(localDateStr(), -1)
   const yesterdayWorkout = recent.find(w => w.date === yesterdayStr)
 
   let sessionIdx = recent.length % sessions.length

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ChartPoint } from '../db/timelineStore'
+import { localDateStr, addLocalDays } from '../data/config'
 import './TrendChart.css'
 
 export type ChartPeriod = '7d' | '30d' | '90d' | 'all'
@@ -23,9 +24,7 @@ interface Props {
 
 function filterByPeriod(data: ChartPoint[], period: ChartPeriod): ChartPoint[] {
   const days = PERIOD_DAYS[period]
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - days)
-  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  const cutoffStr = addLocalDays(localDateStr(), -days)
   return data.filter(p => p.date >= cutoffStr)
 }
 

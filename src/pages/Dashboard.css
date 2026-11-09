@@ -945,10 +945,6 @@
   justify-content: center;
 }
 
-.quick-action-icon--emoji {
-  font-size: 15px;
-  letter-spacing: -2px;
-}
 
 .quick-action-label {
   font-size: 0.7rem;

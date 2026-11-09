@@ -6,11 +6,10 @@ import type {
   DailySnapshot,
   ImportRecord,
 } from '../types/health'
+import { localDateStr, addLocalDays } from './config'
 
 function daysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(localDateStr(), -n)
 }
 
 // ─── Apple Health mock export ─────────────────────────────────────────────────

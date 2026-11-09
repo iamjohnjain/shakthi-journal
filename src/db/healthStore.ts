@@ -1,6 +1,7 @@
 import { getDB } from './index'
 import type { ShakthiDB } from './index'
 import type { DailySnapshot } from '../types/health'
+import { localDateStr } from '../data/config'
 
 type DBMetric = ShakthiDB['health_metrics']['value']
 
@@ -165,7 +166,7 @@ export async function getHealthDiagnostics(): Promise<HealthDiagnosticEntry[]> {
   const db = await getDB()
   const all = await db.getAll('health_metrics')
   const real = all.filter(m => m.dataMode !== 'mock')
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateStr()
 
   return DIAGNOSTIC_TYPES.map(({ typeId, displayName }) => {
     const records = real.filter(m => m.type === typeId)

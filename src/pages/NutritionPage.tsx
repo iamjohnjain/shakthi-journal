@@ -23,15 +23,14 @@ import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import TrendChart from '../components/TrendChart'
 import WheelPicker from '../components/WheelPicker'
+import { localDateStr, addLocalDays } from '../data/config'
 // logStore removed — water logging retired
 import './NutritionPage.css'
 
-function todayStr() { return new Date().toISOString().split('T')[0] }
+function todayStr() { return localDateStr() }
 
 function offsetDateStr(dateStr: string, deltaDays: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + deltaDays)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(dateStr, deltaDays)
 }
 
 /** Guesses which meal slot to open into: morning → breakfast, midday → lunch,
@@ -49,16 +48,11 @@ function suggestMealIdByTime(mealIds: string[]): string {
 function startOfWeek(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() - d.getDay())
-  return d.toISOString().slice(0, 10)
+  return localDateStr(d)
 }
 
 function weekDates(startStr: string): string[] {
-  const start = new Date(startStr + 'T12:00:00')
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start)
-    d.setDate(d.getDate() + i)
-    return d.toISOString().slice(0, 10)
-  })
+  return Array.from({ length: 7 }, (_, i) => addLocalDays(startStr, i))
 }
 
 // ─── Weekly streak bar ─────────────────────────────────────────────────────────

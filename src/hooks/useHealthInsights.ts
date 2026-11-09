@@ -6,6 +6,7 @@ import { getDailyTotals } from '../db/nutritionStore'
 import { getProfile } from '../db/profileStore'
 import { getSetting } from '../db/index'
 import type { NutritionGoals, WorkoutSession } from '../db/index'
+import { localDateStr } from '../data/config'
 
 export interface TodayProgress {
   proteinTotal: number
@@ -43,7 +44,7 @@ const DEFAULT_PROGRESS: TodayProgress = {
 }
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  return localDateStr(d)
 }
 
 function sessionToSummary(s: WorkoutSession): WorkoutSummary {

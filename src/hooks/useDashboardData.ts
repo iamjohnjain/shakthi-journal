@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext'
 import { getSnapshotForDate, getImportedSources, getLatestWeightRecord, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
 import { getLog } from '../db/logStore'
 import { mockDailySnapshots } from '../data/mock'
+import { localDateStr, addLocalDays } from '../data/config'
 import type { DailySnapshot } from '../types/health'
 import type { DailyLog } from '../db/logStore'
 
@@ -52,13 +53,11 @@ interface DashboardData {
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return localDateStr()
 }
 
 function offsetDate(dateStr: string, deltaDays: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + deltaDays)
-  return d.toISOString().split('T')[0]
+  return addLocalDays(dateStr, deltaDays)
 }
 
 function mergeLogIntoSnapshot(snap: DailySnapshot, log: DailyLog | null): DailySnapshot {
