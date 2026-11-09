@@ -10,6 +10,9 @@ struct MainTabView: View {
 
     @Environment(AuthManager.self) private var auth
     @Environment(DeepLinkManager.self) private var deepLink
+    @Environment(HealthKitManager.self) private var hk
+    @Environment(SyncEngine.self) private var sync
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var showHealthSync = false
 
@@ -19,6 +22,30 @@ struct MainTabView: View {
                 DashboardView()
             }
             .preferredColorScheme(.dark)
+            .task { autoSync() }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active { autoSync() }
+            }
+    }
+
+    // MARK: - Automatic background sync
+
+    /// Runs HealthKit → Supabase sync the moment the app opens or comes back
+    /// to the foreground — no "Sync Data" tap required. Only runs once the
+    /// user has already granted HealthKit access (never auto-prompts the
+    /// system permission sheet) and skips if a sync just ran, since
+    /// `SyncEngine.sync()` itself is already a no-op while one is in flight.
+    private func autoSync() {
+        guard hk.hasRequestedAuth,
+              let userId = auth.userId,
+              let token  = auth.accessToken
+        else { return }
+
+        if let last = sync.syncState.lastAttemptedSync, Date().timeIntervalSince(last) < 60 {
+            return
+        }
+
+        Task { await sync.sync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk) }
     }
 
     // MARK: - Web content

@@ -2,7 +2,7 @@ import { getDB, getSetting, setSetting } from './index'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import {
   enqueue, getPending, markSuccess, markFailure, clearQueueForUser,
-  getFailedEntries, resetFailedEntries, discardEntry,
+  getFailedEntries, resetFailedEntries, discardEntry, WARN_THRESHOLD,
 } from './syncQueue'
 import type { SyncQueueEntry } from './syncQueue'
 
@@ -302,7 +302,7 @@ class SyncEngine {
   private async _countFailedEntries(userId: string): Promise<number> {
     const db = await getDB()
     const all = await db.getAllFromIndex('sync_queue', 'by-user', userId)
-    return all.filter(e => e.attempts >= 5).length
+    return all.filter(e => e.attempts >= WARN_THRESHOLD).length
   }
 
   private async _drainQueue(userId: string): Promise<void> {

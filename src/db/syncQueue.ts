@@ -40,24 +40,50 @@ export async function enqueue(
   })
 }
 
+/** Attempts below this just retry on the next 30s sync tick, same as always.
+    At or above it, the entry is flagged as "needs attention" in the UI, but
+    — unlike the old behavior — it keeps retrying in the background too, just
+    on a growing backoff, so a transient run of failures (a network blip, a
+    momentary auth hiccup) heals itself without the user ever having to tap
+    "Retry all". Only a durably broken record (one that fails forever) stays
+    visible, and even that gets retried every 30 min in case the cause clears. */
+export const WARN_THRESHOLD = 5
+
+function backoffMs(attempts: number): number {
+  if (attempts < WARN_THRESHOLD) return 0
+  // 1m, 2m, 4m, 8m, 16m, capped at 30m
+  return Math.min(60_000 * 2 ** (attempts - WARN_THRESHOLD), 30 * 60_000)
+}
+
+function isRetryableNow(e: SyncQueueEntry): boolean {
+  if (e.attempts < WARN_THRESHOLD) return true
+  const since = Date.now() - (e.lastAttemptAt ?? e.createdAt)
+  return since >= backoffMs(e.attempts)
+}
+
+/** Entries due for a retry attempt right now — includes ones past the
+    warning threshold once their backoff window has elapsed. */
 export async function getPending(userId: string): Promise<SyncQueueEntry[]> {
   const db = await getDB()
   const all = await db.getAllFromIndex('sync_queue', 'by-user', userId)
-  return all.filter(e => e.attempts < 5)
+  return all.filter(isRetryableNow)
 }
 
+/** Entries that have crossed the warning threshold, for the "needs attention"
+    UI — these are still being retried in the background on a backoff, this
+    is just "this has failed enough times to be worth telling the user". */
 export async function getFailedEntries(userId: string): Promise<SyncQueueEntry[]> {
   const db = await getDB()
   const all = await db.getAllFromIndex('sync_queue', 'by-user', userId)
-  return all.filter(e => e.attempts >= 5)
+  return all.filter(e => e.attempts >= WARN_THRESHOLD)
 }
 
-/** Resets attempt counts so a manual retry actually re-tries permanently-failed
-    entries — `getPending` otherwise excludes them forever once attempts >= 5. */
+/** Resets attempt counts for an immediate retry (manual "Retry all"),
+    bypassing the backoff window instead of waiting for it to elapse. */
 export async function resetFailedEntries(userId: string): Promise<void> {
   const db = await getDB()
   const failed = await getFailedEntries(userId)
-  await Promise.all(failed.map(e => db.put('sync_queue', { ...e, attempts: 0, lastError: undefined })))
+  await Promise.all(failed.map(e => db.put('sync_queue', { ...e, attempts: 0, lastError: undefined, lastAttemptAt: undefined })))
 }
 
 export async function discardEntry(id: string): Promise<void> {
@@ -78,6 +104,7 @@ export async function markFailure(id: string, error: string): Promise<void> {
     ...entry,
     attempts: entry.attempts + 1,
     lastError: error,
+    lastAttemptAt: Date.now(),
   })
 }
 

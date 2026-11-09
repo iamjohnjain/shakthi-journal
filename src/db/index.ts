@@ -278,6 +278,9 @@ export interface SyncQueueEntry {
   createdAt: number    // unix ms
   attempts: number
   lastError?: string
+  lastAttemptAt?: number  // unix ms — drives backoff so failed entries keep
+                           // retrying on their own instead of getting stuck
+                           // forever once `attempts` passes the warning threshold
 }
 
 // ─── Schema ───────────────────────────────────────────────────────────────────

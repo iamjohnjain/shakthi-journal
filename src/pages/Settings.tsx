@@ -10,7 +10,7 @@ import {
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { SyncStatusRow } from '../components/SyncStatus'
-import { clearSyncHistory, setSetting } from '../db'
+import { clearSyncHistory } from '../db'
 import { clearImportedMetrics, getHealthDiagnostics } from '../db/healthStore'
 import type { HealthDiagnosticEntry } from '../db/healthStore'
 import { useUnits } from '../hooks/useUnits'
@@ -76,7 +76,6 @@ export default function Settings() {
   const [deleting, setDeleting] = useState(false)
   const [exportNote, setExportNote] = useState('')
   const [signingOut, setSigningOut] = useState(false)
-  const [resetOnboardingConfirm, setResetOnboardingConfirm] = useState(false)
   const [showSetupConfirm, setShowSetupConfirm] = useState(false)
   const [showHealthDiag, setShowHealthDiag] = useState(false)
   const [healthDiag, setHealthDiag] = useState<HealthDiagnosticEntry[] | null>(null)
@@ -86,14 +85,6 @@ export default function Settings() {
       getHealthDiagnostics().then(setHealthDiag).catch(() => {})
     }
   }, [showHealthDiag, healthDiag])
-
-  async function handleResetOnboarding() {
-    if (!resetOnboardingConfirm) { setResetOnboardingConfirm(true); return }
-    await setSetting('onboarding.completed', false)
-    setResetOnboardingConfirm(false)
-    setExportNote('Onboarding reset. Reopen the app to run setup again.')
-    setTimeout(() => setExportNote(''), 4000)
-  }
 
   function openHealthSync() {
     const w = window as unknown as Record<string, unknown>
@@ -174,12 +165,6 @@ export default function Settings() {
           label="Run Setup Again"
           description="Re-run the full setup wizard to update your profile and targets"
           onClick={() => setShowSetupConfirm(true)}
-        />
-        <SettingsRow
-          icon={RefreshCw}
-          label={resetOnboardingConfirm ? 'Tap again to confirm' : 'Reset Onboarding Only'}
-          description="Marks setup as incomplete so it shows on next launch. Does not delete any data."
-          onClick={handleResetOnboarding}
         />
       </SettingsSection>
 
