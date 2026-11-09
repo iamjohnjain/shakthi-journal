@@ -462,6 +462,65 @@
 .aw-picker-item:hover { background: var(--bg-card); }
 .aw-picker-item--custom { color: var(--blue); font-weight: 600; }
 
+.aw-picker-ai-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.aw-picker-ai-btn:disabled { opacity: 0.5; cursor: default; }
+.aw-picker-ai-btn--active { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+
+.aw-picker-dictate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.aw-picker-dictate input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.aw-picker-dictate input:focus { outline: none; border-color: var(--blue); }
+
+.aw-picker-dictate-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: var(--blue);
+  border: none;
+  border-radius: var(--r-full);
+  color: #fff;
+  cursor: pointer;
+}
+.aw-picker-dictate-send:disabled { opacity: 0.5; cursor: default; }
+
+.aw-picker-ai-note {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.aw-spin { animation: aw-spin-rotate .8s linear infinite; }
+@keyframes aw-spin-rotate { to { transform: rotate(360deg); } }
+
 /* ─── Finish summary ──────────────────────── */
 
 .aw-summary {

@@ -1,6 +1,9 @@
 // Shared between parse-meal (text/voice) and analyze-meal-photo (camera) —
 // same response contract so the client handles both identically.
 
+import { corsHeaders, jsonResponse } from './http.ts'
+export { corsHeaders, jsonResponse }
+
 export const ALLOWED_UNITS = ['g', 'oz', 'scoop', 'cup', 'tbsp', 'piece', 'slice', 'serving', 'bottle', 'can']
 
 export interface ParsedItem {
@@ -92,26 +95,6 @@ export function parseModelContent(content: string): MealParseResult {
   } catch {
     return { items: [], note: "Couldn't quite make sense of that one — add it yourself below and it'll remember for next time." }
   }
-}
-
-export function corsHeaders(origin: string | null): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': origin ?? '*',
-    // supabase-js's functions.invoke() sends x-client-info (and sometimes
-    // x-supabase-api-version) on every call — missing either from this list
-    // makes the browser's CORS preflight fail silently before the request
-    // ever reaches this function. curl/Postman don't enforce CORS, so this
-    // class of bug only shows up in an actual browser.
-    'Access-Control-Allow-Headers': 'content-type, authorization, apikey, x-client-info, x-supabase-api-version',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  }
-}
-
-export function jsonResponse(body: unknown, status: number, origin: string | null): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-  })
 }
 
 /** Always 200 with a usable (if empty) result — the client never needs to

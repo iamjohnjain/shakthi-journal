@@ -13,8 +13,8 @@
 import {
   RESPONSE_SCHEMA_INSTRUCTIONS, parseModelContent, corsHeaders, jsonResponse, softFallback,
 } from '../_shared/mealParsing.ts'
+import { callGroq, GroqCallError } from '../_shared/groq.ts'
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 // Groq's free-tier model lineup changes without much notice — override via
 // `supabase secrets set GROQ_TEXT_MODEL=...` if this default gets retired.
 const GROQ_MODEL = Deno.env.get('GROQ_TEXT_MODEL') || 'openai/gpt-oss-120b'
@@ -69,35 +69,14 @@ Deno.serve(async (req: Request) => {
     : description
 
   try {
-    const groqRes = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userContent },
-        ],
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-      }),
-    })
-
-    if (!groqRes.ok) {
-      const errText = await groqRes.text().catch(() => '')
-      console.error('Groq API error', groqRes.status, errText)
-      return softFallback("Couldn't reach the estimator just now — add it yourself below.", origin)
-    }
-
-    const groqData = await groqRes.json()
-    const content: string = groqData?.choices?.[0]?.message?.content ?? ''
+    const content = await callGroq({ apiKey, model: GROQ_MODEL, systemPrompt: SYSTEM_PROMPT, userText: userContent })
     const result = parseModelContent(content)
-
     return jsonResponse(result, 200, origin)
   } catch (e) {
+    if (e instanceof GroqCallError) {
+      console.error('Groq API error', e.message)
+      return softFallback("Couldn't reach the estimator just now — add it yourself below.", origin)
+    }
     console.error('parse-meal error', e)
     return softFallback('Something went wrong on that one — add it yourself below.', origin)
   }

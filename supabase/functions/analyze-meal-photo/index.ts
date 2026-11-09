@@ -6,8 +6,8 @@
 import {
   RESPONSE_SCHEMA_INSTRUCTIONS, parseModelContent, corsHeaders, jsonResponse, softFallback,
 } from '../_shared/mealParsing.ts'
+import { callGroq, GroqCallError } from '../_shared/groq.ts'
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 // Vision-capable models are a much shorter, faster-moving list on Groq's free
 // tier than text models — override via `supabase secrets set GROQ_VISION_MODEL=...`
 // if this default gets retired. (Default: current Groq free-tier vision model.)
@@ -70,41 +70,16 @@ Deno.serve(async (req: Request) => {
     : 'What food, drink, or receipt items are in this photo? Estimate nutrition per item.'
 
   try {
-    const groqRes = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: GROQ_VISION_MODEL,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: userText },
-              { type: 'image_url', image_url: { url: imageDataUrl } },
-            ],
-          },
-        ],
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-      }),
+    const content = await callGroq({
+      apiKey, model: GROQ_VISION_MODEL, systemPrompt: SYSTEM_PROMPT, userText, imageDataUrl,
     })
-
-    if (!groqRes.ok) {
-      const errText = await groqRes.text().catch(() => '')
-      console.error('Groq vision API error', groqRes.status, errText)
-      return softFallback("Couldn't read that photo just now — add it yourself below.", origin)
-    }
-
-    const groqData = await groqRes.json()
-    const content: string = groqData?.choices?.[0]?.message?.content ?? ''
     const result = parseModelContent(content)
-
     return jsonResponse(result, 200, origin)
   } catch (e) {
+    if (e instanceof GroqCallError) {
+      console.error('Groq vision API error', e.message)
+      return softFallback("Couldn't read that photo just now — add it yourself below.", origin)
+    }
     console.error('analyze-meal-photo error', e)
     return softFallback('Something went wrong reading that photo — add it yourself below.', origin)
   }

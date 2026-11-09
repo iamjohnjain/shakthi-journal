@@ -2,11 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X, Plus, Check, Timer, ChevronDown,
-  Dumbbell, RotateCcw, Flame,
+  Dumbbell, RotateCcw, Flame, Camera, Mic, Loader2,
 } from 'lucide-react'
 import { saveWorkout, getLastExercisePerformance, EXERCISE_LIBRARY, WORKOUT_TYPES } from '../db/workoutStore'
 import type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet } from '../db'
 import type { ProfileData } from '../db/profileStore'
+import { parseWorkoutDescription, analyzeWorkoutPhoto } from '../lib/aiWorkoutParser'
+import type { ParsedExercise } from '../lib/aiWorkoutParser'
+import { compressImageToDataUrl } from '../lib/imageUtils'
+import LiveCamera from '../components/LiveCamera'
+import { useSpeechToText } from '../hooks/useSpeechToText'
+import { localDateStr } from '../data/config'
 import './ActiveWorkout.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,11 +88,57 @@ function formatTime(s: number): string {
 
 const ALL_NAMES: string[] = EXERCISE_LIBRARY.map(e => e.name)
 
-function ExercisePicker({ onPick, onClose }: { onPick: (name: string) => void; onClose: () => void }) {
+function ExercisePicker({ onPick, onAiExercises, onClose }: {
+  onPick: (name: string) => void
+  onAiExercises: (exercises: ParsedExercise[]) => void
+  onClose: () => void
+}) {
   const [q, setQ] = useState('')
   const filtered  = ALL_NAMES.filter(n => n.toLowerCase().includes(q.toLowerCase())).slice(0, 20)
   const ref = useRef<HTMLInputElement>(null)
   useEffect(() => { ref.current?.focus() }, [])
+
+  const [showCamera, setShowCamera] = useState(false)
+  const [dictating, setDictating] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [aiNote, setAiNote] = useState('')
+  const { listening, toggle: toggleListening, supported: speechSupported } = useSpeechToText(
+    t => setTranscript(d => (d ? `${d} ${t}` : t))
+  )
+
+  async function handlePhoto(blob: Blob) {
+    setShowCamera(false)
+    setBusy(true)
+    setAiNote('')
+    try {
+      const dataUrl = await compressImageToDataUrl(blob)
+      const result = await analyzeWorkoutPhoto(dataUrl)
+      if (result.exercises.length > 0) {
+        onAiExercises(result.exercises)
+        onClose()
+      } else {
+        setAiNote(result.note || "Couldn't identify an exercise from that photo — try again or search below.")
+      }
+    } catch {
+      setAiNote("Couldn't read that photo — try again or search below.")
+    }
+    setBusy(false)
+  }
+
+  async function handleParseTranscript() {
+    if (!transcript.trim() || busy) return
+    setBusy(true)
+    setAiNote('')
+    const result = await parseWorkoutDescription(transcript)
+    if (result.exercises.length > 0) {
+      onAiExercises(result.exercises)
+      onClose()
+    } else {
+      setAiNote(result.note || "Couldn't make that out — try again or search below.")
+    }
+    setBusy(false)
+  }
 
   return createPortal(
     <div className="aw-picker-overlay" onClick={onClose}>
@@ -99,8 +151,50 @@ function ExercisePicker({ onPick, onClose }: { onPick: (name: string) => void; o
             placeholder="Search exercises…"
             className="aw-picker-input"
           />
+          <button
+            className="aw-picker-ai-btn"
+            onClick={() => setShowCamera(true)}
+            aria-label="Add exercise from photo"
+            disabled={busy}
+          >
+            <Camera size={15} />
+          </button>
+          {speechSupported && (
+            <button
+              className={`aw-picker-ai-btn ${listening ? 'aw-picker-ai-btn--active' : ''}`}
+              onClick={() => { setDictating(true); toggleListening() }}
+              aria-label={listening ? 'Stop dictating' : 'Add exercise by voice'}
+              disabled={busy}
+            >
+              <Mic size={15} />
+            </button>
+          )}
           <button className="aw-picker-close" onClick={onClose}><X size={16} /></button>
         </div>
+
+        {(dictating || transcript) && (
+          <div className="aw-picker-dictate">
+            <input
+              value={transcript}
+              onChange={e => setTranscript(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleParseTranscript() }}
+              placeholder="e.g. &ldquo;3 sets of bench press at 135 for 8&rdquo;"
+              disabled={busy}
+              autoFocus
+            />
+            <button
+              className="aw-picker-dictate-send"
+              onClick={handleParseTranscript}
+              disabled={!transcript.trim() || busy}
+              aria-label="Parse"
+            >
+              {busy ? <Loader2 size={14} className="aw-spin" /> : <Check size={14} />}
+            </button>
+          </div>
+        )}
+
+        {aiNote && <p className="aw-picker-ai-note">{aiNote}</p>}
+
         <div className="aw-picker-list">
           {filtered.map(name => (
             <button key={name} className="aw-picker-item" onClick={() => { onPick(name); onClose() }}>
@@ -114,6 +208,10 @@ function ExercisePicker({ onPick, onClose }: { onPick: (name: string) => void; o
           )}
         </div>
       </div>
+
+      {showCamera && (
+        <LiveCamera onCapture={handlePhoto} onClose={() => setShowCamera(false)} />
+      )}
     </div>,
     document.body
   )
@@ -337,6 +435,22 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Pro
     }])
   }, [DEFAULT_KG])
 
+  /** Adds one or more exercises with AI-proposed sets already filled in —
+      skips the `getLastExercisePerformance` auto-suggest `addExercise` does,
+      since the caller (photo/voice parse) already proposed real sets. The
+      user still reviews/edits every value with the normal set-row controls
+      before marking anything done. */
+  const addExercisesWithSets = useCallback((parsed: ParsedExercise[]) => {
+    setExercises(prev => [
+      ...prev,
+      ...parsed.map(p => ({
+        name: p.name,
+        notes: '',
+        sets: p.sets.map(s => ({ weightLbs: s.weightLbs, reps: s.reps, done: false })),
+      })),
+    ])
+  }, [])
+
   function updateExercise(idx: number, patch: Partial<ActiveExercise>) {
     setExercises(prev => prev.map((e, i) => i === idx ? { ...e, ...patch } : e))
   }
@@ -347,8 +461,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Pro
 
   async function handleConfirmFinish() {
     setSaving(true)
-    const now = new Date().toISOString()
-    const todayStr = now.slice(0, 10)
+    const todayStr = localDateStr()
 
     // Build WorkoutExerciseEntry[] — only include done sets
     const saved: WorkoutExerciseEntry[] = exercises
@@ -494,6 +607,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Pro
       {showPicker && (
         <ExercisePicker
           onPick={addExercise}
+          onAiExercises={addExercisesWithSets}
           onClose={() => setShowPicker(false)}
         />
       )}

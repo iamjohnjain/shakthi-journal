@@ -401,6 +401,15 @@ verify_jwt = false
 [functions.analyze-meal-photo]
 verify_jwt = false
 
+[functions.parse-workout-text]
+verify_jwt = false
+
+[functions.analyze-workout-photo]
+verify_jwt = false
+
+[functions.parse-workout-plan]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
