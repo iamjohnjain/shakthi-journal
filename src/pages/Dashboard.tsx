@@ -635,18 +635,14 @@ export default function Dashboard() {
             <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} mockMode={mockMode} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
           )}
 
-          {/* ── "Here's where things stand" ── */}
           {loading && !isEmpty && !isMock ? (
             <SkeletonHero />
           ) : (!isEmpty && !isMock) ? (
-            <>
-              <p className="dash-section-standin">Here's where things stand</p>
-              <TodayCard
-                today={today}
-                todayProgress={todayProgress}
-                dataSource={dataSource}
-              />
-            </>
+            <TodayCard
+              today={today}
+              todayProgress={todayProgress}
+              dataSource={dataSource}
+            />
           ) : null}
 
           {/* ── Empty state: no data yet ── */}
