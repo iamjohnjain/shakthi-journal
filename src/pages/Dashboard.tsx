@@ -12,11 +12,14 @@ import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
+import { getImportedDates } from '../db/healthStore'
+import { getAllLogDates } from '../db/logStore'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
 import TodayCard from '../components/TodayCard'
 import QuickWeightModal from '../components/QuickWeightModal'
+import DatePickerCalendar from '../components/DatePickerCalendar'
 import { AvatarDisplay } from '../components/Avatar'
 import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
 import { isInsideNativeApp } from '../layout/BottomNav'
@@ -30,6 +33,12 @@ function offsetDateStr(dateStr: string, deltaDays: number): string {
   const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() + deltaDays)
   return d.toISOString().split('T')[0]
+}
+
+// Short form for the date-nav trigger — the full weekday+month string wraps
+// in that tight flex row between the arrow buttons and "Jump to Today".
+function formatDateShort(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function delta(curr: number, prev: number) {
@@ -505,6 +514,8 @@ export default function Dashboard() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [stepGoal,    setStepGoal]    = useState(10_000)
   const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [markedDates, setMarkedDates] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getProfile().then(p => {
@@ -521,6 +532,15 @@ export default function Dashboard() {
     window.addEventListener('profile-updated', onProfileUpdated)
     return () => window.removeEventListener('profile-updated', onProfileUpdated)
   }, [])
+
+  // Refreshed each time the date picker opens so a sync/import that just
+  // happened shows up as a dot without needing a reload.
+  useEffect(() => {
+    if (!showDatePicker) return
+    Promise.all([getImportedDates(), getAllLogDates()]).then(([imported, logged]) => {
+      setMarkedDates(new Set([...imported, ...logged]))
+    })
+  }, [showDatePicker])
 
   const isMock    = dataSource === 'mock' && mockMode
   const isEmpty   = dataSource === 'mock' && !mockMode
@@ -575,7 +595,9 @@ export default function Dashboard() {
         <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, -1))} aria-label="Previous day">
           <ChevronLeft size={16} />
         </button>
-        <span className="dash-date-nav-label">{isToday ? 'Today' : formatDate(viewDateObj)}</span>
+        <button className="dash-date-nav-label" onClick={() => setShowDatePicker(true)}>
+          {isToday ? 'Today' : formatDateShort(viewDateObj)}
+        </button>
         <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, 1))} disabled={!canGoForward} aria-label="Next day">
           <ChevronRight size={16} />
         </button>
@@ -583,6 +605,16 @@ export default function Dashboard() {
           <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
         )}
       </div>
+
+      {showDatePicker && (
+        <DatePickerCalendar
+          value={viewDate}
+          markedDates={markedDates}
+          maxDate={todayDateStr()}
+          onChange={setViewDate}
+          onClose={() => setShowDatePicker(false)}
+        />
+      )}
 
       {isToday && (
         <>
