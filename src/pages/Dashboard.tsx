@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Dumbbell, Utensils, Scale, ChevronLeft, ChevronRight, Target, Camera } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate } from '../data/config'
 import { getSetting } from '../db'
@@ -12,14 +12,13 @@ import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
-import DataBadge from '../components/DataBadge'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
 import TodayCard from '../components/TodayCard'
 import QuickWeightModal from '../components/QuickWeightModal'
+import { AvatarDisplay } from '../components/Avatar'
 import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
-import type { DataBadgeMode } from '../components/DataBadge'
 import { isInsideNativeApp } from '../layout/BottomNav'
 import './Dashboard.css'
 
@@ -127,12 +126,10 @@ const MetricCard = memo(function MetricCard({
 // ─── Section wrapper ─────────────────────────────────────────────────────────
 
 const Section = memo(function Section({
-  title, children, badgeMode, badgeSource, menuProps,
+  title, children, menuProps,
 }: {
   title: string
   children: React.ReactNode
-  badgeMode?: DataBadgeMode
-  badgeSource?: string
   menuProps?: React.ComponentProps<typeof CardMenu>
 }) {
   return (
@@ -140,7 +137,6 @@ const Section = memo(function Section({
       <div className="dash-section-header">
         <h2 className="dash-section-title">{title}</h2>
         <div className="dash-section-header-right">
-          {badgeMode && <DataBadge mode={badgeMode} source={badgeSource} size="sm" />}
           {menuProps && <CardMenu {...menuProps} />}
         </div>
       </div>
@@ -183,22 +179,35 @@ function EmptyState({
 function QuickActions() {
   const navigate = useNavigate()
   const [showWeightModal, setShowWeightModal] = useState(false)
-  const actions = [
-    { icon: Scale,    label: 'Log Weight',  action: () => setShowWeightModal(true), color: 'var(--purple)' },
-    { icon: Dumbbell, label: 'Log Workout', action: () => navigate('/workouts'),           color: 'var(--blue)'   },
-    { icon: Utensils, label: 'Log Meals',   action: () => navigate('/nutrition'),          color: 'var(--green)'  },
-    { icon: Camera,   label: 'Snap Meal',   action: () => navigate('/nutrition?quick=photo'), color: 'var(--orange)' },
-  ]
+
+  function syncData() {
+    if (isInsideNativeApp()) {
+      openNativeHealthSync()
+    } else {
+      // No HealthKit outside the native wrapper — the closest equivalent
+      // action on web is the Apple Health file import flow.
+      navigate('/import/apple-health')
+    }
+  }
+
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
-      {actions.map(a => (
-        <button key={a.label} className="quick-action-btn" onClick={a.action} aria-label={a.label}>
-          <span className="quick-action-icon" style={{ color: a.color }} aria-hidden="true">
-            <a.icon size={17} />
-          </span>
-          <span className="quick-action-label" aria-hidden="true">{a.label}</span>
-        </button>
-      ))}
+      <button className="quick-action-btn" onClick={() => setShowWeightModal(true)} aria-label="Log Weight">
+        <span className="quick-action-icon" style={{ color: 'var(--purple)' }} aria-hidden="true">
+          <Scale size={17} />
+        </span>
+        <span className="quick-action-label" aria-hidden="true">Log Weight</span>
+      </button>
+      <button className="quick-action-btn" onClick={() => navigate('/nutrition?quick=photo')} aria-label="Snap Meal">
+        <span className="quick-action-icon" style={{ color: 'var(--orange)' }} aria-hidden="true">
+          <Camera size={17} />
+        </span>
+        <span className="quick-action-label" aria-hidden="true">Snap Meal</span>
+      </button>
+      <button className="quick-action-btn" onClick={syncData} aria-label="Sync Data">
+        <span className="quick-action-icon quick-action-icon--emoji" aria-hidden="true">❤️🔄</span>
+        <span className="quick-action-label" aria-hidden="true">Sync Data</span>
+      </button>
       {showWeightModal && (
         <QuickWeightModal onClose={() => setShowWeightModal(false)} onSaved={() => {}} />
       )}
@@ -304,7 +313,7 @@ function openNativeHealthSync() {
 
 function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, dataSource, inNative, menuFor, ownedDevices } = ctx
+  const { today, yesterday, inNative, menuFor, ownedDevices } = ctx
   const weightLbs     = today.weight ? kgToLbs(today.weight) : undefined
   const prevWeightLbs = yesterday.weight ? kgToLbs(yesterday.weight) : undefined
   const weightDelta   = weightLbs != null && prevWeightLbs != null ? delta(weightLbs, prevWeightLbs) : null
@@ -313,7 +322,6 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
   const muscleDelta   = today.muscleMassKg != null && yesterday.muscleMassKg != null
     ? delta(today.muscleMassKg, yesterday.muscleMassKg) : null
   const hasBody = !!(today.weight || today.bodyFatPct)
-  const badge: DataBadgeMode | undefined = hasBody ? (dataSource === 'manual' ? 'manual' : 'imported') : undefined
   // Body fat / muscle mass only ever come from a smart scale — prompting
   // "Import Apple Health" for someone who never said they own one just
   // clutters the dashboard with a card that can't do anything for them.
@@ -322,7 +330,7 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
   const showMuscleMass = today.muscleMassKg  != null || hasScale
 
   return (
-    <Section title="Body" badgeMode={badge} badgeSource={badge === 'imported' ? 'Apple Health' : undefined} menuProps={menuFor('body')}>
+    <Section title="Body" menuProps={menuFor('body')}>
       {hasBody ? (
         <>
           <MetricCard
@@ -384,10 +392,9 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
   const { today, todayProgress, stepGoal, inNative, menuFor } = ctx
   const steps    = today.steps
   const stepsPct = steps ? Math.round((steps / stepGoal) * 100) : 0
-  const hasActivity = steps != null || today.activeCalories != null || todayProgress.workoutLogged
 
   return (
-    <Section title="Activity" badgeMode={hasActivity ? 'imported' : undefined} badgeSource="Apple Health" menuProps={menuFor('activity')}>
+    <Section title="Activity" menuProps={menuFor('activity')}>
       <MetricCard
         label="Steps"
         value={steps ? steps.toLocaleString() : undefined}
@@ -444,7 +451,7 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
   if (!hasVitals && !hasWearable) return null
 
   return (
-    <Section title="Vitals" badgeMode={hasVitals ? 'imported' : undefined} badgeSource="Apple Health" menuProps={menuFor('vitals')}>
+    <Section title="Vitals" menuProps={menuFor('vitals')}>
       <MetricCard
         label="HRV"
         value={today.hrv}
@@ -558,6 +565,9 @@ export default function Dashboard() {
           <h1 className="dash-greeting">{isToday ? `${getGreeting()}${userName ? `, ${userName}` : ''}.` : 'Looking back.'}</h1>
           <p className="dash-date">{formatDate(viewDateObj)}</p>
         </div>
+        <button className="dash-avatar-btn" onClick={() => navigate('/profile')} aria-label="Profile">
+          <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="sm" />
+        </button>
       </header>
 
       {/* ── Date nav — browse a previous day's dashboard ── */}

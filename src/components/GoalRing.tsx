@@ -8,8 +8,6 @@ import { getProfile } from '../db/profileStore'
 import { getSetting } from '../db'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
-import DataBadge from './DataBadge'
-import type { DataBadgeMode } from './DataBadge'
 import './GoalRing.css'
 
 const SLEEP_GOAL_H  = 8       // universally recommended
@@ -109,7 +107,7 @@ interface Props {
   latestSleep?: import('../hooks/useDashboardData').LatestSleepInfo
 }
 
-export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, latestWeight, latestBodyFat, latestSleep }: Props) {
+export default function GoalRing({ snapshot, yesterday, latestWeight, latestBodyFat, latestSleep }: Props) {
   const navigate = useNavigate()
   const units = useUnits()
   const [typeIdx, setTypeIdx] = useState(0)
@@ -118,7 +116,6 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
   const [stepGoal,       setStepGoal]       = useState(10_000)
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
-  const isMock = !!mockMode
 
   function sourceLabel(sourceId: string): string {
     if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
@@ -177,10 +174,6 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
   const hasData    = current != null
   const hasProfile = startVal != null
 
-  const badgeMode: DataBadgeMode = isMock ? 'mock' : dataSource === 'manual' ? 'manual' : 'imported'
-  // Nothing to badge when the ring is showing its empty state for real (not mock mode).
-  const showBadge = isMock || current != null
-
   const touchStartX = useRef<number>(0)
   const didSwipe = useRef<boolean>(false)
 
@@ -222,7 +215,6 @@ export default function GoalRing({ snapshot, yesterday, dataSource, mockMode, la
 
         <div className="goal-ring-header">
           <span className="goal-ring-type-label">{cfg.label}</span>
-          {showBadge && <DataBadge mode={badgeMode} size="sm" />}
         </div>
 
         <div className="goal-ring-body">

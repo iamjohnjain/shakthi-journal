@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Dumbbell, Apple, Target, UserCircle } from 'lucide-react'
+import { Dumbbell, LayoutDashboard, Apple } from 'lucide-react'
 import './BottomNav.css'
 
 // Detect native iOS companion app (used by other features, not navigation suppression).
@@ -9,12 +9,13 @@ export function isInsideNativeApp(): boolean {
     (window as unknown as Record<string, unknown>).__shakthiNativeApp === true
 }
 
+// Three core tabs, Today centered — profile is reached via the avatar icon
+// on the Today header instead of its own tab, and Goals isn't in primary
+// nav for now (still reachable at /goals, just not a bottom-nav slot).
 const TABS = [
-  { path: '/',          label: 'Today', icon: LayoutDashboard, end: true },
   { path: '/workouts',  label: 'Workout', icon: Dumbbell },
-  { path: '/nutrition', label: 'Meals', icon: Apple },
-  { path: '/goals',     label: 'Goals', icon: Target },
-  { path: '/profile',   label: 'Me',    icon: UserCircle },
+  { path: '/',          label: 'Today',   icon: LayoutDashboard, end: true },
+  { path: '/nutrition', label: 'Meals',   icon: Apple },
 ]
 
 export default function BottomNav() {
