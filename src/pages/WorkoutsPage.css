@@ -854,6 +854,7 @@
   width: 100%; background: var(--accent); color: #fff;
   border: none; border-radius: 10px; padding: 12px;
   font-size: 15px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
 }
 .tmpl-modal-save:disabled { opacity: .6; }
 .tmpl-name-input {
@@ -911,6 +912,105 @@
   border: none; border-radius: 10px; padding: 10px 20px;
   font-size: 14px; font-weight: 600; cursor: pointer;
 }
+
+/* ─── Import Plan ─────────────────────────────────────────────── */
+
+.tmpl-header-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+}
+
+.tmpl-import-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--purple-dim); color: var(--purple);
+  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
+  border-radius: 10px; padding: 9px 14px; font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.tmpl-import-btn:hover { background: color-mix(in srgb, var(--purple-dim) 70%, var(--purple) 15%); }
+
+.import-tabs {
+  display: flex; gap: 4px; padding: 0 20px 12px; border-bottom: 1px solid var(--border-subtle);
+}
+.import-tabs button {
+  display: flex; align-items: center; gap: 5px;
+  background: none; border: none; color: var(--text-tertiary);
+  font-size: 13px; font-weight: 600; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+}
+.import-tabs button.active { background: var(--bg-card); color: var(--text-primary); }
+
+.import-text-tab, .import-screenshot-tab {
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.import-tab-hint {
+  font-size: 13px; color: var(--text-tertiary); line-height: 1.4; margin: 0;
+}
+
+.import-textarea-wrap { position: relative; }
+
+.import-textarea {
+  width: 100%; resize: vertical;
+  background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px 40px 12px 12px; font-size: 14px; color: var(--text-primary);
+  font-family: inherit; line-height: 1.5;
+}
+.import-textarea:focus { outline: none; border-color: var(--blue); }
+
+.import-mic-btn {
+  position: absolute; right: 8px; bottom: 8px;
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--bg-tertiary); border: none; color: var(--text-secondary); cursor: pointer;
+}
+.import-mic-btn--active { color: var(--red); background: var(--red-dim); }
+
+.import-note {
+  font-size: 13px; color: var(--text-tertiary); margin: 0;
+}
+
+.import-loading {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 20px; color: var(--text-secondary); font-size: 14px;
+}
+
+.import-secondary-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
+.import-review { display: flex; flex-direction: column; gap: 16px; }
+
+.import-day-card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.import-day-header {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.import-day-name-input {
+  flex: 1;
+  background: var(--bg-tertiary); border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 14px; font-weight: 700; color: var(--text-primary);
+}
+.import-day-name-input:focus { outline: none; border-color: var(--blue); }
+
+.import-add-ex-btn {
+  background: none; border: 1px dashed var(--border); border-radius: 8px;
+  padding: 8px; font-size: 12px; color: var(--text-tertiary); cursor: pointer; width: 100%;
+}
+.import-add-ex-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+.import-add-day-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px; font-size: 14px; font-weight: 600; color: var(--text-secondary); cursor: pointer;
+}
+
+.ai-spin { animation: ai-spin-rotate .8s linear infinite; }
+@keyframes ai-spin-rotate { to { transform: rotate(360deg); } }
 
 /* ─── History page ────────────────────────────────────────────── */
 
