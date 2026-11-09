@@ -11,7 +11,7 @@ import { EXERCISE_LIBRARY } from '../db/workoutStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { useSpeechToText } from '../hooks/useSpeechToText'
-import { parseWorkoutPlanText, parseWorkoutPlanPhoto, isAiWorkoutParsingAvailable } from '../lib/aiWorkoutParser'
+import { parseWorkoutPlanText, parseWorkoutPlanPhoto, parseWorkoutPlanImages, isAiWorkoutParsingAvailable } from '../lib/aiWorkoutParser'
 import type { ParsedPlanDay, WorkoutPlanParseResult } from '../lib/aiWorkoutParser'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import LiveCamera from '../components/LiveCamera'
@@ -240,6 +240,8 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const [note, setNote] = useState('')
   const [showCamera, setShowCamera] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const { listening, toggle: toggleListening, supported: speechSupported } = useSpeechToText(
     t => setText(d => (d ? `${d} ${t}` : t))
@@ -247,6 +249,8 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
+
+  useEffect(() => () => { if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl) }, [pendingPreviewUrl])
 
   function applyResult(result: WorkoutPlanParseResult) {
     if (result.days.length > 0) {
@@ -300,11 +304,37 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       }
       applyResult(extracted.kind === 'text'
         ? await parseWorkoutPlanText(extracted.text)
-        : await parseWorkoutPlanPhoto(extracted.dataUrl))
+        : await parseWorkoutPlanImages(extracted.dataUrls))
     } catch {
       setNote("Couldn't read that file — try again, or paste the text instead.")
       setStatus('input')
     }
+  }
+
+  /** A file picker's native OS dialog can be ambiguous about which file
+      actually got chosen (similarly-named files, a long list, a misclick)
+      — so hold the selection in a confirm-first preview instead of running
+      it the instant it's picked, same as the live camera already shows a
+      viewfinder before capturing. */
+  function selectPendingFile(file: File) {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
+    setPendingFile(file)
+    setPendingPreviewUrl(file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+    setNote('')
+  }
+
+  function clearPendingFile() {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
+    setPendingFile(null)
+    setPendingPreviewUrl(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function confirmPendingFile() {
+    if (!pendingFile) return
+    const file = pendingFile
+    clearPendingFile()
+    handleFile(file)
   }
 
   function updateDay(i: number, patch: Partial<DraftDay>) {
@@ -424,9 +454,33 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
                   <input ref={fileRef} type="file"
                     accept="image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.txt,.csv,.md,text/plain,text/csv"
                     style={{ display: 'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                    onChange={e => { const f = e.target.files?.[0]; if (f) selectPendingFile(f) }} />
+
+                  {pendingFile ? (
+                    <div className="import-file-preview">
+                      {pendingPreviewUrl ? (
+                        <img className="import-file-preview-thumb" src={pendingPreviewUrl} alt="" />
+                      ) : (
+                        <div className="import-file-preview-icon"><FileText size={22} /></div>
+                      )}
+                      <div className="import-file-preview-info">
+                        <span className="import-file-preview-name">{pendingFile.name}</span>
+                        <span className="import-file-preview-size">{(pendingFile.size / 1024).toFixed(0)} KB</span>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {status === 'loading' ? (
                     <div className="import-loading"><Loader2 size={18} className="ai-spin" /> Reading plan…</div>
+                  ) : pendingFile ? (
+                    <>
+                      <button className="tmpl-modal-save" onClick={confirmPendingFile}>
+                        <Check size={15} /> Use This File
+                      </button>
+                      <button className="import-secondary-btn" onClick={() => fileRef.current?.click()}>
+                        Choose a Different File
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button className="tmpl-modal-save" onClick={() => fileRef.current?.click()}>

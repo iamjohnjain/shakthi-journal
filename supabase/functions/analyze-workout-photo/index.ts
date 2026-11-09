@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
       model: GROQ_VISION_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       userText: 'What exercise/machine is this? Propose one exercise entry with a starting set.',
-      imageDataUrl,
+      imageDataUrls: [imageDataUrl],
     })
     const result = parseExerciseListContent(content)
     return jsonResponse(result, 200, origin)

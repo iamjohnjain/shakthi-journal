@@ -74,9 +74,18 @@ export async function parseWorkoutPlanText(text: string): Promise<WorkoutPlanPar
     softPlanFailure("Couldn't reach the AI estimator — add your templates yourself below."))
 }
 
-/** Same as above, from a screenshot/photo of a written plan. */
-export async function parseWorkoutPlanPhoto(imageDataUrl: string): Promise<WorkoutPlanParseResult> {
-  if (!imageDataUrl.startsWith('data:image/')) return softPlanFailure("That image didn't come through — try again.")
-  return invoke('parse-workout-plan', { image: imageDataUrl },
+/** Same as above, from one or more screenshot/photo pages of a written
+    plan — a multi-page scanned document sends several, read together as
+    one continuous plan rather than separate ones. */
+export async function parseWorkoutPlanImages(imageDataUrls: string[]): Promise<WorkoutPlanParseResult> {
+  const valid = imageDataUrls.filter(u => u.startsWith('data:image/'))
+  if (valid.length === 0) return softPlanFailure("That image didn't come through — try again.")
+  return invoke('parse-workout-plan', { images: valid },
     softPlanFailure("Couldn't reach the AI estimator — add your templates yourself below."))
+}
+
+/** Single-image convenience wrapper — used by the live-camera capture path,
+    where there's always exactly one photo. */
+export function parseWorkoutPlanPhoto(imageDataUrl: string): Promise<WorkoutPlanParseResult> {
+  return parseWorkoutPlanImages([imageDataUrl])
 }

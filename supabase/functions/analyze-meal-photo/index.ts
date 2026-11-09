@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const content = await callGroq({
-      apiKey, model: GROQ_VISION_MODEL, systemPrompt: SYSTEM_PROMPT, userText, imageDataUrl,
+      apiKey, model: GROQ_VISION_MODEL, systemPrompt: SYSTEM_PROMPT, userText, imageDataUrls: [imageDataUrl],
     })
     const result = parseModelContent(content)
     return jsonResponse(result, 200, origin)
