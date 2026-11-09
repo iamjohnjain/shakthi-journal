@@ -1,43 +1,16 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import {
-  Dumbbell, CalendarDays, Clock, TrendingUp,
-  LayoutTemplate, BookOpen, ChevronDown,
-} from 'lucide-react'
+import { Dumbbell, ChevronDown } from 'lucide-react'
 import { getDB } from '../db'
 import type { WorkoutSession } from '../db'
 import { CARDIO_SUBTYPES } from '../db/workoutStore'
+import WorkoutsSubNav from '../components/WorkoutsSubNav'
 import './WorkoutsPage.css'
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ]
-
-function WorkoutsSubNav() {
-  return (
-    <nav className="workouts-subnav">
-      <NavLink to="/workouts" end className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Dumbbell size={14} /><span>Today</span>
-      </NavLink>
-      <NavLink to="/workouts/plan" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <CalendarDays size={14} /><span>Plan</span>
-      </NavLink>
-      <NavLink to="/workouts/history" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Clock size={14} /><span>History</span>
-      </NavLink>
-      <NavLink to="/workouts/progress" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <TrendingUp size={14} /><span>Progress</span>
-      </NavLink>
-      <NavLink to="/workouts/templates" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <LayoutTemplate size={14} /><span>Templates</span>
-      </NavLink>
-      <NavLink to="/workouts/library" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <BookOpen size={14} /><span>Library</span>
-      </NavLink>
-    </nav>
-  )
-}
 
 function workoutTypeLabel(w: WorkoutSession): string {
   if (w.type === 'lifting') return 'Lifting'

@@ -116,6 +116,29 @@ export async function getWorkoutDates(days = 30): Promise<string[]> {
   return [...new Set(all.filter(w => w.date >= cutoffStr).map(w => w.date))]
 }
 
+/** Same date range as `getWorkoutDates`, but resolved to which kind of
+    training happened each day — drives the lift/cardio/both calendar dot
+    colors (green/blue/split) instead of one flat "something happened"
+    marker. */
+export async function getWorkoutDateTypes(days = 400): Promise<Map<string, 'lift' | 'cardio' | 'both'>> {
+  const db = await getDB()
+  const all = await db.getAll('workouts')
+  const cutoffStr = addLocalDays(localDateStr(), -days)
+  const byDate = new Map<string, { lift: boolean; cardio: boolean }>()
+  for (const w of all) {
+    if (w.date < cutoffStr) continue
+    const entry = byDate.get(w.date) ?? { lift: false, cardio: false }
+    if (w.type === 'lifting') entry.lift = true
+    else entry.cardio = true
+    byDate.set(w.date, entry)
+  }
+  const result = new Map<string, 'lift' | 'cardio' | 'both'>()
+  for (const [date, { lift, cardio }] of byDate) {
+    result.set(date, lift && cardio ? 'both' : lift ? 'lift' : 'cardio')
+  }
+  return result
+}
+
 /** Get all workouts in a YYYY-MM-DD week (Mon–Sun). Returns map of date → workouts. */
 export async function getWorkoutsForWeekDates(dates: string[]): Promise<Map<string, WorkoutSession[]>> {
   const db = await getDB()

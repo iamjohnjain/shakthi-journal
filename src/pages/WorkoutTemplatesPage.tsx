@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink } from 'react-router-dom'
 import {
-  Plus, Pencil, Trash2, LayoutTemplate, Dumbbell, BookOpen, TrendingUp,
-  CalendarDays, X, AlertTriangle, Clock, Sparkles, FileText, Camera, Upload, Mic, Loader2, Check,
+  Plus, Pencil, Trash2,
+  X, AlertTriangle, Sparkles, FileText, Camera, Upload, Mic, Loader2, Check,
 } from 'lucide-react'
 import { getTemplates, saveTemplate, updateTemplate, deleteTemplate } from '../db/templateStore'
 import type { WorkoutTemplate } from '../db/templateStore'
 import { EXERCISE_LIBRARY } from '../db/workoutStore'
+import { getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise } from '../db/trainingStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { useSpeechToText } from '../hooks/useSpeechToText'
@@ -15,36 +15,12 @@ import { parseWorkoutPlanText, parseWorkoutPlanPhoto, parseWorkoutPlanImages, is
 import type { ParsedPlanDay, WorkoutPlanParseResult } from '../lib/aiWorkoutParser'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import LiveCamera from '../components/LiveCamera'
+import WorkoutsSubNav from '../components/WorkoutsSubNav'
 import './WorkoutsPage.css'
 
 const ALL_EXERCISE_NAMES = EXERCISE_LIBRARY.map(e => e.name)
 
 // ─── Sub-nav ──────────────────────────────────────────────────────────────────
-
-function WorkoutsSubNav() {
-  return (
-    <nav className="workouts-subnav">
-      <NavLink to="/workouts" end className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Dumbbell size={14} /><span>Today</span>
-      </NavLink>
-      <NavLink to="/workouts/plan" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <CalendarDays size={14} /><span>Plan</span>
-      </NavLink>
-      <NavLink to="/workouts/history" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Clock size={14} /><span>History</span>
-      </NavLink>
-      <NavLink to="/workouts/progress" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <TrendingUp size={14} /><span>Progress</span>
-      </NavLink>
-      <NavLink to="/workouts/templates" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <LayoutTemplate size={14} /><span>Templates</span>
-      </NavLink>
-      <NavLink to="/workouts/library" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <BookOpen size={14} /><span>Library</span>
-      </NavLink>
-    </nav>
-  )
-}
 
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 
@@ -89,6 +65,9 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
 
+  const [exerciseNames, setExerciseNames] = useState<string[]>(ALL_EXERCISE_NAMES)
+  useEffect(() => { getAllExerciseNames().then(setExerciseNames) }, [])
+
   function addExercise() {
     setExercises(p => [...p, { name: '', sets: 3, reps: '8' }])
   }
@@ -108,7 +87,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
       const cleanedExercises = exercises
         .filter(ex => ex.name.trim())
         .map(ex => ({
-          name: ex.name,
+          name: capitalizeExerciseName(ex.name),
           equipment: ex.equipment,
           sets: Array.from({ length: ex.sets }, () => ({
             reps: parseInt(ex.reps) || 8,
@@ -132,6 +111,7 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
           targetMuscles: [],
         })
       }
+      void Promise.all(cleanedExercises.map(ex => rememberCustomExercise(ex.name)))
       onSaved()
       onClose()
     } finally {
@@ -174,9 +154,10 @@ function TemplateModal({ existing, onClose, onSaved }: TemplateModalProps) {
                     list="tmpl-exercise-datalist"
                     placeholder="Exercise name"
                     value={ex.name}
-                    onChange={e => updateExercise(i, { name: e.target.value })} />
+                    onChange={e => updateExercise(i, { name: e.target.value })}
+                    onBlur={e => { if (e.target.value.trim()) updateExercise(i, { name: capitalizeExerciseName(e.target.value) }) }} />
                   <datalist id="tmpl-exercise-datalist">
-                    {ALL_EXERCISE_NAMES.map(n => <option key={n} value={n} />)}
+                    {exerciseNames.map(n => <option key={n} value={n} />)}
                   </datalist>
                   <div className="tmpl-ex-sets-row">
                     <input className="tmpl-ex-num-input" type="number" inputMode="numeric"
@@ -251,6 +232,9 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const swipe = useSwipeToClose(onClose)
 
   useEffect(() => () => { if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl) }, [pendingPreviewUrl])
+
+  const [exerciseNames, setExerciseNames] = useState<string[]>(ALL_EXERCISE_NAMES)
+  useEffect(() => { getAllExerciseNames().then(setExerciseNames) }, [])
 
   function applyResult(result: WorkoutPlanParseResult) {
     if (result.days.length > 0) {
@@ -378,7 +362,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
         const cleanedExercises = day.exercises
           .filter(ex => ex.name.trim())
           .map(ex => ({
-            name: ex.name,
+            name: capitalizeExerciseName(ex.name),
             sets: Array.from({ length: Math.max(1, ex.sets) }, () => ({ reps: parseInt(ex.reps) || 8, weightLbs: 0 })),
           }))
         if (cleanedExercises.length === 0) continue
@@ -387,6 +371,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
           exercises: cleanedExercises,
           targetMuscles: [],
         })
+        void Promise.all(cleanedExercises.map(ex => rememberCustomExercise(ex.name)))
       }
       onSaved()
       onClose()
@@ -512,9 +497,10 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
                           list="import-exercise-datalist"
                           placeholder="Exercise name"
                           value={ex.name}
-                          onChange={e => updateExercise(di, ei, { name: e.target.value })} />
+                          onChange={e => updateExercise(di, ei, { name: e.target.value })}
+                          onBlur={e => { if (e.target.value.trim()) updateExercise(di, ei, { name: capitalizeExerciseName(e.target.value) }) }} />
                         <datalist id="import-exercise-datalist">
-                          {ALL_EXERCISE_NAMES.map(n => <option key={n} value={n} />)}
+                          {exerciseNames.map(n => <option key={n} value={n} />)}
                         </datalist>
                         <div className="tmpl-ex-sets-row">
                           <input className="tmpl-ex-num-input" type="number" inputMode="numeric"

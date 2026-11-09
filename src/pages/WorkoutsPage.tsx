@@ -1,22 +1,25 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Plus, ChevronDown, ChevronUp, Trash2, Dumbbell,
-  BookOpen, TrendingUp, CalendarDays, Lightbulb, Flame,
+  Lightbulb, Flame,
   ChevronLeft, ChevronRight, Copy, Clipboard, Pencil,
-  LayoutTemplate, Check, X, AlertTriangle, Clock, Play,
+  LayoutTemplate, Check, X, AlertTriangle, Play,
 } from 'lucide-react'
 import ActiveWorkout from './ActiveWorkout'
 import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs,
-  getWorkoutsForDate, getWorkoutDates,
+  getWorkoutsForDate, getWorkoutDateTypes,
   getWorkoutsForWeekDates,
   getLastExercisePerformance,
   WORKOUT_TYPES, CARDIO_SUBTYPES, EXERCISE_LIBRARY, BODY_AREAS,
 } from '../db/workoutStore'
 import type { ExerciseLastPerf } from '../db/workoutStore'
-import { estimateWorkoutCalories, seedExerciseLibraryIfEmpty } from '../db/trainingStore'
+import {
+  estimateWorkoutCalories, seedExerciseLibraryIfEmpty,
+  getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise,
+} from '../db/trainingStore'
 import { getTemplates, workoutToTemplate } from '../db/templateStore'
 import type { WorkoutTemplate } from '../db/templateStore'
 import { useWorkoutSuggestion } from '../hooks/useWorkoutSuggestion'
@@ -27,6 +30,7 @@ import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr, addLocalDays, formatDate } from '../data/config'
 import DatePickerCalendar from '../components/DatePickerCalendar'
+import WorkoutsSubNav from '../components/WorkoutsSubNav'
 import './WorkoutsPage.css'
 
 const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
@@ -84,34 +88,9 @@ const EQUIPMENT_OPTS = [
   { id: 'bodyweight', short: 'BW'   },
 ] as const
 
-const ALL_EXERCISE_NAMES = EXERCISE_LIBRARY.map(e => e.name)
+const FALLBACK_EXERCISE_NAMES = EXERCISE_LIBRARY.map(e => e.name)
 
 // ─── Sub-nav ──────────────────────────────────────────────────────────────────
-
-function WorkoutsSubNav() {
-  return (
-    <nav className="workouts-subnav">
-      <NavLink to="/workouts" end className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Dumbbell size={14} /><span>Today</span>
-      </NavLink>
-      <NavLink to="/workouts/plan" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <CalendarDays size={14} /><span>Plan</span>
-      </NavLink>
-      <NavLink to="/workouts/history" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Clock size={14} /><span>History</span>
-      </NavLink>
-      <NavLink to="/workouts/progress" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <TrendingUp size={14} /><span>Progress</span>
-      </NavLink>
-      <NavLink to="/workouts/templates" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <LayoutTemplate size={14} /><span>Templates</span>
-      </NavLink>
-      <NavLink to="/workouts/library" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <BookOpen size={14} /><span>Library</span>
-      </NavLink>
-    </nav>
-  )
-}
 
 // ─── Suggestion card ──────────────────────────────────────────────────────────
 
@@ -263,8 +242,9 @@ function SetRow({
 
 type ExEntry = WorkoutExerciseEntry & { equipment?: string }
 
-function ExerciseBlock({ ex, onChange, onRemove, prMap }: {
+function ExerciseBlock({ ex, onChange, onRemove, prMap, exerciseNames }: {
   ex: ExEntry; onChange: (u: ExEntry) => void; onRemove: () => void; prMap: Map<string, number>
+  exerciseNames: string[]
 }) {
   const volume = ex.sets.reduce((n, s) => n + s.weightLbs * s.reps, 0)
   const [lastPerf, setLastPerf] = useState<ExerciseLastPerf | null>(null)
@@ -290,9 +270,11 @@ function ExerciseBlock({ ex, onChange, onRemove, prMap }: {
     <div className="exercise-block">
       <div className="exercise-block-header">
         <input list="exercise-datalist" className="exercise-name-input" placeholder="Exercise name"
-          value={ex.name} onChange={e => onChange({ ...ex, name: e.target.value })} />
+          value={ex.name}
+          onChange={e => onChange({ ...ex, name: e.target.value })}
+          onBlur={e => { if (e.target.value.trim()) onChange({ ...ex, name: capitalizeExerciseName(e.target.value) }) }} />
         <datalist id="exercise-datalist">
-          {ALL_EXERCISE_NAMES.map(n => <option key={n} value={n} />)}
+          {exerciseNames.map(n => <option key={n} value={n} />)}
         </datalist>
         <button className="exercise-remove-btn" onClick={onRemove}>Remove</button>
       </div>
@@ -476,12 +458,13 @@ function WorkoutCard({ w, onDelete, onEdit, onCopy }: {
 interface LogModalProps {
   prMap: Map<string, number>
   initialWorkout?: WorkoutSession
+  initialTemplate?: WorkoutTemplate
   prefilledDate?: string
   onClose: () => void
   onSaved: () => void
 }
 
-function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: LogModalProps) {
+function LogModal({ prMap, initialWorkout, initialTemplate, prefilledDate, onClose, onSaved }: LogModalProps) {
   const [primaryType, setPrimaryType] = useState<'lifting' | 'cardio'>(
     initialWorkout ? (initialWorkout.type === 'lifting' ? 'lifting' : 'cardio') : 'lifting'
   )
@@ -492,51 +475,25 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
           ? initialWorkout.type
           : 'running')
   )
-  const [title,       setTitle]       = useState(initialWorkout?.title ?? '')
-  const [durationMin, setDurationMin] = useState(initialWorkout?.durationMin ?? 60)
+  const [title,       setTitle]       = useState(initialWorkout?.title ?? initialTemplate?.name ?? '')
+  const [durationMin, setDurationMin] = useState(initialWorkout?.durationMin ?? initialTemplate?.estimatedDurationMin ?? 60)
   const [rpe,         setRpe]         = useState<number | ''>(initialWorkout?.rpe ?? '')
   const [bodyAreas,   setBodyAreas]   = useState<string[]>(initialWorkout?.bodyAreas ?? [])
   const [exercises,   setExercises]   = useState<ExEntry[]>(
     initialWorkout?.exercises?.length
       ? initialWorkout.exercises
+      : initialTemplate?.exercises?.length
+      ? initialTemplate.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' }))
       : [{ name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }]
   )
   const [cardioEntry, setCardioEntry] = useState<Partial<CardioEntry>>(
     initialWorkout?.cardioEntries?.[0] ?? { source: 'Manual' }
   )
-  const [notes, setNotes] = useState(initialWorkout?.notes ?? '')
+  const [notes, setNotes] = useState(initialWorkout?.notes ?? initialTemplate?.notes ?? '')
   const [saving, setSaving] = useState(false)
 
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
-
-  // Session timer
-  const sessionStartRef = useRef(Date.now())
-  const [elapsedSecs, setElapsedSecs] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setElapsedSecs(Math.floor((Date.now() - sessionStartRef.current) / 1000)), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  // Rest timer
-  const [restSecs, setRestSecs] = useState<number | null>(null)
-  const restStartRef = useRef<number | null>(null)
-  useEffect(() => {
-    if (restSecs === null || restSecs <= 0) return
-    const id = setTimeout(() => setRestSecs(s => (s !== null && s > 0 ? s - 1 : s)), 1000)
-    return () => clearTimeout(id)
-  }, [restSecs])
-
-  function startRest(secs = 90) {
-    restStartRef.current = Date.now()
-    setRestSecs(secs)
-  }
-
-  function fmtTime(secs: number) {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0')
-    const s = (secs % 60).toString().padStart(2, '0')
-    return `${m}:${s}`
-  }
 
   // Templates
   const [showTemplates, setShowTemplates] = useState(false)
@@ -546,6 +503,9 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
   const [tmplSaved,     setTmplSaved]     = useState(false)
 
   useEffect(() => { getTemplates().then(setTemplates) }, [])
+
+  const [exerciseNames, setExerciseNames] = useState<string[]>(FALLBACK_EXERCISE_NAMES)
+  useEffect(() => { getAllExerciseNames().then(setExerciseNames) }, [])
 
   const [bodyWeightKg, setBodyWeightKg] = useState(DEFAULT_BODY_WEIGHT_KG)
   useEffect(() => {
@@ -620,6 +580,7 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
       } else {
         await saveWorkout(payload)
       }
+      void Promise.all(payload.exercises.map(ex => rememberCustomExercise(ex.name)))
       onSaved()
       onClose()
     } finally {
@@ -635,27 +596,6 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
           <h2 className="log-modal-title">{initialWorkout ? 'Edit Workout' : 'Log Workout'}</h2>
           <button className="log-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
-
-        {/* ── Session timer + rest timer ── */}
-        {!initialWorkout && (
-          <div className="log-modal-timer-bar">
-            <span className="log-timer-elapsed">⏱ {fmtTime(elapsedSecs)}</span>
-            <div className="log-rest-timer">
-              {restSecs !== null && restSecs > 0 && (
-                <span className="log-rest-countdown">{fmtTime(restSecs)}</span>
-              )}
-              {restSecs !== null && restSecs === 0 && (
-                <span className="log-rest-countdown log-rest-countdown--done">Rest done ✓</span>
-              )}
-              <button
-                className={`log-rest-btn ${restSecs !== null && restSecs > 0 ? 'log-rest-btn--active' : ''}`}
-                onClick={() => restSecs !== null && restSecs > 0 ? setRestSecs(null) : startRest(90)}
-              >
-                {restSecs !== null && restSecs > 0 ? 'Cancel rest' : '90s rest'}
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="log-modal-body">
           {/* ── Primary type picker ── */}
@@ -770,7 +710,7 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
                 </button>
               </div>
               {exercises.map((ex, i) => (
-                <ExerciseBlock key={i} ex={ex} prMap={prMap}
+                <ExerciseBlock key={i} ex={ex} prMap={prMap} exerciseNames={exerciseNames}
                   onChange={upd => { const n = [...exercises]; n[i] = upd; setExercises(n) }}
                   onRemove={() => setExercises(p => p.filter((_, j) => j !== i))} />
               ))}
@@ -801,6 +741,42 @@ function LogModal({ prMap, initialWorkout, prefilledDate, onClose, onSaved }: Lo
   )
 }
 
+// ─── Template picker (quick-start "+ Template" from the Today page) ──────────
+
+function TemplatePickerSheet({ onPick, onClose }: { onPick: (t: WorkoutTemplate) => void; onClose: () => void }) {
+  const [templates, setTemplates] = useState<WorkoutTemplate[] | null>(null)
+  useScrollLock()
+  const swipe = useSwipeToClose(onClose)
+
+  useEffect(() => { getTemplates().then(setTemplates) }, [])
+
+  return createPortal(
+    <div className="aw-picker-overlay" onClick={onClose}>
+      <div className="aw-picker" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="aw-picker-search" {...swipe.handlers}>
+          <span className="log-section-title">Choose a template</span>
+          <button className="aw-picker-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="aw-picker-list">
+          {templates === null ? (
+            <p className="log-tmpl-empty">Loading…</p>
+          ) : templates.length === 0 ? (
+            <p className="log-tmpl-empty">No templates yet — create one in Templates first.</p>
+          ) : (
+            templates.map(t => (
+              <button key={t.id} className="aw-picker-item" onClick={() => onPick(t)}>
+                {t.name}
+                <span className="log-tmpl-meta" style={{ marginLeft: 8 }}>{t.exercises.length} exercises</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WorkoutsPage() {
@@ -808,7 +784,7 @@ export default function WorkoutsPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [dayWorkouts,  setDayWorkouts]  = useState<WorkoutSession[]>([])
   const [prMap,        setPrMap]        = useState<Map<string, number>>(new Map())
-  const [workoutDays,  setWorkoutDays]  = useState<string[]>([])
+  const [workoutDateTypes, setWorkoutDateTypes] = useState<Map<string, 'lift' | 'cardio' | 'both'>>(new Map())
   const [loaded,       setLoaded]       = useState(false)
   const [showModal,    setShowModal]    = useState(false)
   const [showActiveWorkout, setShowActiveWorkout] = useState(false)
@@ -817,17 +793,19 @@ export default function WorkoutsPage() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [calendarKey,   setCalendarKey]   = useState(0)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [templateToLog, setTemplateToLog] = useState<WorkoutTemplate | null>(null)
   const seeded = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
-    const [day, prs, days] = await Promise.all([
+    const [day, prs, dateTypes] = await Promise.all([
       getWorkoutsForDate(date),
       getAllTimePRs(),
-      getWorkoutDates(400),
+      getWorkoutDateTypes(400),
     ])
     setDayWorkouts(day)
     setPrMap(prs)
-    setWorkoutDays(days)
+    setWorkoutDateTypes(dateTypes)
     setLoaded(true)
   }, [])
 
@@ -868,7 +846,12 @@ export default function WorkoutsPage() {
   const dateLabelShort = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const isToday = selectedDate === todayStr()
   const canGoForward = selectedDate < todayStr()
-  const markedWorkoutDates = new Set(workoutDays)
+  const markedWorkoutDates = new Set(workoutDateTypes.keys())
+  const dotColorFor: Record<'lift' | 'cardio' | 'both', string> = {
+    lift: 'var(--green)',
+    cardio: 'var(--blue)',
+    both: 'linear-gradient(90deg, var(--green) 50%, var(--blue) 50%)',
+  }
 
   return (
     <div className="workouts-page">
@@ -893,12 +876,15 @@ export default function WorkoutsPage() {
               <h1 className="page-title">{isToday ? 'Today' : dateLabel}</h1>
               {isToday && <p className="page-subtitle">{dateLabel}</p>}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
                 <Play size={15} /> Start
               </button>
               <button className="log-workout-btn" onClick={() => { setEditingWorkout(null); setShowModal(true) }}>
                 <Plus size={16} /> Log
+              </button>
+              <button className="log-workout-btn" onClick={() => setShowTemplatePicker(true)}>
+                <LayoutTemplate size={15} /> Template
               </button>
             </div>
           </header>
@@ -925,10 +911,14 @@ export default function WorkoutsPage() {
               maxDate={todayStr()}
               onChange={setSelectedDate}
               onClose={() => setShowDatePicker(false)}
+              dotBackground={date => {
+                const t = workoutDateTypes.get(date)
+                return t ? dotColorFor[t] : undefined
+              }}
             />
           )}
 
-          {loaded && workoutDays.length === 0 ? (
+          {loaded && markedWorkoutDates.size === 0 ? (
             <div className="workouts-first-empty">
               <div className="workouts-first-empty-icon">
                 <Dumbbell size={44} />
@@ -995,13 +985,21 @@ export default function WorkoutsPage() {
             </>
           )}
 
-          {(showModal || editingWorkout) && (
+          {(showModal || editingWorkout || templateToLog) && (
             <LogModal
               prMap={prMap}
               initialWorkout={editingWorkout ?? undefined}
+              initialTemplate={templateToLog ?? undefined}
               prefilledDate={selectedDate}
-              onClose={() => { setShowModal(false); setEditingWorkout(null) }}
+              onClose={() => { setShowModal(false); setEditingWorkout(null); setTemplateToLog(null) }}
               onSaved={() => { loadDay(selectedDate); refreshCalendar() }} />
+          )}
+
+          {showTemplatePicker && (
+            <TemplatePickerSheet
+              onPick={t => { setShowTemplatePicker(false); setTemplateToLog(t) }}
+              onClose={() => setShowTemplatePicker(false)}
+            />
           )}
         </>
       )}

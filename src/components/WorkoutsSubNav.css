@@ -1,0 +1,18 @@
+.workouts-subnav {
+  display: flex; gap: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 5px;
+  margin-bottom: 20px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.workouts-subnav::-webkit-scrollbar { display: none; }
+.wsn-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 10px; flex: 0 0 auto;
+  font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  text-decoration: none; justify-content: center;
+  transition: background .15s, color .15s; white-space: nowrap;
+}
+.wsn-item:hover { color: var(--text-primary); }
+.wsn-item--active { background: var(--blue-dim); color: var(--blue); font-weight: 600; }

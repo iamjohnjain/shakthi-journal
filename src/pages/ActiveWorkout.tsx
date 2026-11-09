@@ -5,6 +5,7 @@ import {
   Dumbbell, RotateCcw, Flame, Camera, Mic, Loader2,
 } from 'lucide-react'
 import { saveWorkout, getLastExercisePerformance, EXERCISE_LIBRARY, WORKOUT_TYPES } from '../db/workoutStore'
+import { getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise } from '../db/trainingStore'
 import type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet } from '../db'
 import type { ProfileData } from '../db/profileStore'
 import { parseWorkoutDescription, analyzeWorkoutPhoto } from '../lib/aiWorkoutParser'
@@ -37,12 +38,17 @@ interface Props {
 
 // ─── Timer hooks ──────────────────────────────────────────────────────────────
 
-function useElapsedTimer(): number {
+/** `paused` stops the tick without resetting the displayed value — used so
+    the clock actually freezes on the Finish summary instead of continuing
+    to count up behind it (the summary screen doesn't unmount the timer,
+    it's rendered by the same still-mounted component). */
+function useElapsedTimer(paused = false): number {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
+    if (paused) return
     const t = setInterval(() => setElapsed(s => s + 1), 1000)
     return () => clearInterval(t)
-  }, [])
+  }, [paused])
   return elapsed
 }
 
@@ -86,7 +92,7 @@ function formatTime(s: number): string {
 
 // ─── Exercise search ──────────────────────────────────────────────────────────
 
-const ALL_NAMES: string[] = EXERCISE_LIBRARY.map(e => e.name)
+const FALLBACK_NAMES: string[] = EXERCISE_LIBRARY.map(e => e.name)
 
 function ExercisePicker({ onPick, onAiExercises, onClose }: {
   onPick: (name: string) => void
@@ -94,9 +100,14 @@ function ExercisePicker({ onPick, onAiExercises, onClose }: {
   onClose: () => void
 }) {
   const [q, setQ] = useState('')
-  const filtered  = ALL_NAMES.filter(n => n.toLowerCase().includes(q.toLowerCase())).slice(0, 20)
+  // Starts from the static fallback so the list isn't empty for the one
+  // frame before the full (seeded + any custom-remembered) library loads.
+  const [allNames, setAllNames] = useState<string[]>(FALLBACK_NAMES)
+  useEffect(() => { getAllExerciseNames().then(setAllNames) }, [])
+  const filtered  = allNames.filter(n => n.toLowerCase().includes(q.toLowerCase())).slice(0, 20)
+  // No auto-focus on open — the keyboard should only appear once the user
+  // actually taps the search field, not the instant this sheet opens.
   const ref = useRef<HTMLInputElement>(null)
-  useEffect(() => { ref.current?.focus() }, [])
 
   const [showCamera, setShowCamera] = useState(false)
   const [dictating, setDictating] = useState(false)
@@ -201,8 +212,8 @@ function ExercisePicker({ onPick, onAiExercises, onClose }: {
               {name}
             </button>
           ))}
-          {q.trim() && !ALL_NAMES.includes(q.trim()) && (
-            <button className="aw-picker-item aw-picker-item--custom" onClick={() => { onPick(q.trim()); onClose() }}>
+          {q.trim() && !allNames.includes(q.trim()) && (
+            <button className="aw-picker-item aw-picker-item--custom" onClick={() => { onPick(capitalizeExerciseName(q)); onClose() }}>
               <Plus size={12} /> Add "{q.trim()}"
             </button>
           )}
@@ -292,7 +303,17 @@ function ExerciseBlock({
   }
 
   function updateSet(i: number, patch: Partial<ActiveSet>) {
-    const sets = ex.sets.map((s, si) => si === i ? { ...s, ...patch } : s)
+    const sets = ex.sets.map((s, si) => {
+      if (si !== i) return s
+      const merged = { ...s, ...patch }
+      // Entering a real weight and rep count is a strong enough signal the
+      // set was actually performed — completion shouldn't depend on a
+      // separate tap the user might not realize is required, since an
+      // unmarked set silently drops out of both the Finish summary stats
+      // and the saved workout (handleConfirmFinish only keeps done sets).
+      if (!merged.done && merged.reps > 0 && merged.weightLbs > 0) merged.done = true
+      return merged
+    })
     onUpdate({ sets })
   }
 
@@ -369,7 +390,9 @@ function FinishSummary({
           <span className="aw-summary-stat-label">Sets done</span>
         </div>
         <div className="aw-summary-stat">
-          <span className="aw-summary-stat-value">{(totalVol / 1000).toFixed(1)}k</span>
+          <span className="aw-summary-stat-value">
+            {totalVol >= 1000 ? `${(totalVol / 1000).toFixed(1)}k` : totalVol.toLocaleString()}
+          </span>
           <span className="aw-summary-stat-label">lbs lifted</span>
         </div>
         {prs > 0 && (
@@ -389,13 +412,13 @@ function FinishSummary({
 
 export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Props) {
   const DEFAULT_KG = profile?.startWeightKg ?? 80
-  const elapsed    = useElapsedTimer()
 
   const [workoutType,  setWorkoutType]  = useState<'lifting' | 'cardio'>('lifting')
   const [title,        setTitle]        = useState('')
   const [exercises,    setExercises]    = useState<ActiveExercise[]>([])
   const [showPicker,   setShowPicker]   = useState(false)
   const [showFinish,   setShowFinish]   = useState(false)
+  const elapsed = useElapsedTimer(showFinish)
   const [showTypeMenu, setShowTypeMenu] = useState(false)
   const [saving,       setSaving]       = useState(false)
 
@@ -491,6 +514,10 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Pro
     }
 
     const result = await saveWorkout(session as WorkoutSession)
+    // Fire-and-forget — remembers any exercise name typed here that isn't
+    // already in the library, so it's available in autocomplete next time
+    // instead of needing to be typed out in full again.
+    void Promise.all(saved.map(e => rememberCustomExercise(e.name)))
     setSaving(false)
     onFinish(result)
   }

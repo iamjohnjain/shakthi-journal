@@ -18,12 +18,18 @@ function toDateStr(d: Date): string {
  * dot so a glance at the month shows coverage, not just the one day
  * being viewed.
  */
-export default function DatePickerCalendar({ value, markedDates, maxDate, onChange, onClose }: {
+export default function DatePickerCalendar({ value, markedDates, maxDate, onChange, onClose, dotBackground }: {
   value: string
   markedDates: Set<string>
   maxDate: string
   onChange: (date: string) => void
   onClose: () => void
+  /** Per-date dot color/gradient override (e.g. different colors for
+      different data types on a given day) — any valid CSS `background`
+      value, so a plain color or a split gradient both work. Falls back to
+      the default green dot (via CSS) when omitted or returning undefined
+      for a given date. */
+  dotBackground?: (date: string) => string | undefined
 }) {
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date(value + 'T12:00:00')
@@ -95,7 +101,12 @@ export default function DatePickerCalendar({ value, markedDates, maxDate, onChan
                   onClick={() => pick(cell.dateStr)}
                 >
                   <span className="dp-cell-num">{cell.day}</span>
-                  {isMarked && <span className="dp-cell-dot" />}
+                  {isMarked && (
+                    <span
+                      className="dp-cell-dot"
+                      style={dotBackground ? { background: dotBackground(cell.dateStr) } : undefined}
+                    />
+                  )}
                 </button>
               )
             })}

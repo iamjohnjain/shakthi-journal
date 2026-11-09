@@ -573,6 +573,52 @@ export async function seedExerciseLibraryIfEmpty(): Promise<void> {
   }
 }
 
+/** Every exercise-name autocomplete in the app (ActiveWorkout, the Log
+    form, templates) should suggest from this — the full library (seeded
+    defaults plus anything a user has typed and saved) — not the much
+    shorter static list a couple of these were still using. Falls back to
+    the static list for the rare case this is called before the library
+    has been seeded in a fresh session. */
+export async function getAllExerciseNames(): Promise<string[]> {
+  const entries = await getExerciseLibrary()
+  if (entries.length > 0) return entries.map(e => e.name)
+  return DEFAULT_EXERCISES.map(e => e.name)
+}
+
+/** Title-cases a free-typed exercise name ("incline db press" -> "Incline
+    Db Press") — custom names should read like the rest of the library, not
+    however the user happened to capitalize them mid-workout. */
+export function capitalizeExerciseName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+/** Saves a newly-used exercise name into the library (as `isCustom: true`)
+    if it isn't already known, so it's remembered for autocomplete next
+    time instead of needing to be typed out in full again. Case-insensitive
+    dedupe against existing entries — safe to call for every exercise name
+    on every workout save, whether or not it's actually new. */
+export async function rememberCustomExercise(name: string): Promise<void> {
+  const clean = capitalizeExerciseName(name)
+  if (!clean) return
+  const existing = await getExerciseLibrary()
+  if (existing.some(e => e.name.toLowerCase() === clean.toLowerCase())) return
+  const db = await getDB()
+  await db.put('exercise_library', {
+    id: genId('ex'),
+    name: clean,
+    primaryMuscles: [],
+    secondaryMuscles: [],
+    equipment: [],
+    movementPattern: 'core',
+    goalCategories: [],
+    defaultSets: 3,
+    defaultReps: '8',
+    isFavorite: false,
+    isCustom: true,
+    createdAt: new Date().toISOString(),
+  })
+}
+
 // ─── Exercise history (for progress page) ────────────────────────────────────
 
 export interface ExerciseHistory {

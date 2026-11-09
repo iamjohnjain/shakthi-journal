@@ -20,8 +20,6 @@ import WorkoutHistoryPage from './pages/WorkoutHistoryPage'
 import NutritionPage from './pages/NutritionPage'
 import AthleticGoals from './pages/AthleticGoals'
 import DashboardSettings from './pages/DashboardSettings'
-import WorkoutPlanPage from './pages/WorkoutPlanPage'
-import ExerciseLibraryPage from './pages/ExerciseLibraryPage'
 import WorkoutProgressPage from './pages/WorkoutProgressPage'
 import WorkoutTemplatesPage from './pages/WorkoutTemplatesPage'
 import RecoveryPage from './pages/RecoveryPage'
@@ -74,11 +72,9 @@ export default function App() {
 
           {/* Workouts — tabs handled within pages */}
           <Route path="/workouts" element={<WorkoutsPage />} />
-          <Route path="/workouts/plan" element={<WorkoutPlanPage />} />
           <Route path="/workouts/history" element={<WorkoutHistoryPage />} />
           <Route path="/workouts/progress" element={<WorkoutProgressPage />} />
           <Route path="/workouts/templates" element={<WorkoutTemplatesPage />} />
-          <Route path="/workouts/library" element={<ExerciseLibraryPage />} />
 
           {/* Goals */}
           <Route path="/goals" element={<AthleticGoals />} />
