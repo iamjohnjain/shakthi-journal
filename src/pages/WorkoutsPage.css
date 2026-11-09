@@ -15,6 +15,59 @@
 .page-title   { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary); }
 .page-subtitle{ font-size: 13px; color: var(--text-tertiary); margin: 0; }
 
+/* ─── Date nav — jump to any day, same pattern as the Today dashboard ───── */
+
+.wk-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -8px 0 18px;
+}
+
+.wk-date-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.wk-date-nav-btn:hover:not(:disabled) { background: var(--bg-card-hover); color: var(--text-primary); }
+.wk-date-nav-btn:disabled { opacity: 0.35; cursor: default; }
+
+.wk-date-nav-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.wk-date-nav-label:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+.wk-date-nav-today {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--blue);
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.wk-date-nav-today:hover { background: var(--bg-card-hover); }
+
 .log-workout-btn {
   display: flex; align-items: center; gap: 6px;
   background: var(--bg-card); color: var(--text-secondary);

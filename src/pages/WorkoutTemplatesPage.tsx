@@ -233,7 +233,7 @@ function draftDaysFrom(parsed: ParsedPlanDay[]): DraftDay[] {
 }
 
 function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [tab, setTab] = useState<'text' | 'screenshot'>('text')
+  const [tab, setTab] = useState<'text' | 'file'>('text')
   const [text, setText] = useState('')
   const [status, setStatus] = useState<'input' | 'loading'>('input')
   const [days, setDays] = useState<DraftDay[] | null>(null)
@@ -265,15 +265,44 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
     applyResult(await parseWorkoutPlanText(text))
   }
 
-  async function handleImage(file: File | Blob) {
+  /** From the live camera — always a photo, so it always goes through the
+      vision path. Used for a printed/handwritten plan with no digital file. */
+  async function handlePhoto(blob: Blob) {
     setShowCamera(false)
     setStatus('loading')
     setNote('')
     try {
-      const dataUrl = await compressImageToDataUrl(file, 1800, 0.85)
+      const dataUrl = await compressImageToDataUrl(blob, 1800, 0.85)
       applyResult(await parseWorkoutPlanPhoto(dataUrl))
     } catch {
-      setNote("Couldn't read that image — try again, or paste the text instead.")
+      setNote("Couldn't read that photo — try again, or paste the text instead.")
+      setStatus('input')
+    }
+  }
+
+  /** From the file picker — a trainer's plan could be a PDF, a Word doc, a
+      plain text/CSV export, or an image (screenshot of a notes app, a
+      photo of a printed page). `extractFileContent` normalizes whichever
+      it is into text or an image, and this routes to the matching parser. */
+  async function handleFile(file: File) {
+    setStatus('loading')
+    setNote('')
+    try {
+      // Dynamically imported — pdfjs-dist/mammoth are heavy and most users
+      // never open this modal, let alone pick a PDF/DOCX, so they shouldn't
+      // be in the main bundle everyone downloads on every page load.
+      const { extractFileContent } = await import('../lib/fileTextExtract')
+      const extracted = await extractFileContent(file)
+      if (!extracted) {
+        setNote("Couldn't read that file format — try a PDF, Word doc, text file, or screenshot instead.")
+        setStatus('input')
+        return
+      }
+      applyResult(extracted.kind === 'text'
+        ? await parseWorkoutPlanText(extracted.text)
+        : await parseWorkoutPlanPhoto(extracted.dataUrl))
+    } catch {
+      setNote("Couldn't read that file — try again, or paste the text instead.")
       setStatus('input')
     }
   }
@@ -341,7 +370,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       <div className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="tmpl-modal-header" {...swipe.handlers}>
           <div className="modal-grabber" />
-          <h2>Import Plan</h2>
+          <h2>Import Workout Template</h2>
           <button className="log-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
 
@@ -350,8 +379,8 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
             <button className={tab === 'text' ? 'active' : ''} onClick={() => setTab('text')}>
               <FileText size={13} /> Paste Text
             </button>
-            <button className={tab === 'screenshot' ? 'active' : ''} onClick={() => setTab('screenshot')}>
-              <Camera size={13} /> Screenshot
+            <button className={tab === 'file' ? 'active' : ''} onClick={() => setTab('file')}>
+              <Upload size={13} /> Upload File
             </button>
           </div>
         )}
@@ -382,24 +411,26 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
                   </div>
                   {note && <p className="import-note">{note}</p>}
                   <button className="tmpl-modal-save" onClick={handleParseText} disabled={!text.trim() || status === 'loading'}>
-                    {status === 'loading' ? <><Loader2 size={15} className="ai-spin" /> Reading plan…</> : <><Sparkles size={15} /> Parse Plan</>}
+                    {status === 'loading' ? <><Loader2 size={15} className="ai-spin" /> Reading plan…</> : <><Sparkles size={15} /> Create Template</>}
                   </button>
                 </div>
               )}
 
-              {tab === 'screenshot' && (
+              {tab === 'file' && (
                 <div className="import-screenshot-tab">
                   <p className="import-tab-hint">
-                    Upload a screenshot of your plan (notes app, spreadsheet, PDF, text thread) or take a photo of a printed/handwritten one.
+                    Upload the file your trainer sent — a PDF, a Word doc, a text/CSV export, or a screenshot — or take a photo of a printed/handwritten plan.
                   </p>
-                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleImage(f) }} />
+                  <input ref={fileRef} type="file"
+                    accept="image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.txt,.csv,.md,text/plain,text/csv"
+                    style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
                   {status === 'loading' ? (
                     <div className="import-loading"><Loader2 size={18} className="ai-spin" /> Reading plan…</div>
                   ) : (
                     <>
                       <button className="tmpl-modal-save" onClick={() => fileRef.current?.click()}>
-                        <Upload size={15} /> Upload Screenshot
+                        <Upload size={15} /> Upload File
                       </button>
                       <button className="import-secondary-btn" onClick={() => setShowCamera(true)}>
                         <Camera size={15} /> Take a Photo Instead
@@ -464,7 +495,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       </div>
 
       {showCamera && (
-        <LiveCamera onCapture={handleImage} onClose={() => setShowCamera(false)} />
+        <LiveCamera onCapture={handlePhoto} onClose={() => setShowCamera(false)} />
       )}
     </div>,
     document.body
@@ -572,7 +603,7 @@ export default function WorkoutTemplatesPage() {
         <div className="tmpl-header-actions">
           {isAiWorkoutParsingAvailable && (
             <button className="tmpl-import-btn" onClick={() => setShowImport(true)}>
-              <Sparkles size={16} /> Import Plan
+              <Sparkles size={16} /> Import Workout Template
             </button>
           )}
           <button className="log-workout-btn" onClick={() => { setEditTemplate(null); setShowModal(true) }}>
@@ -609,7 +640,7 @@ export default function WorkoutTemplatesPage() {
           </button>
           {isAiWorkoutParsingAvailable && (
             <button className="tmpl-import-btn" style={{ marginTop: 10 }} onClick={() => setShowImport(true)}>
-              <Sparkles size={15} /> Import a Plan Instead
+              <Sparkles size={15} /> Import Workout Template
             </button>
           )}
         </div>

@@ -25,7 +25,8 @@ import type { ProfileData } from '../db/profileStore'
 import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry, CardioEntry } from '../db'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
-import { localDateStr } from '../data/config'
+import { localDateStr, addLocalDays, formatDate } from '../data/config'
+import DatePickerCalendar from '../components/DatePickerCalendar'
 import './WorkoutsPage.css'
 
 const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
@@ -815,6 +816,7 @@ export default function WorkoutsPage() {
   const [copiedWorkout, setCopiedWorkout]  = useState<WorkoutSession | null>(null)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [calendarKey,   setCalendarKey]   = useState(0)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const seeded = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
@@ -861,11 +863,12 @@ export default function WorkoutsPage() {
     loadDay(selectedDate)
   }
 
-  const dateLabel = (() => {
-    const d = new Date(selectedDate + 'T12:00:00')
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  })()
+  const selectedDateObj = new Date(selectedDate + 'T12:00:00')
+  const dateLabel = formatDate(selectedDateObj)
+  const dateLabelShort = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const isToday = selectedDate === todayStr()
+  const canGoForward = selectedDate < todayStr()
+  const markedWorkoutDates = new Set(workoutDays)
 
   return (
     <div className="workouts-page">
@@ -887,8 +890,8 @@ export default function WorkoutsPage() {
         <>
           <header className="page-header" style={{ marginTop: '8px' }}>
             <div>
-              <h1 className="page-title">Workouts</h1>
-              <p className="page-subtitle">{workoutDays.length} sessions in the last 400 days</p>
+              <h1 className="page-title">{isToday ? 'Today' : dateLabel}</h1>
+              {isToday && <p className="page-subtitle">{dateLabel}</p>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
@@ -899,6 +902,31 @@ export default function WorkoutsPage() {
               </button>
             </div>
           </header>
+
+          <div className="wk-date-nav">
+            <button className="wk-date-nav-btn" onClick={() => setSelectedDate(d => addLocalDays(d, -1))} aria-label="Previous day">
+              <ChevronLeft size={16} />
+            </button>
+            <button className="wk-date-nav-label" onClick={() => setShowDatePicker(true)}>
+              {isToday ? 'Today' : dateLabelShort}
+            </button>
+            <button className="wk-date-nav-btn" onClick={() => setSelectedDate(d => addLocalDays(d, 1))} disabled={!canGoForward} aria-label="Next day">
+              <ChevronRight size={16} />
+            </button>
+            {!isToday && (
+              <button className="wk-date-nav-today" onClick={() => setSelectedDate(todayStr())}>Jump to Today</button>
+            )}
+          </div>
+
+          {showDatePicker && (
+            <DatePickerCalendar
+              value={selectedDate}
+              markedDates={markedWorkoutDates}
+              maxDate={todayStr()}
+              onChange={setSelectedDate}
+              onClose={() => setShowDatePicker(false)}
+            />
+          )}
 
           {loaded && workoutDays.length === 0 ? (
             <div className="workouts-first-empty">
@@ -947,8 +975,7 @@ export default function WorkoutsPage() {
               {/* Selected day */}
               <div className="day-section">
                 <div className="day-section-header">
-                  <h2 className="workouts-section-title">{isToday ? 'Today' : dateLabel}</h2>
-                  {!isToday && <span className="day-section-date">{selectedDate}</span>}
+                  <h2 className="workouts-section-title">Sessions</h2>
                 </div>
 
                 {dayWorkouts.length > 0 ? (
