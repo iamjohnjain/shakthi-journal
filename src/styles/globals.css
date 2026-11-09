@@ -19,11 +19,15 @@
   --border: rgba(255, 255, 255, 0.095);
   --border-strong: rgba(255, 255, 255, 0.16);
 
-  /* Text */
+  /* Text — opacities picked to clear WCAG AA's 4.5:1 text-contrast minimum
+     against --bg (#06070b). The previous tertiary/quaternary values (0.32,
+     0.16) measured 2.76:1 and 1.50:1 — real failures, not a close call —
+     and every current usage of them is genuinely-readable small text
+     (labels, dates, hints), not decorative content exempt from the rule. */
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.58);
-  --text-tertiary: rgba(255, 255, 255, 0.32);
-  --text-quaternary: rgba(255, 255, 255, 0.16);
+  --text-tertiary: rgba(255, 255, 255, 0.50);
+  --text-quaternary: rgba(255, 255, 255, 0.46);
 
   /* Accent */
   --blue: #0A84FF;

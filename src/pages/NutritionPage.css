@@ -356,7 +356,7 @@
 .add-modal-header h2 { margin: 0; font-size: 17px; font-weight: 700; }
 .add-modal-close {
   background: var(--bg-tertiary); border: none; border-radius: 50%;
-  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; color: var(--text-secondary);
 }
 
@@ -540,7 +540,7 @@
 }
 
 .ai-review-remove {
-  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-secondary); border: 1px solid var(--border);
   color: var(--text-tertiary); cursor: pointer;
@@ -614,7 +614,7 @@
 }
 
 .ai-clarify-mic, .ai-clarify-send {
-  flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-secondary); border: 1px solid var(--border);
   color: var(--text-secondary); cursor: pointer;
