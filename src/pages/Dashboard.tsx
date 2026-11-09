@@ -135,16 +135,23 @@ const MetricCard = memo(function MetricCard({
 // ─── Section wrapper ─────────────────────────────────────────────────────────
 
 const Section = memo(function Section({
-  title, children, menuProps,
+  title, children, menuProps, accent,
 }: {
   title: string
   children: React.ReactNode
   menuProps?: React.ComponentProps<typeof CardMenu>
+  /** Small color dot next to the title, matching the accent used inside the
+      section's own cards — a flat grey uppercase label on every section was
+      the single greyest thing on the page. */
+  accent?: string
 }) {
   return (
     <section className="dash-section">
       <div className="dash-section-header">
-        <h2 className="dash-section-title">{title}</h2>
+        <h2 className="dash-section-title">
+          {accent && <span className="dash-section-dot" style={{ background: accent }} aria-hidden="true" />}
+          {title}
+        </h2>
         <div className="dash-section-header-right">
           {menuProps && <CardMenu {...menuProps} />}
         </div>
@@ -202,19 +209,19 @@ function QuickActions() {
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
       <button className="quick-action-btn" onClick={() => setShowWeightModal(true)} aria-label="Log Weight">
-        <span className="quick-action-icon" style={{ color: 'var(--purple)' }} aria-hidden="true">
+        <span className="quick-action-icon" style={{ color: 'var(--purple)', background: 'var(--purple-dim)' }} aria-hidden="true">
           <Scale size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Log Weight</span>
       </button>
       <button className="quick-action-btn" onClick={() => navigate('/nutrition?quick=photo')} aria-label="Snap Meal">
-        <span className="quick-action-icon" style={{ color: 'var(--orange)' }} aria-hidden="true">
+        <span className="quick-action-icon" style={{ color: 'var(--orange)', background: 'var(--orange-dim)' }} aria-hidden="true">
           <Camera size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Snap Meal</span>
       </button>
       <button className="quick-action-btn" onClick={syncData} aria-label="Sync Data">
-        <span className="quick-action-icon quick-action-icon--emoji" aria-hidden="true">❤️🔄</span>
+        <span className="quick-action-icon quick-action-icon--emoji" style={{ background: 'var(--red-dim)' }} aria-hidden="true">❤️🔄</span>
         <span className="quick-action-label" aria-hidden="true">Sync Data</span>
       </button>
       {showWeightModal && (
@@ -339,7 +346,7 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
   const showMuscleMass = today.muscleMassKg  != null || hasScale
 
   return (
-    <Section title="Body" menuProps={menuFor('body')}>
+    <Section title="Body" accent="var(--purple)" menuProps={menuFor('body')}>
       {hasBody ? (
         <>
           <MetricCard
@@ -403,7 +410,7 @@ function ActivitySection({ ctx }: { ctx: SectionCtx }) {
   const stepsPct = steps ? Math.round((steps / stepGoal) * 100) : 0
 
   return (
-    <Section title="Activity" menuProps={menuFor('activity')}>
+    <Section title="Activity" accent="var(--orange)" menuProps={menuFor('activity')}>
       <MetricCard
         label="Steps"
         value={steps ? steps.toLocaleString() : undefined}
@@ -460,7 +467,7 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
   if (!hasVitals && !hasWearable) return null
 
   return (
-    <Section title="Vitals" menuProps={menuFor('vitals')}>
+    <Section title="Vitals" accent="var(--pink)" menuProps={menuFor('vitals')}>
       <MetricCard
         label="HRV"
         value={today.hrv}

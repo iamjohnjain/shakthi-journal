@@ -467,11 +467,21 @@
 }
 
 .dash-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--text-tertiary);
+}
+
+.dash-section-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* Imported data banner */
