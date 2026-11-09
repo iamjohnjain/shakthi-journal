@@ -606,6 +606,75 @@
   background: rgba(255,214,10,.12); border-radius: 4px; padding: 1px 5px;
 }
 
+/* ─── Set row — tap-to-expand wheel editing, warm-up tag ────────── */
+
+.set-row-wrap { border-radius: 8px; }
+.set-row-wrap--warmup { opacity: 0.6; }
+.set-row-wrap--warmup .set-row { background: none; }
+
+.set-warmup-btn {
+  width: 20px; height: 20px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 5px; border: 1px solid var(--border);
+  background: var(--bg-elevated); color: var(--text-quaternary);
+  font-size: 10px; font-weight: 700; cursor: pointer;
+}
+.set-warmup-btn--on {
+  border-color: var(--orange); color: var(--orange); background: var(--orange-dim);
+}
+
+.set-value-btn {
+  display: flex; align-items: baseline; gap: 3px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px;
+  color: var(--text-primary); font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.set-value-unit { font-size: 10px; font-weight: 500; color: var(--text-tertiary); }
+
+.set-expand {
+  margin: 4px 0 8px 20px;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.set-expand-wheels { display: flex; gap: 16px; justify-content: center; }
+.set-expand-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.set-expand-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+.set-expand-done {
+  align-self: center;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 8px; padding: 7px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
+/* ─── Exercise reorder + progressive-overload suggestion ─────────── */
+
+.exercise-reorder-col {
+  display: flex; flex-direction: column; gap: 1px; flex-shrink: 0;
+}
+.exercise-reorder-btn {
+  width: 18px; height: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--text-tertiary); cursor: pointer;
+}
+.exercise-reorder-btn:disabled { opacity: 0.25; cursor: default; }
+.exercise-reorder-btn:hover:not(:disabled) { color: var(--text-primary); }
+
+.exercise-suggestion {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--purple-dim); border-radius: 8px; padding: 6px 8px;
+  font-size: 11px;
+}
+.exercise-suggestion-icon { color: var(--purple); flex-shrink: 0; }
+.exercise-suggestion-text { color: var(--text-secondary); flex: 1; min-width: 0; }
+.exercise-suggestion-use {
+  background: var(--purple); color: #fff; border: none;
+  border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+
 /* ─── Cardio section ──────────────────────────────────────────── */
 .cardio-section {
   background: rgba(48,209,88,.04); border: 1px solid rgba(48,209,88,.15);

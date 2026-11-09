@@ -290,7 +290,9 @@
   display: flex; align-items: center; gap: 10px;
   background: var(--bg-secondary); border: 1px solid var(--border);
   border-radius: 10px; padding: 10px 14px;
+  cursor: pointer; transition: background .12s;
 }
+.food-entry:hover { background: var(--bg-card-hover); }
 .food-entry-info { flex: 1; min-width: 0; }
 .food-entry-name { font-size: 14px; font-weight: 500; color: var(--text-primary); display: block; }
 .food-entry-qty  { font-size: 11px; color: var(--text-tertiary); }
@@ -299,18 +301,51 @@
   font-size: 11px; color: var(--text-secondary);
 }
 .food-entry-actions { display: flex; gap: 4px; }
-.food-entry-edit {
-  background: none; border: none; cursor: pointer;
-  color: var(--text-tertiary); padding: 4px;
-  border-radius: 6px; transition: color .1s;
-}
-.food-entry-edit:hover { color: var(--blue); }
+.food-entry-copy,
 .food-entry-delete {
   background: none; border: none; cursor: pointer;
   color: var(--text-tertiary); padding: 4px;
   border-radius: 6px; transition: color .1s;
 }
+.food-entry-copy:hover { color: var(--blue); }
 .food-entry-delete:hover { color: var(--red); }
+
+/* ─── Copy-to-meal sheet ───────────────────────────────────────── */
+
+.copy-meal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.65);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+@media (min-width: 540px) { .copy-meal-overlay { align-items: center; } }
+
+.copy-meal-sheet {
+  background: var(--bg-secondary);
+  border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 420px;
+  box-sizing: border-box;
+}
+@media (min-width: 540px) { .copy-meal-sheet { border-radius: 20px; margin-bottom: 10vh; } }
+
+.copy-meal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.copy-meal-header h2 { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-primary); }
+
+.copy-meal-list {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 20px calc(20px + var(--safe-bottom, 0px));
+}
+
+.copy-meal-item {
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 10px;
+  padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer;
+  text-align: left;
+}
+.copy-meal-item:hover { background: var(--bg-card-hover); }
 
 .meal-empty {
   display: flex; align-items: center; gap: 6px;

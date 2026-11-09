@@ -27,7 +27,7 @@ export async function getAllTimePRs(): Promise<Map<string, number>> {
   const prs = new Map<string, number>()
   for (const w of all) {
     for (const ex of w.exercises) {
-      const maxE1RM = Math.max(0, ...ex.sets.map(s => s.e1rm ?? estimateOneRM(s.weightLbs, s.reps)))
+      const maxE1RM = Math.max(0, ...ex.sets.filter(s => !s.isWarmup).map(s => s.e1rm ?? estimateOneRM(s.weightLbs, s.reps)))
       const prev = prs.get(ex.name) ?? 0
       if (maxE1RM > prev) prs.set(ex.name, maxE1RM)
     }
@@ -42,6 +42,7 @@ export async function annotateExercises(exercises: WorkoutExerciseEntry[]): Prom
     let sessionBest = 0
     const annotated = ex.sets.map(s => {
       const e1rm = estimateOneRM(s.weightLbs, s.reps)
+      if (s.isWarmup) return { ...s, e1rm, isPR: false }
       const isPR = e1rm > (prs.get(ex.name) ?? 0) && e1rm > sessionBest
       if (isPR || e1rm > sessionBest) sessionBest = e1rm
       return { ...s, e1rm, isPR: e1rm > (prs.get(ex.name) ?? 0) }
@@ -181,7 +182,7 @@ export async function getLastExercisePerformance(exerciseName: string): Promise<
       if (ex.name.toLowerCase().trim() !== nameLower) continue
       let bestInSession: { weight: number; reps: number; e1rm: number } | null = null
       for (const s of ex.sets) {
-        if (s.reps > 0 && s.weightLbs > 0) {
+        if (!s.isWarmup && s.reps > 0 && s.weightLbs > 0) {
           const e1rm = s.weightLbs * (1 + s.reps / 30)
           if (!bestInSession || e1rm > bestInSession.e1rm) {
             bestInSession = { weight: s.weightLbs, reps: s.reps, e1rm }
@@ -210,6 +211,60 @@ export async function getLastExercisePerformance(exerciseName: string): Promise<
     isAllTimePB: Math.abs(lastPerf.e1rm - allTimePB) < 0.1,
     suggestedWeight: suggested,
   }
+}
+
+export interface NextSetSuggestion {
+  weightLbs: number
+  reps: number
+  reason: string
+}
+
+/** Structured progressive-overload suggestion for the NEXT set of this
+    exercise — unlike `getLastExercisePerformance.suggestedWeight` (a bare
+    number) this returns a ready-to-use {weight, reps} pair a "Use this" tap
+    can drop straight into a new set, plus a one-line reason. Warm-up sets
+    are ignored on both sides: finding the last real working set, and never
+    suggested as the target. Same per-equipment increment table as
+    trainingStore.ts's suggestNextSet (dumbbell +5, bodyweight +0, else
+    +10) — kept as a separate function rather than sharing code, since that
+    one is RPE-driven and only used by the Progress page. */
+export async function suggestNextWorkingSet(exerciseName: string, equipment?: string): Promise<NextSetSuggestion | null> {
+  if (!exerciseName.trim()) return null
+  const db = await getDB()
+  const all = await db.getAll('workouts')
+  const today = localDateStr()
+  const nameLower = exerciseName.toLowerCase().trim()
+
+  const sorted = all
+    .filter(w => w.date <= today && w.exercises?.length)
+    .sort((a, b) => b.date.localeCompare(a.date))
+
+  let best: { weightLbs: number; reps: number; e1rm: number } | null = null
+  for (const w of sorted) {
+    for (const ex of (w.exercises ?? [])) {
+      if (ex.name.toLowerCase().trim() !== nameLower) continue
+      for (const s of ex.sets) {
+        if (s.isWarmup || s.reps <= 0 || s.weightLbs <= 0) continue
+        const e1rm = s.weightLbs * (1 + s.reps / 30)
+        if (!best || e1rm > best.e1rm) best = { weightLbs: s.weightLbs, reps: s.reps, e1rm }
+      }
+    }
+    if (best) break // only look at the most recent session that has this exercise
+  }
+
+  if (best === null) return null
+  const found: { weightLbs: number; reps: number; e1rm: number } = best
+
+  const inc = equipment === 'dumbbell' ? 5 : equipment === 'bodyweight' ? 0 : 10
+  // Comfortably hit 8+ reps last time — ready to add weight. Otherwise hold
+  // the weight and aim for one more rep instead of pushing load too soon.
+  if (found.reps >= 8 && inc > 0) {
+    return { weightLbs: found.weightLbs + inc, reps: found.reps, reason: `Last time: ${found.weightLbs} lbs × ${found.reps}. Ready to add weight.` }
+  }
+  if (found.reps >= 8) {
+    return { weightLbs: found.weightLbs, reps: found.reps + 1, reason: `Last time: ${found.weightLbs} lbs × ${found.reps}. Try one more rep.` }
+  }
+  return { weightLbs: found.weightLbs, reps: found.reps + 1, reason: `Last time: ${found.weightLbs} lbs × ${found.reps}. Hold the weight, aim for one more rep.` }
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────

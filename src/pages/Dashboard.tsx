@@ -586,31 +586,34 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
 
-      {/* ── Greeting ── */}
-      <header className="dash-header">
-        <div>
-          <h1 className="dash-greeting">{isToday ? `${getGreeting()}${userName ? `, ${userName}` : ''}.` : 'Looking back.'}</h1>
-          <p className="dash-date">{formatDate(viewDateObj)}</p>
-        </div>
-        <button className="dash-avatar-btn" onClick={() => navigate('/profile')} aria-label="Profile">
-          <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="sm" />
-        </button>
-      </header>
+      {/* ── Greeting + date nav — grouped so they share tight spacing
+             instead of the page's normal between-section gap ── */}
+      <div className="dash-header-group">
+        <header className="dash-header">
+          <div>
+            <h1 className="dash-greeting">{isToday ? `${getGreeting()}${userName ? `, ${userName}` : ''}.` : 'Looking back.'}</h1>
+            <p className="dash-date">{formatDate(viewDateObj)}</p>
+          </div>
+          <button className="dash-avatar-btn" onClick={() => navigate('/profile')} aria-label="Profile">
+            <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="xs" />
+          </button>
+        </header>
 
-      {/* ── Date nav — browse a previous day's dashboard ── */}
-      <div className="dash-date-nav">
-        <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, -1))} aria-label="Previous day">
-          <ChevronLeft size={16} />
-        </button>
-        <button className="dash-date-nav-label" onClick={() => setShowDatePicker(true)}>
-          {isToday ? 'Today' : formatDateShort(viewDateObj)}
-        </button>
-        <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, 1))} disabled={!canGoForward} aria-label="Next day">
-          <ChevronRight size={16} />
-        </button>
-        {!isToday && (
-          <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
-        )}
+        {/* ── Date nav — browse a previous day's dashboard ── */}
+        <div className="dash-date-nav">
+          <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, -1))} aria-label="Previous day">
+            <ChevronLeft size={16} />
+          </button>
+          <button className="dash-date-nav-label" onClick={() => setShowDatePicker(true)}>
+            {isToday ? 'Today' : formatDateShort(viewDateObj)}
+          </button>
+          <button className="dash-date-nav-btn" onClick={() => setViewDate(d => offsetDateStr(d, 1))} disabled={!canGoForward} aria-label="Next day">
+            <ChevronRight size={16} />
+          </button>
+          {!isToday && (
+            <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
+          )}
+        </div>
       </div>
 
       {showDatePicker && (

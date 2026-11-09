@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Plus, Trash2, X, Pencil, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
-  Sparkles, Mic, Loader2, Camera, Zap,
+  Plus, Trash2, X, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
+  Sparkles, Mic, Loader2, Camera, Zap, Copy,
 } from 'lucide-react'
 import {
   parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, refineOneItem, isAiMealParsingAvailable,
@@ -977,7 +977,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                 <div className="custom-field">
                   <label>Calories*</label>
                   <div className="field-with-unit">
-                    <input autoFocus type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
                       onChange={e => setCalories(e.target.value.replace(/[^0-9]/g, ''))}
                       onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
                     <span>kcal</span>
@@ -1035,6 +1035,77 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
   )
 }
 
+// ─── Food entry row — tap anywhere to edit, Copy/Delete stop that from firing ──
+
+function FoodEntryRow({ entry, showMealType, onEdit, onCopy, onDelete }: {
+  entry: NutritionEntry
+  showMealType?: boolean
+  onEdit: () => void
+  onCopy: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div className="food-entry" onClick={onEdit} role="button" tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && onEdit()}>
+      <div className="food-entry-info">
+        <span className="food-entry-name">{entry.food}</span>
+        {entry.quantity && <span className="food-entry-qty">{entry.quantity}</span>}
+        {showMealType && <span className="food-entry-qty" style={{ fontStyle: 'italic' }}>{entry.mealType}</span>}
+      </div>
+      <div className="food-entry-macros">
+        <span>{entry.calories} cal</span>
+        <span>{entry.proteinG}g P</span>
+        {entry.carbsG != null && <span>{entry.carbsG}g C</span>}
+        {entry.fatG != null && <span>{entry.fatG}g F</span>}
+      </div>
+      <div className="food-entry-actions">
+        <button className="food-entry-copy" onClick={e => { e.stopPropagation(); onCopy() }} title="Copy to another meal">
+          <Copy size={12} />
+        </button>
+        <button className="food-entry-delete" onClick={e => { e.stopPropagation(); onDelete() }} title="Delete">
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Small sheet listing the day's other meal slots — tap one to copy this
+    entry's food/macros into it, same date. */
+function CopyMealSheet({ entry, mealIds, mealLabels, onCopy, onClose }: {
+  entry: NutritionEntry
+  mealIds: string[]
+  mealLabels: string[]
+  onCopy: (targetMealId: string) => void
+  onClose: () => void
+}) {
+  const swipe = useSwipeToClose(onClose)
+  useScrollLock()
+  const targets = mealIds.map((id, i) => ({ id, label: mealLabels[i] ?? id })).filter(m => m.id !== entry.mealType)
+
+  return createPortal(
+    <div className="copy-meal-overlay" onClick={onClose}>
+      <div className="copy-meal-sheet" onClick={e => e.stopPropagation()} style={swipe.style}>
+        <div className="copy-meal-header" {...swipe.handlers}>
+          <div className="modal-grabber" />
+          <h2>Copy "{entry.food}" to…</h2>
+          <button className="log-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        </div>
+        <div className="copy-meal-list">
+          {targets.length === 0 ? (
+            <p className="log-tmpl-empty">No other meal slots to copy into.</p>
+          ) : (
+            targets.map(t => (
+              <button key={t.id} className="copy-meal-item" onClick={() => onCopy(t.id)}>{t.label}</button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NutritionPage() {
@@ -1049,6 +1120,7 @@ export default function NutritionPage() {
   const [autoOpenPhoto, setAutoOpenPhoto] = useState(searchParams.get('quick') === 'photo')
   const [editEntry,     setEditEntry]    = useState<NutritionEntry | null>(null)
   const [addToMealId,   setAddToMealId]  = useState<string | undefined>()
+  const [copyingEntry,  setCopyingEntry] = useState<NutritionEntry | null>(null)
   const [hasEverLogged, setHasEverLogged] = useState<boolean | null>(null)
   const [calorieHistory, setCalorieHistory] = useState<ChartPoint[]>([])
   const [streak,         setStreak]         = useState(0)
@@ -1095,6 +1167,24 @@ export default function NutritionPage() {
 
   async function handleDelete(id: string) {
     await deleteNutritionEntry(id)
+    load()
+    loadStreak()
+    getNutritionEntryCount().then(c => setHasEverLogged(c > 0))
+  }
+
+  async function handleCopy(entry: NutritionEntry, targetMealId: string) {
+    await addNutritionEntry({
+      date: entry.date,
+      mealType: targetMealId,
+      food: entry.food,
+      calories: entry.calories,
+      proteinG: entry.proteinG,
+      carbsG: entry.carbsG,
+      fatG: entry.fatG,
+      quantity: entry.quantity,
+      notes: entry.notes,
+    })
+    setCopyingEntry(null)
     load()
     loadStreak()
     getNutritionEntryCount().then(c => setHasEverLogged(c > 0))
@@ -1250,26 +1340,10 @@ export default function NutritionPage() {
             {mealEntries.length > 0 ? (
               <div className="meal-entries">
                 {mealEntries.map(e => (
-                  <div key={e.id} className="food-entry">
-                    <div className="food-entry-info">
-                      <span className="food-entry-name">{e.food}</span>
-                      {e.quantity && <span className="food-entry-qty">{e.quantity}</span>}
-                    </div>
-                    <div className="food-entry-macros">
-                      <span>{e.calories} cal</span>
-                      <span>{e.proteinG}g P</span>
-                      {e.carbsG != null && <span>{e.carbsG}g C</span>}
-                      {e.fatG != null && <span>{e.fatG}g F</span>}
-                    </div>
-                    <div className="food-entry-actions">
-                      <button className="food-entry-edit" onClick={() => openEdit(e)} title="Edit">
-                        <Pencil size={12} />
-                      </button>
-                      <button className="food-entry-delete" onClick={() => handleDelete(e.id)} title="Delete">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
+                  <FoodEntryRow key={e.id} entry={e}
+                    onEdit={() => openEdit(e)}
+                    onCopy={() => setCopyingEntry(e)}
+                    onDelete={() => handleDelete(e.id)} />
                 ))}
               </div>
             ) : (
@@ -1290,21 +1364,10 @@ export default function NutritionPage() {
           </div>
           <div className="meal-entries">
             {ungrouped.map(e => (
-              <div key={e.id} className="food-entry">
-                <div className="food-entry-info">
-                  <span className="food-entry-name">{e.food}</span>
-                  {e.quantity && <span className="food-entry-qty">{e.quantity}</span>}
-                  <span className="food-entry-qty" style={{ fontStyle: 'italic' }}>{e.mealType}</span>
-                </div>
-                <div className="food-entry-macros">
-                  <span>{e.calories} cal</span>
-                  <span>{e.proteinG}g P</span>
-                </div>
-                <div className="food-entry-actions">
-                  <button className="food-entry-edit" onClick={() => openEdit(e)}><Pencil size={12} /></button>
-                  <button className="food-entry-delete" onClick={() => handleDelete(e.id)}><Trash2 size={12} /></button>
-                </div>
-              </div>
+              <FoodEntryRow key={e.id} entry={e} showMealType
+                onEdit={() => openEdit(e)}
+                onCopy={() => setCopyingEntry(e)}
+                onDelete={() => handleDelete(e.id)} />
             ))}
           </div>
         </section>
@@ -1320,6 +1383,15 @@ export default function NutritionPage() {
           autoOpenPhoto={autoOpenPhoto}
           onClose={() => { setShowModal(false); setEditEntry(null); setAutoOpenPhoto(false) }}
           onSaved={() => { load(); loadStreak(); setHasEverLogged(true) }} />
+      )}
+
+      {copyingEntry && (
+        <CopyMealSheet
+          entry={copyingEntry}
+          mealIds={mealIds}
+          mealLabels={activeMealLabels}
+          onCopy={targetId => handleCopy(copyingEntry, targetId)}
+          onClose={() => setCopyingEntry(null)} />
       )}
     </div>
   )

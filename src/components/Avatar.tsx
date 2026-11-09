@@ -31,7 +31,7 @@ interface AvatarDisplayProps {
   name?: string
   avatarId?: string
   photoDataUrl?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
 }
 
 /** Renders: custom photo > animal emoji > initials > fallback letter */

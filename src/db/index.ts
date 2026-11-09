@@ -54,6 +54,7 @@ export interface ExerciseSet {
   isPR?: boolean
   rpe?: number        // per-set RPE
   equipment?: string  // 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'smith' | 'bodyweight'
+  isWarmup?: boolean  // excluded from e1RM/PR, volume, and progressive-overload suggestions
 }
 
 export interface WorkoutExerciseEntry {

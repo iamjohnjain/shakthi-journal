@@ -20,20 +20,30 @@
 
 /* ─── Header ─────────────────────────────────────────────── */
 
+.dash-header-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .dash-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 }
 
 .dash-avatar-btn {
   flex-shrink: 0;
   background: none;
-  border: none;
+  border: 1px solid var(--border);
   padding: 0;
-  margin-top: 2px;
   cursor: pointer;
   border-radius: 50%;
+  transition: border-color 0.15s ease;
+}
+
+.dash-avatar-btn:hover {
+  border-color: var(--border-strong);
 }
 
 .dash-greeting {
@@ -57,7 +67,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: -16px;
 }
 
 .dash-date-nav-btn {

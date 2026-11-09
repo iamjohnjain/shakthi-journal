@@ -12,10 +12,10 @@ import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs,
   getWorkoutsForDate, getWorkoutDateTypes,
   getWorkoutsForWeekDates,
-  getLastExercisePerformance,
+  getLastExercisePerformance, suggestNextWorkingSet,
   WORKOUT_TYPES, CARDIO_SUBTYPES, EXERCISE_LIBRARY, BODY_AREAS,
 } from '../db/workoutStore'
-import type { ExerciseLastPerf } from '../db/workoutStore'
+import type { ExerciseLastPerf, NextSetSuggestion } from '../db/workoutStore'
 import {
   estimateWorkoutCalories, seedExerciseLibraryIfEmpty,
   getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise,
@@ -31,6 +31,7 @@ import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr, addLocalDays, formatDate } from '../data/config'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import WorkoutsSubNav from '../components/WorkoutsSubNav'
+import WheelPicker from '../components/WheelPicker'
 import './WorkoutsPage.css'
 
 const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
@@ -205,35 +206,68 @@ function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, o
 
 type ExSet = ExerciseSet & { equipment?: string }
 
+const REPS_VALUES   = Array.from({ length: 31 }, (_, i) => i)                 // 0-30
+const WEIGHT_VALUES = Array.from({ length: 201 }, (_, i) => i * 2.5)          // 0-500 in 2.5lb steps
+
 function SetRow({
   idx, set, onChange, onRemove, prMap, exerciseName, defaultEquipment,
 }: {
   idx: number; set: ExSet; onChange: (u: ExSet) => void; onRemove: () => void
   prMap: Map<string, number>; exerciseName: string; defaultEquipment?: string
 }) {
-  const e1rm = set.reps > 0 && set.weightLbs > 0
+  const [expanded, setExpanded] = useState(false)
+  const e1rm = !set.isWarmup && set.reps > 0 && set.weightLbs > 0
     ? Math.round(set.weightLbs * (1 + set.reps / 30)) : null
   const currentPR = prMap.get(exerciseName) ?? 0
-  const isPR = e1rm != null && e1rm > currentPR && set.reps > 0 && set.weightLbs > 0
+  const isPR = e1rm != null && e1rm > currentPR
   const activeEq = set.equipment ?? defaultEquipment
 
   return (
-    <div className={`set-row ${isPR ? 'set-row--pr' : ''}`}>
-      <span className="set-num">{idx + 1}</span>
-      <input type="number" inputMode="numeric" className="set-input" placeholder="Reps" value={set.reps || ''} min={0} max={999}
-        onChange={e => onChange({ ...set, reps: +e.target.value })} />
-      <input type="number" inputMode="decimal" className="set-input" placeholder="lbs" value={set.weightLbs || ''} min={0} step={5}
-        onChange={e => onChange({ ...set, weightLbs: +e.target.value })} />
-      <div className="set-eq-picker">
-        {EQUIPMENT_OPTS.map(opt => (
-          <button key={opt.id} title={opt.id}
-            className={`set-eq-btn ${activeEq === opt.id ? 'set-eq-btn--on' : ''}`}
-            onClick={() => onChange({ ...set, equipment: opt.id })}>{opt.short}</button>
-        ))}
+    <div className={`set-row-wrap ${set.isWarmup ? 'set-row-wrap--warmup' : ''}`}>
+      <div className={`set-row ${isPR ? 'set-row--pr' : ''}`}>
+        <button
+          className={`set-warmup-btn ${set.isWarmup ? 'set-warmup-btn--on' : ''}`}
+          onClick={() => onChange({ ...set, isWarmup: !set.isWarmup })}
+          aria-label={set.isWarmup ? 'Unmark warm-up' : 'Mark as warm-up'}
+          title="Warm-up set"
+        >
+          W
+        </button>
+        <span className="set-num">{idx + 1}</span>
+        <button className="set-value-btn" onClick={() => setExpanded(e => !e)}>
+          {set.reps || 0}<span className="set-value-unit">reps</span>
+        </button>
+        <span className="set-x">×</span>
+        <button className="set-value-btn" onClick={() => setExpanded(e => !e)}>
+          {set.weightLbs || 0}<span className="set-value-unit">lbs</span>
+        </button>
+        {e1rm && <span className="set-e1rm">{e1rm}lb</span>}
+        {isPR && <span className="set-pr-badge">PR!</span>}
+        <button className="set-remove" onClick={onRemove} aria-label="Remove set">×</button>
       </div>
-      {e1rm && <span className="set-e1rm">{e1rm}lb</span>}
-      {isPR && <span className="set-pr-badge">PR!</span>}
-      <button className="set-remove" onClick={onRemove}>×</button>
+
+      {expanded && (
+        <div className="set-expand">
+          <div className="set-expand-wheels">
+            <div className="set-expand-col">
+              <span className="set-expand-label">Reps</span>
+              <WheelPicker values={REPS_VALUES} value={set.reps || 0} onChange={v => onChange({ ...set, reps: +v })} itemHeight={32} />
+            </div>
+            <div className="set-expand-col">
+              <span className="set-expand-label">Weight</span>
+              <WheelPicker values={WEIGHT_VALUES} value={set.weightLbs || 0} onChange={v => onChange({ ...set, weightLbs: +v })} itemHeight={32} />
+            </div>
+          </div>
+          <div className="set-eq-picker">
+            {EQUIPMENT_OPTS.map(opt => (
+              <button key={opt.id} title={opt.id}
+                className={`set-eq-btn ${activeEq === opt.id ? 'set-eq-btn--on' : ''}`}
+                onClick={() => onChange({ ...set, equipment: opt.id })}>{opt.short}</button>
+            ))}
+          </div>
+          <button className="set-expand-done" onClick={() => setExpanded(false)}>Done</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -242,21 +276,33 @@ function SetRow({
 
 type ExEntry = WorkoutExerciseEntry & { equipment?: string }
 
-function ExerciseBlock({ ex, onChange, onRemove, prMap, exerciseNames }: {
+function ExerciseBlock({
+  ex, onChange, onRemove, prMap, exerciseNames, onMoveUp, onMoveDown, canMoveUp, canMoveDown,
+}: {
   ex: ExEntry; onChange: (u: ExEntry) => void; onRemove: () => void; prMap: Map<string, number>
   exerciseNames: string[]
+  onMoveUp: () => void; onMoveDown: () => void; canMoveUp: boolean; canMoveDown: boolean
 }) {
-  const volume = ex.sets.reduce((n, s) => n + s.weightLbs * s.reps, 0)
+  // Warm-up sets don't count as "working volume" — matches how they're
+  // excluded from e1RM/PR and the progressive-overload suggestion.
+  const volume = ex.sets.reduce((n, s) => n + (s.isWarmup ? 0 : s.weightLbs * s.reps), 0)
   const [lastPerf, setLastPerf] = useState<ExerciseLastPerf | null>(null)
+  const [suggestion, setSuggestion] = useState<NextSetSuggestion | null>(null)
 
   useEffect(() => {
-    if (!ex.name.trim()) { setLastPerf(null); return }
+    if (!ex.name.trim()) { setLastPerf(null); setSuggestion(null); return }
     getLastExercisePerformance(ex.name).then(setLastPerf)
-  }, [ex.name])
+    suggestNextWorkingSet(ex.name, ex.equipment).then(setSuggestion)
+  }, [ex.name, ex.equipment])
 
   function addSet() {
     const last = ex.sets[ex.sets.length - 1]
     onChange({ ...ex, sets: [...ex.sets, { reps: last?.reps ?? 0, weightLbs: last?.weightLbs ?? 0, equipment: (last as ExSet)?.equipment ?? ex.equipment }] })
+  }
+
+  function useSuggestion() {
+    if (!suggestion) return
+    onChange({ ...ex, sets: [...ex.sets, { reps: suggestion.reps, weightLbs: suggestion.weightLbs, equipment: ex.equipment }] })
   }
 
   function daysAgo(date: string) {
@@ -269,6 +315,14 @@ function ExerciseBlock({ ex, onChange, onRemove, prMap, exerciseNames }: {
   return (
     <div className="exercise-block">
       <div className="exercise-block-header">
+        <div className="exercise-reorder-col">
+          <button className="exercise-reorder-btn" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Move exercise up">
+            <ChevronUp size={13} />
+          </button>
+          <button className="exercise-reorder-btn" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Move exercise down">
+            <ChevronDown size={13} />
+          </button>
+        </div>
         <input list="exercise-datalist" className="exercise-name-input" placeholder="Exercise name"
           value={ex.name}
           onChange={e => onChange({ ...ex, name: e.target.value })}
@@ -286,10 +340,19 @@ function ExerciseBlock({ ex, onChange, onRemove, prMap, exerciseNames }: {
           <span className="elp-sep">·</span>
           <span className="elp-date">{daysAgo(lastPerf.date)}</span>
           {lastPerf.isAllTimePB && <span className="elp-pb">PB</span>}
-          <span className="elp-sep">·</span>
-          <span className="elp-suggest">Try {lastPerf.suggestedWeight} lbs</span>
         </div>
       )}
+
+      {suggestion && (
+        <div className="exercise-suggestion">
+          <Lightbulb size={13} className="exercise-suggestion-icon" />
+          <span className="exercise-suggestion-text">{suggestion.reason}</span>
+          <button className="exercise-suggestion-use" onClick={useSuggestion}>
+            Use {suggestion.weightLbs} × {suggestion.reps}
+          </button>
+        </div>
+      )}
+
       {ex.sets.map((s, i) => (
         <SetRow key={i} idx={i} set={s as ExSet} prMap={prMap} exerciseName={ex.name}
           defaultEquipment={ex.equipment}
@@ -712,7 +775,14 @@ function LogModal({ prMap, initialWorkout, initialTemplate, prefilledDate, onClo
               {exercises.map((ex, i) => (
                 <ExerciseBlock key={i} ex={ex} prMap={prMap} exerciseNames={exerciseNames}
                   onChange={upd => { const n = [...exercises]; n[i] = upd; setExercises(n) }}
-                  onRemove={() => setExercises(p => p.filter((_, j) => j !== i))} />
+                  onRemove={() => setExercises(p => p.filter((_, j) => j !== i))}
+                  canMoveUp={i > 0} canMoveDown={i < exercises.length - 1}
+                  onMoveUp={() => setExercises(p => {
+                    const n = [...p]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n
+                  })}
+                  onMoveDown={() => setExercises(p => {
+                    const n = [...p]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; return n
+                  })} />
               ))}
             </div>
           )}
