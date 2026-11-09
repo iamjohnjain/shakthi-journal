@@ -116,11 +116,12 @@ final class HealthKitManager {
     // MARK: - Data queries
 
     /// Fetches all supported types since `startDate`, maps them to HealthMetric records,
-    /// and returns per-type fetch metadata alongside the mapped metrics.
+    /// and returns per-type fetch metadata alongside the mapped metrics. `startDate` of
+    /// `nil` means no lower bound — pull everything Apple Health has stored.
     ///
     /// Never throws — each type is wrapped in its own do-catch so one unauthorized type
     /// never blocks the others.
-    func fetchSamplesWithStatus(since startDate: Date) async -> (metrics: [HealthMetric], typeResults: [TypeFetchResult]) {
+    func fetchSamplesWithStatus(since startDate: Date?) async -> (metrics: [HealthMetric], typeResults: [TypeFetchResult]) {
         let end = Date()
 
         let sincePredicate = HKQuery.predicateForSamples(
@@ -128,9 +129,12 @@ final class HealthKitManager {
             end: end,
             options: .strictStartDate
         )
-        // Composition types always use a 90-day lookback so RENPHO measurements from
-        // past days are always included in the sync batch regardless of lastSuccessfulSync.
-        let compositionStart = Calendar.current.date(byAdding: .day, value: -90, to: end) ?? startDate
+        // Composition types use at least a 90-day lookback so RENPHO measurements from
+        // past days are always included in the sync batch regardless of lastSuccessfulSync —
+        // but never narrower than the overall window, so a first-ever sync (startDate nil)
+        // still pulls full history instead of being clipped to the last 90 days.
+        let ninetyDaysAgo = Calendar.current.date(byAdding: .day, value: -90, to: end) ?? end
+        let compositionStart: Date? = startDate.map { min($0, ninetyDaysAgo) }
         let compositionPredicate = HKQuery.predicateForSamples(
             withStart: compositionStart,
             end: end,
@@ -138,9 +142,11 @@ final class HealthKitManager {
         )
         let compositionTypeIds: Set<String> = ["weight", "bodyFatPct", "leanBodyMass"]
 
-        // Sleep uses a 7-day lookback to avoid missing sessions whose startDate falls
-        // just before lastSuccessfulSync (e.g. sleep starting at 11 PM, synced at 10 PM).
-        let sleepStart = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? startDate
+        // Sleep uses at least a 7-day lookback to avoid missing sessions whose startDate
+        // falls just before lastSuccessfulSync (e.g. sleep starting at 11 PM, synced at
+        // 10 PM) — same "never narrower than the overall window" rule as composition above.
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: end) ?? end
+        let sleepStart: Date? = startDate.map { min($0, sevenDaysAgo) }
         let sleepPredicate = HKQuery.predicateForSamples(
             withStart: sleepStart,
             end: end,

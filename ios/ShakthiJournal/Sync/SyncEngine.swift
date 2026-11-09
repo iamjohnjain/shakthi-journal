@@ -39,9 +39,6 @@ final class SyncEngine {
     /// Persistent: full sync history, loaded from UserDefaults on init
     private(set) var syncState: SyncState = SyncStateStore.load()
 
-    /// How many days back to look on the very first sync (before any lastSuccessfulSync)
-    var initialWindowDays = 30
-
     // MARK: - Public API
 
     func sync(
@@ -52,9 +49,9 @@ final class SyncEngine {
     ) async {
         guard !activity.isRunning else { return }
 
-        let since: Date = syncState.lastSuccessfulSync
-            ?? Calendar.current.date(byAdding: .day, value: -initialWindowDays, to: Date())
-            ?? Date()
+        // nil means "no lower bound" — on the very first sync (no lastSuccessfulSync
+        // yet), pull everything Apple Health has stored, however far back that goes.
+        let since: Date? = syncState.lastSuccessfulSync
 
         // Record the attempt immediately so it's visible even if we fail fast
         syncState.lastAttemptedSync       = Date()
