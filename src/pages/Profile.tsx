@@ -101,11 +101,25 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
     initial.heightCm ? Math.round((initial.heightCm - Math.floor(initial.heightCm / 30.48) * 30.48) / 2.54) : ''
   )
   const [startDate,      setStartDate]      = useState(initial.startDate ?? '')
-  const [startWeightLbs, setStartWeightLbs] = useState<number | ''>(initial.startWeightKg ? kgToLbs(initial.startWeightKg) : '')
+  const isMetric = units.system === 'metric'
+  const toW = (kg: number) => isMetric ? +kg.toFixed(1) : kgToLbs(kg)
+  const fromW = (v: number) => isMetric ? v : +(v / 2.20462).toFixed(2)
+  const [startWeightLbs, setStartWeightLbs] = useState<number | ''>(initial.startWeightKg ? toW(initial.startWeightKg) : '')
   const [startBF,        setStartBF]        = useState<number | ''>(initial.startBodyFatPct ?? '')
-  const [goalWeightLbs,  setGoalWeightLbs]  = useState<number | ''>(initial.goalWeightKg ? kgToLbs(initial.goalWeightKg) : '')
+  const [goalWeightLbs,  setGoalWeightLbs]  = useState<number | ''>(initial.goalWeightKg ? toW(initial.goalWeightKg) : '')
   const [goalBF,         setGoalBF]         = useState<number | ''>(initial.goalBodyFatPct ?? '')
   const [goalNotes,      setGoalNotes]      = useState(initial.goalNotes ?? '')
+
+  // useUnits() loads the saved unit system asynchronously, so `isMetric` can
+  // flip from its 'us-hybrid' default to 'metric' after this modal has
+  // already mounted and converted the initial weight values for display —
+  // re-convert once the real setting lands so the fields don't show a stale
+  // lbs-based figure under a "(kg)" label.
+  useEffect(() => {
+    if (initial.startWeightKg != null) setStartWeightLbs(toW(initial.startWeightKg))
+    if (initial.goalWeightKg != null)  setGoalWeightLbs(toW(initial.goalWeightKg))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [units.system])
   const [bio,            setBio]            = useState(initial.bio ?? '')
   const [photo,          setPhoto]          = useState(initial.photoDataUrl ?? '')
   const [avatarId,       setAvatarId]       = useState<string | undefined>(initial.avatarId)
@@ -137,9 +151,9 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
       name: name.trim() || 'User',
       heightCm: heightCmToSave,
       startDate: startDate || undefined,
-      startWeightKg: startWeightLbs !== '' ? +(Number(startWeightLbs) / 2.20462).toFixed(2) : undefined,
+      startWeightKg: startWeightLbs !== '' ? fromW(Number(startWeightLbs)) : undefined,
       startBodyFatPct: startBF !== '' ? Number(startBF) : undefined,
-      goalWeightKg: goalWeightLbs !== '' ? +(Number(goalWeightLbs) / 2.20462).toFixed(2) : undefined,
+      goalWeightKg: goalWeightLbs !== '' ? fromW(Number(goalWeightLbs)) : undefined,
       goalBodyFatPct: goalBF !== '' ? Number(goalBF) : undefined,
       goalNotes,
       bio,
@@ -208,7 +222,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
             </div>
             <div className="profile-edit-field">
-              <label>Starting weight (lbs)</label>
+              <label>Starting weight ({isMetric ? 'kg' : 'lbs'})</label>
               <input type="number" inputMode="decimal" step="0.1" value={startWeightLbs} onChange={e => setStartWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
@@ -216,7 +230,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
               <input type="number" inputMode="decimal" step="0.1" min="3" max="60" value={startBF} onChange={e => setStartBF(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
-              <label>Goal weight (lbs)</label>
+              <label>Goal weight ({isMetric ? 'kg' : 'lbs'})</label>
               <input type="number" inputMode="decimal" step="0.1" value={goalWeightLbs} onChange={e => setGoalWeightLbs(e.target.value === '' ? '' : Number(e.target.value))} />
             </div>
             <div className="profile-edit-field">
@@ -253,6 +267,10 @@ export default function Profile() {
   const navigate = useNavigate()
   const { mode, signOut } = useAuth()
   const { today, dataSource } = useDashboardData()
+  const units = useUnits()
+  const isMetric = units.system === 'metric'
+  const wUnit = isMetric ? 'kg' : 'lbs'
+  const toW = (kg: number) => isMetric ? +kg.toFixed(1) : kgToLbs(kg)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [editing,     setEditing]     = useState(false)
   const [dbStats,     setDbStats]     = useState<{ workoutCount: number; logCount: number; nutritionCount: number } | null>(null)
@@ -279,13 +297,13 @@ export default function Profile() {
   const avatarId = profileData?.avatarId
   const days     = daysSince(profileData?.startDate)
 
-  const startWeightLbs = profileData?.startWeightKg ? kgToLbs(profileData.startWeightKg) : null
+  const startWeightLbs = profileData?.startWeightKg ? toW(profileData.startWeightKg) : null
   const startBF        = profileData?.startBodyFatPct ?? null
-  const goalWeightLbs  = profileData?.goalWeightKg ? kgToLbs(profileData.goalWeightKg) : null
+  const goalWeightLbs  = profileData?.goalWeightKg ? toW(profileData.goalWeightKg) : null
   const goalBF         = profileData?.goalBodyFatPct ?? null
   const goalNotes      = profileData?.goalNotes
 
-  const currentWeightLbs = today.weight ? kgToLbs(today.weight) : undefined
+  const currentWeightLbs = today.weight ? toW(today.weight) : undefined
   const currentBF        = today.bodyFatPct
 
   const weightLost = (currentWeightLbs != null && startWeightLbs != null) ? +(startWeightLbs - currentWeightLbs).toFixed(1) : null
@@ -301,8 +319,8 @@ export default function Profile() {
     ...(weightLost != null && weightLost > 0 ? [{
       icon: TrendingDown,
       color: 'var(--green)',
-      label: `-${weightLost} lbs lost`,
-      sub: `${startWeightLbs} → ${currentWeightLbs} lbs`,
+      label: `-${weightLost} ${wUnit} lost`,
+      sub: `${startWeightLbs} → ${currentWeightLbs} ${wUnit}`,
     }] : []),
     ...(bfLost != null && bfLost > 0 ? [{
       icon: Target,
@@ -368,7 +386,7 @@ export default function Profile() {
           {bio && <p className="profile-bio">{bio}</p>}
           <div className="profile-meta-row">
             {heightCm && <span className="profile-meta-chip">{cmToFeet(heightCm)}</span>}
-            {currentWeightLbs && <span className="profile-meta-chip">{currentWeightLbs} lbs</span>}
+            {currentWeightLbs && <span className="profile-meta-chip">{currentWeightLbs} {wUnit}</span>}
           </div>
         </div>
         <button className="profile-edit-btn" onClick={() => setEditing(true)}>
@@ -412,7 +430,7 @@ export default function Profile() {
               from={startWeightLbs}
               to={goalWeightLbs}
               current={currentWeightLbs}
-              unit=" lbs"
+              unit={` ${wUnit}`}
               lowerIsBetter={startWeightLbs > goalWeightLbs}
               colorGood="var(--blue)"
             />
@@ -445,7 +463,7 @@ export default function Profile() {
           <div className="profile-baseline-grid">
             {startWeightLbs != null && (
               <div className="profile-baseline-item">
-                <span className="profile-baseline-val">{startWeightLbs} lbs</span>
+                <span className="profile-baseline-val">{startWeightLbs} {wUnit}</span>
                 <span className="profile-baseline-label">Start weight</span>
               </div>
             )}
@@ -457,7 +475,7 @@ export default function Profile() {
             )}
             {goalWeightLbs != null && (
               <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalWeightLbs} lbs</span>
+                <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalWeightLbs} {wUnit}</span>
                 <span className="profile-baseline-label">Goal weight</span>
               </div>
             )}

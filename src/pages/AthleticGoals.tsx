@@ -12,6 +12,7 @@ import type { ProfileData, NutritionGoals } from '../db'
 import { getUserGoals, saveUserGoal, updateUserGoal, deleteUserGoal } from '../db/goalStore'
 import type { UserGoal, GoalCategory } from '../db/goalStore'
 import { kgToLbs } from '../data/config'
+import { useUnits } from '../hooks/useUnits'
 import DataBadge from '../components/DataBadge'
 import type { DataBadgeMode } from '../components/DataBadge'
 import './AthleticGoals.css'
@@ -68,25 +69,28 @@ function makeGoals(
   profile: ProfileData | null,
   stepGoal: number,
   proteinGoalG: number,
-  onSaveWeightLbs: (lbs: number) => Promise<void>,
+  isMetric: boolean,
+  onSaveWeight: (v: number) => Promise<void>,
   onSaveBodyFatPct: (pct: number) => Promise<void>,
   onSaveProteinG: (g: number) => Promise<void>,
   onSaveStepGoal: (n: number) => Promise<void>,
 ): GoalConfig[] {
   const goals: GoalConfig[] = []
+  const wUnit = isMetric ? 'kg' : 'lbs'
+  const toW = (kg: number) => isMetric ? Math.round(kg) : Math.round(kgToLbs(kg))
 
   if (profile?.goalWeightKg) {
-    const goalLbs  = Math.round(kgToLbs(profile.goalWeightKg))
-    const startLbs = profile.startWeightKg ? Math.round(kgToLbs(profile.startWeightKg)) : null
+    const goalW   = toW(profile.goalWeightKg)
+    const startW  = profile.startWeightKg ? toW(profile.startWeightKg) : null
     goals.push({
       id: 'weight',
       emoji: '⚖️',
       title: 'Body Weight Goal',
       category: 'Body Composition',
-      description: `Reach and maintain ${goalLbs} lbs.`,
-      target: `${goalLbs} lbs`,
+      description: `Reach and maintain ${goalW} ${wUnit}.`,
+      target: `${goalW} ${wUnit}`,
       relatedMetrics: ['Daily weight', 'Calories', 'Protein intake'],
-      editTarget: { value: goalLbs, unit: 'lbs', step: 1, min: 50, save: onSaveWeightLbs },
+      editTarget: { value: goalW, unit: wUnit, step: 1, min: isMetric ? 25 : 50, save: onSaveWeight },
       getStatus: (d) => {
         const w = d.today.weight
         if (!w) return {
@@ -94,20 +98,20 @@ function makeGoals(
           statusText: 'No weight data — import Apple Health or log your weight daily.',
           nextAction: 'Weigh yourself every morning. Log it via Daily Log.',
         }
-        const wLbs = Math.round(kgToLbs(w) * 10) / 10
-        const start = startLbs ?? (wLbs + 10)
-        const range = start - goalLbs
-        const pct   = range > 0 ? Math.max(0, Math.min(100, Math.round((start - wLbs) / range * 100))) : 100
-        const diff  = +(wLbs - goalLbs).toFixed(1)
+        const wNow  = Math.round((isMetric ? w : kgToLbs(w)) * 10) / 10
+        const start = startW ?? (wNow + 10)
+        const range = start - goalW
+        const pct   = range > 0 ? Math.max(0, Math.min(100, Math.round((start - wNow) / range * 100))) : 100
+        const diff  = +(wNow - goalW).toFixed(1)
         return {
-          current: `${wLbs} lbs`,
+          current: `${wNow} ${wUnit}`,
           progress: pct,
           statusText: diff <= 0
-            ? `At goal weight of ${goalLbs} lbs — great work!`
-            : `${diff} lbs above ${goalLbs} lbs goal.`,
+            ? `At goal weight of ${goalW} ${wUnit} — great work!`
+            : `${diff} ${wUnit} above ${goalW} ${wUnit} goal.`,
           nextAction: diff <= 0
-            ? 'Maintain current weight within ±2 lbs by tracking weekly average.'
-            : 'Aim for 0.5–1 lb/week change via a moderate calorie adjustment and high protein.',
+            ? `Maintain current weight within ±${isMetric ? 1 : 2} ${wUnit} by tracking weekly average.`
+            : `Aim for ${isMetric ? '0.25–0.5 kg' : '0.5–1 lb'}/week change via a moderate calorie adjustment and high protein.`,
         }
       },
     })
@@ -537,6 +541,8 @@ export default function AthleticGoals() {
   const navigate = useNavigate()
   const data = useDashboardData()
   const { goals: nutGoals, updateGoals: updateNutGoals } = useNutritionSettings()
+  const units = useUnits()
+  const isMetric = units.system === 'metric'
   const [profile,      setProfile]      = useState<ProfileData | null>(null)
   const [stepGoal,     setStepGoal]     = useState(10_000)
   const [userGoals,    setUserGoals]    = useState<UserGoal[]>([])
@@ -552,9 +558,9 @@ export default function AthleticGoals() {
 
   if (data.loading) return <div className="goals-loading">Loading…</div>
 
-  async function saveWeightGoalLbs(lbs: number) {
+  async function saveWeightGoal(value: number) {
     if (!profile) return
-    const kg = +(lbs / 2.20462).toFixed(1)
+    const kg = isMetric ? value : +(value / 2.20462).toFixed(1)
     await saveProfile({ ...profile, name: profile.name || 'Me', goalWeightKg: kg })
     setProfile(p => p ? { ...p, goalWeightKg: kg } : p)
   }
@@ -575,7 +581,7 @@ export default function AthleticGoals() {
     await setSetting('step-goal', rounded)
   }
 
-  const goalConfigs  = makeGoals(profile, stepGoal, nutGoals.proteinG, saveWeightGoalLbs, saveBodyFatGoalPct, saveProteinGoalG, saveStepGoalN)
+  const goalConfigs  = makeGoals(profile, stepGoal, nutGoals.proteinG, isMetric, saveWeightGoal, saveBodyFatGoalPct, saveProteinGoalG, saveStepGoalN)
   const badgeMode: DataBadgeMode | undefined = goalConfigs.length > 0 && data.dataSource !== 'mock'
     ? (data.dataSource === 'manual' ? 'manual' : 'imported')
     : undefined

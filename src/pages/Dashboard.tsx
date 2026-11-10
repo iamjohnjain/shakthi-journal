@@ -6,6 +6,7 @@ import { getSetting } from '../db'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useDashboardCards, REORDERABLE_IDS } from '../hooks/useDashboardCards'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
+import { useUnits } from '../hooks/useUnits'
 import { useHealthInsights } from '../hooks/useHealthInsights'
 import { useApp } from '../context/AppContext'
 import { getProfile } from '../db/profileStore'
@@ -235,21 +236,20 @@ function QuickActions() {
 
 // ─── First-day welcome card ──────────────────────────────────────────────────
 
-function FirstDayCard({ profile, nutritionGoals }: {
+function FirstDayCard({ profile, nutritionGoals, fmtWeight }: {
   profile: ProfileData | null
   nutritionGoals: ReturnType<typeof useNutritionSettings>['goals']
+  fmtWeight: (kg: number) => string
 }) {
   const navigate = useNavigate()
   if (!profile) return null
 
-  const startWeightLbs  = profile.startWeightKg  ? kgToLbs(profile.startWeightKg)  : null
-  const goalWeightLbs   = profile.goalWeightKg   ? kgToLbs(profile.goalWeightKg)   : null
   const calories        = nutritionGoals.calories
   const protein         = nutritionGoals.proteinG
 
   const stats: { label: string; value: string; color: string }[] = []
-  if (startWeightLbs) stats.push({ label: 'Current weight', value: `${startWeightLbs} lbs`, color: 'var(--blue)' })
-  if (goalWeightLbs)  stats.push({ label: 'Goal weight',    value: `${goalWeightLbs} lbs`,  color: 'var(--green)' })
+  if (profile.startWeightKg) stats.push({ label: 'Current weight', value: fmtWeight(profile.startWeightKg), color: 'var(--blue)' })
+  if (profile.goalWeightKg)  stats.push({ label: 'Goal weight',    value: fmtWeight(profile.goalWeightKg),  color: 'var(--green)' })
   if (calories)       stats.push({ label: 'Daily calories', value: `${calories} kcal`,       color: 'var(--orange)' })
   if (protein)        stats.push({ label: 'Protein goal',   value: `${protein}g`,            color: 'var(--purple)' })
 
@@ -322,6 +322,7 @@ interface SectionCtx {
       user was never asked (pre-feature account, or skipped) — treat that as
       "show everything" so nothing regresses for existing users. */
   ownedDevices: DeviceId[] | null
+  isMetric: boolean
 }
 
 function openNativeHealthSync() {
@@ -331,14 +332,16 @@ function openNativeHealthSync() {
 
 function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, inNative, menuFor, ownedDevices } = ctx
-  const weightLbs     = today.weight ? kgToLbs(today.weight) : undefined
-  const prevWeightLbs = yesterday.weight ? kgToLbs(yesterday.weight) : undefined
-  const weightDelta   = weightLbs != null && prevWeightLbs != null ? delta(weightLbs, prevWeightLbs) : null
+  const { today, yesterday, inNative, menuFor, ownedDevices, isMetric } = ctx
+  const weightUnit    = isMetric ? 'kg' : 'lbs'
+  const weightDisp    = today.weight != null     ? (isMetric ? today.weight     : kgToLbs(today.weight))     : undefined
+  const prevWeightDisp= yesterday.weight != null ? (isMetric ? yesterday.weight : kgToLbs(yesterday.weight)) : undefined
+  const weightDelta   = weightDisp != null && prevWeightDisp != null ? delta(weightDisp, prevWeightDisp) : null
   const bodyFatDelta  = today.bodyFatPct != null && yesterday.bodyFatPct != null
     ? delta(today.bodyFatPct, yesterday.bodyFatPct) : null
-  const muscleDelta   = today.muscleMassKg != null && yesterday.muscleMassKg != null
-    ? delta(today.muscleMassKg, yesterday.muscleMassKg) : null
+  const muscleDisp    = today.muscleMassKg != null     ? (isMetric ? today.muscleMassKg     : kgToLbs(today.muscleMassKg))     : undefined
+  const prevMuscleDisp= yesterday.muscleMassKg != null ? (isMetric ? yesterday.muscleMassKg : kgToLbs(yesterday.muscleMassKg)) : undefined
+  const muscleDelta   = muscleDisp != null && prevMuscleDisp != null ? delta(muscleDisp, prevMuscleDisp) : null
   const hasBody = !!(today.weight || today.bodyFatPct)
   // Body fat / muscle mass only ever come from a smart scale — prompting
   // "Import Apple Health" for someone who never said they own one just
@@ -353,13 +356,13 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
         <>
           <MetricCard
             label="Weight"
-            value={weightLbs}
-            unit="lbs"
-            sub={today.weight ? `${today.weight.toFixed(1)} kg` : undefined}
+            value={weightDisp}
+            unit={weightUnit}
+            sub={today.weight != null ? (isMetric ? `${kgToLbs(today.weight)} lbs` : `${today.weight.toFixed(1)} kg`) : undefined}
             trend={weightDelta != null ? (weightDelta < 0 ? 'down' : 'up') : undefined}
-            trendLabel={weightDelta != null ? `${Math.abs(weightDelta)} lbs` : undefined}
+            trendLabel={weightDelta != null ? `${Math.abs(weightDelta)} ${weightUnit}` : undefined}
             trendPositive={false}
-            empty={weightLbs == null}
+            empty={weightDisp == null}
             emptyPrompt="Log weight"
             onEmptyClick={() => navigate('/log')}
           />
@@ -379,11 +382,11 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
           {showMuscleMass && (
             <MetricCard
               label="Muscle Mass"
-              value={today.muscleMassKg ? kgToLbs(today.muscleMassKg) : undefined}
-              unit="lbs"
-              sub={today.muscleMassKg ? `${today.muscleMassKg} kg` : undefined}
+              value={muscleDisp}
+              unit={weightUnit}
+              sub={today.muscleMassKg != null ? (isMetric ? `${kgToLbs(today.muscleMassKg)} lbs` : `${today.muscleMassKg} kg`) : undefined}
               trend={muscleDelta != null ? (muscleDelta >= 0 ? 'up' : 'down') : undefined}
-              trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} kg` : undefined}
+              trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} ${weightUnit}` : undefined}
               trendPositive={true}
               empty={today.muscleMassKg == null}
               emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
@@ -519,6 +522,8 @@ export default function Dashboard() {
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
   const { goals: nutritionGoals } = useNutritionSettings()
+  const units = useUnits()
+  const isMetric = units.system === 'metric'
   const [userName,    setUserName]    = useState<string | null>(null)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [stepGoal,    setStepGoal]    = useState(10_000)
@@ -580,6 +585,7 @@ export default function Dashboard() {
     inNative,
     menuFor,
     ownedDevices,
+    isMetric,
   }
 
   // Build ordered list of visible reorderable sections
@@ -671,7 +677,7 @@ export default function Dashboard() {
           {/* ── Empty state: no data yet ── */}
           {isEmpty && isVisible('import-status') && (
             <>
-              <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} />
+              <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} fmtWeight={units.fmtWeight} />
               <TodaysFocus />
             </>
           )}

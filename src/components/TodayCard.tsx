@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { DailySnapshot } from '../types/health'
 import type { TodayProgress } from '../hooks/useHealthInsights'
+import { useUnits } from '../hooks/useUnits'
 import './TodayCard.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,10 +68,9 @@ function interpretSteps(today: DailySnapshot): Insight | null {
   return { emoji: '👟', label: 'Steps', value, status, path: '/' }
 }
 
-function interpretWeight(today: DailySnapshot): Insight | null {
+function interpretWeight(today: DailySnapshot, fmtWeight: (kg: number) => string): Insight | null {
   if (today.weight == null) return null
-  const lbs = +(today.weight * 2.20462).toFixed(1)
-  return { emoji: '⚖️', label: 'Weight', value: `${lbs} lbs`, status: 'neutral', path: '/log' }
+  return { emoji: '⚖️', label: 'Weight', value: fmtWeight(today.weight), status: 'neutral', path: '/log' }
 }
 
 function getHeadline(insights: Insight[], hasAnyData: boolean): string {
@@ -109,12 +109,13 @@ interface Props {
 export default function TodayCard({ today, todayProgress, dataSource }: Props) {
   const navigate  = useNavigate()
   const hasData   = dataSource !== 'mock'
+  const { fmtWeight } = useUnits()
 
   const insights: Insight[] = [
     interpretRecovery(today),
     interpretWorkout(todayProgress),
     interpretSteps(today),
-    interpretWeight(today),
+    interpretWeight(today, fmtWeight),
   ].filter((x): x is Insight => x !== null).slice(0, 4)
 
   const headline = getHeadline(insights, hasData)

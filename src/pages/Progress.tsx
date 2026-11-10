@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
+import { useUnits } from '../hooks/useUnits'
 import { getProfile } from '../db/profileStore'
 import { getDBStats } from '../db'
 import DataBadge from '../components/DataBadge'
@@ -33,18 +34,20 @@ function DeltaChip({ metric }: { metric: CompMetric }) {
   )
 }
 
-function buildMetrics(profile: ProfileData | null, today: DailySnapshot): CompMetric[] {
+function buildMetrics(profile: ProfileData | null, today: DailySnapshot, isMetric: boolean): CompMetric[] {
   const out: CompMetric[] = []
+  const wUnit = isMetric ? 'kg' : 'lbs'
+  const toW = (kg: number) => isMetric ? +kg.toFixed(1) : kgToLbs(kg)
 
   if (profile?.startWeightKg && today.weight) {
-    const startLbs = kgToLbs(profile.startWeightKg)
-    const nowLbs   = kgToLbs(today.weight)
-    const d = +(nowLbs - startLbs).toFixed(1)
+    const start = toW(profile.startWeightKg)
+    const now   = toW(today.weight)
+    const d = +(now - start).toFixed(1)
     out.push({
       label: 'Weight',
-      before: `${startLbs} lbs`,
-      after:  `${nowLbs} lbs`,
-      delta:  `${d >= 0 ? '+' : ''}${d} lbs`,
+      before: `${start} ${wUnit}`,
+      after:  `${now} ${wUnit}`,
+      delta:  `${d >= 0 ? '+' : ''}${d} ${wUnit}`,
       direction: d < 0 ? 'down' : d > 0 ? 'up' : 'neutral',
       good: d <= 0,
     })
@@ -66,7 +69,7 @@ function buildMetrics(profile: ProfileData | null, today: DailySnapshot): CompMe
     out.push({
       label: 'Muscle Mass',
       before: '—',
-      after:  `${kgToLbs(today.muscleMassKg)} lbs`,
+      after:  `${toW(today.muscleMassKg)} ${wUnit}`,
       delta:  'Today',
       direction: 'neutral',
       good: true,
@@ -127,6 +130,8 @@ function daysSince(dateStr: string) {
 export default function Progress() {
   const navigate = useNavigate()
   const { today, dataSource, loading: dataLoading } = useDashboardData()
+  const units = useUnits()
+  const isMetric = units.system === 'metric'
   const [profile,  setProfile]  = useState<ProfileData | null>(null)
   const [dbStats,  setDbStats]  = useState<{ workoutCount: number; logCount: number } | null>(null)
   const [loaded,   setLoaded]   = useState(false)
@@ -148,7 +153,7 @@ export default function Progress() {
   }
 
   const hasProfile = !!profile?.startDate
-  const metrics    = hasProfile ? buildMetrics(profile, today) : []
+  const metrics    = hasProfile ? buildMetrics(profile, today, isMetric) : []
   const badgeMode: DataBadgeMode | undefined = metrics.length > 0 && dataSource !== 'mock'
     ? (dataSource === 'manual' ? 'manual' : 'imported')
     : undefined
