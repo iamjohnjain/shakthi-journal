@@ -492,7 +492,7 @@ export default function WorkoutTemplatesPage() {
             </button>
           )}
           <button className="log-workout-btn" onClick={() => { setEditTemplate(null); setShowModal(true) }}>
-            <Plus size={16} /> New Template
+            <Plus size={16} /> Create Template
           </button>
         </div>
       </header>
