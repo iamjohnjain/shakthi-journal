@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw, Dumbbell } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { getSetting } from '../db'
@@ -15,7 +15,6 @@ import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
 import { getImportedDates } from '../db/healthStore'
 import { getAllLogDates } from '../db/logStore'
-import { getCurrentWorkoutStreak } from '../db/workoutStore'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
@@ -24,7 +23,7 @@ import QuickWeightModal from '../components/QuickWeightModal'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { AvatarDisplay } from '../components/Avatar'
 import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
-import { isInsideNativeApp } from '../layout/BottomNav'
+import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
 import './Dashboard.css'
 
 function todayDateStr() {
@@ -324,11 +323,6 @@ interface SectionCtx {
   isMetric: boolean
 }
 
-function openNativeHealthSync() {
-  const w = window as unknown as { webkit?: { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } }
-  w?.webkit?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
-}
-
 function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
   const { today, yesterday, inNative, menuFor, ownedDevices, isMetric } = ctx
@@ -529,7 +523,6 @@ export default function Dashboard() {
   const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [markedDates, setMarkedDates] = useState<Set<string>>(new Set())
-  const [workoutStreak, setWorkoutStreak] = useState(0)
 
   useEffect(() => {
     getProfile().then(p => {
@@ -538,7 +531,6 @@ export default function Dashboard() {
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
     getOwnedDevices().then(setOwnedDevices)
-    getCurrentWorkoutStreak().then(setWorkoutStreak)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
       setUserName(p.name || null)
@@ -621,13 +613,6 @@ export default function Dashboard() {
           </button>
           {!isToday && (
             <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
-          )}
-          {isToday && workoutStreak >= 2 && (
-            <div className="dash-streaks">
-              <button className="dash-streak-chip" onClick={() => navigate('/workouts')} aria-label={`${workoutStreak} day workout streak`}>
-                <Dumbbell size={13} />{workoutStreak}
-              </button>
-            </div>
           )}
         </div>
       </div>

@@ -240,10 +240,11 @@ function SetRow({
 type ExEntry = WorkoutExerciseEntry & { equipment?: string }
 
 function ExerciseBlock({
-  ex, onChange, onRemove, prMap, exerciseNames,
+  ex, onChange, onRemove, prMap, exerciseNames, dragHandleProps,
 }: {
   ex: ExEntry; onChange: (u: ExEntry) => void; onRemove: () => void; prMap: Map<string, number>
   exerciseNames: string[]
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
 }) {
   // Warm-up sets don't count as "working volume" — matches how they're
   // excluded from e1RM/PR and the progressive-overload suggestion.
@@ -284,6 +285,7 @@ function ExerciseBlock({
         <datalist id="exercise-datalist">
           {exerciseNames.map(n => <option key={n} value={n} />)}
         </datalist>
+        {dragHandleProps && <DragHandle {...dragHandleProps} />}
         <button className="exercise-remove-btn" onClick={onRemove}>Remove</button>
       </div>
 
@@ -341,7 +343,10 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
 
 // ─── Sortable list item (drag handle + content) ────────────────────────────────
 
-function SortableItem({ id, children }: { id: string; children: ReactNode }) {
+function SortableItem({ id, children }: {
+  id: string
+  children: (dragHandleProps: React.HTMLAttributes<HTMLButtonElement>) => ReactNode
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -350,21 +355,27 @@ function SortableItem({ id, children }: { id: string; children: ReactNode }) {
   }
   return (
     <div ref={setNodeRef} style={style} className="sortable-item">
-      <button className="sortable-drag-handle" {...attributes} {...listeners} aria-label="Drag to reorder">
-        <GripVertical size={15} />
-      </button>
-      <div className="sortable-item-content">{children}</div>
+      {children({ ...attributes, ...listeners } as React.HTMLAttributes<HTMLButtonElement>)}
     </div>
+  )
+}
+
+function DragHandle(props: React.HTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button className="sortable-drag-handle" {...props} aria-label="Drag to reorder" onClick={e => e.preventDefault()}>
+      <GripVertical size={15} />
+    </button>
   )
 }
 
 // ─── Break marker ───────────────────────────────────────────────────────────────
 
-function BreakMarker({ onRemove }: { onRemove: () => void }) {
+function BreakMarker({ onRemove, dragHandleProps }: { onRemove: () => void; dragHandleProps?: React.HTMLAttributes<HTMLButtonElement> }) {
   return (
     <div className="break-marker">
       <Coffee size={14} />
       <span>Break</span>
+      {dragHandleProps && <DragHandle {...dragHandleProps} />}
       <button className="break-marker-remove" onClick={onRemove} aria-label="Remove break">
         <X size={13} />
       </button>
@@ -479,12 +490,13 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
             <SortableContext items={exercises.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
               {exercises.map((ex, i) => (
                 <SortableItem key={i} id={String(i)}>
-                  {ex.isBreak ? (
-                    <BreakMarker onRemove={() => persist(exercises.filter((_, j) => j !== i))} />
+                  {dragHandleProps => ex.isBreak ? (
+                    <BreakMarker onRemove={() => persist(exercises.filter((_, j) => j !== i))} dragHandleProps={dragHandleProps} />
                   ) : (
                     <ExerciseBlock ex={ex} prMap={prMap} exerciseNames={exerciseNames}
                       onChange={upd => { const n = [...exercises]; n[i] = upd; persist(n) }}
-                      onRemove={() => persist(exercises.filter((_, j) => j !== i))} />
+                      onRemove={() => persist(exercises.filter((_, j) => j !== i))}
+                      dragHandleProps={dragHandleProps} />
                   )}
                 </SortableItem>
               ))}

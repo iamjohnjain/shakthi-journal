@@ -141,31 +141,6 @@
   background: var(--bg-card-hover);
 }
 
-.dash-streaks {
-  margin-left: auto;
-  display: flex;
-  gap: 6px;
-}
-
-.dash-streak-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--blue);
-  background: var(--blue-dim);
-  border: 1px solid transparent;
-  border-radius: 20px;
-  padding: 4px 9px;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.dash-streak-chip:hover {
-  opacity: 0.8;
-}
-
 
 /* ─── Daily Brief ────────────────────────────────────────── */
 

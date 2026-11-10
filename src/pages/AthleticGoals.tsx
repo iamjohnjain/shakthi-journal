@@ -13,8 +13,6 @@ import { getUserGoals, saveUserGoal, updateUserGoal, deleteUserGoal } from '../d
 import type { UserGoal, GoalCategory } from '../db/goalStore'
 import { kgToLbs } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
-import DataBadge from '../components/DataBadge'
-import type { DataBadgeMode } from '../components/DataBadge'
 import './AthleticGoals.css'
 
 // ─── Data-driven goal types ───────────────────────────────────────────────────
@@ -582,9 +580,6 @@ export default function AthleticGoals() {
   }
 
   const goalConfigs  = makeGoals(profile, stepGoal, nutGoals.proteinG, isMetric, saveWeightGoal, saveBodyFatGoalPct, saveProteinGoalG, saveStepGoalN)
-  const badgeMode: DataBadgeMode | undefined = goalConfigs.length > 0 && data.dataSource !== 'mock'
-    ? (data.dataSource === 'manual' ? 'manual' : 'imported')
-    : undefined
   const categories   = ['All', ...Array.from(new Set(goalConfigs.map(g => g.category)))]
   const filteredData = activeCategory === 'All'
     ? goalConfigs
@@ -613,7 +608,6 @@ export default function AthleticGoals() {
         <div>
           <h1 className="page-title">Goals</h1>
           <p className="page-subtitle">Your targets and what to do next</p>
-          {badgeMode && <DataBadge mode={badgeMode} source={data.dataSource === 'manual' ? 'Manual Log' : 'Apple Health'} />}
         </div>
         <button
           className="goal-add-btn"

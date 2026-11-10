@@ -5,9 +5,10 @@ import { useNavigate } from 'react-router-dom'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
 import { getProfile, saveProfile } from '../db/profileStore'
-import { getSetting } from '../db'
+import { getSetting, getSyncHistory } from '../db'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
+import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
 import QuickWeightModal from './QuickWeightModal'
 import './GoalRing.css'
 
@@ -86,6 +87,21 @@ function clamp(v: number) { return Math.min(100, Math.max(0, v)) }
 
 function shortDate(dateStr: string): string {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+/** "2h ago" / "Yesterday" / "Mar 4" — close enough for a quiet status line,
+    not trying to be a precise countdown. */
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'yesterday'
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function ringPct(current: number, start: number, goal: number, higher: boolean): number {
@@ -170,6 +186,7 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
   const [showWeightLog,  setShowWeightLog]  = useState(false)
+  const [lastSyncedAt,   setLastSyncedAt]   = useState<string | null>(null)
   const [editingGoal,    setEditingGoal]    = useState(false)
   const [editStart,      setEditStart]      = useState('')
   const [editGoal,       setEditGoal]       = useState('')
@@ -191,6 +208,7 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
       if (ng?.proteinG) setNutritionGoals({ proteinG: ng.proteinG })
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
+    getSyncHistory(1).then(h => setLastSyncedAt(h[0]?.completedAt ?? null))
   }, [])
   useEffect(() => {
     setAnimated(false)
@@ -221,6 +239,12 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
   const current  = (rawCurrent ?? weightFallback) != null ? toDisplay(rawCurrent ?? weightFallback!) : undefined
   const isStaleWeight = goalType === 'weight' && rawCurrent == null && current != null
   const neverWeighed  = goalType === 'weight' && current == null
+  const isStaleData = goalType === 'weight' ? rawCurrent == null : goalType === 'steps' ? current == null : false
+
+  function triggerSync() {
+    if (isInsideNativeApp()) openNativeHealthSync()
+    else navigate('/import/apple-health')
+  }
   const goalValRaw  = goalType === 'steps' ? stepGoal : cfg.goal(profile, nutritionGoals)
   const startValRaw = cfg.start(profile, snapshot)
   const goalVal  = goalValRaw  != null ? toDisplay(goalValRaw)  : undefined
@@ -411,6 +435,17 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
           </div>
         </div>
 
+        {(goalType === 'weight' || goalType === 'steps') && (
+          <div className="goal-ring-sync-line">
+            <span>{lastSyncedAt ? `Last synced ${relativeTime(lastSyncedAt)}` : 'Never synced'}</span>
+            {isStaleData && (
+              <button className="goal-ring-sync-btn" onClick={e => { e.stopPropagation(); triggerSync() }}>
+                Sync now
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="goal-ring-tap-hint">Tap to see details</div>
       </div>
 
@@ -492,17 +527,14 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
                 </p>
               )}
 
-              {/* ── Weight-goal pace: on-track status or a lose/gain-per-week suggestion ── */}
-              {goalType === 'weight' && !editingGoal && pace && (
+              {/* ── Weight-goal pace: on-track status or a lose/gain-per-week suggestion.
+                     Silent for 'no-data'/'no-target' — nothing useful to say yet, and an
+                     empty state here would just be more text to scan past. ── */}
+              {goalType === 'weight' && !editingGoal && pace &&
+                (pace.status === 'reached' || pace.status === 'on-track' || pace.status === 'behind' || pace.status === 'past-due') && (
                 <div className={`goal-ring-pace goal-ring-pace--${pace.status}`}>
                   {pace.status === 'reached' && (
                     <><CheckCircle2 size={16} /> <span>Goal reached — nice work.</span></>
-                  )}
-                  {pace.status === 'no-data' && (
-                    <span>Log your weight to see your progress.</span>
-                  )}
-                  {pace.status === 'no-target' && (
-                    <span>Set a target date below to see if you're on track.</span>
                   )}
                   {pace.status === 'past-due' && (
                     <span>Your target date has passed — update it below to keep tracking.</span>
@@ -561,16 +593,16 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
                     </button>
                   </>
                 ) : (
-                  <button className="goal-ring-modal-btn goal-ring-modal-btn--primary"
-                    onClick={() => { setShowDetail(false); navigate('/profile') }}>
-                    Edit Goal
-                  </button>
-                )}
-                {!editingGoal && (
-                  <button className="goal-ring-modal-btn"
-                    onClick={() => { setShowDetail(false); navigate('/compare') }}>
-                    View Compare
-                  </button>
+                  <>
+                    <button className="goal-ring-modal-btn goal-ring-modal-btn--primary"
+                      onClick={() => { setShowDetail(false); navigate('/profile') }}>
+                      Edit Goal
+                    </button>
+                    <button className="goal-ring-modal-btn"
+                      onClick={() => { setShowDetail(false); navigate('/compare') }}>
+                      View Compare
+                    </button>
+                  </>
                 )}
               </div>
             </div>

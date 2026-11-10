@@ -9,6 +9,14 @@ export function isInsideNativeApp(): boolean {
     (window as unknown as Record<string, unknown>).__shakthiNativeApp === true
 }
 
+// Asks the native iOS wrapper to open its HealthKit sync sheet — shared by
+// every "Sync Data" entry point (Dashboard quick action, empty-state
+// prompts, the Weight Goal card's own sync nudge).
+export function openNativeHealthSync() {
+  const w = window as unknown as { webkit?: { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } }
+  w?.webkit?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
+}
+
 // Three core tabs, Today centered — profile is reached via the avatar icon
 // on the Today header instead of its own tab, and Goals isn't in primary
 // nav for now (still reachable at /goals, just not a bottom-nav slot).

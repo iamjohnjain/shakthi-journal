@@ -6,8 +6,6 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { useUnits } from '../hooks/useUnits'
 import { getProfile } from '../db/profileStore'
 import { getDBStats } from '../db'
-import DataBadge from '../components/DataBadge'
-import type { DataBadgeMode } from '../components/DataBadge'
 import type { ProfileData } from '../db/profileStore'
 import type { DailySnapshot } from '../types/health'
 import './Progress.css'
@@ -129,7 +127,7 @@ function daysSince(dateStr: string) {
 
 export default function Progress() {
   const navigate = useNavigate()
-  const { today, dataSource, loading: dataLoading } = useDashboardData()
+  const { today, loading: dataLoading } = useDashboardData()
   const units = useUnits()
   const isMetric = units.system === 'metric'
   const [profile,  setProfile]  = useState<ProfileData | null>(null)
@@ -154,9 +152,6 @@ export default function Progress() {
 
   const hasProfile = !!profile?.startDate
   const metrics    = hasProfile ? buildMetrics(profile, today, isMetric) : []
-  const badgeMode: DataBadgeMode | undefined = metrics.length > 0 && dataSource !== 'mock'
-    ? (dataSource === 'manual' ? 'manual' : 'imported')
-    : undefined
   const daysTracked = profile?.startDate ? daysSince(profile.startDate) : 0
   const improvements = metrics.filter(m => m.direction !== 'neutral' && m.good).length
 
@@ -194,7 +189,6 @@ export default function Progress() {
         <p className="prog-subtitle">
           {startLabel ? `Since ${startLabel}` : 'Track how you\'ve changed over time'}
         </p>
-        {badgeMode && <DataBadge mode={badgeMode} source={dataSource === 'manual' ? 'Manual Log' : 'Apple Health'} />}
       </header>
 
       {/* Date span summary */}

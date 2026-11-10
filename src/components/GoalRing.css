@@ -153,6 +153,30 @@
   letter-spacing: 0.04em;
 }
 
+/* Last-synced status line */
+
+.goal-ring-sync-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-quaternary);
+  letter-spacing: 0.02em;
+}
+
+.goal-ring-sync-btn {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--blue);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ─── Detail Modal ────────────────────────────────────────────────────────── */
 
 .goal-ring-overlay {

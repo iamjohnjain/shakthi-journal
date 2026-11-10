@@ -5,7 +5,7 @@ import {
   Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
   TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut,
 } from 'lucide-react'
-import { kgToLbs } from '../data/config'
+import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { getProfile, saveProfile } from '../db/profileStore'
@@ -13,8 +13,6 @@ import { getDBStats } from '../db'
 import type { ProfileData } from '../db/profileStore'
 import { AvatarDisplay, AvatarPicker } from '../components/Avatar'
 import { useAuth } from '../context/AuthContext'
-import DataBadge from '../components/DataBadge'
-import type { DataBadgeMode } from '../components/DataBadge'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
 import { useScrollLock } from '../hooks/useScrollLock'
@@ -121,9 +119,16 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [units.system])
   const [bio,            setBio]            = useState(initial.bio ?? '')
+  const [dob,            setDob]            = useState(initial.dob ?? '')
   const [photo,          setPhoto]          = useState(initial.photoDataUrl ?? '')
   const [avatarId,       setAvatarId]       = useState<string | undefined>(initial.avatarId)
   const [saving,         setSaving]         = useState(false)
+  // The avatar grid only needs to be on-screen when there's an actual choice
+  // to make — a fresh profile with nothing selected yet, or right after the
+  // user taps the photo's "x" and picks "Choose an avatar". Otherwise it's
+  // six icons taking up space next to a photo/avatar the person already set.
+  const [showAvatarPicker, setShowAvatarPicker] = useState(!initial.photoDataUrl && !initial.avatarId)
+  const [showPhotoMenu,    setShowPhotoMenu]    = useState(false)
 
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
@@ -132,13 +137,13 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => { setPhoto(ev.target?.result as string); setAvatarId(undefined) }
+    reader.onload = ev => { setPhoto(ev.target?.result as string); setAvatarId(undefined); setShowAvatarPicker(false) }
     reader.readAsDataURL(file)
   }
 
   function handleAvatarSelect(id: string | undefined) {
     setAvatarId(id)
-    if (id) setPhoto('') // animal avatar overrides photo
+    if (id) { setPhoto(''); setShowAvatarPicker(false) } // animal avatar overrides photo
   }
 
   const heightCmToSave = units.height === 'cm'
@@ -148,9 +153,14 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
   async function handleSave() {
     setSaving(true)
     await onSave({
+      // Preserve fields this form doesn't manage (goalDate, sex, activityLevel,
+      // etc.) — without this spread, saving here would silently wipe them,
+      // since onSave replaces the whole profile rather than merging into it.
+      ...initial,
       name: name.trim() || 'User',
       heightCm: heightCmToSave,
       startDate: startDate || undefined,
+      dob: dob || undefined,
       startWeightKg: startWeightLbs !== '' ? fromW(Number(startWeightLbs)) : undefined,
       startBodyFatPct: startBF !== '' ? Number(startBF) : undefined,
       goalWeightKg: goalWeightLbs !== '' ? fromW(Number(goalWeightLbs)) : undefined,
@@ -176,23 +186,42 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
         <div className="profile-modal-body">
           {/* Avatar / Photo selection */}
           <div className="profile-edit-photo-row">
-            <div className="profile-edit-avatar" onClick={() => fileRef.current?.click()}>
-              {photo
-                ? <img src={photo} alt="Profile" className="profile-edit-avatar-img" />
-                : <AvatarDisplay name={name} avatarId={avatarId} size="lg" />
-              }
-              <div className="profile-edit-avatar-overlay"><Camera size={18} /></div>
-            </div>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
-            <div className="profile-edit-photo-actions">
-              <button className="profile-edit-upload-btn" onClick={() => fileRef.current?.click()}>Upload photo</button>
+            <div className="profile-edit-avatar-wrap">
+              <div
+                className="profile-edit-avatar"
+                onClick={() => { if (!photo && !avatarId) fileRef.current?.click() }}
+              >
+                {photo
+                  ? <img src={photo} alt="Profile" className="profile-edit-avatar-img" />
+                  : <AvatarDisplay name={name} avatarId={avatarId} size="lg" />
+                }
+                {!photo && !avatarId && <div className="profile-edit-avatar-overlay"><Camera size={18} /></div>}
+              </div>
               {(photo || avatarId) && (
-                <button className="profile-edit-remove-photo" onClick={() => { setPhoto(''); setAvatarId(undefined) }}>Remove</button>
+                <button className="profile-edit-avatar-x" onClick={() => setShowPhotoMenu(true)} aria-label="Change photo">
+                  <X size={14} />
+                </button>
               )}
             </div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
+            {!photo && !avatarId && (
+              <button className="profile-edit-upload-btn" onClick={() => fileRef.current?.click()}>Upload photo</button>
+            )}
           </div>
 
-          <AvatarPicker selectedId={avatarId} onSelect={handleAvatarSelect} />
+          {showPhotoMenu && (
+            <div className="profile-photo-menu">
+              <button onClick={() => { setPhoto(''); setAvatarId(undefined); setShowAvatarPicker(true); setShowPhotoMenu(false) }}>
+                Choose an avatar
+              </button>
+              <button onClick={() => { fileRef.current?.click(); setShowPhotoMenu(false) }}>
+                Upload a different photo
+              </button>
+              <button className="profile-photo-menu-cancel" onClick={() => setShowPhotoMenu(false)}>Cancel</button>
+            </div>
+          )}
+
+          {showAvatarPicker && <AvatarPicker selectedId={avatarId} onSelect={handleAvatarSelect} />}
 
           <div className="profile-edit-grid">
             <div className="profile-edit-field">
@@ -220,6 +249,10 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
             <div className="profile-edit-field">
               <label>Tracking since</label>
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div className="profile-edit-field">
+              <label>Date of birth</label>
+              <input type="date" value={dob} max={localDateStr()} onChange={e => setDob(e.target.value)} />
             </div>
             <div className="profile-edit-field">
               <label>Starting weight ({isMetric ? 'kg' : 'lbs'})</label>
@@ -266,7 +299,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 export default function Profile() {
   const navigate = useNavigate()
   const { mode, signOut } = useAuth()
-  const { today, dataSource } = useDashboardData()
+  const { today } = useDashboardData()
   const units = useUnits()
   const isMetric = units.system === 'metric'
   const wUnit = isMetric ? 'kg' : 'lbs'
@@ -417,12 +450,6 @@ export default function Profile() {
         <section className="profile-card">
           <div className="profile-card-title-row">
             <h2 className="profile-card-title">Progress Toward Goals</h2>
-            {(currentWeightLbs != null || currentBF != null) && dataSource !== 'mock' && (
-              <DataBadge
-                mode={(dataSource === 'manual' ? 'manual' : 'imported') as DataBadgeMode}
-                source={dataSource === 'manual' ? 'Manual Log' : 'Apple Health'}
-              />
-            )}
           </div>
           {currentWeightLbs != null && startWeightLbs != null && goalWeightLbs != null && (
             <ProgressBar

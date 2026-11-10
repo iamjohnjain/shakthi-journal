@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { Zap, Moon, Heart, Activity, TrendingUp, PenLine } from 'lucide-react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { getMetricHistory } from '../db/timelineStore'
-import DataBadge from '../components/DataBadge'
-import type { DataBadgeMode } from '../components/DataBadge'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
 import './RecoveryPage.css'
@@ -104,7 +102,7 @@ function useBaseline(metricType: string, currentValue?: number | null) {
 
 export default function RecoveryPage() {
   const navigate = useNavigate()
-  const { today, dataSource, loading } = useDashboardData()
+  const { today, loading } = useDashboardData()
   const hrvBaseline   = useBaseline('hrv', today.hrv)
   const sleepBaseline = useBaseline('sleepHours', today.sleepHours)
   const hrBaseline    = useBaseline('restingHeartRate', today.restingHeartRate)
@@ -116,11 +114,6 @@ export default function RecoveryPage() {
 
   const hasRingConn = owns(ownedDevices, 'ringconn')
 
-  const hasData = today.recoveryScore != null || today.sleepHours != null || today.hrv != null || today.restingHeartRate != null
-  const badgeMode: DataBadgeMode | undefined = hasData && dataSource !== 'mock'
-    ? (dataSource === 'manual' ? 'manual' : 'imported')
-    : undefined
-
   return (
     <div className="recovery-page">
       <header className="page-header">
@@ -128,7 +121,6 @@ export default function RecoveryPage() {
           <h1 className="page-title">Recovery</h1>
           <p className="page-subtitle">Sleep · HRV · Readiness</p>
         </div>
-        {badgeMode && <DataBadge mode={badgeMode} source={dataSource === 'manual' ? 'Manual Log' : 'Apple Health'} />}
       </header>
 
       <div className="recovery-hero">

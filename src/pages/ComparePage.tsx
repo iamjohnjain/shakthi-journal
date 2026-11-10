@@ -105,12 +105,6 @@ function mergeLog(snap: DailySnapshot | null, log: DailyLog | null, date: string
   return { ...merged, _source: source, waistCm: log?.waistCm, chestCm: log?.chestCm, hipsCm: log?.hipsCm }
 }
 
-function sourceMode(src: string) {
-  if (src.includes('Mock') || src.includes('Baseline')) return 'mock' as const
-  if (src.includes('Manual')) return 'manual' as const
-  return 'imported' as const
-}
-
 // ─── Metric Card ─────────────────────────────────────────────────────────────
 
 function MetricCard({ m, snapA, snapB, dateA, dateB }: {
@@ -386,12 +380,6 @@ export default function ComparePage() {
           <span className="cmp-range-a">{fmtDate(dateA)}</span>
           <span className="cmp-range-arrow">→</span>
           <span className="cmp-range-b">{fmtDate(dateB)}</span>
-          {result && (
-            <span className="cmp-range-src">
-              <DataBadge mode={sourceMode(result.snapA._source)} source={result.snapA._source} size="sm" />
-              <DataBadge mode={sourceMode(result.snapB._source)} source={result.snapB._source} size="sm" />
-            </span>
-          )}
         </div>
       )}
 

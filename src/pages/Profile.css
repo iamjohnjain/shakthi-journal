@@ -446,6 +446,8 @@
   max-width: 540px;
   max-height: 90dvh;
   overflow-y: auto;
+  overflow-x: hidden;
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 60px rgba(0,0,0,0.6);
@@ -492,6 +494,11 @@
   margin-bottom: 4px;
 }
 
+.profile-edit-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .profile-edit-avatar {
   width: 72px; height: 72px;
   border-radius: 50%;
@@ -518,9 +525,18 @@
 }
 .profile-edit-avatar:hover .profile-edit-avatar-overlay { opacity: 1; }
 
-.profile-edit-photo-actions {
-  display: flex; flex-direction: column; gap: 6px;
+.profile-edit-avatar-x {
+  position: absolute;
+  top: -2px; right: -2px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
 }
+.profile-edit-avatar-x:hover { color: var(--text-primary); border-color: var(--border-strong); }
 
 .profile-edit-upload-btn {
   background: rgba(255,255,255,0.06);
@@ -532,11 +548,30 @@
 }
 .profile-edit-upload-btn:hover { background: rgba(255,255,255,0.1); }
 
-.profile-edit-remove-photo {
-  background: none; border: none;
-  color: var(--red); font-size: 12px; cursor: pointer;
-  padding: 0; text-decoration: underline;
+.profile-photo-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 4px;
+  margin-top: -6px;
 }
+
+.profile-photo-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.profile-photo-menu button:hover { background: rgba(255,255,255,0.06); }
+.profile-photo-menu-cancel { color: var(--text-tertiary) !important; font-weight: 500 !important; }
 
 .profile-edit-grid {
   display: grid;
