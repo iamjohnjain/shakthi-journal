@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { getSetting } from '../db'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
@@ -8,6 +8,7 @@ import './Layout.css'
 
 export default function Layout() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     getSetting<boolean>('onboarding.completed', false).then(done => {
@@ -19,7 +20,13 @@ export default function Layout() {
     <div className="app-shell">
       <Sidebar />
       <main className="page-content">
-        <Outlet />
+        {/* Keying on pathname forces a fresh mount per route, so every
+            navigation gets the same fade-in regardless of whether the
+            destination page defines its own entrance animation — opacity
+            only, see the note below on why transform can't be used here. */}
+        <div key={location.pathname} className="page-transition">
+          <Outlet />
+        </div>
       </main>
       <BottomNav />
       <Toast />

@@ -1,4 +1,11 @@
+.bh3d-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .bh3d-canvas-wrap {
+  position: relative;
   width: 100%;
   height: min(66vh, 640px);
   min-height: 460px;
@@ -11,6 +18,55 @@
   background: radial-gradient(circle at 50% 30%, var(--bg-elevated), var(--bg-secondary));
 }
 .bh3d-canvas-wrap:active { cursor: grabbing; }
+
+/* Press-and-hold spin arrows, flanking the figure over the canvas itself */
+.bh3d-spin-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: rgba(20, 18, 26, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  touch-action: none;
+  cursor: pointer;
+}
+.bh3d-spin-arrow:active { color: var(--text-primary); }
+.bh3d-spin-arrow--left  { left: 10px; }
+.bh3d-spin-arrow--right { right: 10px; }
+
+/* Quick-select row — tap a muscle group to auto-turn + select it */
+.bh3d-quickselect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.bh3d-quickselect-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+.bh3d-quickselect-btn:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.bh3d-quickselect-btn--active {
+  color: var(--blue);
+  background: var(--blue-dim);
+  border-color: rgba(91, 127, 255, 0.3);
+}
 
 .bh3d-lost {
   width: 100%;

@@ -124,6 +124,24 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ─── Press glow (haptic-style feedback) ──────────────────────────────────
+   A soft glowing ring appears the instant a button is pressed and holds for
+   as long as the finger/pointer stays down — CSS :active already tracks
+   exactly that window natively, so no JS press/release bookkeeping is
+   needed. Scoped to buttons and explicit [role="button"] elements only
+   (never bare divs/empty space). `:not([data-no-press-glow])` is an escape
+   hatch for the rare button that already has its own bespoke pressed state
+   (e.g. a drag handle) that this would visually clash with. */
+button:not([data-no-press-glow]),
+[role="button"]:not([data-no-press-glow]) {
+  transition: box-shadow 0.18s ease, transform 0.08s ease;
+}
+button:not(:disabled):not([data-no-press-glow]):active,
+[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--blue) 26%, transparent);
+  transform: scale(0.98);
+}
+
 a {
   color: inherit;
   text-decoration: none;

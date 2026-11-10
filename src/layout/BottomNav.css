@@ -49,19 +49,20 @@
     color: var(--text-primary);
   }
 
-  /* Glass highlight capsule behind the selected tab, bordered in the same
-     brand gradient as the Workout "Start" button — a glassy fill rather
-     than a solid gradient so the nav doesn't turn into a loud color block. */
+  /* Soft glow behind the selected tab, in the same brand hues as the
+     Workout "Start" button — a blurred radial glow rather than a crisp
+     gradient border, so it reads as light rather than a bright outline. */
   .bottom-tab.active::before {
     content: '';
     position: absolute;
-    inset: 2px 4px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid transparent;
-    background-image: linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)), var(--gradient-brand);
-    background-origin: border-box;
-    background-clip: padding-box, border-box;
-    border-radius: 16px;
+    inset: -6px -2px;
+    background:
+      radial-gradient(ellipse 80% 90% at 50% 50%,
+        rgba(166, 107, 245, 0.30) 0%,
+        rgba(91, 127, 255, 0.20) 45%,
+        transparent 75%);
+    filter: blur(6px);
+    border-radius: 18px;
     z-index: -1;
   }
 

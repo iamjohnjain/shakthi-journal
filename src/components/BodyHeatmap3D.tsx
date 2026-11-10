@@ -2,7 +2,8 @@ import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Canvas, useLoader, useThree, type ThreeEvent } from '@react-three/fiber'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as THREE from 'three'
-import type { VisualRegion } from '../lib/muscleMap'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { REGION_LABEL, type VisualRegion } from '../lib/muscleMap'
 import type { RegionLoad } from '../hooks/useMuscleLoad'
 import './BodyHeatmap3D.css'
 
@@ -61,6 +62,17 @@ const NODE_REGION: Record<string, VisualRegion | null> = {
   // hand/foot skin) — always neutral, never selectable.
   body_context: null, context_bone: null, context_tendon: null, context_skin: null,
 }
+
+/** Which way the body needs to face (radians, 0 = facing the camera) for a
+    region to actually be visible — drives the quick-select row's auto-turn. */
+const REGION_FACING: Record<VisualRegion, number> = {
+  chest: 0, shoulders: 0, biceps: 0, core: 0, quads: 0, calves: 0,
+  back: Math.PI, triceps: Math.PI, hamstrings: Math.PI, glutes: Math.PI,
+}
+
+const QUICK_SELECT_REGIONS: VisualRegion[] = [
+  'chest', 'shoulders', 'back', 'biceps', 'triceps', 'core', 'quads', 'hamstrings', 'glutes', 'calves',
+]
 
 /** Walks up from the exact mesh the raycaster hit to find which top-level
     named node it belongs to — a click lands on one of a region's several
@@ -234,6 +246,21 @@ const FRICTION = 0.945
 const MAX_VELOCITY = 1.6 // px/ms — caps how fast a flick can launch the coast
 const CLICK_DRAG_GUARD = 6 // px of total movement before a tap stops counting as a tap
 
+/** Shortest signed angular distance from `from` to `to` (both in radians),
+    folded into (-π, π] — so animating "to" never spins the long way around
+    just because the raw rotation value has accumulated past a full turn
+    (flicks/drags are never clamped back into 0–2π, by design). */
+function shortestDelta(from: number, to: number): number {
+  const twoPi = Math.PI * 2
+  let delta = (to - from) % twoPi
+  if (delta > Math.PI) delta -= twoPi
+  if (delta < -Math.PI) delta += twoPi
+  return delta
+}
+
+const HOLD_SPIN_SPEED = 0.028 // rad/frame while a hold-to-spin arrow is pressed
+const TARGET_EASE = 0.12 // fraction of remaining distance closed per frame when turning to face a region
+
 export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion }: BodyHeatmap3DProps) {
   const [rotationY, setRotationY] = useState(0) // start facing the camera head-on
   const [contextLost, setContextLost] = useState(false)
@@ -243,7 +270,10 @@ export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion 
   const velocity = useRef(0) // px/ms, most-recent drag speed — carried into the release coast
   const dragDistance = useRef(0)
   const rafId = useRef<number>()
+  const holdDirection = useRef(0) // -1 / 0 / 1 — which way a held arrow button is spinning, if any
+  const rotationYRef = useRef(0) // mirrors state for reads inside RAF loops without stale closures
 
+  useEffect(() => { rotationYRef.current = rotationY }, [rotationY])
   useEffect(() => () => { if (rafId.current) cancelAnimationFrame(rafId.current) }, [])
 
   const handlePick = useCallback((region: VisualRegion) => {
@@ -251,12 +281,16 @@ export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion 
     onSelectRegion(region)
   }, [onSelectRegion])
 
-  function stopCoast() {
+  // Only one animation driver owns rafId at a time — every entry point below
+  // calls this first, so a drag, a flick-coast, a hold-spin, and a
+  // quick-select turn can never fight over the same rotation value.
+  function stopAutoRotate() {
     if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = undefined }
+    holdDirection.current = 0
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    stopCoast()
+    stopAutoRotate()
     dragging.current = true
     lastX.current = e.clientX
     lastMoveTime.current = performance.now()
@@ -292,7 +326,8 @@ export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion 
     setRotationY(r => r + dx * DRAG_SENSITIVITY)
   }
 
-  function onPointerUp(e: React.PointerEvent) {
+  function endDrag(e: React.PointerEvent) {
+    if (!dragging.current) return
     dragging.current = false
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId)
@@ -313,6 +348,46 @@ export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion 
     }
   }
 
+  // Press-and-hold arrow buttons — continuous rotation at a fixed speed for
+  // as long as the pointer stays down, stopping the instant it lifts (or
+  // leaves the button, so a drag-off doesn't leave it spinning forever).
+  function startHoldSpin(direction: -1 | 1) {
+    stopAutoRotate()
+    holdDirection.current = direction
+    const spin = () => {
+      if (holdDirection.current === 0) { rafId.current = undefined; return }
+      setRotationY(r => r + holdDirection.current * HOLD_SPIN_SPEED)
+      rafId.current = requestAnimationFrame(spin)
+    }
+    rafId.current = requestAnimationFrame(spin)
+  }
+  function stopHoldSpin() {
+    holdDirection.current = 0
+    stopAutoRotate()
+  }
+
+  // Quick-select: smoothly ease-turn to face whichever side the tapped
+  // region lives on, then open its detail same as a direct tap would.
+  function turnToFace(targetFacing: number) {
+    stopAutoRotate()
+    const animate = () => {
+      const delta = shortestDelta(rotationYRef.current, targetFacing)
+      if (Math.abs(delta) < 0.004) {
+        setRotationY(r => r + delta)
+        rafId.current = undefined
+        return
+      }
+      setRotationY(r => r + delta * TARGET_EASE)
+      rafId.current = requestAnimationFrame(animate)
+    }
+    rafId.current = requestAnimationFrame(animate)
+  }
+
+  function handleQuickSelect(region: VisualRegion) {
+    turnToFace(REGION_FACING[region])
+    onSelectRegion(region)
+  }
+
   function handleCreated({ gl }: { gl: THREE.WebGLRenderer }) {
     gl.domElement.addEventListener('webglcontextlost', e => {
       e.preventDefault()
@@ -330,27 +405,64 @@ export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion 
   }
 
   return (
-    <div
-      className="bh3d-canvas-wrap"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
-    >
-      <Canvas
-        orthographic
-        dpr={[1, 2]}
-        camera={{ position: [0, 0, 6], near: 0.1, far: 20 }}
-        gl={{ toneMapping: THREE.NoToneMapping, antialias: true }}
-        onCreated={handleCreated}
+    <div className="bh3d-wrap">
+      <div
+        className="bh3d-canvas-wrap"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
       >
-        <FitCamera viewHeight={3.0} />
-        <ambientLight intensity={1.4} />
-        <directionalLight position={[2, 3, 4]} intensity={2.0} />
-        <directionalLight position={[-2.5, 0.5, -2]} intensity={0.9} />
-        <directionalLight position={[0, -2, 2]} intensity={0.3} />
-        <Figure regions={regions} selectedRegion={selectedRegion} rotationY={rotationY} onPick={handlePick} />
-      </Canvas>
+        <button
+          className="bh3d-spin-arrow bh3d-spin-arrow--left"
+          aria-label="Hold to spin left"
+          onPointerDown={e => { e.stopPropagation(); startHoldSpin(-1) }}
+          onPointerUp={stopHoldSpin}
+          onPointerLeave={stopHoldSpin}
+          onPointerCancel={stopHoldSpin}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <button
+          className="bh3d-spin-arrow bh3d-spin-arrow--right"
+          aria-label="Hold to spin right"
+          onPointerDown={e => { e.stopPropagation(); startHoldSpin(1) }}
+          onPointerUp={stopHoldSpin}
+          onPointerLeave={stopHoldSpin}
+          onPointerCancel={stopHoldSpin}
+        >
+          <ChevronRight size={18} />
+        </button>
+        <Canvas
+          orthographic
+          dpr={[1, 2]}
+          camera={{ position: [0, 0, 6], near: 0.1, far: 20 }}
+          gl={{ toneMapping: THREE.NoToneMapping, antialias: true }}
+          onCreated={handleCreated}
+        >
+          <FitCamera viewHeight={3.0} />
+          <ambientLight intensity={1.4} />
+          <directionalLight position={[2, 3, 4]} intensity={2.0} />
+          <directionalLight position={[-2.5, 0.5, -2]} intensity={0.9} />
+          <directionalLight position={[0, -2, 2]} intensity={0.3} />
+          <Figure regions={regions} selectedRegion={selectedRegion} rotationY={rotationY} onPick={handlePick} />
+        </Canvas>
+      </div>
+
+      {/* Quick-select — tap a muscle group to auto-turn the body to face it
+          and open its detail, for anyone who'd rather not hunt for the right
+          angle themselves. */}
+      <div className="bh3d-quickselect">
+        {QUICK_SELECT_REGIONS.map(region => (
+          <button
+            key={region}
+            className={`bh3d-quickselect-btn ${selectedRegion === region ? 'bh3d-quickselect-btn--active' : ''}`}
+            onClick={() => handleQuickSelect(region)}
+          >
+            {REGION_LABEL[region]}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

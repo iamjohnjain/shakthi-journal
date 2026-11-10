@@ -332,7 +332,8 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
       <div className="goal-ring-card" onClick={handleCardClick} role="button" tabIndex={0}
         onKeyDown={e => e.key === 'Enter' && setShowDetail(true)}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}>
+        onTouchEnd={handleTouchEnd}
+        style={{ '--goal-glow': cfg.color } as React.CSSProperties}>
 
         <div className="goal-ring-header">
           <span className="goal-ring-type-label">{cfg.label}</span>

@@ -1,6 +1,8 @@
 /* ─── Goal Ring Card ──────────────────────────────────────────────────────── */
 
 .goal-ring-card {
+  position: relative;
+  overflow: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-xl);
@@ -17,6 +19,29 @@
 .goal-ring-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--border);
+}
+
+/* Ambient glow behind the ring, tinted per metric — makes the card feel lit
+   from within instead of a thin ring floating in an empty dark box. */
+.goal-ring-card::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120%;
+  height: 65%;
+  background: radial-gradient(ellipse 60% 70% at 50% 35%,
+    color-mix(in srgb, var(--goal-glow, var(--blue)) 38%, transparent) 0%,
+    transparent 72%);
+  filter: blur(26px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.goal-ring-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Header */
