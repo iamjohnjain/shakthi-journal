@@ -93,13 +93,13 @@
   padding: 8px 18px;
   border-radius: 20px;
   border: none;
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
-.goal-ring-cta:hover { background: #1d8fff; }
+.goal-ring-cta:hover { opacity: .88; }
 
 /* Stats row */
 
