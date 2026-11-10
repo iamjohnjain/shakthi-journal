@@ -4,6 +4,7 @@ import { kgToLbs, localDateStr, addLocalDays } from '../data/config'
 import { saveLog, getLog } from '../db/logStore'
 import type { DailyLog } from '../db/logStore'
 import DataBadge from '../components/DataBadge'
+import { useUnits } from '../hooks/useUnits'
 import './DailyLog.css'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -122,6 +123,8 @@ function ToggleField({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DailyLog() {
+  const units = useUnits()
+  const isMetric = units.system === 'metric'
   const [date, setDate]   = useState(todayStr)
   const [saved, setSaved] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -129,8 +132,13 @@ export default function DailyLog() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  // form state
-  const [weightLbs, setWeightLbs] = useState<number | undefined>()
+  // form state — weight is held canonically in kg; the field only converts
+  // for display/typing at the unit-system boundary (so switching US/Metric
+  // in Settings doesn't require re-interpreting anything already saved).
+  const [weightKgState, setWeightKgState] = useState<number | undefined>()
+  const [waistCm, setWaistCm] = useState<number | undefined>()
+  const [chestCm, setChestCm] = useState<number | undefined>()
+  const [hipsCm, setHipsCm] = useState<number | undefined>()
   const [restingHR, setRestingHR] = useState<number | undefined>()
   const [calories,  setCalories]  = useState<number | undefined>()
   const [protein,   setProtein]   = useState<number | undefined>()
@@ -151,7 +159,10 @@ export default function DailyLog() {
     const log = await getLog(d)
     if (log) {
       setExisting(true)
-      setWeightLbs(log.weightKg ? +kgToLbs(log.weightKg).toFixed(1) : undefined)
+      setWeightKgState(log.weightKg)
+      setWaistCm(log.waistCm)
+      setChestCm(log.chestCm)
+      setHipsCm(log.hipsCm)
       setRestingHR(log.restingHeartRate)
       setCalories(log.caloriesIn)
       setProtein(log.proteinG)
@@ -167,7 +178,8 @@ export default function DailyLog() {
       setNotes(log.notes ?? '')
     } else {
       setExisting(false)
-      setWeightLbs(undefined); setRestingHR(undefined); setCalories(undefined); setProtein(undefined)
+      setWeightKgState(undefined); setWaistCm(undefined); setChestCm(undefined); setHipsCm(undefined)
+      setRestingHR(undefined); setCalories(undefined); setProtein(undefined)
       setCarbs(undefined); setFat(undefined); setWater(undefined)
       setWorkout(false); setWorkoutNotes(''); setSleepHours(undefined)
       setMood(undefined); setEnergy(undefined); setSleepQ(undefined); setNotes('')
@@ -184,7 +196,10 @@ export default function DailyLog() {
     try {
       await saveLog({
         date,
-        weightKg:         weightLbs != null ? +(weightLbs / 2.20462).toFixed(2) : undefined,
+        weightKg:         weightKgState,
+        waistCm,
+        chestCm,
+        hipsCm,
         restingHeartRate: restingHR,
         caloriesIn:       calories,
         proteinG:         protein,
@@ -252,8 +267,35 @@ export default function DailyLog() {
           resting HR from a 60-second pulse count. Kept separate from HRV/SpO2,
           which nobody can self-measure, so we never invite a guess at those. */}
       <LogSection title="Body">
-        <NumberField label="Weight" value={weightLbs} onChange={v => { setWeightLbs(v); markDirty() }} unit="lbs" step={0.1} min={50} max={500} placeholder="0" />
+        <NumberField
+          label="Weight"
+          value={weightKgState != null ? +(isMetric ? weightKgState : kgToLbs(weightKgState)).toFixed(1) : undefined}
+          onChange={v => { setWeightKgState(v != null ? +(isMetric ? v : v / 2.20462).toFixed(2) : undefined); markDirty() }}
+          unit={isMetric ? 'kg' : 'lbs'}
+          step={0.1} min={isMetric ? 20 : 50} max={isMetric ? 230 : 500} placeholder="—"
+        />
         <NumberField label="Resting heart rate" value={restingHR} onChange={v => { setRestingHR(v); markDirty() }} unit="bpm" step={1} min={30} max={220} placeholder="62" />
+        <NumberField
+          label="Waist"
+          value={waistCm != null ? +(isMetric ? waistCm : waistCm / 2.54).toFixed(1) : undefined}
+          onChange={v => { setWaistCm(v != null ? +(isMetric ? v : v * 2.54).toFixed(1) : undefined); markDirty() }}
+          unit={isMetric ? 'cm' : 'in'}
+          step={0.5} min={0} max={isMetric ? 200 : 80} placeholder="—"
+        />
+        <NumberField
+          label="Chest"
+          value={chestCm != null ? +(isMetric ? chestCm : chestCm / 2.54).toFixed(1) : undefined}
+          onChange={v => { setChestCm(v != null ? +(isMetric ? v : v * 2.54).toFixed(1) : undefined); markDirty() }}
+          unit={isMetric ? 'cm' : 'in'}
+          step={0.5} min={0} max={isMetric ? 200 : 80} placeholder="—"
+        />
+        <NumberField
+          label="Hips"
+          value={hipsCm != null ? +(isMetric ? hipsCm : hipsCm / 2.54).toFixed(1) : undefined}
+          onChange={v => { setHipsCm(v != null ? +(isMetric ? v : v * 2.54).toFixed(1) : undefined); markDirty() }}
+          unit={isMetric ? 'cm' : 'in'}
+          step={0.5} min={0} max={isMetric ? 200 : 80} placeholder="—"
+        />
       </LogSection>
 
       {/* Nutrition is logged via /nutrition — removed from daily log to avoid dual-entry confusion */}

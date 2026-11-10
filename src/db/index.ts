@@ -10,6 +10,12 @@ export type SyncHistoryStatus = 'success' | 'failed' | 'partial'
 export interface DailyLog {
   date: string
   weightKg?: number
+  /** Body measurements, stored in cm regardless of the user's display unit
+      system — same convention as weightKg, converted only at the UI
+      boundary so switching units never requires re-interpreting history. */
+  waistCm?: number
+  chestCm?: number
+  hipsCm?: number
   caloriesIn?: number
   proteinG?: number
   carbsG?: number
