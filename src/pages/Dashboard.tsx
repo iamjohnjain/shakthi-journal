@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw, Flame, Dumbbell } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { getSetting } from '../db'
@@ -14,6 +14,8 @@ import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
 import { getImportedDates } from '../db/healthStore'
 import { getAllLogDates } from '../db/logStore'
+import { getCurrentStreak as getNutritionStreak } from '../db/nutritionStore'
+import { getCurrentWorkoutStreak } from '../db/workoutStore'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
@@ -523,6 +525,8 @@ export default function Dashboard() {
   const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [markedDates, setMarkedDates] = useState<Set<string>>(new Set())
+  const [nutritionStreak, setNutritionStreak] = useState(0)
+  const [workoutStreak, setWorkoutStreak] = useState(0)
 
   useEffect(() => {
     getProfile().then(p => {
@@ -531,6 +535,8 @@ export default function Dashboard() {
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
     getOwnedDevices().then(setOwnedDevices)
+    getNutritionStreak().then(setNutritionStreak)
+    getCurrentWorkoutStreak().then(setWorkoutStreak)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
       setUserName(p.name || null)
@@ -612,6 +618,20 @@ export default function Dashboard() {
           </button>
           {!isToday && (
             <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
+          )}
+          {isToday && (nutritionStreak >= 2 || workoutStreak >= 2) && (
+            <div className="dash-streaks">
+              {nutritionStreak >= 2 && (
+                <button className="dash-streak-chip" onClick={() => navigate('/nutrition')} aria-label={`${nutritionStreak} day nutrition streak`}>
+                  <Flame size={13} />{nutritionStreak}
+                </button>
+              )}
+              {workoutStreak >= 2 && (
+                <button className="dash-streak-chip dash-streak-chip--workout" onClick={() => navigate('/workouts')} aria-label={`${workoutStreak} day workout streak`}>
+                  <Dumbbell size={13} />{workoutStreak}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
