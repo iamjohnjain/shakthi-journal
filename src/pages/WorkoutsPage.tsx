@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -6,26 +7,32 @@ import {
   Lightbulb, Flame,
   ChevronLeft, ChevronRight, Copy, Clipboard,
   LayoutTemplate, Check, X, AlertTriangle, Play,
+  GripVertical, Coffee,
 } from 'lucide-react'
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import ActiveWorkout from './ActiveWorkout'
+import TemplateModal from '../components/TemplateModal'
 import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs, annotateExercises, estimateOneRM,
   getWorkoutsForDate, getWorkoutDateTypes,
   getWorkoutsForWeekDates,
   getLastExercisePerformance, suggestNextWorkingSet,
-  WORKOUT_TYPES, CARDIO_SUBTYPES, EXERCISE_LIBRARY, BODY_AREAS,
+  WORKOUT_TYPES, CARDIO_SUBTYPES, EXERCISE_LIBRARY,
 } from '../db/workoutStore'
 import type { ExerciseLastPerf, NextSetSuggestion } from '../db/workoutStore'
 import {
   estimateWorkoutCalories, seedExerciseLibraryIfEmpty,
-  getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise,
+  getAllExerciseNames, capitalizeExerciseName,
 } from '../db/trainingStore'
 import { getTemplates, workoutToTemplate } from '../db/templateStore'
 import type { WorkoutTemplate } from '../db/templateStore'
 import { useWorkoutSuggestion } from '../hooks/useWorkoutSuggestion'
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
-import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry, CardioEntry } from '../db'
+import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry } from '../db'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr, addLocalDays, formatDate } from '../data/config'
@@ -277,11 +284,10 @@ function SetRow({
 type ExEntry = WorkoutExerciseEntry & { equipment?: string }
 
 function ExerciseBlock({
-  ex, onChange, onRemove, prMap, exerciseNames, onMoveUp, onMoveDown, canMoveUp, canMoveDown,
+  ex, onChange, onRemove, prMap, exerciseNames,
 }: {
   ex: ExEntry; onChange: (u: ExEntry) => void; onRemove: () => void; prMap: Map<string, number>
   exerciseNames: string[]
-  onMoveUp: () => void; onMoveDown: () => void; canMoveUp: boolean; canMoveDown: boolean
 }) {
   // Warm-up sets don't count as "working volume" — matches how they're
   // excluded from e1RM/PR and the progressive-overload suggestion.
@@ -315,14 +321,6 @@ function ExerciseBlock({
   return (
     <div className="exercise-block">
       <div className="exercise-block-header">
-        <div className="exercise-reorder-col">
-          <button className="exercise-reorder-btn" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Move exercise up">
-            <ChevronUp size={13} />
-          </button>
-          <button className="exercise-reorder-btn" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Move exercise down">
-            <ChevronDown size={13} />
-          </button>
-        </div>
         <input list="exercise-datalist" className="exercise-name-input" placeholder="Exercise name"
           value={ex.name}
           onChange={e => onChange({ ...ex, name: e.target.value })}
@@ -367,42 +365,6 @@ function ExerciseBlock({
   )
 }
 
-// ─── Cardio section ───────────────────────────────────────────────────────────
-
-function CardioSection({ entry, onChange }: { entry: Partial<CardioEntry>; onChange: (u: Partial<CardioEntry>) => void }) {
-  return (
-    <div className="cardio-section">
-      <h4 className="cardio-section-title">Cardio Details</h4>
-      <div className="cardio-grid">
-        <div className="cardio-field">
-          <label className="cardio-label">Distance (km)</label>
-          <input type="number" inputMode="decimal" className="cardio-input" placeholder="0.0" step={0.1} min={0}
-            value={entry.distanceKm ?? ''} onChange={e => onChange({ ...entry, distanceKm: e.target.value ? +e.target.value : undefined })} />
-        </div>
-        <div className="cardio-field">
-          <label className="cardio-label">Avg HR (bpm)</label>
-          <input type="number" inputMode="numeric" className="cardio-input" placeholder="—" min={40} max={220}
-            value={entry.avgHeartRate ?? ''} onChange={e => onChange({ ...entry, avgHeartRate: e.target.value ? +e.target.value : undefined })} />
-        </div>
-        <div className="cardio-field">
-          <label className="cardio-label">Calories (override)</label>
-          <input type="number" inputMode="numeric" className="cardio-input" placeholder="Auto-calculated"
-            value={entry.calories ?? ''} onChange={e => onChange({ ...entry, calories: e.target.value ? +e.target.value : undefined })} />
-        </div>
-        <div className="cardio-field">
-          <label className="cardio-label">Source</label>
-          <select className="cardio-select" value={entry.source ?? 'Manual'} onChange={e => onChange({ ...entry, source: e.target.value })}>
-            <option value="Manual">Manual</option>
-            <option value="Apple Health">Apple Health</option>
-            <option value="Strava">Strava</option>
-            <option value="Mock">[MOCKED]</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 
 function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
@@ -421,6 +383,39 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
   )
 }
 
+// ─── Sortable list item (drag handle + content) ────────────────────────────────
+
+function SortableItem({ id, children }: { id: string; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+  return (
+    <div ref={setNodeRef} style={style} className="sortable-item">
+      <button className="sortable-drag-handle" {...attributes} {...listeners} aria-label="Drag to reorder">
+        <GripVertical size={15} />
+      </button>
+      <div className="sortable-item-content">{children}</div>
+    </div>
+  )
+}
+
+// ─── Break marker ───────────────────────────────────────────────────────────────
+
+function BreakMarker({ onRemove }: { onRemove: () => void }) {
+  return (
+    <div className="break-marker">
+      <Coffee size={14} />
+      <span>Break</span>
+      <button className="break-marker-remove" onClick={onRemove} aria-label="Remove break">
+        <X size={13} />
+      </button>
+    </div>
+  )
+}
+
 // ─── WorkoutCard ──────────────────────────────────────────────────────────────
 
 function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
@@ -433,6 +428,14 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [exercises, setExercises] = useState<ExEntry[]>(w.exercises)
+  // Our own edits persist via `persist()` without refetching, so `w` only
+  // changes reference when something external updated this session (e.g. a
+  // template merged into it from the picker) — safe to always resync then.
+  useEffect(() => { setExercises(w.exercises) }, [w.id, w.updatedAt])
+  const [showSaveAsTmpl, setShowSaveAsTmpl] = useState(false)
+  const [tmplName, setTmplName] = useState('')
+  const [tmplSaving, setTmplSaving] = useState(false)
+  const [tmplSaved, setTmplSaved] = useState(false)
   const cals  = w.overrideCalories ?? w.estimatedCalories
   const subtype = w.cardioSubtype
   const typeLabel = w.type === 'cardio' && subtype
@@ -443,9 +446,117 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
     return estimateOneRM(s.weightLbs, s.reps) > (prMap.get(ex.name) ?? 0)
   }))
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   function persist(next: ExEntry[]) {
     setExercises(next)
     annotateExercises(next).then(annotated => updateWorkout(w.id, { exercises: annotated }, { silent: true }))
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldIndex = Number(active.id)
+    const newIndex = Number(over.id)
+    persist(arrayMove(exercises, oldIndex, newIndex))
+  }
+
+  async function handleSaveAsTemplate() {
+    if (!tmplName.trim()) return
+    setTmplSaving(true)
+    try {
+      await workoutToTemplate(tmplName, exercises.filter(ex => ex.name.trim() && !ex.isBreak), {
+        notes: w.notes,
+        estimatedDurationMin: w.durationMin,
+      })
+      setTmplSaved(true)
+      setShowSaveAsTmpl(false)
+      setTmplName('')
+      setTimeout(() => setTmplSaved(false), 2500)
+    } finally {
+      setTmplSaving(false)
+    }
+  }
+
+  if (w.type === 'lifting') {
+    return (
+      <>
+        <div className={`wk-flat-session ${hasPR ? 'wk-flat-session--pr' : ''}`}>
+          <div className="wk-flat-header">
+            <div className="wk-flat-header-left">
+              <span className={`workout-type-pill workout-type-pill--${w.type}`}>{typeLabel}</span>
+              <div className="workout-card-title">{w.title}</div>
+              <div className="workout-card-meta">
+                {w.durationMin}min{w.rpe ? ` · RPE ${w.rpe}` : ''}
+                {cals ? (
+                  <span className={`wc-cal wc-cal--${w.caloriesConfidence ?? 'medium'}`}>
+                    <Flame size={11} />{cals} kcal{w.caloriesConfidence === 'low' ? ' est.' : ''}
+                  </span>
+                ) : null}
+                {hasPR && <span className="workout-pr-badge">🏆 PR</span>}
+              </div>
+            </div>
+            <div className="wk-flat-header-actions">
+              <button className="wc-icon-btn" onClick={onCopy} title="Copy to another day"><Copy size={14} /></button>
+              <button className="wc-icon-btn" onClick={() => setShowSaveAsTmpl(v => !v)} title="Save as template"><LayoutTemplate size={14} /></button>
+              <button className="wc-icon-btn wc-icon-btn--del" onClick={() => setConfirmDelete(true)} title="Delete"><Trash2 size={14} /></button>
+            </div>
+          </div>
+
+          {showSaveAsTmpl && (
+            <div className="log-save-tmpl">
+              <input className="log-tmpl-name-input" placeholder="Template name…"
+                value={tmplName} onChange={e => setTmplName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveAsTemplate()} />
+              <button className="log-tmpl-save-btn" onClick={handleSaveAsTemplate} disabled={!tmplName.trim() || tmplSaving}>
+                <Check size={14} /> {tmplSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button className="log-tmpl-cancel-btn" onClick={() => setShowSaveAsTmpl(false)}>×</button>
+            </div>
+          )}
+          {tmplSaved && <div className="log-tmpl-saved"><Check size={13} /> Saved as template!</div>}
+
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={exercises.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
+              {exercises.map((ex, i) => (
+                <SortableItem key={i} id={String(i)}>
+                  {ex.isBreak ? (
+                    <BreakMarker onRemove={() => persist(exercises.filter((_, j) => j !== i))} />
+                  ) : (
+                    <ExerciseBlock ex={ex} prMap={prMap} exerciseNames={exerciseNames}
+                      onChange={upd => { const n = [...exercises]; n[i] = upd; persist(n) }}
+                      onRemove={() => persist(exercises.filter((_, j) => j !== i))} />
+                  )}
+                </SortableItem>
+              ))}
+            </SortableContext>
+          </DndContext>
+
+          <div className="wk-flat-add-row">
+            <button className="add-exercise-btn"
+              onClick={() => persist([...exercises, { name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }])}>
+              + Exercise
+            </button>
+            <button className="add-break-btn"
+              onClick={() => persist([...exercises, { name: 'Break', sets: [], isBreak: true }])}>
+              <Coffee size={13} /> Break
+            </button>
+          </div>
+
+          {w.notes && <p className="workout-notes-view">{w.notes}</p>}
+        </div>
+
+        {confirmDelete && (
+          <ConfirmDialog
+            message={`Delete "${w.title}"? This cannot be undone.`}
+            onConfirm={() => { setConfirmDelete(false); onDelete() }}
+            onCancel={() => setConfirmDelete(false)} />
+        )}
+      </>
+    )
   }
 
   return (
@@ -462,7 +573,6 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
                   <Flame size={11} />{cals} kcal{w.caloriesConfidence === 'low' ? ' est.' : ''}
                 </span>
               ) : null}
-              {hasPR && <span className="workout-pr-badge">🏆 PR</span>}
             </div>
           </div>
           <div className="workout-card-toggle">{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
@@ -480,25 +590,6 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
                 {c.avgHeartRate ? <span>{c.avgHeartRate} bpm</span> : null}
               </div>
             ))}
-            {w.type === 'lifting' && (
-              <div className="log-exercises">
-                <div className="log-exercises-header">
-                  <span className="log-section-title">Exercises</span>
-                  <button className="add-exercise-btn"
-                    onClick={() => persist([...exercises, { name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }])}>
-                    + Exercise
-                  </button>
-                </div>
-                {exercises.map((ex, i) => (
-                  <ExerciseBlock key={i} ex={ex} prMap={prMap} exerciseNames={exerciseNames}
-                    onChange={upd => { const n = [...exercises]; n[i] = upd; persist(n) }}
-                    onRemove={() => persist(exercises.filter((_, j) => j !== i))}
-                    canMoveUp={i > 0} canMoveDown={i < exercises.length - 1}
-                    onMoveUp={() => { const n = [...exercises]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; persist(n) }}
-                    onMoveDown={() => { const n = [...exercises]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; persist(n) }} />
-                ))}
-              </div>
-            )}
             {cals && (
               <div className="wc-calories-row">
                 <Flame size={13} /><span>{cals} kcal · {w.caloriesSource ?? 'Estimated'}</span>
@@ -530,287 +621,13 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   )
 }
 
-// ─── LogModal ─────────────────────────────────────────────────────────────────
-
-interface LogModalProps {
-  prMap: Map<string, number>
-  initialTemplate?: WorkoutTemplate
-  prefilledDate?: string
-  onClose: () => void
-  onSaved: () => void
-}
-
-function LogModal({ prMap, initialTemplate, prefilledDate, onClose, onSaved }: LogModalProps) {
-  const [primaryType, setPrimaryType] = useState<'lifting' | 'cardio'>('lifting')
-  const [cardioSubtype, setCardioSubtype] = useState('running')
-  const [title,       setTitle]       = useState(initialTemplate?.name ?? '')
-  const [durationMin, setDurationMin] = useState(initialTemplate?.estimatedDurationMin ?? 60)
-  const [rpe,         setRpe]         = useState<number | ''>('')
-  const [bodyAreas,   setBodyAreas]   = useState<string[]>([])
-  const [exercises,   setExercises]   = useState<ExEntry[]>(
-    initialTemplate?.exercises?.length
-      ? initialTemplate.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' }))
-      : [{ name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }]
-  )
-  const [cardioEntry, setCardioEntry] = useState<Partial<CardioEntry>>({ source: 'Manual' })
-  const [notes, setNotes] = useState(initialTemplate?.notes ?? '')
-  const [saving, setSaving] = useState(false)
-
-  useScrollLock()
-  const swipe = useSwipeToClose(onClose)
-
-  // Templates
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [templates,     setTemplates]     = useState<WorkoutTemplate[]>([])
-  const [showSaveAsTmpl,setShowSaveAsTmpl]= useState(false)
-  const [tmplName,      setTmplName]      = useState('')
-  const [tmplSaved,     setTmplSaved]     = useState(false)
-
-  useEffect(() => { getTemplates().then(setTemplates) }, [])
-
-  const [exerciseNames, setExerciseNames] = useState<string[]>(FALLBACK_EXERCISE_NAMES)
-  useEffect(() => { getAllExerciseNames().then(setExerciseNames) }, [])
-
-  const [bodyWeightKg, setBodyWeightKg] = useState(DEFAULT_BODY_WEIGHT_KG)
-  useEffect(() => {
-    getProfile().then(p => {
-      if (p?.startWeightKg) setBodyWeightKg(p.startWeightKg)
-    })
-  }, [])
-
-  const isLifting = primaryType === 'lifting'
-  const logType   = isLifting ? 'lifting' : cardioSubtype
-  const weightKg  = bodyWeightKg
-
-  const calPreview = estimateWorkoutCalories(logType, durationMin, weightKg, {
-    rpe: typeof rpe === 'number' ? rpe : undefined,
-    avgHeartRate: cardioEntry.avgHeartRate,
-    distanceKm: cardioEntry.distanceKm,
-    manualCalories: cardioEntry.calories,
-  })
-
-  function applyTemplate(t: WorkoutTemplate) {
-    setExercises(t.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' })))
-    if (t.estimatedDurationMin) setDurationMin(t.estimatedDurationMin)
-    if (t.notes && !notes) setNotes(t.notes)
-    if (!title) setTitle(t.name)
-    setShowTemplates(false)
-  }
-
-  async function handleSaveAsTemplate() {
-    if (!tmplName.trim()) return
-    await workoutToTemplate(tmplName, exercises.filter(ex => ex.name.trim()), {
-      notes: notes || undefined,
-      estimatedDurationMin: durationMin,
-    })
-    setTmplSaved(true)
-    setShowSaveAsTmpl(false)
-    setTimeout(() => setTmplSaved(false), 2500)
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    try {
-      const cal = estimateWorkoutCalories(logType, durationMin, weightKg, {
-        rpe: typeof rpe === 'number' ? rpe : undefined,
-        avgHeartRate: cardioEntry.avgHeartRate,
-        distanceKm: cardioEntry.distanceKm,
-        manualCalories: cardioEntry.calories,
-      })
-      const hasCardioData = !isLifting || cardioEntry.distanceKm || cardioEntry.avgHeartRate || cardioEntry.calories
-      const cardioEntries: CardioEntry[] = hasCardioData
-        ? [{ type: logType, durationMin, source: cardioEntry.source ?? 'Manual', ...cardioEntry } as CardioEntry]
-        : []
-
-      const payload = {
-        date: prefilledDate ?? todayStr(),
-        type: isLifting ? 'lifting' : 'cardio',
-        cardioSubtype: isLifting ? undefined : cardioSubtype,
-        title: title || (isLifting ? 'Lifting' : (CARDIO_SUBTYPES.find(s => s.id === cardioSubtype)?.label ?? 'Cardio')),
-        durationMin,
-        rpe: typeof rpe === 'number' ? rpe : undefined,
-        bodyAreas: bodyAreas.length ? bodyAreas : undefined,
-        exercises: isLifting ? exercises.filter(ex => ex.name.trim()) : [],
-        cardioEntries: cardioEntries.length ? cardioEntries : undefined,
-        notes: notes || undefined,
-        estimatedCalories: cal.calories,
-        caloriesCalcMethod: cal.method,
-        caloriesConfidence: cal.confidence,
-        caloriesSource: cal.source,
-      }
-
-      await saveWorkout(payload)
-      void Promise.all(payload.exercises.map(ex => rememberCustomExercise(ex.name)))
-      onSaved()
-      onClose()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return createPortal(
-    <div className="log-modal-overlay" onClick={onClose}>
-      <div className="log-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
-        <div className="log-modal-header" {...swipe.handlers}>
-          <div className="modal-grabber" />
-          <h2 className="log-modal-title">Log Workout</h2>
-          <button className="log-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
-        </div>
-
-        <div className="log-modal-body">
-          {/* ── Primary type picker ── */}
-          <div className="log-primary-type">
-            {(['lifting', 'cardio'] as const).map(t => (
-              <button key={t}
-                className={`log-type-card ${primaryType === t ? `log-type-card--on log-type-card--${t}` : ''}`}
-                onClick={() => setPrimaryType(t)}>
-                <span className="log-type-card-icon">{t === 'lifting' ? '🏋️' : '🏃'}</span>
-                <span className="log-type-card-label">{t === 'lifting' ? 'Lifting' : 'Cardio'}</span>
-                <span className="log-type-card-desc">
-                  {t === 'lifting' ? 'Weights, strength, muscle' : 'Running, cycling, sport'}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* ── Cardio subtype ── */}
-          {!isLifting && (
-            <div className="log-subtype-row">
-              {CARDIO_SUBTYPES.map(s => (
-                <button key={s.id}
-                  className={`log-subtype-chip ${cardioSubtype === s.id ? 'log-subtype-chip--on' : ''}`}
-                  onClick={() => setCardioSubtype(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-
-          {/* ── Title ── */}
-          <input className="log-title-input" placeholder="Session title (optional)"
-            value={title} onChange={e => setTitle(e.target.value)} />
-
-          {/* ── Duration + RPE ── */}
-          <div className="log-row">
-            <div className="log-field">
-              <label className="log-label">Duration (min)</label>
-              <input type="number" inputMode="numeric" className="log-num-input" value={durationMin} min={5} max={300} step={5}
-                onChange={e => setDurationMin(+e.target.value)} />
-            </div>
-            <div className="log-field">
-              <label className="log-label">RPE (1–10)</label>
-              <input type="number" inputMode="numeric" className="log-num-input" value={rpe} min={1} max={10}
-                onChange={e => setRpe(e.target.value ? +e.target.value : '')} />
-            </div>
-          </div>
-
-          {/* ── Body areas (lifting) ── */}
-          {isLifting && (
-            <div className="log-areas">
-              {BODY_AREAS.map(a => (
-                <button key={a}
-                  className={`area-chip-btn ${bodyAreas.includes(a) ? 'area-chip-btn--on' : ''}`}
-                  onClick={() => setBodyAreas(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a])}>
-                  {a}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* ── Cardio details ── */}
-          {!isLifting && <CardioSection entry={cardioEntry} onChange={setCardioEntry} />}
-
-          {/* ── Template actions (lifting) ── */}
-          {isLifting && (
-            <div className="log-tmpl-bar">
-              <button className="log-tmpl-btn" onClick={() => setShowTemplates(s => !s)}>
-                <LayoutTemplate size={13} />{showTemplates ? 'Hide templates' : 'Load template'}
-              </button>
-              {exercises.some(ex => ex.name.trim()) && (
-                <button className="log-tmpl-btn" onClick={() => setShowSaveAsTmpl(true)}>
-                  <Copy size={13} />Save as template
-                </button>
-              )}
-            </div>
-          )}
-
-          {showTemplates && templates.length > 0 && (
-            <div className="log-template-list">
-              {templates.map(t => (
-                <button key={t.id} className="log-template-item" onClick={() => applyTemplate(t)}>
-                  <span className="log-tmpl-name">{t.name}</span>
-                  <span className="log-tmpl-meta">{t.exercises.length} exercises</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {showTemplates && templates.length === 0 && (
-            <p className="log-tmpl-empty">No templates yet. Save a workout as a template after logging it.</p>
-          )}
-
-          {showSaveAsTmpl && (
-            <div className="log-save-tmpl">
-              <input className="log-tmpl-name-input" placeholder="Template name…"
-                value={tmplName} onChange={e => setTmplName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSaveAsTemplate()} />
-              <button className="log-tmpl-save-btn" onClick={handleSaveAsTemplate} disabled={!tmplName.trim()}>
-                <Check size={14} /> Save
-              </button>
-              <button className="log-tmpl-cancel-btn" onClick={() => setShowSaveAsTmpl(false)}>×</button>
-            </div>
-          )}
-          {tmplSaved && <div className="log-tmpl-saved"><Check size={13} /> Saved as template!</div>}
-
-          {/* ── Exercises (lifting) ── */}
-          {isLifting && (
-            <div className="log-exercises">
-              <div className="log-exercises-header">
-                <span className="log-section-title">Exercises</span>
-                <button className="add-exercise-btn"
-                  onClick={() => setExercises(p => [...p, { name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }])}>
-                  + Exercise
-                </button>
-              </div>
-              {exercises.map((ex, i) => (
-                <ExerciseBlock key={i} ex={ex} prMap={prMap} exerciseNames={exerciseNames}
-                  onChange={upd => { const n = [...exercises]; n[i] = upd; setExercises(n) }}
-                  onRemove={() => setExercises(p => p.filter((_, j) => j !== i))}
-                  canMoveUp={i > 0} canMoveDown={i < exercises.length - 1}
-                  onMoveUp={() => setExercises(p => {
-                    const n = [...p]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n
-                  })}
-                  onMoveDown={() => setExercises(p => {
-                    const n = [...p]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; return n
-                  })} />
-              ))}
-            </div>
-          )}
-
-          {/* ── Notes ── */}
-          <textarea className="log-notes" placeholder="Notes (optional)…" value={notes} rows={2}
-            onChange={e => setNotes(e.target.value)} />
-
-          {/* ── Calorie preview ── */}
-          <div className={`log-cal-preview log-cal-preview--${calPreview.confidence}`}>
-            <Flame size={13} />
-            <span><strong>{calPreview.calories} kcal</strong></span>
-            <span className="log-cal-label">{calPreview.label}</span>
-            <span className="log-cal-conf">{calPreview.confidence} confidence · {calPreview.source}</span>
-          </div>
-        </div>
-
-        <div className="log-modal-footer">
-          <button className="log-modal-save" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save Workout'}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  )
-}
-
 // ─── Template picker (quick-start "+ Template" from the Today page) ──────────
 
-function TemplatePickerSheet({ onPick, onClose }: { onPick: (t: WorkoutTemplate) => void; onClose: () => void }) {
+function TemplatePickerSheet({ onPick, onCreateNew, onClose }: {
+  onPick: (t: WorkoutTemplate) => void
+  onCreateNew: () => void
+  onClose: () => void
+}) {
   const [templates, setTemplates] = useState<WorkoutTemplate[] | null>(null)
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
@@ -828,7 +645,7 @@ function TemplatePickerSheet({ onPick, onClose }: { onPick: (t: WorkoutTemplate)
           {templates === null ? (
             <p className="log-tmpl-empty">Loading…</p>
           ) : templates.length === 0 ? (
-            <p className="log-tmpl-empty">No templates yet — create one in Templates first.</p>
+            <p className="log-tmpl-empty">No templates yet — create one below.</p>
           ) : (
             templates.map(t => (
               <button key={t.id} className="aw-picker-item" onClick={() => onPick(t)}>
@@ -837,6 +654,9 @@ function TemplatePickerSheet({ onPick, onClose }: { onPick: (t: WorkoutTemplate)
               </button>
             ))
           )}
+          <button className="aw-picker-item aw-picker-item--custom" onClick={onCreateNew}>
+            <Plus size={14} /> Create New Template
+          </button>
         </div>
       </div>
     </div>,
@@ -854,14 +674,13 @@ export default function WorkoutsPage() {
   const [exerciseNames, setExerciseNames] = useState<string[]>(FALLBACK_EXERCISE_NAMES)
   const [workoutDateTypes, setWorkoutDateTypes] = useState<Map<string, 'lift' | 'cardio' | 'both'>>(new Map())
   const [loaded,       setLoaded]       = useState(false)
-  const [showModal,    setShowModal]    = useState(false)
   const [showActiveWorkout, setShowActiveWorkout] = useState(false)
   const [copiedWorkout, setCopiedWorkout]  = useState<WorkoutSession | null>(null)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [calendarKey,   setCalendarKey]   = useState(0)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
-  const [templateToLog, setTemplateToLog] = useState<WorkoutTemplate | null>(null)
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false)
   const seeded = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
@@ -908,6 +727,40 @@ export default function WorkoutsPage() {
     loadDay(selectedDate)
   }
 
+  /** Applies a template or an ad-hoc one-time plan to the selected day:
+      merges into the existing lifting session if one's already there,
+      otherwise creates a new one — keeps the day to one running list of
+      exercise boxes instead of stacking separate sessions. */
+  async function applyExercisesToDay(data: { title: string; durationMin: number; exercises: WorkoutExerciseEntry[]; notes?: string }) {
+    const existing = dayWorkouts.find(w => w.type === 'lifting')
+    if (existing) {
+      const merged = [...existing.exercises, ...data.exercises]
+      const annotated = await annotateExercises(merged)
+      await updateWorkout(existing.id, { exercises: annotated })
+    } else {
+      const weightKg = profile?.startWeightKg ?? DEFAULT_BODY_WEIGHT_KG
+      const cal = estimateWorkoutCalories('lifting', data.durationMin, weightKg)
+      await saveWorkout({
+        date: selectedDate, type: 'lifting', title: data.title, durationMin: data.durationMin,
+        exercises: data.exercises, notes: data.notes,
+        estimatedCalories: cal.calories, caloriesCalcMethod: cal.method,
+        caloriesConfidence: cal.confidence, caloriesSource: cal.source,
+      })
+    }
+    loadDay(selectedDate)
+    refreshCalendar()
+  }
+
+  function applyTemplate(t: WorkoutTemplate) {
+    setShowTemplatePicker(false)
+    applyExercisesToDay({
+      title: t.name,
+      durationMin: t.estimatedDurationMin ?? 60,
+      exercises: t.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' })),
+      notes: t.notes,
+    })
+  }
+
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')
   const dateLabel = formatDate(selectedDateObj)
   const dateLabelShort = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -946,9 +799,6 @@ export default function WorkoutsPage() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
                 <Play size={15} /> Start
-              </button>
-              <button className="log-workout-btn" onClick={() => setShowModal(true)}>
-                <Plus size={16} /> Log
               </button>
               <button className="log-workout-btn" onClick={() => setShowTemplatePicker(true)}>
                 <LayoutTemplate size={15} /> Template
@@ -997,7 +847,7 @@ export default function WorkoutsPage() {
               </p>
               <button
                 className="workouts-first-empty-cta"
-                onClick={() => setShowModal(true)}
+                onClick={() => setShowTemplatePicker(true)}
               >
                 Log Workout
               </button>
@@ -1010,7 +860,7 @@ export default function WorkoutsPage() {
             </div>
           ) : (
             <>
-              {isToday && <SuggestionCard onLog={() => setShowModal(true)} />}
+              {isToday && <SuggestionCard onLog={() => setShowTemplatePicker(true)} />}
 
               {copiedWorkout && (
                 <div className="copy-banner">
@@ -1031,10 +881,6 @@ export default function WorkoutsPage() {
 
               {/* Selected day */}
               <div className="day-section">
-                <div className="day-section-header">
-                  <h2 className="workouts-section-title">Sessions</h2>
-                </div>
-
                 {dayWorkouts.length > 0 ? (
                   dayWorkouts.map(w => (
                     <WorkoutCard key={w.id} w={w} prMap={prMap} exerciseNames={exerciseNames}
@@ -1044,26 +890,33 @@ export default function WorkoutsPage() {
                 ) : (
                   <div className="workouts-empty-today">
                     <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
-                    <button onClick={() => setShowModal(true)}>Log one →</button>
+                    <button onClick={() => setShowTemplatePicker(true)}>Log one →</button>
                   </div>
                 )}
               </div>
             </>
           )}
 
-          {(showModal || templateToLog) && (
-            <LogModal
-              prMap={prMap}
-              initialTemplate={templateToLog ?? undefined}
-              prefilledDate={selectedDate}
-              onClose={() => { setShowModal(false); setTemplateToLog(null) }}
-              onSaved={() => { loadDay(selectedDate); refreshCalendar() }} />
-          )}
-
           {showTemplatePicker && (
             <TemplatePickerSheet
-              onPick={t => { setShowTemplatePicker(false); setTemplateToLog(t) }}
+              onPick={applyTemplate}
+              onCreateNew={() => { setShowTemplatePicker(false); setShowCreateTemplate(true) }}
               onClose={() => setShowTemplatePicker(false)}
+            />
+          )}
+
+          {showCreateTemplate && (
+            <TemplateModal
+              onClose={() => setShowCreateTemplate(false)}
+              onSaved={() => {}}
+              onUseOnce={data => {
+                applyExercisesToDay({
+                  title: data.name,
+                  durationMin: data.estimatedDurationMin,
+                  exercises: data.exercises,
+                  notes: data.notes,
+                })
+              }}
             />
           )}
         </>

@@ -62,6 +62,7 @@ export interface WorkoutExerciseEntry {
   sets: ExerciseSet[]
   notes?: string
   equipment?: string  // default equipment for this exercise
+  isBreak?: boolean  // a "took a break" marker, not a real exercise — rides along in the same array for drag reorder
 }
 
 export interface CardioEntry {

@@ -639,18 +639,7 @@
   border-radius: 8px; padding: 7px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 
-/* ─── Exercise reorder + progressive-overload suggestion ─────────── */
-
-.exercise-reorder-col {
-  display: flex; flex-direction: column; gap: 1px; flex-shrink: 0;
-}
-.exercise-reorder-btn {
-  width: 18px; height: 14px;
-  display: flex; align-items: center; justify-content: center;
-  background: none; border: none; color: var(--text-tertiary); cursor: pointer;
-}
-.exercise-reorder-btn:disabled { opacity: 0.25; cursor: default; }
-.exercise-reorder-btn:hover:not(:disabled) { color: var(--text-primary); }
+/* ─── Progressive-overload suggestion ──────────────────────────────── */
 
 .exercise-suggestion {
   display: flex; align-items: center; gap: 6px;
@@ -874,10 +863,6 @@
 
 /* ─── Day section ─────────────────────────────────────────────── */
 .day-section { margin-bottom: 24px; }
-.day-section-header {
-  display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px;
-}
-.day-section-date { font-size: 12px; color: var(--text-tertiary); }
 
 /* ─── Workout card actions row ────────────────────────────────── */
 .workout-card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -1294,4 +1279,67 @@
 
 .log-rest-btn:hover { background: var(--bg-elevated); }
 .log-rest-btn--active { background: var(--orange-dim); color: var(--orange); border-color: rgba(255,159,10,0.3); }
+
+/* ─── Flattened lifting-day view (individual exercise boxes, no collapse) ── */
+
+.wk-flat-session { margin-bottom: 28px; }
+.wk-flat-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; margin-bottom: 12px;
+}
+.wk-flat-header-left { flex: 1; min-width: 0; }
+.wk-flat-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.wc-icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 8px; cursor: pointer;
+}
+.wc-icon-btn:hover { border-color: var(--blue); color: var(--blue); }
+.wc-icon-btn--del:hover { border-color: var(--red); color: var(--red); }
+
+.wk-flat-add-row { display: flex; gap: 8px; margin-top: 4px; }
+.add-break-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: none; border: 1px dashed var(--border);
+  color: var(--text-tertiary); border-radius: 8px;
+  padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.add-break-btn:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
+
+/* ─── Drag-to-reorder ──────────────────────────────────────────── */
+
+.sortable-item {
+  display: flex; align-items: stretch; gap: 4px;
+  margin-bottom: 10px;
+}
+.sortable-item-content { flex: 1; min-width: 0; }
+.sortable-drag-handle {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; flex-shrink: 0;
+  background: none; border: none; color: var(--text-tertiary);
+  cursor: grab; touch-action: none;
+}
+.sortable-drag-handle:active { cursor: grabbing; color: var(--text-secondary); }
+
+.break-marker {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-elevated); border: 1px dashed var(--border);
+  border-radius: 10px; padding: 8px 12px;
+  font-size: 13px; font-weight: 600; color: var(--text-tertiary);
+}
+.break-marker-remove {
+  margin-left: auto; background: none; border: none;
+  color: var(--text-tertiary); cursor: pointer; padding: 2px;
+}
+.break-marker-remove:hover { color: var(--red); }
+
+/* ─── Template modal: dual Save-as-Template / Use-Once footer ──────── */
+
+.tmpl-modal-footer--dual { display: flex; gap: 10px; }
+.tmpl-modal-footer--dual .tmpl-modal-save { width: auto; flex: 1; }
+.tmpl-modal-save--secondary {
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+}
 
