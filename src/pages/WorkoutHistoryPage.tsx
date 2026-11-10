@@ -5,6 +5,7 @@ import { getDB } from '../db'
 import type { WorkoutSession } from '../db'
 import { CARDIO_SUBTYPES } from '../db/workoutStore'
 import WorkoutsSubNav from '../components/WorkoutsSubNav'
+import MuscleHeatmapSection from '../components/MuscleHeatmapSection'
 import './WorkoutsPage.css'
 
 const MONTH_NAMES = [
@@ -96,6 +97,8 @@ export default function WorkoutHistoryPage() {
           <p className="page-subtitle">All logged sessions</p>
         </div>
       </header>
+
+      <MuscleHeatmapSection />
 
       {loading && <p className="workout-history-empty">Loading…</p>}
 

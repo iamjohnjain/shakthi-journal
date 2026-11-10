@@ -21,37 +21,6 @@
   50%       { opacity: 0.8; }
 }
 
-/* ─── Bullet summary ───────────────────────────────────────────────────────── */
-
-.brief-bullets {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.brief-bullet {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 4px 0;
-}
-
-.brief-bullet-emoji {
-  font-size: 14px;
-  line-height: 1.5;
-  flex-shrink: 0;
-  width: 20px;
-  text-align: center;
-}
-
-.brief-bullet-text {
-  font-size: 14px;
-  color: var(--text-primary);
-  line-height: 1.45;
-  font-weight: 450;
-}
-
 /* ─── Insight cards ────────────────────────────────────────────────────────── */
 
 .brief-cards {

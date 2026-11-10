@@ -595,7 +595,7 @@ export default function Dashboard() {
             <p className="dash-date">{formatDate(viewDateObj)}</p>
           </div>
           <button className="dash-avatar-btn" onClick={() => navigate('/profile')} aria-label="Profile">
-            <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="xs" />
+            <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="md" />
           </button>
         </header>
 

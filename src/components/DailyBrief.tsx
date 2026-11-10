@@ -116,15 +116,6 @@ export function DailyBrief({ insights, loading }: DailyBriefProps) {
 
   return (
     <section className="daily-brief" aria-label="Daily insights">
-      <div className="brief-bullets">
-        {top.map(insight => (
-          <div key={insight.id} className="brief-bullet">
-            <span className="brief-bullet-emoji" aria-hidden="true">{insight.emoji}</span>
-            <span className="brief-bullet-text">{insight.title}</span>
-          </div>
-        ))}
-      </div>
-
       <div className="brief-cards">
         {visible.map(insight => (
           <InsightCard key={insight.id} insight={insight} />

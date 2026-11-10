@@ -36,6 +36,7 @@ import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry } from '../db'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr, addLocalDays, formatDate } from '../data/config'
+import { getISOWeek, getWeekDates, addWeeks, formatWeekLabel } from '../lib/weekUtils'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import WorkoutsSubNav from '../components/WorkoutsSubNav'
 import WheelPicker from '../components/WheelPicker'
@@ -45,47 +46,7 @@ const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weig
 
 function todayStr() { return localDateStr() }
 
-// ─── ISO Week helpers ─────────────────────────────────────────────────────────
-
-function getISOWeek(date: Date): { week: number; year: number } {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return {
-    week: Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7),
-    year: d.getUTCFullYear(),
-  }
-}
-
-function getWeekDates(isoWeek: number, year: number): string[] {
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-  const weekStart = new Date(jan4)
-  weekStart.setUTCDate(jan4.getUTCDate() - (jan4.getUTCDay() || 7) + 1 + (isoWeek - 1) * 7)
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart)
-    d.setUTCDate(weekStart.getUTCDate() + i)
-    return d.toISOString().split('T')[0]
-  })
-}
-
-function addWeeks(week: number, year: number, delta: number): { week: number; year: number } {
-  const d = new Date(getWeekDates(week, year)[0] + 'T12:00:00Z')
-  d.setUTCDate(d.getUTCDate() + delta * 7)
-  return getISOWeek(d)
-}
-
 const DOW_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-function formatWeekLabel(dates: string[]) {
-  if (!dates.length) return ''
-  const a = new Date(dates[0] + 'T12:00:00')
-  const b = new Date(dates[6] + 'T12:00:00')
-  const sameMonth = a.getMonth() === b.getMonth()
-  return sameMonth
-    ? `${MONTH_SHORT[a.getMonth()]} ${a.getDate()}–${b.getDate()}`
-    : `${MONTH_SHORT[a.getMonth()]} ${a.getDate()} – ${MONTH_SHORT[b.getMonth()]} ${b.getDate()}`
-}
 
 const EQUIPMENT_OPTS = [
   { id: 'barbell',    short: 'Bar'  },
@@ -165,7 +126,6 @@ function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, o
       <div className="week-cal-header">
         <button className="week-cal-nav" onClick={prevWeek}><ChevronLeft size={16} /></button>
         <div className="week-cal-label">
-          <span className="week-cal-wnum">W{weekInfo.week}</span>
           <span className="week-cal-range">{formatWeekLabel(weekDates)}</span>
         </div>
         {!isCurrentWeek && (
@@ -337,7 +297,7 @@ function ExerciseBlock({
           <span className="elp-val">{lastPerf.weight} × {lastPerf.reps}</span>
           <span className="elp-sep">·</span>
           <span className="elp-date">{daysAgo(lastPerf.date)}</span>
-          {lastPerf.isAllTimePB && <span className="elp-pb">PB</span>}
+          {lastPerf.isAllTimePB && <span className="elp-pb">🏆 PR</span>}
         </div>
       )}
 
