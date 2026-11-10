@@ -173,7 +173,7 @@
 }
 
 .goal-ring-modal {
-  background: #111113;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   width: 100%;
@@ -191,7 +191,7 @@
 .goal-ring-modal-header {
   position: sticky;
   top: 0;
-  background: #111113;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
@@ -327,7 +327,7 @@
 }
 
 .goal-ring-modal-btn--primary:hover {
-  background: #0a75e8;
+  opacity: .88;
   color: #fff;
 }
 

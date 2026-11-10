@@ -389,8 +389,8 @@
   margin-bottom: 16px;
 }
 .ws-suggestion--rest {
-  background: rgba(191,90,242,.07);
-  border-color: rgba(191,90,242,.2);
+  background: rgba(166,107,245,.07);
+  border-color: rgba(166,107,245,.2);
 }
 .ws-sugg-icon      { font-size: 20px; line-height: 1.2; flex-shrink: 0; }
 .ws-sugg-icon-luc  { color: var(--blue); margin-top: 2px; flex-shrink: 0; }

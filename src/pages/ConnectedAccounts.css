@@ -316,7 +316,7 @@
   background: var(--blue);
   color: #fff;
 }
-.btn-primary:hover { background: #0a70d6; }
+.btn-primary:hover { opacity: .88; }
 
 .btn-secondary {
   background: rgba(255,255,255,0.08);

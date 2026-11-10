@@ -439,7 +439,7 @@
 }
 
 .profile-modal {
-  background: #1c1c1e;
+  background: var(--bg-elevated);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: var(--r-xl);
   width: 100%;
@@ -459,7 +459,7 @@
   border-bottom: 1px solid rgba(255,255,255,0.08);
   position: sticky;
   top: 0;
-  background: #1c1c1e;
+  background: var(--bg-elevated);
   z-index: 1;
   cursor: grab;
 }
@@ -582,7 +582,7 @@
   border-top: 1px solid rgba(255,255,255,0.08);
   position: sticky;
   bottom: 0;
-  background: #1c1c1e;
+  background: var(--bg-elevated);
 }
 
 .profile-modal-cancel {

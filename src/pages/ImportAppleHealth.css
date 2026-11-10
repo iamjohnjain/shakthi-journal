@@ -392,7 +392,7 @@ code {
   cursor: pointer;
   transition: background 0.18s;
 }
-.btn-confirm:hover { background: #0a70d6; }
+.btn-confirm:hover { opacity: .88; }
 
 .btn-back {
   display: flex;

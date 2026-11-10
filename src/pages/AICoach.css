@@ -20,12 +20,12 @@
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(191,90,242,0.3), rgba(10,132,255,0.25));
-  border: 1px solid rgba(191,90,242,0.25);
+  background: linear-gradient(135deg, rgba(166,107,245,0.3), rgba(10,132,255,0.25));
+  border: 1px solid rgba(166,107,245,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4a8ff;
+  color: color-mix(in srgb, var(--purple) 65%, white);
   flex-shrink: 0;
 }
 

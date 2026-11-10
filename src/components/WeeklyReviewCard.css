@@ -7,7 +7,7 @@
 }
 
 .review-card--monthly {
-  border-color: rgba(191, 90, 242, 0.18);
+  border-color: rgba(166, 107, 245, 0.18);
 }
 
 .review-card-header {
@@ -55,7 +55,7 @@
 
 .rev-pill--monthly {
   color: var(--purple);
-  background: rgba(191,90,242,0.1);
+  background: rgba(166,107,245,0.1);
 }
 
 .rev-date-range {

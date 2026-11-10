@@ -28,21 +28,21 @@
 
 .toast--success {
   background: rgba(30, 48, 35, 0.95);
-  border: 1px solid rgba(48, 209, 88, 0.3);
+  border: 1px solid rgba(52, 211, 153, 0.3);
   color: #e8fbed;
 }
 .toast--success .toast-icon { color: var(--green); }
 
 .toast--error {
   background: rgba(48, 18, 18, 0.95);
-  border: 1px solid rgba(255, 69, 58, 0.3);
+  border: 1px solid rgba(242, 84, 91, 0.3);
   color: #fde8e8;
 }
 .toast--error .toast-icon { color: var(--red); }
 
 .toast--info {
   background: rgba(12, 28, 50, 0.95);
-  border: 1px solid rgba(10, 132, 255, 0.3);
+  border: 1px solid rgba(91, 127, 255, 0.3);
   color: #e0eeff;
 }
 .toast--info .toast-icon { color: var(--blue); }
