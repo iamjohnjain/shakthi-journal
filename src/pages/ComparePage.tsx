@@ -9,6 +9,7 @@ import { getSnapshotForDate } from '../db/healthStore'
 import { getLog } from '../db/logStore'
 import { getProfile } from '../db/profileStore'
 import { getWorkoutsForDate } from '../db/workoutStore'
+import { useUnits } from '../hooks/useUnits'
 import DataBadge from '../components/DataBadge'
 import type { DailySnapshot } from '../types/health'
 import type { DailyLog } from '../db/logStore'
@@ -16,7 +17,7 @@ import './ComparePage.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ExtSnap = DailySnapshot & { _source: string; _workoutCount?: number }
+type ExtSnap = DailySnapshot & { _source: string; _workoutCount?: number; waistCm?: number; chestCm?: number; hipsCm?: number }
 type Dir = 'up' | 'down' | 'neutral'
 
 interface CompareResult {
@@ -39,14 +40,21 @@ interface MetricDef {
 
 // ─── Metric registry ──────────────────────────────────────────────────────────
 
-function buildMetrics(heightM: number, proteinGoalG = 200): MetricDef[] {
+function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): MetricDef[] {
+  const wUnit = isMetric ? 'kg' : 'lbs'
+  const mUnit = isMetric ? 'cm' : 'in'
+  const toW = (kg: number) => isMetric ? kg : kgToLbs(kg)
+  const toM = (cm: number) => isMetric ? cm : cm / 2.54
   return [
   // Body
-  { id: 'weight',     label: 'Weight',         group: 'Body',      unit: 'lbs',      higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => s.weight ? kgToLbs(s.weight) : undefined },
+  { id: 'weight',     label: 'Weight',         group: 'Body',      unit: wUnit,      higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => s.weight ? toW(s.weight) : undefined },
   { id: 'bodyFat',    label: 'Body Fat',        group: 'Body',      unit: '%',        higherIsBetter: false, color: 'var(--teal)',   format: v => v.toFixed(1),                   get: s => s.bodyFatPct },
   { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => (s.weight && heightM > 0) ? +(s.weight / (heightM * heightM)).toFixed(1) : undefined },
-  { id: 'leanMass',   label: 'Lean Mass',       group: 'Body',      unit: 'lbs',      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => s.muscleMassKg ? kgToLbs(s.muscleMassKg) : undefined },
-  { id: 'fatFree',    label: 'Fat-Free Mass',   group: 'Body',      unit: 'lbs',      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => (s.weight && s.bodyFatPct != null) ? kgToLbs(s.weight * (1 - s.bodyFatPct / 100)) : undefined },
+  { id: 'leanMass',   label: 'Lean Mass',       group: 'Body',      unit: wUnit,      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => s.muscleMassKg ? toW(s.muscleMassKg) : undefined },
+  { id: 'fatFree',    label: 'Fat-Free Mass',   group: 'Body',      unit: wUnit,      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => (s.weight && s.bodyFatPct != null) ? toW(s.weight * (1 - s.bodyFatPct / 100)) : undefined },
+  { id: 'waist',      label: 'Waist',           group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--orange)',format: v => v.toFixed(1),                   get: s => s.waistCm != null ? toM(s.waistCm) : undefined },
+  { id: 'chest',      label: 'Chest',           group: 'Body',      unit: mUnit,      higherIsBetter: true,  color: 'var(--purple)',format: v => v.toFixed(1),                   get: s => s.chestCm != null ? toM(s.chestCm) : undefined },
+  { id: 'hips',       label: 'Hips',            group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--pink)',  format: v => v.toFixed(1),                   get: s => s.hipsCm != null ? toM(s.hipsCm) : undefined },
   // Activity
   { id: 'steps',      label: 'Steps',           group: 'Activity',  unit: '',         higherIsBetter: true,  color: 'var(--green)', format: v => Math.round(v).toLocaleString(), get: s => s.steps },
   { id: 'activeKcal', label: 'Active Calories', group: 'Activity',  unit: 'kcal',     higherIsBetter: true,  color: 'var(--orange)',format: v => Math.round(v).toLocaleString(), get: s => s.activeCalories },
@@ -94,7 +102,7 @@ function mergeLog(snap: DailySnapshot | null, log: DailyLog | null, date: string
     restingHeartRate: log?.restingHeartRate  ?? base.restingHeartRate,
   }
   const source = snap && log ? 'Apple Health + Manual' : snap ? 'Apple Health' : log ? 'Manual Log' : 'No data'
-  return { ...merged, _source: source }
+  return { ...merged, _source: source, waistCm: log?.waistCm, chestCm: log?.chestCm, hipsCm: log?.hipsCm }
 }
 
 function sourceMode(src: string) {
@@ -169,6 +177,8 @@ type Preset = 'start' | '7d' | '30d' | '90d' | '1y' | 'custom'
 export default function ComparePage() {
   const { mockMode } = useApp()
   const navigate = useNavigate()
+  const units = useUnits()
+  const isMetric = units.system === 'metric'
 
   const [preset, setPreset] = useState<Preset>('30d')
   const [dateA, setDateA] = useState(daysAgo(30))
@@ -197,7 +207,7 @@ export default function ComparePage() {
     })
   }, [])
 
-  const allMetrics = buildMetrics(heightM, proteinGoalG)
+  const allMetrics = buildMetrics(heightM, proteinGoalG, isMetric)
 
   // Load result when deps change (debounced)
   const doCompare = useCallback(async (a: string, b: string) => {
