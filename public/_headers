@@ -22,6 +22,10 @@
 /icon.svg
   Cache-Control: public, max-age=86400
 
+# 3D model assets — medium cache (not content-hashed, so avoid "immutable")
+/models/*
+  Cache-Control: public, max-age=86400
+
 # Service worker (if added later) — no cache
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate

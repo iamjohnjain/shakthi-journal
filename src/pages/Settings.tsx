@@ -174,6 +174,11 @@ export default function Settings() {
       <SettingsSection title="About">
         <SettingsRow label="App name" value="Shakthi" />
         <SettingsRow label="Version"  value={`v${appVersion}`} />
+        <SettingsRow
+          label="3D muscle model"
+          description="Z-Anatomy / BodyParts3D — CC BY-SA 4.0"
+          onClick={() => window.open('https://creativecommons.org/licenses/by-sa/4.0/', '_blank', 'noopener')}
+        />
       </SettingsSection>
 
       {/* ── Run Setup Again confirmation ── */}

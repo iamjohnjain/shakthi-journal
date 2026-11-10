@@ -110,7 +110,12 @@ export default function MuscleHeatmapSection() {
       )}
 
       <Suspense fallback={<div className="bh3d-loading">Loading 3D view…</div>}>
-        <BodyHeatmap3D regions={regions} sex={profile?.sex} onSelectRegion={setSelectedRegion} />
+        <BodyHeatmap3D
+          regions={regions}
+          sex={profile?.sex}
+          selectedRegion={selectedRegion}
+          onSelectRegion={r => setSelectedRegion(prev => prev === r ? null : r)}
+        />
       </Suspense>
 
       <div className="mh-legend">
