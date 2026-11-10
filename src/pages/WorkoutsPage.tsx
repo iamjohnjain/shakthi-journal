@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Plus, ChevronDown, ChevronUp, Trash2, Dumbbell,
   Lightbulb, Flame,
-  ChevronLeft, ChevronRight, Copy, Clipboard, Pencil,
+  ChevronLeft, ChevronRight, Copy, Clipboard,
   LayoutTemplate, Check, X, AlertTriangle, Play,
 } from 'lucide-react'
 import ActiveWorkout from './ActiveWorkout'
 import {
-  saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs,
+  saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs, annotateExercises, estimateOneRM,
   getWorkoutsForDate, getWorkoutDateTypes,
   getWorkoutsForWeekDates,
   getLastExercisePerformance, suggestNextWorkingSet,
@@ -423,20 +423,30 @@ function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onCo
 
 // ─── WorkoutCard ──────────────────────────────────────────────────────────────
 
-function WorkoutCard({ w, onDelete, onEdit, onCopy }: {
+function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   w: WorkoutSession
+  prMap: Map<string, number>
+  exerciseNames: string[]
   onDelete: () => void
-  onEdit: () => void
   onCopy: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const hasPR = w.exercises.some(ex => ex.sets.some(s => s.isPR))
+  const [exercises, setExercises] = useState<ExEntry[]>(w.exercises)
   const cals  = w.overrideCalories ?? w.estimatedCalories
   const subtype = w.cardioSubtype
   const typeLabel = w.type === 'cardio' && subtype
     ? CARDIO_SUBTYPES.find(s => s.id === subtype)?.label ?? subtype
     : (WORKOUT_TYPES.find(t => t.id === w.type)?.label ?? w.type)
+  const hasPR = exercises.some(ex => ex.sets.some(s => {
+    if ((s as ExSet).isWarmup || !s.reps || !s.weightLbs) return false
+    return estimateOneRM(s.weightLbs, s.reps) > (prMap.get(ex.name) ?? 0)
+  }))
+
+  function persist(next: ExEntry[]) {
+    setExercises(next)
+    annotateExercises(next).then(annotated => updateWorkout(w.id, { exercises: annotated }, { silent: true }))
+  }
 
   return (
     <>
@@ -470,20 +480,25 @@ function WorkoutCard({ w, onDelete, onEdit, onCopy }: {
                 {c.avgHeartRate ? <span>{c.avgHeartRate} bpm</span> : null}
               </div>
             ))}
-            {w.exercises.map((ex, ei) => (
-              <div key={ei} className="workout-exercise-view">
-                <div className="wev-name">{ex.name}</div>
-                {ex.sets.map((s, si) => (
-                  <div key={si} className={`wev-set ${s.isPR ? 'wev-set--pr' : ''}`}>
-                    <span className="wev-set-num">{si + 1}</span>
-                    <span>{s.reps} × {s.weightLbs} lbs</span>
-                    {(s as ExSet).equipment && <span className="wev-eq">{(s as ExSet).equipment}</span>}
-                    {s.e1rm ? <span className="wev-e1rm">{s.e1rm}lb e1RM</span> : null}
-                    {s.isPR && <span className="wev-pr">PR</span>}
-                  </div>
+            {w.type === 'lifting' && (
+              <div className="log-exercises">
+                <div className="log-exercises-header">
+                  <span className="log-section-title">Exercises</span>
+                  <button className="add-exercise-btn"
+                    onClick={() => persist([...exercises, { name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }])}>
+                    + Exercise
+                  </button>
+                </div>
+                {exercises.map((ex, i) => (
+                  <ExerciseBlock key={i} ex={ex} prMap={prMap} exerciseNames={exerciseNames}
+                    onChange={upd => { const n = [...exercises]; n[i] = upd; persist(n) }}
+                    onRemove={() => persist(exercises.filter((_, j) => j !== i))}
+                    canMoveUp={i > 0} canMoveDown={i < exercises.length - 1}
+                    onMoveUp={() => { const n = [...exercises]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; persist(n) }}
+                    onMoveDown={() => { const n = [...exercises]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; persist(n) }} />
                 ))}
               </div>
-            ))}
+            )}
             {cals && (
               <div className="wc-calories-row">
                 <Flame size={13} /><span>{cals} kcal · {w.caloriesSource ?? 'Estimated'}</span>
@@ -496,7 +511,6 @@ function WorkoutCard({ w, onDelete, onEdit, onCopy }: {
             )}
             {w.notes && <p className="workout-notes-view">{w.notes}</p>}
             <div className="workout-card-actions">
-              <button className="wc-action-btn" onClick={onEdit}><Pencil size={13} /> Edit</button>
               <button className="wc-action-btn" onClick={onCopy}><Copy size={13} /> Copy</button>
               <button className="wc-action-btn wc-action-btn--del" onClick={() => setConfirmDelete(true)}>
                 <Trash2 size={13} /> Delete
@@ -520,39 +534,26 @@ function WorkoutCard({ w, onDelete, onEdit, onCopy }: {
 
 interface LogModalProps {
   prMap: Map<string, number>
-  initialWorkout?: WorkoutSession
   initialTemplate?: WorkoutTemplate
   prefilledDate?: string
   onClose: () => void
   onSaved: () => void
 }
 
-function LogModal({ prMap, initialWorkout, initialTemplate, prefilledDate, onClose, onSaved }: LogModalProps) {
-  const [primaryType, setPrimaryType] = useState<'lifting' | 'cardio'>(
-    initialWorkout ? (initialWorkout.type === 'lifting' ? 'lifting' : 'cardio') : 'lifting'
-  )
-  const [cardioSubtype, setCardioSubtype] = useState(
-    // Use stored cardioSubtype if present; fall back to type field for legacy workouts (pre-v5 stored subtype as type)
-    initialWorkout?.cardioSubtype
-      ?? (initialWorkout?.type && initialWorkout.type !== 'lifting' && initialWorkout.type !== 'cardio'
-          ? initialWorkout.type
-          : 'running')
-  )
-  const [title,       setTitle]       = useState(initialWorkout?.title ?? initialTemplate?.name ?? '')
-  const [durationMin, setDurationMin] = useState(initialWorkout?.durationMin ?? initialTemplate?.estimatedDurationMin ?? 60)
-  const [rpe,         setRpe]         = useState<number | ''>(initialWorkout?.rpe ?? '')
-  const [bodyAreas,   setBodyAreas]   = useState<string[]>(initialWorkout?.bodyAreas ?? [])
+function LogModal({ prMap, initialTemplate, prefilledDate, onClose, onSaved }: LogModalProps) {
+  const [primaryType, setPrimaryType] = useState<'lifting' | 'cardio'>('lifting')
+  const [cardioSubtype, setCardioSubtype] = useState('running')
+  const [title,       setTitle]       = useState(initialTemplate?.name ?? '')
+  const [durationMin, setDurationMin] = useState(initialTemplate?.estimatedDurationMin ?? 60)
+  const [rpe,         setRpe]         = useState<number | ''>('')
+  const [bodyAreas,   setBodyAreas]   = useState<string[]>([])
   const [exercises,   setExercises]   = useState<ExEntry[]>(
-    initialWorkout?.exercises?.length
-      ? initialWorkout.exercises
-      : initialTemplate?.exercises?.length
+    initialTemplate?.exercises?.length
       ? initialTemplate.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' }))
       : [{ name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }]
   )
-  const [cardioEntry, setCardioEntry] = useState<Partial<CardioEntry>>(
-    initialWorkout?.cardioEntries?.[0] ?? { source: 'Manual' }
-  )
-  const [notes, setNotes] = useState(initialWorkout?.notes ?? initialTemplate?.notes ?? '')
+  const [cardioEntry, setCardioEntry] = useState<Partial<CardioEntry>>({ source: 'Manual' })
+  const [notes, setNotes] = useState(initialTemplate?.notes ?? '')
   const [saving, setSaving] = useState(false)
 
   useScrollLock()
@@ -638,11 +639,7 @@ function LogModal({ prMap, initialWorkout, initialTemplate, prefilledDate, onClo
         caloriesSource: cal.source,
       }
 
-      if (initialWorkout) {
-        await updateWorkout(initialWorkout.id, { ...payload })
-      } else {
-        await saveWorkout(payload)
-      }
+      await saveWorkout(payload)
       void Promise.all(payload.exercises.map(ex => rememberCustomExercise(ex.name)))
       onSaved()
       onClose()
@@ -656,7 +653,7 @@ function LogModal({ prMap, initialWorkout, initialTemplate, prefilledDate, onClo
       <div className="log-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="log-modal-header" {...swipe.handlers}>
           <div className="modal-grabber" />
-          <h2 className="log-modal-title">{initialWorkout ? 'Edit Workout' : 'Log Workout'}</h2>
+          <h2 className="log-modal-title">Log Workout</h2>
           <button className="log-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 
@@ -802,7 +799,7 @@ function LogModal({ prMap, initialWorkout, initialTemplate, prefilledDate, onClo
 
         <div className="log-modal-footer">
           <button className="log-modal-save" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : (initialWorkout ? 'Save Changes' : 'Save Workout')}
+            {saving ? 'Saving…' : 'Save Workout'}
           </button>
         </div>
       </div>
@@ -854,11 +851,11 @@ export default function WorkoutsPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [dayWorkouts,  setDayWorkouts]  = useState<WorkoutSession[]>([])
   const [prMap,        setPrMap]        = useState<Map<string, number>>(new Map())
+  const [exerciseNames, setExerciseNames] = useState<string[]>(FALLBACK_EXERCISE_NAMES)
   const [workoutDateTypes, setWorkoutDateTypes] = useState<Map<string, 'lift' | 'cardio' | 'both'>>(new Map())
   const [loaded,       setLoaded]       = useState(false)
   const [showModal,    setShowModal]    = useState(false)
   const [showActiveWorkout, setShowActiveWorkout] = useState(false)
-  const [editingWorkout,setEditingWorkout] = useState<WorkoutSession | null>(null)
   const [copiedWorkout, setCopiedWorkout]  = useState<WorkoutSession | null>(null)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [calendarKey,   setCalendarKey]   = useState(0)
@@ -885,6 +882,7 @@ export default function WorkoutsPage() {
   }, [loadDay, selectedDate])
 
   useEffect(() => { getProfile().then(setProfile) }, [])
+  useEffect(() => { getAllExerciseNames().then(setExerciseNames) }, [])
 
   function refreshCalendar() { setCalendarKey(k => k + 1) }
 
@@ -902,7 +900,6 @@ export default function WorkoutsPage() {
     if (date === selectedDate) loadDay(date)
   }
 
-  function handleEdit(w: WorkoutSession) { setEditingWorkout(w); setShowModal(true) }
   function handleCopy(w: WorkoutSession) { setCopiedWorkout(w) }
 
   async function handleDelete(id: string) {
@@ -950,7 +947,7 @@ export default function WorkoutsPage() {
               <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
                 <Play size={15} /> Start
               </button>
-              <button className="log-workout-btn" onClick={() => { setEditingWorkout(null); setShowModal(true) }}>
+              <button className="log-workout-btn" onClick={() => setShowModal(true)}>
                 <Plus size={16} /> Log
               </button>
               <button className="log-workout-btn" onClick={() => setShowTemplatePicker(true)}>
@@ -1000,7 +997,7 @@ export default function WorkoutsPage() {
               </p>
               <button
                 className="workouts-first-empty-cta"
-                onClick={() => { setEditingWorkout(null); setShowModal(true) }}
+                onClick={() => setShowModal(true)}
               >
                 Log Workout
               </button>
@@ -1013,7 +1010,7 @@ export default function WorkoutsPage() {
             </div>
           ) : (
             <>
-              {isToday && <SuggestionCard onLog={() => { setEditingWorkout(null); setShowModal(true) }} />}
+              {isToday && <SuggestionCard onLog={() => setShowModal(true)} />}
 
               {copiedWorkout && (
                 <div className="copy-banner">
@@ -1040,28 +1037,26 @@ export default function WorkoutsPage() {
 
                 {dayWorkouts.length > 0 ? (
                   dayWorkouts.map(w => (
-                    <WorkoutCard key={w.id} w={w}
+                    <WorkoutCard key={w.id} w={w} prMap={prMap} exerciseNames={exerciseNames}
                       onDelete={() => handleDelete(w.id)}
-                      onEdit={() => handleEdit(w)}
                       onCopy={() => handleCopy(w)} />
                   ))
                 ) : (
                   <div className="workouts-empty-today">
                     <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
-                    <button onClick={() => { setEditingWorkout(null); setShowModal(true) }}>Log one →</button>
+                    <button onClick={() => setShowModal(true)}>Log one →</button>
                   </div>
                 )}
               </div>
             </>
           )}
 
-          {(showModal || editingWorkout || templateToLog) && (
+          {(showModal || templateToLog) && (
             <LogModal
               prMap={prMap}
-              initialWorkout={editingWorkout ?? undefined}
               initialTemplate={templateToLog ?? undefined}
               prefilledDate={selectedDate}
-              onClose={() => { setShowModal(false); setEditingWorkout(null); setTemplateToLog(null) }}
+              onClose={() => { setShowModal(false); setTemplateToLog(null) }}
               onSaved={() => { loadDay(selectedDate); refreshCalendar() }} />
           )}
 

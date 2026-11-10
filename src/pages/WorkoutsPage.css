@@ -471,16 +471,6 @@
 }
 .wc-cardio-source { font-weight: 600; color: var(--text-primary); }
 
-.workout-exercise-view { padding: 8px 0; border-top: 1px solid var(--border-subtle); }
-.workout-exercise-view:first-of-type { border-top: none; }
-.wev-name { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
-.wev-set  { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); padding: 2px 0; }
-.wev-set--pr { color: #FFD700; }
-.wev-set-num { color: var(--text-tertiary); width: 16px; text-align: right; }
-.wev-eq  { font-size: 11px; color: var(--text-tertiary); background: var(--bg-elevated); border-radius: 4px; padding: 1px 5px; }
-.wev-e1rm{ font-size: 11px; color: var(--text-tertiary); margin-left: auto; }
-.wev-pr  { font-size: 11px; background: rgba(255,214,10,.12); color: #FFD700; border-radius: 4px; padding: 1px 5px; }
-
 .wc-calories-row {
   display: flex; align-items: center; gap: 8px;
   font-size: 13px; color: var(--text-secondary);
@@ -748,6 +738,7 @@
   cursor: pointer; transition: background .12s, border-color .12s;
 }
 .week-cal-day:hover { background: var(--bg-tertiary); }
+.week-cal-day:focus-visible { outline: none; }
 .week-cal-day--today { border-color: var(--accent) !important; }
 .week-cal-day--selected { background: var(--blue-dim); border-color: var(--blue); }
 .week-cal-dow  { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; }

@@ -68,14 +68,14 @@ export async function saveWorkout(workout: Omit<WorkoutSession, 'id' | 'createdA
   return full
 }
 
-export async function updateWorkout(id: string, updates: Partial<WorkoutSession>): Promise<void> {
+export async function updateWorkout(id: string, updates: Partial<WorkoutSession>, opts?: { silent?: boolean }): Promise<void> {
   const db = await getDB()
   const existing = await db.get('workouts', id)
   if (!existing) return
   const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() }
   await db.put('workouts', updated)
   void syncEngine.queueWrite('workouts', 'upsert', id, updated)
-  showToast('Workout updated')
+  if (!opts?.silent) showToast('Workout updated')
 }
 
 export async function deleteWorkout(id: string): Promise<void> {
