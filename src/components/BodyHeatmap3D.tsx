@@ -8,22 +8,29 @@ import './BodyHeatmap3D.css'
 // Reuses the app's existing palette (globals.css) — mirrored as hex since
 // Three.js materials need JS color values, not CSS custom properties.
 const STATUS_COLOR: Record<RegionLoad['status'], string> = {
-  none:     '#6E6E73', // neutral gray — untrained (lighter, for contrast against the dark canvas)
+  none:     '#C89676', // warm flesh tone — untrained (reads as skin, not painted plastic)
   under:    '#0A84FF', // blue
   onTarget: '#30D158', // green
   over:     '#FF453A', // red (possibly overtrained)
 }
 const NEUTRAL = new THREE.Color(STATUS_COLOR.none)
+const EYE = new THREE.Color('#2B2118')
 
 function colorFor(load: RegionLoad | undefined): THREE.Color {
   if (!load) return NEUTRAL.clone()
+  let c: THREE.Color
   if (load.status === 'under') {
     // Fade blue → green as it approaches target, instead of a flat color,
     // so "deeper shade" reads as more-trained within the "under" band too.
     const t = Math.min(1, load.pct / 0.5)
-    return new THREE.Color(STATUS_COLOR.under).lerp(new THREE.Color(STATUS_COLOR.onTarget), t)
+    c = new THREE.Color(STATUS_COLOR.under).lerp(new THREE.Color(STATUS_COLOR.onTarget), t)
+  } else {
+    c = new THREE.Color(STATUS_COLOR[load.status])
   }
-  return new THREE.Color(STATUS_COLOR[load.status])
+  // A light blend toward the flesh tone keeps a trained region reading as
+  // "this part of the body, highlighted" rather than a disconnected block
+  // of saturated paint — subtle enough that status colors stay legible.
+  return c.lerp(NEUTRAL, 0.12)
 }
 
 const ARC = Math.PI * 1.1 // ~198°, split shells overlap slightly at both seams
@@ -78,7 +85,7 @@ function Revolve({
       rotation={facing ? [0, facing === 'front' ? Math.PI / 2 : -Math.PI / 2, 0] : [0, 0, 0]}
       onClick={onPick}
     >
-      <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.42} metalness={0.06} />
+      <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.55} metalness={0.02} />
     </mesh>
   )
 }
@@ -91,7 +98,7 @@ function Blob({ radius, x, y, z = 0, scale, color, onPick }: {
   return (
     <mesh position={[x, y, z]} scale={scale} onClick={onPick}>
       <sphereGeometry args={[radius, 28, 24]} />
-      <meshStandardMaterial color={color} roughness={0.42} metalness={0.06} />
+      <meshStandardMaterial color={color} roughness={0.55} metalness={0.02} />
     </mesh>
   )
 }
@@ -168,6 +175,10 @@ function Figure({ regions, sex, rotationY, onPick }: FigureProps) {
       {/* Head (slightly oval) + tapered neck */}
       <Blob radius={0.135} x={0} y={1.16} scale={[0.92, 1.08, 0.96]} color={NEUTRAL} />
       <Revolve profile={[[0.90, 0.075], [0.97, 0.065], [1.04, 0.07]]} color={NEUTRAL} />
+      {/* A simple face — the one unambiguous "this side is the front" cue,
+          since an abstract body has no other inherent front/back tell. */}
+      <Blob radius={0.016} x={-0.045} y={1.175} z={0.112} color={EYE} />
+      <Blob radius={0.016} x={0.045} y={1.175} z={0.112} color={EYE} />
 
       {/* Torso: front split into chest (upper) / core (lower); back is one continuous "Back" shell */}
       <Revolve profile={chestProfile} facing="front" color={c.chest} onPick={() => onPick('chest')} />
@@ -221,7 +232,7 @@ const FRICTION = 0.945
 const MAX_VELOCITY = 1.6 // px/ms — caps how fast a flick can launch the coast
 
 export default function BodyHeatmap3D({ regions, sex, onSelectRegion }: BodyHeatmap3DProps) {
-  const [rotationY, setRotationY] = useState(Math.PI / 6)
+  const [rotationY, setRotationY] = useState(0) // start facing the camera head-on — unambiguously "this is the front"
   const [contextLost, setContextLost] = useState(false)
   const dragging = useRef(false)
   const lastX = useRef(0)
@@ -242,25 +253,35 @@ export default function BodyHeatmap3D({ regions, sex, onSelectRegion }: BodyHeat
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    e.preventDefault()
-    e.currentTarget.setPointerCapture(e.pointerId)
     stopCoast()
     dragging.current = true
     lastX.current = e.clientX
     lastMoveTime.current = performance.now()
     velocity.current = 0
     dragDistance.current = 0
+    // Pointer capture is NOT acquired here — doing it unconditionally on
+    // every pointerdown redirects the matching pointerup away from the
+    // canvas underneath, which silently breaks R3F's click-to-select on
+    // every plain tap (it never sees a pointerup to resolve a click from).
+    // It's acquired lazily in onPointerMove, only once a real drag is
+    // confirmed, so a tap reaches the canvas untouched.
   }
 
   function onPointerMove(e: React.PointerEvent) {
     if (!dragging.current) return
-    e.preventDefault()
     const now = performance.now()
     const dx = e.clientX - lastX.current
     const dt = Math.max(1, now - lastMoveTime.current)
     dragDistance.current += Math.abs(dx)
     lastX.current = e.clientX
     lastMoveTime.current = now
+    if (dragDistance.current > 6 && !e.currentTarget.hasPointerCapture(e.pointerId)) {
+      // Now it's a real drag, not a tap — prevent the browser's native
+      // text-selection drag and keep tracking the pointer even if it
+      // wanders outside this element mid-gesture.
+      e.preventDefault()
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
     // Clamp — a very small `dt` between synthetic/dropped-frame move events
     // can otherwise produce an unrealistically huge velocity and a coast
     // that spins far longer than a real flick ever would.

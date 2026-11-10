@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { localDateStr, addLocalDays } from '../data/config'
 import { getISOWeek, getWeekDates, addWeeks, formatWeekLabel } from '../lib/weekUtils'
@@ -122,7 +123,7 @@ export default function MuscleHeatmapSection() {
         Based on general training-volume guidelines (roughly 8–12 sets/week per muscle group) — not personalized or medical advice.
       </p>
 
-      {!loading && detail && selectedRegion && (
+      {!loading && detail && selectedRegion && createPortal(
         <div className="mh-detail" onClick={() => setSelectedRegion(null)}>
           <div className="mh-detail-card" onClick={e => e.stopPropagation()}>
             <div className="mh-detail-header">
@@ -148,7 +149,8 @@ export default function MuscleHeatmapSection() {
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {showDatePicker && (

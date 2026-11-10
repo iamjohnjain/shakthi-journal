@@ -7,7 +7,7 @@ import {
   Lightbulb, Flame,
   ChevronLeft, ChevronRight, Copy, Clipboard,
   LayoutTemplate, Check, X, AlertTriangle, Play,
-  GripVertical, Coffee,
+  GripVertical, Coffee, CalendarDays,
 } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
@@ -91,9 +91,15 @@ interface WeekCalendarProps {
   onPasteDay: (date: string) => void
   onMarkRest: (date: string) => void
   refreshKey: number
+  onPrevDay: () => void
+  onNextDay: () => void
+  canGoNext: boolean
 }
 
-function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, onMarkRest, refreshKey }: WeekCalendarProps) {
+function WeekCalendar({
+  selectedDate, onSelectDate, copiedWorkout, onPasteDay, onMarkRest, refreshKey,
+  onPrevDay, onNextDay, canGoNext,
+}: WeekCalendarProps) {
   const today = todayStr()
   // The displayed week just follows whichever day is selected — no
   // separate week-navigation state, since the page's own day nav already
@@ -117,6 +123,9 @@ function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, o
 
   return (
     <div className="week-cal">
+      <button className="week-cal-nav week-cal-nav--edge" onClick={onPrevDay} aria-label="Previous day">
+        <ChevronLeft size={16} />
+      </button>
       <div className="week-cal-days">
         {weekDates.map((date, i) => {
           const workouts = dayWorkouts.get(date) ?? []
@@ -148,6 +157,9 @@ function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, o
           )
         })}
       </div>
+      <button className="week-cal-nav week-cal-nav--edge" onClick={onNextDay} disabled={!canGoNext} aria-label="Next day">
+        <ChevronRight size={16} />
+      </button>
     </div>
   )
 }
@@ -707,7 +719,6 @@ export default function WorkoutsPage() {
 
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')
   const dateLabel = formatDate(selectedDateObj)
-  const dateLabelShort = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const isToday = selectedDate === todayStr()
   const canGoForward = selectedDate < todayStr()
   const markedWorkoutDates = new Set(workoutDateTypes.keys())
@@ -737,7 +748,10 @@ export default function WorkoutsPage() {
         <>
           <header className="page-header" style={{ marginTop: '8px' }}>
             <div>
-              <h1 className="page-title">{isToday ? 'Today' : dateLabel}</h1>
+              <button className="page-title-datepicker" onClick={() => setShowDatePicker(true)}>
+                <h1 className="page-title">{isToday ? 'Today' : dateLabel}</h1>
+                <CalendarDays size={18} className="page-title-cal-icon" />
+              </button>
               {isToday && <p className="page-subtitle">{dateLabel}</p>}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -749,21 +763,6 @@ export default function WorkoutsPage() {
               </button>
             </div>
           </header>
-
-          <div className="wk-date-nav">
-            <button className="wk-date-nav-btn" onClick={() => setSelectedDate(d => addLocalDays(d, -1))} aria-label="Previous day">
-              <ChevronLeft size={16} />
-            </button>
-            <button className="wk-date-nav-label" onClick={() => setShowDatePicker(true)}>
-              {isToday ? 'Today' : dateLabelShort}
-            </button>
-            <button className="wk-date-nav-btn" onClick={() => setSelectedDate(d => addLocalDays(d, 1))} disabled={!canGoForward} aria-label="Next day">
-              <ChevronRight size={16} />
-            </button>
-            {!isToday && (
-              <button className="wk-date-nav-today" onClick={() => setSelectedDate(todayStr())}>Jump to Today</button>
-            )}
-          </div>
 
           {showDatePicker && (
             <DatePickerCalendar
@@ -821,6 +820,9 @@ export default function WorkoutsPage() {
                 onPasteDay={handlePasteDay}
                 onMarkRest={handleMarkRest}
                 refreshKey={calendarKey}
+                onPrevDay={() => setSelectedDate(d => addLocalDays(d, -1))}
+                onNextDay={() => setSelectedDate(d => addLocalDays(d, 1))}
+                canGoNext={canGoForward}
               />
 
               {/* Selected day */}

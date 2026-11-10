@@ -15,58 +15,23 @@
 .page-title   { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary); }
 .page-subtitle{ font-size: 13px; color: var(--text-tertiary); margin: 0; }
 
-/* ─── Date nav — jump to any day, same pattern as the Today dashboard ───── */
+/* ─── Page title → tap to open the date picker ────────────────────────── */
 
-.wk-date-nav {
+.page-title-datepicker {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: -8px 0 18px;
-}
-
-.wk-date-nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.wk-date-nav-btn:hover:not(:disabled) { background: var(--bg-card-hover); color: var(--text-primary); }
-.wk-date-nav-btn:disabled { opacity: 0.35; cursor: default; }
-
-.wk-date-nav-label {
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
+  gap: 6px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: background 0.15s ease, color 0.15s ease;
+  padding: 0;
 }
-.wk-date-nav-label:hover { background: var(--bg-card-hover); color: var(--text-primary); }
-
-.wk-date-nav-today {
-  margin-left: auto;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--blue);
-  white-space: nowrap;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
+.page-title-cal-icon {
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+  flex-shrink: 0;
 }
-.wk-date-nav-today:hover { background: var(--bg-card-hover); }
+.page-title-datepicker:hover .page-title-cal-icon { color: var(--blue); }
 
 .log-workout-btn {
   display: flex; align-items: center; gap: 6px;
@@ -700,8 +665,9 @@
 /* ─── Week calendar ───────────────────────────────────────────── */
 .week-cal {
   background: var(--bg-secondary); border: 1px solid var(--border);
-  border-radius: 16px; padding: 14px 14px 10px;
+  border-radius: 16px; padding: 14px 8px 10px;
   margin-bottom: 20px;
+  display: flex; align-items: flex-start; gap: 4px;
 }
 .week-cal-nav {
   background: var(--bg-tertiary); border: 1px solid var(--border);
@@ -709,7 +675,9 @@
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; color: var(--text-secondary); flex-shrink: 0;
 }
-.week-cal-nav:hover { color: var(--text-primary); }
+.week-cal-nav:hover:not(:disabled) { color: var(--text-primary); }
+.week-cal-nav--edge { margin-top: 1px; }
+.week-cal-nav:disabled { opacity: 0.35; cursor: default; }
 .week-cal-range { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .week-cal-today {
   background: none; border: 1px solid var(--border);
@@ -717,7 +685,7 @@
   font-size: 12px; color: var(--blue); cursor: pointer; font-weight: 600;
 }
 
-.week-cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.week-cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; flex: 1; min-width: 0; }
 .week-cal-day-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .week-cal-day {
   display: flex; flex-direction: column; align-items: center; gap: 2px;

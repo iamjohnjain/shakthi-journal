@@ -2,6 +2,19 @@
 
 .settings-page { max-width: 560px; }
 
+.ds-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--blue);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
 /* Notice banner */
 .settings-notice {
   background: rgba(48, 209, 88, 0.1);

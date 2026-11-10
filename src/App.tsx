@@ -11,6 +11,7 @@ import ImportPage from './components/ImportPage'
 import ConnectedAccounts from './pages/ConnectedAccounts'
 import SyncHistory from './pages/SyncHistory'
 import Settings from './pages/Settings'
+import DataSyncSettings from './pages/DataSyncSettings'
 import DevDiagnostics from './pages/DevDiagnostics'
 import ImportAppleHealth from './pages/ImportAppleHealth'
 import ComparePage from './pages/ComparePage'
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/connected-apps" element={<Navigate to="/connected-accounts" replace />} />
           <Route path="/sync-history" element={<SyncHistory />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/data" element={<DataSyncSettings />} />
           <Route path="/settings/backup" element={<BackupRestorePage />} />
           <Route path="/dashboard-settings" element={<DashboardSettings />} />
           <Route path="/dev" element={<DevDiagnostics />} />
