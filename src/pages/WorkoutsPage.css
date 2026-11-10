@@ -15,6 +15,14 @@
 .page-title   { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary); }
 .page-subtitle{ font-size: 13px; color: var(--text-tertiary); margin: 0; }
 
+.wk-streak-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 8px;
+  background: var(--orange-dim); border: 1px solid rgba(251, 122, 60, 0.3);
+  color: var(--orange); border-radius: 999px;
+  padding: 4px 10px; font-size: 12px; font-weight: 700;
+}
+
 /* ─── Page title → tap to open the date picker ────────────────────────── */
 
 .page-title-datepicker {

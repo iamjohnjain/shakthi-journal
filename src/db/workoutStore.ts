@@ -117,6 +117,19 @@ export async function getWorkoutDates(days = 30): Promise<string[]> {
   return [...new Set(all.filter(w => w.date >= cutoffStr).map(w => w.date))]
 }
 
+/** Consecutive days ending today (or yesterday, if nothing's logged yet
+    today) with a logged session — a deliberately-marked Rest Day counts
+    too, since that's still showing up, just the same as the nutrition
+    streak already treats any logged entry as keeping the streak alive. */
+export async function getCurrentWorkoutStreak(): Promise<number> {
+  const logged = new Set(await getWorkoutDates(90))
+  const today = localDateStr()
+  let streak = 0
+  let cursor = logged.has(today) ? today : addLocalDays(today, -1)
+  while (logged.has(cursor)) { streak++; cursor = addLocalDays(cursor, -1) }
+  return streak
+}
+
 /** Same date range as `getWorkoutDates`, but resolved to which kind of
     training happened each day — drives the lift/cardio/both calendar dot
     colors (green/blue/split) instead of one flat "something happened"

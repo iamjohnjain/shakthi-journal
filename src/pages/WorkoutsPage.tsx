@@ -17,7 +17,7 @@ import ActiveWorkout from './ActiveWorkout'
 import TemplateModal from '../components/TemplateModal'
 import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs, annotateExercises, estimateOneRM,
-  getWorkoutsForDate, getWorkoutDateTypes,
+  getWorkoutsForDate, getWorkoutDateTypes, getCurrentWorkoutStreak,
   getWorkoutsForWeekDates,
   getLastExercisePerformance, suggestNextWorkingSet,
   WORKOUT_TYPES, CARDIO_SUBTYPES, EXERCISE_LIBRARY,
@@ -637,7 +637,10 @@ export default function WorkoutsPage() {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
   const [showCreateTemplate, setShowCreateTemplate] = useState(false)
+  const [streak, setStreak] = useState(0)
   const seeded = useRef(false)
+
+  useEffect(() => { getCurrentWorkoutStreak().then(setStreak) }, [calendarKey])
 
   const loadDay = useCallback(async (date: string) => {
     const [day, prs, dateTypes] = await Promise.all([
@@ -753,6 +756,11 @@ export default function WorkoutsPage() {
                 <CalendarDays size={18} className="page-title-cal-icon" />
               </button>
               {isToday && <p className="page-subtitle">{dateLabel}</p>}
+              {streak >= 2 && (
+                <div className="wk-streak-chip" title="Consecutive days with a logged session">
+                  <Flame size={13} /> {streak}-day streak
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
