@@ -133,3 +133,24 @@ export function classifyExercise(name: string): MuscleGroup[] {
   const hit = FALLBACK_PATTERNS.find(p => p.pattern.test(name))
   return hit?.muscles ?? []
 }
+
+const MUSCLE_TO_REGION: Partial<Record<MuscleGroup, VisualRegion>> = Object.fromEntries(
+  (Object.entries(REGION_MUSCLES) as [VisualRegion, MuscleGroup[]][])
+    .flatMap(([region, muscles]) => muscles.map(m => [m, region] as const))
+)
+
+/** Which visual regions a set of exercise names (one workout's worth, say)
+    actually trains — de-duplicated, in no particular order. Used anywhere
+    that wants "what did this workout hit" without re-deriving it from
+    classifyExercise + REGION_MUSCLES by hand (Workout History's per-entry
+    tags and its "edit as template" gap check, for instance). */
+export function regionsForExerciseNames(names: string[]): VisualRegion[] {
+  const regions = new Set<VisualRegion>()
+  for (const name of names) {
+    for (const muscle of classifyExercise(name)) {
+      const region = MUSCLE_TO_REGION[muscle]
+      if (region) regions.add(region)
+    }
+  }
+  return Array.from(regions)
+}

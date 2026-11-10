@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, ChevronDown, ChevronUp, Trash2, Dumbbell,
   Lightbulb, Flame,
@@ -636,7 +636,11 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose }: {
 
 export default function WorkoutsPage() {
   const navigate = useNavigate()
-  const [selectedDate, setSelectedDate] = useState(todayStr())
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Supports deep-linking from Workout History's "Edit this workout" —
+  // ?date=YYYY-MM-DD jumps straight to that day instead of always today.
+  const dateParam = searchParams.get('date')
+  const [selectedDate, setSelectedDate] = useState(dateParam && dateParam <= todayStr() ? dateParam : todayStr())
   const [dayWorkouts,  setDayWorkouts]  = useState<WorkoutSession[]>([])
   const [prMap,        setPrMap]        = useState<Map<string, number>>(new Map())
   const [exerciseNames, setExerciseNames] = useState<string[]>(FALLBACK_EXERCISE_NAMES)
@@ -653,6 +657,13 @@ export default function WorkoutsPage() {
   const seeded = useRef(false)
 
   useEffect(() => { getCurrentWorkoutStreak().then(setStreak) }, [calendarKey])
+
+  // Consume the ?date= deep-link once so it doesn't linger in the URL and
+  // confuse subsequent in-page date navigation (week strip, prev/next).
+  useEffect(() => {
+    if (dateParam) setSearchParams(prev => { prev.delete('date'); return prev }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadDay = useCallback(async (date: string) => {
     const [day, prs, dateTypes] = await Promise.all([
