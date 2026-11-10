@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -36,7 +36,7 @@ import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry } from '../db'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr, addLocalDays, formatDate } from '../data/config'
-import { getISOWeek, getWeekDates, addWeeks, formatWeekLabel } from '../lib/weekUtils'
+import { getISOWeek, getWeekDates } from '../lib/weekUtils'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import WorkoutsSubNav from '../components/WorkoutsSubNav'
 import WheelPicker from '../components/WheelPicker'
@@ -95,18 +95,15 @@ interface WeekCalendarProps {
 
 function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, onMarkRest, refreshKey }: WeekCalendarProps) {
   const today = todayStr()
-  const [weekInfo, setWeekInfo] = useState(() => getISOWeek(new Date()))
-  const [weekDates, setWeekDates] = useState<string[]>([])
+  // The displayed week just follows whichever day is selected — no
+  // separate week-navigation state, since the page's own day nav already
+  // handles moving between dates.
+  const weekInfo = useMemo(() => getISOWeek(new Date(selectedDate + 'T12:00:00')), [selectedDate])
+  const weekDates = useMemo(() => getWeekDates(weekInfo.week, weekInfo.year), [weekInfo])
   const [dayWorkouts, setDayWorkouts] = useState<Map<string, WorkoutSession[]>>(new Map())
   useEffect(() => {
-    const dates = getWeekDates(weekInfo.week, weekInfo.year)
-    setWeekDates(dates)
-    getWorkoutsForWeekDates(dates).then(setDayWorkouts)
-  }, [weekInfo, refreshKey])
-
-  function prevWeek() { setWeekInfo(w => addWeeks(w.week, w.year, -1)) }
-  function nextWeek() { setWeekInfo(w => addWeeks(w.week, w.year, +1)) }
-  function goToday()  { setWeekInfo(getISOWeek(new Date())) }
+    getWorkoutsForWeekDates(weekDates).then(setDayWorkouts)
+  }, [weekDates, refreshKey])
 
   function getDotColor(workouts: WorkoutSession[]) {
     if (!workouts.length) return null
@@ -118,22 +115,8 @@ function WeekCalendar({ selectedDate, onSelectDate, copiedWorkout, onPasteDay, o
     return null
   }
 
-  const currentWeek = getISOWeek(new Date())
-  const isCurrentWeek = weekInfo.week === currentWeek.week && weekInfo.year === currentWeek.year
-
   return (
     <div className="week-cal">
-      <div className="week-cal-header">
-        <button className="week-cal-nav" onClick={prevWeek}><ChevronLeft size={16} /></button>
-        <div className="week-cal-label">
-          <span className="week-cal-range">{formatWeekLabel(weekDates)}</span>
-        </div>
-        {!isCurrentWeek && (
-          <button className="week-cal-today" onClick={goToday}>Today</button>
-        )}
-        <button className="week-cal-nav" onClick={nextWeek}><ChevronRight size={16} /></button>
-      </div>
-
       <div className="week-cal-days">
         {weekDates.map((date, i) => {
           const workouts = dayWorkouts.get(date) ?? []
