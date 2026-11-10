@@ -239,12 +239,20 @@ function SetRow({
   onDone: () => void
   prLbs?: number
 }) {
-  const isNewPR = prLbs != null && set.weightLbs > 0 && set.reps > 0
+  const isNewPR = !set.isWarmup && prLbs != null && set.weightLbs > 0 && set.reps > 0
     && set.weightLbs * (1 + set.reps / 30) > prLbs
 
   return (
-    <div className={`aw-set-row ${set.done ? 'aw-set-row--done' : ''} ${isNewPR && set.done ? 'aw-set-row--pr' : ''}`}>
+    <div className={`aw-set-row ${set.done ? 'aw-set-row--done' : ''} ${isNewPR && set.done ? 'aw-set-row--pr' : ''} ${set.isWarmup ? 'aw-set-row--warmup' : ''}`}>
       <span className="aw-set-num">{setNum}</span>
+      <button
+        className={`aw-warmup-btn ${set.isWarmup ? 'aw-warmup-btn--on' : ''}`}
+        onClick={() => onChange({ isWarmup: !set.isWarmup })}
+        aria-label={set.isWarmup ? 'Unmark warm-up' : 'Mark as warm-up'}
+        title="Warm-up set"
+      >
+        <Flame size={12} />
+      </button>
       <input
         className="aw-set-field"
         type="number"
@@ -335,7 +343,7 @@ function ExerciseBlock({
       </div>
 
       <div className="aw-sets-header">
-        <span>Set</span><span>Weight</span><span /><span>Reps</span><span />
+        <span>Set</span><span /><span>Weight</span><span /><span>Reps</span><span />
       </div>
 
       {ex.sets.map((set, i) => (
@@ -367,12 +375,12 @@ function FinishSummary({
   onConfirm: () => void
   onBack: () => void
 }) {
-  const totalSets  = exercises.reduce((s, e) => s + e.sets.filter(x => x.done).length, 0)
-  const totalVol   = exercises.reduce((s, e) => s + e.sets.filter(x => x.done).reduce((sv, x) => sv + x.weightLbs * x.reps, 0), 0)
+  const totalSets  = exercises.reduce((s, e) => s + e.sets.filter(x => x.done && !x.isWarmup).length, 0)
+  const totalVol   = exercises.reduce((s, e) => s + e.sets.filter(x => x.done && !x.isWarmup).reduce((sv, x) => sv + x.weightLbs * x.reps, 0), 0)
   const prs        = exercises.reduce((count, e) => {
     const prLbs = prMap.get(e.name)
     if (!prLbs) return count
-    const hasPR = e.sets.some(s => s.done && s.weightLbs * (1 + s.reps / 30) > prLbs)
+    const hasPR = e.sets.some(s => s.done && !s.isWarmup && s.weightLbs * (1 + s.reps / 30) > prLbs)
     return count + (hasPR ? 1 : 0)
   }, 0)
 
@@ -493,13 +501,14 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Pro
         name: e.name,
         notes: e.notes || undefined,
         sets: e.sets.filter(s => s.done).map(s => {
-          const e1rm = s.reps > 0 ? +(s.weightLbs * (1 + s.reps / 30)).toFixed(1) : undefined
+          const e1rm = !s.isWarmup && s.reps > 0 ? +(s.weightLbs * (1 + s.reps / 30)).toFixed(1) : undefined
           const currentPR = prMap.get(e.name) ?? 0
           return {
             weightLbs: s.weightLbs,
             reps: s.reps,
             e1rm,
             isPR: e1rm != null && e1rm > currentPR,
+            isWarmup: s.isWarmup,
           }
         }),
       }))

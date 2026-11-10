@@ -229,7 +229,7 @@
 
 .aw-sets-header {
   display: grid;
-  grid-template-columns: 28px 1fr 14px 1fr 36px;
+  grid-template-columns: 28px 24px 1fr 14px 1fr 36px;
   gap: 6px;
   padding: 4px 12px 4px 12px;
   font-size: 10px;
@@ -242,7 +242,7 @@
 
 .aw-set-row {
   display: grid;
-  grid-template-columns: 28px 1fr 14px 1fr auto 36px;
+  grid-template-columns: 28px 24px 1fr 14px 1fr auto 36px;
   gap: 6px;
   padding: 6px 12px;
   align-items: center;
@@ -256,6 +256,19 @@
 
 .aw-set-row--pr {
   background: color-mix(in srgb, var(--yellow) 8%, transparent);
+}
+
+.aw-set-row--warmup { opacity: 0.65; }
+
+.aw-warmup-btn {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg-card-hover); color: var(--text-quaternary);
+  cursor: pointer;
+}
+.aw-warmup-btn--on {
+  border-color: var(--orange); color: var(--orange); background: var(--orange-dim);
 }
 
 .aw-set-num {
