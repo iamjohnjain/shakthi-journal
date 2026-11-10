@@ -73,10 +73,10 @@
   color: var(--text-tertiary);
 }
 .mh-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.mh-dot--none  { background: #6E6E73; }
-.mh-dot--under { background: #0A84FF; }
-.mh-dot--on    { background: #30D158; }
-.mh-dot--over  { background: #FF453A; }
+.mh-dot--none  { background: #C89676; }
+.mh-dot--under { background: var(--blue); }
+.mh-dot--on    { background: var(--green); }
+.mh-dot--over  { background: var(--red); }
 
 .mh-disclaimer {
   font-size: 11px;

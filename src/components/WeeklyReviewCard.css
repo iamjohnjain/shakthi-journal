@@ -54,7 +54,7 @@
 }
 
 .rev-pill--monthly {
-  color: #bf5af2;
+  color: var(--purple);
   background: rgba(191,90,242,0.1);
 }
 

@@ -682,7 +682,7 @@
 }
 
 .ai-insight-icon {
-  color: #bf5af2;
+  color: var(--purple);
 }
 
 .ai-insight-text {

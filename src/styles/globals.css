@@ -5,47 +5,63 @@
 }
 
 :root {
-  /* Backgrounds — a subtle dark navy undertone instead of flat black.
-     Kept low-contrast on purpose: a mood, not a glow. */
-  --bg: #06070b;
-  --bg-gradient: linear-gradient(180deg, #0a0f1d 0%, #06070b 45%, #000000 100%);
-  --bg-elevated: #0c0c0e;
-  --bg-card: rgba(255, 255, 255, 0.045);
-  --bg-card-hover: rgba(255, 255, 255, 0.075);
-  --bg-sidebar: rgba(12, 12, 14, 0.92);
+  /* Backgrounds — a warm-charcoal base (not flat navy/black) so the app has
+     its own temperature instead of reading as generic dark-mode-tool gray.
+     --bg-gradient layers a soft, low-opacity ambient mesh on top (an
+     "energy" warm glow + a "calm" cool glow, per the fitness-app convention
+     of an energetic mode and a quiet recovery mode) — 2026's "soft gradient"
+     treatment: used as ambient lighting, not a loud decorative blend. */
+  --bg: #0B0A0E;
+  --bg-gradient:
+    radial-gradient(ellipse 120% 55% at 12% -8%,  rgba(251, 122, 60, 0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 65% at 92% -4%,  rgba(91, 127, 255, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 55% at 50% 105%, rgba(45, 212, 191, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #141019 0%, #0B0A0E 45%, #050408 100%);
+  --bg-elevated: #15121A;
+  --bg-card: rgba(255, 248, 242, 0.05);
+  --bg-card-hover: rgba(255, 248, 242, 0.085);
+  --bg-sidebar: rgba(17, 15, 21, 0.92);
 
   /* Borders */
-  --border-subtle: rgba(255, 255, 255, 0.055);
-  --border: rgba(255, 255, 255, 0.095);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-subtle: rgba(255, 250, 245, 0.06);
+  --border: rgba(255, 250, 245, 0.10);
+  --border-strong: rgba(255, 250, 245, 0.18);
 
   /* Text — opacities picked to clear WCAG AA's 4.5:1 text-contrast minimum
-     against --bg (#06070b). The previous tertiary/quaternary values (0.32,
-     0.16) measured 2.76:1 and 1.50:1 — real failures, not a close call —
-     and every current usage of them is genuinely-readable small text
-     (labels, dates, hints), not decorative content exempt from the rule. */
+     against --bg. The previous tertiary/quaternary values (0.32, 0.16)
+     measured real failures, not a close call — and every current usage of
+     them is genuinely-readable small text (labels, dates, hints), not
+     decorative content exempt from the rule. */
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.58);
   --text-tertiary: rgba(255, 255, 255, 0.50);
   --text-quaternary: rgba(255, 255, 255, 0.46);
 
-  /* Accent */
-  --blue: #0A84FF;
-  --blue-dim: rgba(10, 132, 255, 0.14);
-  --green: #30D158;
-  --green-dim: rgba(48, 209, 88, 0.14);
-  --yellow: #FFD60A;
-  --yellow-dim: rgba(255, 214, 10, 0.14);
-  --orange: #FF9F0A;
-  --orange-dim: rgba(255, 159, 10, 0.14);
-  --red: #FF453A;
-  --red-dim: rgba(255, 69, 58, 0.12);
-  --purple: #BF5AF2;
-  --purple-dim: rgba(191, 90, 242, 0.14);
-  --teal: #5AC8F5;
-  --teal-dim: rgba(90, 200, 245, 0.14);
-  --pink: #FF375F;
-  --pink-dim: rgba(255, 55, 95, 0.14);
+  /* Accent — richer jewel tones in place of the literal iOS system-color
+     defaults (#0A84FF/#30D158/etc.) every dark-mode AI tool and default
+     app ships with. Same semantic roles (blue=primary/info, green=good,
+     orange=energy/warning, red=danger, purple=insight/AI, teal=calm,
+     pink=highlight), just deeper and more distinctive together. */
+  --blue: #5B7FFF;
+  --blue-dim: rgba(91, 127, 255, 0.16);
+  --green: #34D399;
+  --green-dim: rgba(52, 211, 153, 0.16);
+  --yellow: #FBBF24;
+  --yellow-dim: rgba(251, 191, 36, 0.16);
+  --orange: #FB7A3C;
+  --orange-dim: rgba(251, 122, 60, 0.16);
+  --red: #F2545B;
+  --red-dim: rgba(242, 84, 91, 0.14);
+  --purple: #A66BF5;
+  --purple-dim: rgba(166, 107, 245, 0.16);
+  --teal: #2DD4BF;
+  --teal-dim: rgba(45, 212, 191, 0.16);
+  --pink: #FB6F92;
+  --pink-dim: rgba(251, 111, 146, 0.16);
+
+  /* Signature gradient — the app's one recurring "brand" blend (warm energy
+     → cool focus), for primary CTAs and hero accents. Used sparingly. */
+  --gradient-brand: linear-gradient(135deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
   /* Layout */
   --sidebar-width: 240px;
@@ -57,8 +73,8 @@
   --accent: var(--blue);
 
   /* Background aliases (referenced by Phase 4 CSS) */
-  --bg-secondary: #0c0c0e;
-  --bg-tertiary:  #111114;
+  --bg-secondary: #15121A;
+  --bg-tertiary:  #1A1620;
   --card-bg:      var(--bg-card);
 
   /* Safe area insets (non-zero on iPhone notch/home bar) */

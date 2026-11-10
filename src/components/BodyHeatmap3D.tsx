@@ -9,9 +9,9 @@ import './BodyHeatmap3D.css'
 // Three.js materials need JS color values, not CSS custom properties.
 const STATUS_COLOR: Record<RegionLoad['status'], string> = {
   none:     '#C89676', // warm flesh tone — untrained (reads as skin, not painted plastic)
-  under:    '#0A84FF', // blue
-  onTarget: '#30D158', // green
-  over:     '#FF453A', // red (possibly overtrained)
+  under:    '#5B7FFF', // blue
+  onTarget: '#34D399', // green
+  over:     '#F2545B', // red (possibly overtrained)
 }
 const NEUTRAL = new THREE.Color(STATUS_COLOR.none)
 const EYE = new THREE.Color('#2B2118')

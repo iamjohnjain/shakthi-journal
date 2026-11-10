@@ -18,7 +18,7 @@
 }
 
 .story-header-icon {
-  color: #bf5af2;
+  color: var(--purple);
   display: flex;
   align-items: center;
 }
@@ -28,7 +28,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: #bf5af2;
+  color: var(--purple);
   flex: 1;
 }
 

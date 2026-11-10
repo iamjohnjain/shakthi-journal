@@ -32,39 +32,39 @@
 
 /* Colors per mode */
 .data-badge--mock {
-  background: rgba(255, 214, 10, 0.12);
-  color: #FFD60A;
-  border: 1px solid rgba(255, 214, 10, 0.25);
+  background: var(--yellow-dim);
+  color: var(--yellow);
+  border: 1px solid rgba(251, 191, 36, 0.3);
 }
-.data-badge--mock .data-badge-dot { background: #FFD60A; }
+.data-badge--mock .data-badge-dot { background: var(--yellow); }
 
 .data-badge--imported {
-  background: rgba(10, 132, 255, 0.12);
-  color: #0A84FF;
-  border: 1px solid rgba(10, 132, 255, 0.25);
+  background: var(--blue-dim);
+  color: var(--blue);
+  border: 1px solid rgba(91, 127, 255, 0.3);
 }
-.data-badge--imported .data-badge-dot { background: #0A84FF; }
+.data-badge--imported .data-badge-dot { background: var(--blue); }
 
 .data-badge--live {
-  background: rgba(48, 209, 88, 0.12);
-  color: #30D158;
-  border: 1px solid rgba(48, 209, 88, 0.25);
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(52, 211, 153, 0.3);
 }
-.data-badge--live .data-badge-dot { background: #30D158; }
+.data-badge--live .data-badge-dot { background: var(--green); }
 
 .data-badge--local {
-  background: rgba(90, 200, 245, 0.12);
-  color: #5AC8F5;
-  border: 1px solid rgba(90, 200, 245, 0.25);
+  background: var(--teal-dim);
+  color: var(--teal);
+  border: 1px solid rgba(45, 212, 191, 0.3);
 }
-.data-badge--local .data-badge-dot { background: #5AC8F5; }
+.data-badge--local .data-badge-dot { background: var(--teal); }
 
 .data-badge--manual {
-  background: rgba(191, 90, 242, 0.12);
-  color: #BF5AF2;
-  border: 1px solid rgba(191, 90, 242, 0.25);
+  background: var(--purple-dim);
+  color: var(--purple);
+  border: 1px solid rgba(166, 107, 245, 0.3);
 }
-.data-badge--manual .data-badge-dot { background: #BF5AF2; }
+.data-badge--manual .data-badge-dot { background: var(--purple); }
 
 /* ─── Mock mode banner ─────────────────────────────────────────────────────── */
 
@@ -72,20 +72,20 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 214, 10, 0.08);
-  border: 1px solid rgba(255, 214, 10, 0.22);
+  background: var(--yellow-dim);
+  border: 1px solid rgba(251, 191, 36, 0.3);
   border-radius: var(--r-md);
   padding: 10px 16px;
   margin-bottom: 24px;
   font-size: 12px;
-  color: rgba(255, 214, 10, 0.9);
+  color: var(--yellow);
 }
 
 .mock-mode-banner-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #FFD60A;
+  background: var(--yellow);
   flex-shrink: 0;
   animation: pulse-yellow 2s ease-in-out infinite;
 }
@@ -99,9 +99,9 @@
 .mock-mode-banner-text strong { font-weight: 700; }
 
 .mock-mode-banner-btn {
-  background: rgba(255, 214, 10, 0.15);
-  border: 1px solid rgba(255, 214, 10, 0.3);
-  color: #FFD60A;
+  background: rgba(251, 191, 36, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: var(--yellow);
   border-radius: var(--r-full);
   padding: 4px 12px;
   font-size: 11px;
@@ -110,4 +110,4 @@
   white-space: nowrap;
   transition: background 0.2s;
 }
-.mock-mode-banner-btn:hover { background: rgba(255, 214, 10, 0.25); }
+.mock-mode-banner-btn:hover { background: rgba(251, 191, 36, 0.3); }
