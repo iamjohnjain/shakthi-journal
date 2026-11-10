@@ -9,7 +9,7 @@ import './BodyHeatmap3D.css'
 // Reuses the app's existing palette (globals.css) — mirrored as hex since
 // Three.js materials need JS color values, not CSS custom properties.
 const STATUS_COLOR: Record<RegionLoad['status'], string> = {
-  none:     '#C89676', // warm flesh tone — untrained
+  none:     '#9CA3AF', // neutral grey — untrained (not a skin/race tone)
   under:    '#5B7FFF', // blue
   onTarget: '#34D399', // green
   over:     '#F2545B', // red (possibly overtrained)
@@ -121,6 +121,35 @@ function Figure({ regions, selectedRegion, rotationY, onPick }: FigureProps) {
           : obj.material.clone()
       }
     })
+
+    // Glutes are purely posterior — from a front-on view there's no glute
+    // geometry for a ray to hit at all, so the region is simply unreachable
+    // without rotating to the back. Add two invisible, click-only proxy
+    // volumes at the hip sides (real glute_max/glute_med bounding box,
+    // pulled forward in Z toward the body's center depth) so tapping "the
+    // side of the hip" from the front also resolves to glutes. They render
+    // nothing (fully transparent, no depth write) and sit in open space the
+    // front-facing core/quad meshes don't occupy there, so they never shadow
+    // a real click.
+    const gluteNodes = ['glute_max', 'glute_med']
+      .map(n => cloned.getObjectByName(n))
+      .filter((n): n is THREE.Object3D => n != null)
+    if (gluteNodes.length > 0) {
+      const box = new THREE.Box3()
+      gluteNodes.forEach(n => box.expandByObject(n))
+      const size = box.getSize(new THREE.Vector3())
+      const center = box.getCenter(new THREE.Vector3())
+      const proxyGeo = new THREE.BoxGeometry(size.x * 0.22, size.y * 0.8, size.z * 1.6)
+      const proxyMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, depthTest: false })
+      for (const side of [-1, 1]) {
+        const proxy = new THREE.Mesh(proxyGeo, proxyMat.clone())
+        proxy.name = side < 0 ? 'glute_max' : 'glute_med' // reuses an existing NODE_REGION key — either resolves to 'glutes'
+        proxy.position.set(center.x + side * size.x * 0.47, center.y, center.z * 0.15)
+        proxy.renderOrder = -1 // never visually occludes real geometry, even if a future tweak makes it visible by mistake
+        cloned.add(proxy)
+      }
+    }
+
     return cloned
   }, [gltf])
 

@@ -73,7 +73,7 @@
   color: var(--text-tertiary);
 }
 .mh-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.mh-dot--none  { background: #C89676; }
+.mh-dot--none  { background: #9CA3AF; }
 .mh-dot--under { background: var(--blue); }
 .mh-dot--on    { background: var(--green); }
 .mh-dot--over  { background: var(--red); }

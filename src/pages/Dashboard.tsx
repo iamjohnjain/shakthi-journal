@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw, Flame, Dumbbell } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw, Dumbbell } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { getSetting } from '../db'
@@ -15,7 +15,6 @@ import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
 import { getImportedDates } from '../db/healthStore'
 import { getAllLogDates } from '../db/logStore'
-import { getCurrentStreak as getNutritionStreak } from '../db/nutritionStore'
 import { getCurrentWorkoutStreak } from '../db/workoutStore'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
@@ -210,19 +209,19 @@ function QuickActions() {
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
       <button className="quick-action-btn" onClick={() => setShowWeightModal(true)} aria-label="Log Weight">
-        <span className="quick-action-icon" style={{ color: 'var(--purple)', background: 'var(--purple-dim)' }} aria-hidden="true">
+        <span className="quick-action-icon" aria-hidden="true">
           <Scale size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Log Weight</span>
       </button>
       <button className="quick-action-btn" onClick={() => navigate('/nutrition?quick=photo')} aria-label="Snap Meal">
-        <span className="quick-action-icon" style={{ color: 'var(--orange)', background: 'var(--orange-dim)' }} aria-hidden="true">
+        <span className="quick-action-icon" aria-hidden="true">
           <Camera size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Snap Meal</span>
       </button>
       <button className="quick-action-btn" onClick={syncData} aria-label="Sync Data">
-        <span className="quick-action-icon" style={{ color: 'var(--red)', background: 'var(--red-dim)' }} aria-hidden="true">
+        <span className="quick-action-icon" aria-hidden="true">
           <RefreshCw size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Sync Data</span>
@@ -530,7 +529,6 @@ export default function Dashboard() {
   const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [markedDates, setMarkedDates] = useState<Set<string>>(new Set())
-  const [nutritionStreak, setNutritionStreak] = useState(0)
   const [workoutStreak, setWorkoutStreak] = useState(0)
 
   useEffect(() => {
@@ -540,7 +538,6 @@ export default function Dashboard() {
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
     getOwnedDevices().then(setOwnedDevices)
-    getNutritionStreak().then(setNutritionStreak)
     getCurrentWorkoutStreak().then(setWorkoutStreak)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
@@ -602,12 +599,12 @@ export default function Dashboard() {
              instead of the page's normal between-section gap ── */}
       <div className="dash-header-group">
         <header className="dash-header">
-          <div>
+          <div className="dash-header-text">
             <h1 className="dash-greeting">{isToday ? `${getGreeting()}${userName ? `, ${userName}` : ''}.` : 'Looking back.'}</h1>
             <p className="dash-date">{formatDate(viewDateObj)}</p>
           </div>
           <button className="dash-avatar-btn" onClick={() => navigate('/profile')} aria-label="Profile">
-            <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="md" />
+            <AvatarDisplay name={userName ?? 'Guest'} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="lg" />
           </button>
         </header>
 
@@ -625,18 +622,11 @@ export default function Dashboard() {
           {!isToday && (
             <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
           )}
-          {isToday && (nutritionStreak >= 2 || workoutStreak >= 2) && (
+          {isToday && workoutStreak >= 2 && (
             <div className="dash-streaks">
-              {nutritionStreak >= 2 && (
-                <button className="dash-streak-chip" onClick={() => navigate('/nutrition')} aria-label={`${nutritionStreak} day nutrition streak`}>
-                  <Flame size={13} />{nutritionStreak}
-                </button>
-              )}
-              {workoutStreak >= 2 && (
-                <button className="dash-streak-chip dash-streak-chip--workout" onClick={() => navigate('/workouts')} aria-label={`${workoutStreak} day workout streak`}>
-                  <Dumbbell size={13} />{workoutStreak}
-                </button>
-              )}
+              <button className="dash-streak-chip" onClick={() => navigate('/workouts')} aria-label={`${workoutStreak} day workout streak`}>
+                <Dumbbell size={13} />{workoutStreak}
+              </button>
             </div>
           )}
         </div>

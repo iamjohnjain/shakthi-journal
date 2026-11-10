@@ -46,6 +46,7 @@ export interface ProfileData {
   startBodyFatPct?: number
   goalWeightKg?: number
   goalBodyFatPct?: number
+  goalDate?: string       // 'YYYY-MM-DD' — target date to reach goalWeightKg
   goalNotes?: string
   bio?: string
   photoDataUrl?: string  // base64 data URL for custom photo upload

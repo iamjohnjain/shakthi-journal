@@ -299,12 +299,13 @@
 
 .goal-ring-modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding-bottom: 8px;
 }
 
 .goal-ring-modal-btn {
-  flex: 1;
+  flex: 1 1 100px;
   height: 44px;
   border-radius: var(--r-md);
   font-size: 14px;
@@ -321,7 +322,7 @@
 }
 
 .goal-ring-modal-btn--primary {
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   border-color: transparent;
 }
@@ -337,4 +338,71 @@
   text-align: center;
   margin-top: 8px;
   line-height: 1.4;
+}
+
+/* ── Weight-goal pace panel ── */
+
+.goal-ring-pace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  margin-top: 4px;
+}
+
+.goal-ring-pace--on-track,
+.goal-ring-pace--reached {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.goal-ring-pace--behind {
+  background: var(--orange-dim);
+  color: var(--orange);
+}
+
+.goal-ring-pace--no-data,
+.goal-ring-pace--no-target,
+.goal-ring-pace--past-due {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* ── Inline goal editor ── */
+
+.goal-ring-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.goal-ring-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.goal-ring-edit-field input {
+  height: 42px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.goal-ring-edit-field input:focus {
+  outline: none;
+  border-color: var(--blue);
 }

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { kgToLbs } from '../data/config'
+import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
-import { getProfile } from '../db/profileStore'
+import { getProfile, saveProfile } from '../db/profileStore'
 import { getSetting } from '../db'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
+import QuickWeightModal from './QuickWeightModal'
 import './GoalRing.css'
 
 const SLEEP_GOAL_H  = 8       // universally recommended
@@ -94,6 +95,58 @@ function ringPct(current: number, start: number, goal: number, higher: boolean):
     : (start - current) / (start - goal) * 100)
 }
 
+function daysBetween(a: string, b: string): number {
+  return Math.round((new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86400000)
+}
+
+type PaceStatus = 'reached' | 'no-data' | 'no-target' | 'past-due' | 'on-track' | 'behind'
+
+interface Pace {
+  status: PaceStatus
+  requiredPerWeek: number | null  // still-needed pace, in the "good" direction, per week
+  actualPerWeek: number | null    // pace achieved since startDate, per week
+}
+
+/** Weight-goal-only pace math: is the user's rate of progress since their
+    start date fast enough to reach goalWeightKg by goalDate? All weight
+    values are expected pre-converted to the user's display unit (lbs/kg) —
+    this is pure arithmetic, not a new source of truth for the goal itself. */
+function computePace(opts: {
+  start?: number; current?: number; goal?: number
+  startDate?: string; goalDate?: string
+  higherIsBetter: boolean
+}): Pace {
+  const { start, current, goal, startDate, goalDate, higherIsBetter } = opts
+  if (current == null || goal == null) return { status: 'no-data', requiredPerWeek: null, actualPerWeek: null }
+
+  const remaining = higherIsBetter ? goal - current : current - goal
+  if (remaining <= 0) return { status: 'reached', requiredPerWeek: null, actualPerWeek: null }
+
+  if (!goalDate) return { status: 'no-target', requiredPerWeek: null, actualPerWeek: null }
+
+  const today = localDateStr()
+  const daysRemaining = daysBetween(today, goalDate)
+  if (daysRemaining <= 0) {
+    return { status: 'past-due', requiredPerWeek: +(remaining * 7).toFixed(2), actualPerWeek: null }
+  }
+
+  const requiredPerWeek = (remaining / daysRemaining) * 7
+
+  let actualPerWeek: number | null = null
+  if (start != null && startDate) {
+    const daysElapsed = Math.max(1, daysBetween(startDate, today))
+    const progressSoFar = higherIsBetter ? current - start : start - current
+    actualPerWeek = (progressSoFar / daysElapsed) * 7
+  }
+
+  const onTrack = actualPerWeek != null && actualPerWeek >= requiredPerWeek * 0.92
+  return {
+    status: onTrack ? 'on-track' : 'behind',
+    requiredPerWeek: +requiredPerWeek.toFixed(2),
+    actualPerWeek: actualPerWeek != null ? +actualPerWeek.toFixed(2) : null,
+  }
+}
+
 interface Props {
   snapshot: DailySnapshot
   yesterday?: DailySnapshot
@@ -116,6 +169,12 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
   const [stepGoal,       setStepGoal]       = useState(10_000)
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
+  const [showWeightLog,  setShowWeightLog]  = useState(false)
+  const [editingGoal,    setEditingGoal]    = useState(false)
+  const [editStart,      setEditStart]      = useState('')
+  const [editGoal,       setEditGoal]       = useState('')
+  const [editDate,       setEditDate]       = useState('')
+  const [savingEdit,     setSavingEdit]     = useState(false)
 
   function sourceLabel(sourceId: string): string {
     if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
@@ -138,6 +197,9 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
     const t = setTimeout(() => setAnimated(true), 80)
     return () => clearTimeout(t)
   }, [typeIdx])
+  useEffect(() => {
+    if (!showDetail) setEditingGoal(false)
+  }, [showDetail])
 
   const goalType = GOAL_TYPES[typeIdx]
   const cfg = CONFIGS[goalType]
@@ -173,6 +235,41 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
   const remaining  = current != null && goalVal != null ? Math.abs(goalVal - current) : null
   const hasData    = current != null
   const hasProfile = startVal != null
+
+  const pace = goalType === 'weight'
+    ? computePace({
+        start: startVal, current, goal: goalVal,
+        startDate: profile?.startDate, goalDate: profile?.goalDate,
+        higherIsBetter: cfg.higherIsBetter,
+      })
+    : null
+
+  function openEditGoal() {
+    setEditStart(startVal != null ? String(startVal) : '')
+    setEditGoal(goalVal != null ? String(goalVal) : '')
+    setEditDate(profile?.goalDate ?? '')
+    setEditingGoal(true)
+  }
+
+  async function saveEditGoal() {
+    if (!profile) return
+    setSavingEdit(true)
+    const toKg = (v: string): number | undefined => {
+      if (v === '') return undefined
+      const n = Number(v)
+      return units.weight === 'kg' ? n : +(n / 2.20462).toFixed(2)
+    }
+    await saveProfile({
+      ...profile,
+      name: profile.name || 'Me',
+      startWeightKg: toKg(editStart) ?? profile.startWeightKg,
+      goalWeightKg: toKg(editGoal) ?? profile.goalWeightKg,
+      goalDate: editDate || undefined,
+    })
+    setProfile(await getProfile())
+    setSavingEdit(false)
+    setEditingGoal(false)
+  }
 
   const touchStartX = useRef<number>(0)
   const didSwipe = useRef<boolean>(false)
@@ -367,13 +464,13 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
 
               {!hasProfile && goalType !== 'steps' && goalType !== 'protein' && goalType !== 'sleep' && (
                 <p className="goal-ring-modal-setup-hint">
-                  Set your baseline in Profile to track progress from your starting point.
+                  Set your baseline below to track progress from your starting point.
                 </p>
               )}
 
               {goalType === 'weight' && latestWeight && (
                 <p className="goal-ring-modal-weight-note">
-                  Weight from {weightSourceLabel(latestWeight.sourceId)} on {latestWeight.date}. Tap "Edit Goal" to update your start weight.
+                  Weight from {weightSourceLabel(latestWeight.sourceId)} on {latestWeight.date}.
                 </p>
               )}
 
@@ -395,20 +492,95 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
                 </p>
               )}
 
+              {/* ── Weight-goal pace: on-track status or a lose/gain-per-week suggestion ── */}
+              {goalType === 'weight' && !editingGoal && pace && (
+                <div className={`goal-ring-pace goal-ring-pace--${pace.status}`}>
+                  {pace.status === 'reached' && (
+                    <><CheckCircle2 size={16} /> <span>Goal reached — nice work.</span></>
+                  )}
+                  {pace.status === 'no-data' && (
+                    <span>Log your weight to see your progress.</span>
+                  )}
+                  {pace.status === 'no-target' && (
+                    <span>Set a target date below to see if you're on track.</span>
+                  )}
+                  {pace.status === 'past-due' && (
+                    <span>Your target date has passed — update it below to keep tracking.</span>
+                  )}
+                  {pace.status === 'on-track' && (
+                    <><CheckCircle2 size={16} /> <span>On track for your goal date.</span></>
+                  )}
+                  {pace.status === 'behind' && pace.requiredPerWeek != null && (
+                    <span>
+                      {cfg.higherIsBetter ? 'Gain' : 'Lose'} ~{cfg.format(Math.abs(pace.requiredPerWeek))} {displayUnit}/week
+                      ({Math.abs(pace.requiredPerWeek / 7).toFixed(2)} {displayUnit}/day)
+                      to reach your goal by {profile?.goalDate ? shortDate(profile.goalDate) : ''}.
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* ── Inline goal editor — start weight, goal weight, target date ── */}
+              {goalType === 'weight' && editingGoal && (
+                <div className="goal-ring-edit-form">
+                  <label className="goal-ring-edit-field">
+                    <span>Start weight ({displayUnit})</span>
+                    <input type="number" inputMode="decimal" step="0.1" value={editStart}
+                      onChange={e => setEditStart(e.target.value)} placeholder="—" />
+                  </label>
+                  <label className="goal-ring-edit-field">
+                    <span>Goal weight ({displayUnit})</span>
+                    <input type="number" inputMode="decimal" step="0.1" value={editGoal}
+                      onChange={e => setEditGoal(e.target.value)} placeholder="—" />
+                  </label>
+                  <label className="goal-ring-edit-field">
+                    <span>Target date</span>
+                    <input type="date" value={editDate} min={localDateStr()}
+                      onChange={e => setEditDate(e.target.value)} />
+                  </label>
+                </div>
+              )}
+
               <div className="goal-ring-modal-actions">
-                <button className="goal-ring-modal-btn goal-ring-modal-btn--primary"
-                  onClick={() => { setShowDetail(false); navigate('/profile') }}>
-                  Edit Goal
-                </button>
-                <button className="goal-ring-modal-btn"
-                  onClick={() => { setShowDetail(false); navigate('/compare') }}>
-                  View Compare
-                </button>
+                {goalType === 'weight' && editingGoal ? (
+                  <>
+                    <button className="goal-ring-modal-btn" onClick={() => setEditingGoal(false)} disabled={savingEdit}>
+                      Cancel
+                    </button>
+                    <button className="goal-ring-modal-btn goal-ring-modal-btn--primary" onClick={saveEditGoal} disabled={savingEdit}>
+                      {savingEdit ? 'Saving…' : 'Save'}
+                    </button>
+                  </>
+                ) : goalType === 'weight' ? (
+                  <>
+                    <button className="goal-ring-modal-btn" onClick={() => setShowWeightLog(true)}>
+                      Log Weight
+                    </button>
+                    <button className="goal-ring-modal-btn goal-ring-modal-btn--primary" onClick={openEditGoal}>
+                      Edit Goal
+                    </button>
+                  </>
+                ) : (
+                  <button className="goal-ring-modal-btn goal-ring-modal-btn--primary"
+                    onClick={() => { setShowDetail(false); navigate('/profile') }}>
+                    Edit Goal
+                  </button>
+                )}
+                {!editingGoal && (
+                  <button className="goal-ring-modal-btn"
+                    onClick={() => { setShowDetail(false); navigate('/compare') }}>
+                    View Compare
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>,
         document.body
+      )}
+
+      {showWeightLog && (
+        <QuickWeightModal onClose={() => setShowWeightLog(false)} onSaved={() => {}} />
       )}
     </>
   )

@@ -13,10 +13,11 @@
      treatment: used as ambient lighting, not a loud decorative blend. */
   --bg: #0B0A0E;
   --bg-gradient:
-    radial-gradient(ellipse 120% 55% at 12% -8%,  rgba(251, 122, 60, 0.10) 0%, transparent 55%),
-    radial-gradient(ellipse 120% 65% at 92% -4%,  rgba(91, 127, 255, 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse 100% 55% at 50% 105%, rgba(45, 212, 191, 0.06) 0%, transparent 60%),
-    linear-gradient(180deg, #141019 0%, #0B0A0E 45%, #050408 100%);
+    radial-gradient(ellipse 120% 55% at 12% -8%,  rgba(251, 138, 76, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 65% at 92% -4%,  rgba(91, 127, 255, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 50% at 50% 38%,   rgba(166, 107, 245, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 55% at 50% 105%, rgba(45, 212, 191, 0.09) 0%, transparent 60%),
+    linear-gradient(180deg, #181220 0%, #0E0C13 45%, #06050A 100%);
   --bg-elevated: #15121A;
   --bg-card: rgba(255, 248, 242, 0.05);
   --bg-card-hover: rgba(255, 248, 242, 0.085);

@@ -844,7 +844,7 @@ export default function WorkoutsPage() {
                 ) : (
                   <div className="workouts-empty-today">
                     <span>{isToday ? 'No workout logged today.' : 'No workouts on this day.'}</span>
-                    <button onClick={() => setShowTemplatePicker(true)}>Log one →</button>
+                    <button onClick={() => setShowTemplatePicker(true)}>Log Workout →</button>
                   </div>
                 )}
               </div>

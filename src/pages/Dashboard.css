@@ -29,29 +29,41 @@
 .dash-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
+}
+
+.dash-header-text {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .dash-avatar-btn {
   flex-shrink: 0;
-  background: none;
-  border: 1px solid var(--border);
-  padding: 0;
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  padding: 2px;
   cursor: pointer;
   border-radius: 50%;
-  transition: border-color 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 
 .dash-avatar-btn:hover {
-  border-color: var(--border-strong);
+  opacity: 0.85;
 }
 
 .dash-greeting {
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-size: clamp(1.3rem, 6vw, 2.2rem);
   font-weight: 700;
   letter-spacing: -0.6px;
   color: var(--text-primary);
   line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .dash-date {
@@ -141,8 +153,8 @@
   gap: 4px;
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--orange);
-  background: var(--orange-dim);
+  color: var(--blue);
+  background: var(--blue-dim);
   border: 1px solid transparent;
   border-radius: 20px;
   padding: 4px 9px;
@@ -152,11 +164,6 @@
 
 .dash-streak-chip:hover {
   opacity: 0.8;
-}
-
-.dash-streak-chip--workout {
-  color: var(--blue);
-  background: var(--blue-dim);
 }
 
 
@@ -978,7 +985,12 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   display: flex;
   align-items: center;
   justify-content: center;
