@@ -27,16 +27,28 @@ function colorFor(load: RegionLoad | undefined): THREE.Color {
 }
 
 const ARC = Math.PI * 1.1 // ~198°, split shells overlap slightly at both seams
-const SEGMENTS = 28 // angular resolution — smooth, round curves rather than faceted blocks
+const SEGMENTS = 40 // angular resolution — smooth, round curves rather than faceted blocks
 
 type Profile = [y: number, radius: number][]
 
+/** Turns a handful of hand-placed (height, radius) keypoints into a dense,
+    continuously-smooth curve via Catmull-Rom spline interpolation — the
+    keypoints mark where flesh should bulge/taper (a bicep peak, a waist
+    pinch), and the spline fills in a natural, rounded transition between
+    them instead of the straight-line facets a raw Lathe would show with
+    so few points. */
+function smoothProfile(keypoints: Profile, samples = 48): Profile {
+  const pts = keypoints.map(([y, r]) => new THREE.Vector3(r, y, 0))
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5)
+  return curve.getPoints(samples).map(p => [p.y, Math.max(0.012, p.x)] as [number, number])
+}
+
 /** A continuously-contoured body-part shell, revolved from a hand-authored
     height→radius profile (so limbs taper/bulge like muscle instead of
-    reading as stacked cones). `arc`/`facing` splits it into an
-    independently colorable front or back half when the region needs one
-    (torso: chest vs back; arms: biceps vs triceps; thighs: quads vs
-    hamstrings); omit both for a single all-the-way-around piece (calves). */
+    reading as stacked cones). `facing` splits it into an independently
+    colorable front or back half when the region needs one (torso: chest
+    vs back; arms: biceps vs triceps; thighs: quads vs hamstrings); omit it
+    for a single all-the-way-around piece (calves). */
 function Revolve({
   profile, x = 0, facing, color, onPick,
 }: {
@@ -47,7 +59,12 @@ function Revolve({
   onPick?: () => void
 }) {
   const geometry = useMemo(() => {
-    const points = profile.map(([y, r]) => new THREE.Vector2(r, y))
+    // The back half gets a hair more radius than the front — with matching
+    // radii the two shells sit exactly coplanar at the overlap seam and
+    // z-fight (a flickering/jagged line); this keeps the back shell
+    // strictly outside the front one there instead.
+    const scale = facing === 'back' ? 1.045 : 1
+    const points = smoothProfile(profile).map(([y, r]) => new THREE.Vector2(r * scale, y))
     return facing
       ? new THREE.LatheGeometry(points, SEGMENTS, -ARC / 2, ARC)
       : new THREE.LatheGeometry(points, SEGMENTS)
@@ -61,7 +78,7 @@ function Revolve({
       rotation={facing ? [0, facing === 'front' ? Math.PI / 2 : -Math.PI / 2, 0] : [0, 0, 0]}
       onClick={onPick}
     >
-      <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.55} metalness={0.05} />
+      <meshStandardMaterial color={color} side={THREE.DoubleSide} roughness={0.42} metalness={0.06} />
     </mesh>
   )
 }
@@ -73,8 +90,8 @@ function Blob({ radius, x, y, z = 0, scale, color, onPick }: {
 }) {
   return (
     <mesh position={[x, y, z]} scale={scale} onClick={onPick}>
-      <sphereGeometry args={[radius, 24, 20]} />
-      <meshStandardMaterial color={color} roughness={0.55} metalness={0.05} />
+      <sphereGeometry args={[radius, 28, 24]} />
+      <meshStandardMaterial color={color} roughness={0.42} metalness={0.06} />
     </mesh>
   )
 }
@@ -111,21 +128,27 @@ function Figure({ regions, sex, rotationY, onPick }: FigureProps) {
   }
 
   // ── Profiles (height → radius, hand-tuned for a human silhouette) ──
-  const coreProfile: Profile = useMemo(() => [
-    [0.00, hipR * 0.90], [0.09, hipR], [0.20, waistR * 1.08],
-    [0.30, waistR], [0.45, (waistR + chestR) / 2 * 0.98],
-  ], [hipR, waistR, chestR])
-
-  const chestProfile: Profile = useMemo(() => [
+  // Torso: one canonical set of keypoints spanning hip to shoulder, split
+  // at the waistline (y=0.45) into the "core" and "chest" front shells so
+  // they share an exact radius at the seam (no mismatch, no visible notch)
+  // — the back shell reuses the same keypoints scaled slightly larger so
+  // it fully encloses the front shells in the overlap zone instead of
+  // z-fighting with them.
+  const torsoKeypoints: Profile = useMemo(() => [
+    [0.00, hipR * 0.90], [0.09, hipR], [0.20, waistR * 1.08], [0.30, waistR],
     [0.45, (waistR + chestR) / 2], [0.57, chestR * 0.96],
     [0.70, chestR], [0.82, chestR * 0.93], [0.92, shoulderR * 0.88],
-  ], [waistR, chestR, shoulderR])
-
-  const backProfile: Profile = useMemo(() => [
-    [0.00, hipR * 0.90], [0.09, hipR], [0.20, waistR * 1.08], [0.30, waistR],
-    [0.45, (waistR + chestR) / 2], [0.58, chestR * 0.98], [0.70, chestR * 1.03],
-    [0.82, chestR * 0.93], [0.92, shoulderR * 0.88],
   ], [hipR, waistR, chestR, shoulderR])
+
+  const coreProfile: Profile = useMemo(
+    () => torsoKeypoints.filter(([y]) => y <= 0.45),
+    [torsoKeypoints]
+  )
+  const chestProfile: Profile = useMemo(
+    () => torsoKeypoints.filter(([y]) => y >= 0.45),
+    [torsoKeypoints]
+  )
+  const backProfile = torsoKeypoints
 
   const armProfile: Profile = useMemo(() => [
     [0.88, 0.072], [0.76, 0.076], [0.58, 0.063],
@@ -133,8 +156,7 @@ function Figure({ regions, sex, rotationY, onPick }: FigureProps) {
   ], [])
 
   const thighProfile: Profile = useMemo(() => [
-    [0.00, hipR * 0.78], [-0.08, hipR * 0.80], [-0.22, 0.138],
-    [-0.40, 0.118], [-0.53, 0.090],
+    [0.00, hipR * 0.82], [-0.20, 0.140], [-0.40, 0.116], [-0.53, 0.090],
   ], [hipR])
 
   const calfProfile: Profile = useMemo(() => [

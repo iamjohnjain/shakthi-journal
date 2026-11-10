@@ -612,6 +612,10 @@
 .set-warmup-btn--on {
   border-color: var(--orange); color: var(--orange); background: var(--orange-dim);
 }
+.set-warmup-label {
+  font-size: 10px; font-weight: 700; color: var(--orange);
+  text-transform: uppercase; letter-spacing: .02em; flex-shrink: 0;
+}
 
 .set-value-btn {
   display: flex; align-items: baseline; gap: 3px;

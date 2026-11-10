@@ -181,9 +181,10 @@ function SetRow({
           aria-label={set.isWarmup ? 'Unmark warm-up' : 'Mark as warm-up'}
           title="Warm-up set"
         >
-          W
+          <Flame size={12} />
         </button>
         <span className="set-num">{idx + 1}</span>
+        {set.isWarmup && <span className="set-warmup-label">Warm-up</span>}
         <button className="set-value-btn" onClick={() => setExpanded(e => !e)}>
           {set.reps || 0}<span className="set-value-unit">reps</span>
         </button>
@@ -191,7 +192,7 @@ function SetRow({
         <button className="set-value-btn" onClick={() => setExpanded(e => !e)}>
           {set.weightLbs || 0}<span className="set-value-unit">lbs</span>
         </button>
-        {e1rm && <span className="set-e1rm">{e1rm}lb</span>}
+        {e1rm && <span className="set-e1rm">{e1rm} 1RM</span>}
         {isPR && <span className="set-pr-badge">PR!</span>}
         <button className="set-remove" onClick={onRemove} aria-label="Remove set">×</button>
       </div>
