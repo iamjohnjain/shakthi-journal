@@ -1,0 +1,159 @@
+.wc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 1900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.wc-sheet {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ── The card itself — this is what gets captured as the shareable image,
+     so it stays visually self-contained (own background, no outside
+     chrome) and intentionally sparse: one stat row, a short PR line, done. ── */
+
+.wc-card {
+  width: 100%;
+  background:
+    radial-gradient(ellipse 140% 80% at 0% 0%, rgba(251, 138, 76, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 140% 80% at 100% 100%, rgba(91, 127, 255, 0.16) 0%, transparent 55%),
+    #15121A;
+  border: 1px solid rgba(166, 107, 245, 0.25);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.wc-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wc-card-title {
+  font-size: 19px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.wc-card-date {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.wc-card-stats {
+  display: flex;
+  justify-content: space-between;
+}
+
+.wc-card-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wc-card-stat-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wc-card-stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.wc-card-prs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wc-card-prs-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #FBBF24;
+}
+
+.wc-card-prs-list {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.wc-card-brand {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: right;
+}
+
+/* ── Chrome around the card — not part of the captured image ── */
+
+.wc-headline {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wc-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.wc-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 46px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+}
+
+.wc-action-btn--primary {
+  background: var(--gradient-brand);
+  color: #fff;
+  border-color: transparent;
+}
+.wc-action-btn--primary:hover { opacity: 0.9; }
+.wc-action-btn:disabled { opacity: 0.6; }
+
+.wc-done-btn {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 4px 8px;
+}

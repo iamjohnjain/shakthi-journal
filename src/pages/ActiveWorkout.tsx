@@ -12,6 +12,7 @@ import { parseWorkoutDescription, analyzeWorkoutPhoto } from '../lib/aiWorkoutPa
 import type { ParsedExercise } from '../lib/aiWorkoutParser'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import LiveCamera from '../components/LiveCamera'
+import WorkoutCelebration from '../components/WorkoutCelebration'
 import { useSpeechToText } from '../hooks/useSpeechToText'
 import { localDateStr } from '../data/config'
 import './ActiveWorkout.css'
@@ -443,6 +444,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
   const [exercises,    setExercises]    = useState<ActiveExercise[]>(() => initial ? toActiveExercises(initial.exercises) : [])
   const [showPicker,   setShowPicker]   = useState(false)
   const [showFinish,   setShowFinish]   = useState(false)
+  const [celebrationSession, setCelebrationSession] = useState<WorkoutSession | null>(null)
   const elapsed = useElapsedTimer(showFinish)
   const [showTypeMenu, setShowTypeMenu] = useState(false)
   const [saving,       setSaving]       = useState(false)
@@ -545,7 +547,17 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
     // instead of needing to be typed out in full again.
     void Promise.all(saved.map(e => rememberCustomExercise(e.name)))
     setSaving(false)
-    onFinish(result)
+    setShowFinish(false)
+    setCelebrationSession(result)
+  }
+
+  if (celebrationSession) {
+    return (
+      <WorkoutCelebration
+        session={celebrationSession}
+        onDone={() => onFinish(celebrationSession)}
+      />
+    )
   }
 
   if (showFinish) {
