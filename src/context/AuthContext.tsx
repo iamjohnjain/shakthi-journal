@@ -109,15 +109,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedUserId = await getSetting<string | null>('syncedUserId', null)
     const localData = await getLocalDataSummary()
     const isSameUser = savedUserId === authUser.id
+    const hasLocalData = hasSignificantLocalData(localData)
 
-    if (!isSameUser && hasSignificantLocalData(localData)) {
-      // Different account (or first sign-in) — let user decide what to do
+    if (!isSameUser && hasLocalData) {
+      // Different account (or first sign-in) with real local data already
+      // present — let the user decide how to reconcile the two.
       setPendingMerge({ user: authUser, session: s, localData })
       return
     }
 
-    // Same user returning or no local data to worry about
     await finalizeSignIn(s, authUser)
+
+    // First time this install has ever signed in as this user, and there's
+    // nothing local to protect (a fresh install, or a reinstall under a new
+    // app/bundle ID after a rebrand) — pull their existing cloud data down
+    // rather than silently leaving them "signed in" to an empty app. This
+    // is the one case the merge-prompt above doesn't cover, since it only
+    // fires when local data would otherwise be at risk of being overwritten.
+    if (!isSameUser && !hasLocalData) {
+      await syncEngine.downloadAll(authUser.id)
+    }
   }, [])
 
   const finalizeSignIn = useCallback(async (s: Session, authUser: AuthUser) => {
