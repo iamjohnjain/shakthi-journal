@@ -13,7 +13,7 @@ import WebKit
 /// also destroys the WKWebView and its isolated localStorage.
 struct WebAppView: UIViewRepresentable {
 
-    static let appURL = URL(string: "https://shakthi-journal.pages.dev")!
+    static let appURL = URL(string: "https://jeevan-health.pages.dev")!
 
     let accessToken:  String
     let refreshToken: String
@@ -32,8 +32,8 @@ struct WebAppView: UIViewRepresentable {
         // Inject the Supabase session into localStorage before any page script runs
         config.userContentController.addUserScript(sessionScript())
         // Register the JS → native message bridge. Web calls:
-        //   window.webkit.messageHandlers.shakthiNative.postMessage({ type: 'openHealthSync' })
-        config.userContentController.add(context.coordinator, name: "shakthiNative")
+        //   window.webkit.messageHandlers.jeevanNative.postMessage({ type: 'openHealthSync' })
+        config.userContentController.add(context.coordinator, name: "jeevanNative")
         // Allow inline media (web app may use audio/video)
         config.allowsInlineMediaPlayback = true
 
@@ -91,7 +91,7 @@ struct WebAppView: UIViewRepresentable {
           try {
             // Mark the page as running inside the native iOS app.
             // The web app reads this to hide its own bottom navigation.
-            window.__shakthiNativeApp = true;
+            window.__jeevanNativeApp = true;
 
             var session = {
               "access_token":  "\(tok)",
@@ -139,7 +139,7 @@ struct WebAppView: UIViewRepresentable {
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(handleNativeSyncComplete(_:)),
-                name: .shakthiNativeSyncComplete,
+                name: .jeevanNativeSyncComplete,
                 object: nil
             )
         }
@@ -159,7 +159,7 @@ struct WebAppView: UIViewRepresentable {
                 action.navigationType == .linkActivated,
                 let url = action.request.url,
                 let host = url.host,
-                host != "shakthi-journal.pages.dev"
+                host != "jeevan-health.pages.dev"
             else {
                 decisionHandler(.allow)
                 return
@@ -190,12 +190,12 @@ struct WebAppView: UIViewRepresentable {
         // MARK: JS → Native messages
 
         // Receives messages posted by the web app via:
-        //   window.webkit.messageHandlers.shakthiNative.postMessage({ type: '...' })
+        //   window.webkit.messageHandlers.jeevanNative.postMessage({ type: '...' })
         func userContentController(
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard message.name == "shakthiNative",
+            guard message.name == "jeevanNative",
                   let body = message.body as? [String: Any] else { return }
             DispatchQueue.main.async { [weak self] in
                 self?.onMessage?(body)

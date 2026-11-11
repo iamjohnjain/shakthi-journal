@@ -1,6 +1,6 @@
 # Backup & Restore
 
-All Shakthi Journal data lives in **IndexedDB on this device in this browser**. It is not backed up to any server. Clearing your browser data, switching browsers, or deploying to a new domain will erase it.
+All Jeevan data lives in **IndexedDB on this device in this browser**. It is not backed up to any server. Clearing your browser data, switching browsers, or deploying to a new domain will erase it.
 
 **Export a backup before any of those events.**
 
@@ -11,7 +11,7 @@ All Shakthi Journal data lives in **IndexedDB on this device in this browser**. 
 1. Go to **Settings → Backup & Restore** (or navigate to `/settings/backup`).
 2. Click **Export All Data**.
 3. A JSON file is downloaded to your Downloads folder:
-   `shakthi-journal-backup-YYYY-MM-DD.json`
+   `jeevan-backup-YYYY-MM-DD.json`
 
 The file contains all 11 IndexedDB stores:
 
@@ -73,7 +73,7 @@ If you deploy to Cloudflare Pages (new domain), the IndexedDB data does **not** 
 
 ```json
 {
-  "format": "shakthi-journal-backup",
+  "format": "jeevan-backup",
   "version": "1",
   "appVersion": "0.4.0",
   "exportedAt": "2026-06-29T09:00:00.000Z",

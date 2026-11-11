@@ -9,7 +9,7 @@ Run this checklist after every deployment before sharing with beta testers.
 | Check | Pass? |
 |---|---|
 | App loads at root URL without white flash | |
-| Browser tab title shows "Shakthi Journal" | |
+| Browser tab title shows "Jeevan" | |
 | Sidebar navigation renders | |
 | All nav links route correctly | |
 | Refreshing `/settings`, `/workouts`, `/nutrition` returns the app (not 404) | |
@@ -63,7 +63,7 @@ Run this checklist after every deployment before sharing with beta testers.
 | Export Backup navigates to Backup & Restore page | |
 | Restore from Backup navigates to Backup & Restore page | |
 | "Export All Data" button triggers file download | |
-| Downloaded file name matches `shakthi-journal-backup-YYYY-MM-DD.json` | |
+| Downloaded file name matches `jeevan-backup-YYYY-MM-DD.json` | |
 | Downloaded file is valid JSON (open and inspect) | |
 | "Choose Backup File" opens file picker | |
 | Selecting the downloaded file shows the Import Preview modal | |
@@ -98,7 +98,7 @@ Run this checklist after every deployment before sharing with beta testers.
 | Keyboard doesn't permanently cover inputs | |
 | Share → Add to Home Screen → Add works | |
 | App opens fullscreen from home screen (no browser chrome) | |
-| App title on home screen shows "Shakthi" | |
+| App title on home screen shows "Jeevan" | |
 | Export backup downloads a file on iOS Safari | |
 
 ---

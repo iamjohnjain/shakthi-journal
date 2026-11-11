@@ -1,5 +1,5 @@
 # Future Monetization
-*Shakthi Journal — Sustainable Revenue Without Degrading the Free Experience*
+*Jeevan — Sustainable Revenue Without Degrading the Free Experience*
 *Status: Planning only — no monetization is implemented*
 *Last updated: 2026-06-30*
 

@@ -1,8 +1,8 @@
-# Deploying Shakthi Journal — Beginner's Guide
+# Deploying Jeevan — Beginner's Guide
 
 This guide assumes you have never deployed a website. Follow each step in order.
 
-When you're done, you'll have a live URL like `https://shakthi-journal.pages.dev` accessible from any device, anywhere.
+When you're done, you'll have a live URL like `https://jeevan-health.pages.dev` accessible from any device, anywhere.
 
 ---
 
@@ -20,12 +20,12 @@ When you're done, you'll have a live URL like `https://shakthi-journal.pages.dev
 1. Sign in to [github.com](https://github.com).
 2. Click the **+** icon in the top-right corner → **New repository**.
 3. Fill in:
-   - **Repository name:** `shakthi-journal`
+   - **Repository name:** `jeevan`
    - **Visibility:** Private (recommended — only you can see the code)
    - **Do NOT** check "Add a README file" (you already have one)
 4. Click **Create repository**.
 5. GitHub shows you a page with setup commands. Copy the URL — it looks like:
-   `https://github.com/YOUR_USERNAME/shakthi-journal.git`
+   `https://github.com/YOUR_USERNAME/jeevan.git`
 
 ---
 
@@ -42,7 +42,7 @@ git init
 git add .
 git commit -m "Initial release — Phase 11"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/shakthi-journal.git
+git remote add origin https://github.com/YOUR_USERNAME/jeevan.git
 git push -u origin main
 ```
 
@@ -77,8 +77,8 @@ When prompted, enter your GitHub username and password (or personal access token
 1. Click **Connect to Git**.
 2. Click **Connect GitHub**.
 3. A GitHub authorization page appears — click **Authorize Cloudflare Pages**.
-4. Click **Install & Authorize** and select your `shakthi-journal` repository.
-5. Back in Cloudflare, click **Begin setup** next to `shakthi-journal`.
+4. Click **Install & Authorize** and select your `jeevan` repository.
+5. Back in Cloudflare, click **Begin setup** next to `jeevan`.
 
 ---
 
@@ -88,7 +88,7 @@ Fill in these fields exactly:
 
 | Field | Value |
 |---|---|
-| **Project name** | `shakthi-journal` (or whatever you want in the URL) |
+| **Project name** | `jeevan` (or whatever you want in the URL) |
 | **Production branch** | `main` |
 | **Framework preset** | None |
 | **Build command** | `npm run build` |
@@ -131,7 +131,7 @@ This takes about 60–90 seconds. You'll see a build log scroll by. A green chec
 When the build finishes, Cloudflare shows you your live URL:
 
 ```
-https://shakthi-journal.pages.dev
+https://jeevan-health.pages.dev
 ```
 
 Click it. The app should open exactly as it does on localhost.
@@ -141,7 +141,7 @@ Click it. The app should open exactly as it does on localhost.
 - [ ] Navigation works (click through Today, Workouts, Nutrition, Settings)
 - [ ] Refreshing a non-root page (e.g. `/settings`) doesn't return 404
 - [ ] Settings → Backup & Restore → Export All Data downloads a file
-- [ ] The page title in the browser tab says "Shakthi Journal"
+- [ ] The page title in the browser tab says "Jeevan"
 - [ ] On iPhone: open in Safari → Share → Add to Home Screen → confirm the icon appears
 
 If a page refresh gives a 404 error, check that `public/_redirects` exists with content `/* /index.html 200`. It should already be there.
@@ -150,7 +150,7 @@ If a page refresh gives a 404 error, check that `public/_redirects` exists with 
 
 ## Step 9 — Share the URL
 
-Your app is now live at `https://shakthi-journal.pages.dev`.
+Your app is now live at `https://jeevan-health.pages.dev`.
 
 Share this URL with anyone you want to give access. They open it in any browser — no app store needed.
 
@@ -216,6 +216,6 @@ Your local data on `localhost:5173` will **not** automatically appear on the dep
 
 To move your data:
 1. On `localhost:5173`: Settings → Backup & Restore → **Export All Data**.
-2. On `https://shakthi-journal.pages.dev`: Settings → Backup & Restore → **Choose Backup File** → **Replace all**.
+2. On `https://jeevan-health.pages.dev`: Settings → Backup & Restore → **Choose Backup File** → **Replace all**.
 
 See [BACKUP_RESTORE.md](BACKUP_RESTORE.md) for full details.

@@ -482,7 +482,7 @@ function FinishSummary({
             🏆 {prs} New PR{prs > 1 ? 's' : ''}
           </div>
         )}
-        <div className="aw-summary-brand">Shakthi Journal</div>
+        <div className="aw-summary-brand">Jeevan</div>
       </div>
 
       <div className="aw-summary-share-row">

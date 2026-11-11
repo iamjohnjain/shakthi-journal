@@ -1,5 +1,5 @@
 # Native App Roadmap
-*Shakthi Journal — Future iOS Companion App*
+*Jeevan — Future iOS Companion App*
 *Status: Planning only — not being built yet*
 *Last updated: 2026-06-30*
 
@@ -90,12 +90,12 @@ healthStore.requestAuthorization(toShare: [], read: typesToRead) { success, erro
 
 ### Sync Strategy
 - On app launch: query for records newer than `lastHealthKitSyncAt`
-- Map HealthKit samples → Shakthi `health_metrics` schema
+- Map HealthKit samples → Jeevan `health_metrics` schema
 - Write to local SwiftData → queue to Supabase
 - Update `lastHealthKitSyncAt` after each successful sync
 - Background App Refresh: trigger a HealthKit query and sync when iOS wakes the app
 
-### Mapping HealthKit → Shakthi Schema
+### Mapping HealthKit → Jeevan Schema
 ```swift
 // health_metrics record format (same as web):
 {
@@ -133,8 +133,8 @@ healthStore.requestAuthorization(toShare: [], read: typesToRead) { success, erro
 ### Deep Link for Auth Handoff
 The native app registers a custom URL scheme and/or universal link:
 ```
-shakthijournal://auth/callback   (custom scheme)
-https://app.shakthijournal.com/auth/callback  (universal link)
+jeevan://auth/callback   (custom scheme)
+https://app.jeevan.com/auth/callback  (universal link)
 ```
 
 This allows Supabase email confirmation links to open the native app when installed.
@@ -162,13 +162,13 @@ Use iOS Background App Refresh for periodic sync (every 15–60 minutes based on
 import BackgroundTasks
 
 // Register at app startup
-BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.shakthi.sync", using: nil) { task in
+BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.jeevan.sync", using: nil) { task in
     self.handleBackgroundSync(task: task as! BGAppRefreshTask)
 }
 
 // Schedule next refresh
 func scheduleBackgroundSync() {
-    let request = BGAppRefreshTaskRequest(identifier: "com.shakthi.sync")
+    let request = BGAppRefreshTaskRequest(identifier: "com.jeevan.sync")
     request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
     try? BGTaskScheduler.shared.submit(request)
 }
@@ -197,14 +197,14 @@ Background sync should:
 
 ### Implementation
 ```swift
-struct ShakthiWidget: Widget {
-    let kind = "ShakthiDailyWidget"
+struct JeevanWidget: Widget {
+    let kind = "JeevanDailyWidget"
     
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: DailyProvider()) { entry in
             DailyWidgetView(entry: entry)
         }
-        .configurationDisplayName("Shakthi Daily")
+        .configurationDisplayName("Jeevan Daily")
         .description("Today's progress at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }

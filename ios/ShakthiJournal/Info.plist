@@ -14,16 +14,16 @@
 	     moment anything (an <input capture> tap or a getUserMedia() call)
 	     touches the camera — it does not show a permission dialog first. -->
 	<key>NSCameraUsageDescription</key>
-	<string>Shakthi uses your camera so you can snap a photo of a meal, receipt, or barcode and get an instant nutrition estimate.</string>
+	<string>Jeevan uses your camera so you can snap a photo of a meal, receipt, or barcode and get an instant nutrition estimate.</string>
 
 	<!-- HealthKit read — required, or App Store will reject the binary -->
 	<key>NSHealthShareUsageDescription</key>
-	<string>Shakthi reads your health data from Apple Health to sync it to your personal dashboard. Your data is only uploaded to your own account and is never shared with anyone.</string>
+	<string>Jeevan reads your health data from Apple Health to sync it to your personal dashboard. Your data is only uploaded to your own account and is never shared with anyone.</string>
 
 	<!-- HealthKit write — permission requested now for future use (Phase iOS 2+).
 	     The app does not write to Apple Health yet. -->
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>A future update will allow Shakthi to log workouts and body measurements back to Apple Health. Write permission is requested now to avoid a second dialog later.</string>
+	<string>A future update will allow Jeevan to log workouts and body measurements back to Apple Health. Write permission is requested now to avoid a second dialog later.</string>
 
 	<!-- Google sign-in redirect — caught by ASWebAuthenticationSession, not app URL
 	     handling, but registered here too so the scheme is reserved and documented. -->
@@ -32,7 +32,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.shakthijournal.app</string>
+				<string>com.jeevan.app</string>
 			</array>
 		</dict>
 	</array>
@@ -47,7 +47,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleDisplayName</key>
-	<string>Shakthi</string>
+	<string>Jeevan</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>

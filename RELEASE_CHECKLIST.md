@@ -22,10 +22,10 @@ Check everything below before tagging a release or sharing the URL with beta tes
 
 ## Branding
 
-- [ ] Browser tab title: "Shakthi Journal"
-- [ ] PWA short name: "Shakthi"
-- [ ] `manifest.json` name: "Shakthi Journal"
-- [ ] iOS home screen title: "Shakthi"
+- [ ] Browser tab title: "Jeevan"
+- [ ] PWA short name: "Jeevan"
+- [ ] `manifest.json` name: "Jeevan"
+- [ ] iOS home screen title: "Jeevan"
 - [ ] `<meta name="description">` is accurate
 
 ## PWA & Icons

@@ -1,6 +1,6 @@
 # iOS Companion App — Setup Guide
 
-Shakthi Journal iOS is a native HealthKit bridge. It reads health data from Apple Health and syncs it to the same Supabase project the web dashboard uses. The web app is unchanged.
+Jeevan iOS is a native HealthKit bridge. It reads health data from Apple Health and syncs it to the same Supabase project the web dashboard uses. The web app is unchanged.
 
 **Phase iOS 1.1 changes (current):**
 - Missing Supabase config shows `ConfigurationView` instead of crashing
@@ -101,7 +101,7 @@ Fix this in one click:
    - If your Apple ID isn't listed: **Xcode → Settings → Accounts → +** → add your Apple ID
 5. Xcode automatically creates/downloads a provisioning profile
 
-Bundle identifier is already set to `com.shakthijournal.app`. If it conflicts with an existing app, change it to something like `com.yourname.shakthijournal`.
+Bundle identifier is already set to `com.jeevan.app`. If it conflicts with an existing app, change it to something like `com.yourname.shakthijournal`.
 
 ---
 
@@ -143,7 +143,7 @@ The project already links `HealthKit.framework` and `Security.framework` in the 
 3. The iOS HealthKit permission sheet appears — approve each category
 4. Return to the dashboard → tap **Sync Now**
 5. The app fetches the last 30 days of HealthKit data and uploads it to Supabase
-6. Open the Shakthi Journal web dashboard — your health data appears immediately
+6. Open the Jeevan web dashboard — your health data appears immediately
 
 ---
 
@@ -243,7 +243,7 @@ This screen appears instead of a crash. Once you follow the steps and rebuild, i
 The app tries to restore a session from Keychain. Nothing is there yet, so it transitions immediately.
 
 **2. Sign In screen**
-Plain dark screen with the Shakthi mark, two text fields, and a Sign In button. Enter the same email and password you use on the web app. No Google or Apple options yet — those are Phase iOS 2+.
+Plain dark screen with the Jeevan mark, two text fields, and a Sign In button. Enter the same email and password you use on the web app. No Google or Apple options yet — those are Phase iOS 2+.
 
 **3. Authentication**
 A brief loading state while Supabase verifies the credentials. If the password is wrong, a red error message appears inline ("Incorrect email or password."). No alert dialogs.

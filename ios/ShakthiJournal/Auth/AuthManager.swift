@@ -111,7 +111,7 @@ final class AuthManager {
         isSigningInWithGoogle = true
         googleSignInError = nil
 
-        let redirectScheme = "com.shakthijournal.app"
+        let redirectScheme = "com.jeevan.app"
         let authURL = SupabaseClient.googleAuthorizeURL(redirectTo: "\(redirectScheme)://auth-callback")
 
         let session = ASWebAuthenticationSession(

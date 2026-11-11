@@ -1,4 +1,4 @@
-# Sync Audit — Shakthi Journal
+# Sync Audit — Jeevan
 *Phase 16 — Sync Reliability*  
 *Updated: 2026-06-29*
 

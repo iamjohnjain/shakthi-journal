@@ -1,8 +1,8 @@
-# Shakthi Journal — Research Principles
+# Jeevan — Research Principles
 
 ## Why this document exists
 
-Shakthi Journal surfaces health guidance: training recommendations, nutrition targets, recovery assessments, progressive overload suggestions. Health guidance that is wrong or overstated causes real harm — both by misleading the user and by eroding the trust that makes the coach useful at all.
+Jeevan surfaces health guidance: training recommendations, nutrition targets, recovery assessments, progressive overload suggestions. Health guidance that is wrong or overstated causes real harm — both by misleading the user and by eroding the trust that makes the coach useful at all.
 
 This document defines the standards every health-related claim, recommendation, and coach note must meet. It is not optional. It applies to the rule engine today and to any AI coach in the future.
 
@@ -51,7 +51,7 @@ Uncertainty is not a weakness. It is how science works. The coach earns trust by
 
 ## Medical Boundary
 
-Shakthi Journal is not a medical device. It never:
+Jeevan is not a medical device. It never:
 
 - Diagnoses any condition
 - Recommends medications, supplements at clinical doses, or clinical interventions

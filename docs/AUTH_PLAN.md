@@ -2,7 +2,7 @@
 
 ## Current State: Local-Only, No Auth
 
-Right now, Shakthi Journal has zero authentication. All data lives in:
+Right now, Jeevan has zero authentication. All data lives in:
 - **IndexedDB** — health metrics, sync history, settings (persists across sessions in this browser)
 - **localStorage** — Strava OAuth token only
 

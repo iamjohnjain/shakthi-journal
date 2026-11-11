@@ -1,6 +1,6 @@
 # Deployment — Cloudflare Pages
 
-Shakthi Journal is a fully static SPA. No server required. Cloudflare Pages hosts it for free with a global CDN.
+Jeevan is a fully static SPA. No server required. Cloudflare Pages hosts it for free with a global CDN.
 
 ---
 
@@ -18,7 +18,7 @@ Shakthi Journal is a fully static SPA. No server required. Cloudflare Pages host
 git init
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/shakthi-journal.git
+git remote add origin https://github.com/YOUR_USERNAME/jeevan.git
 git push -u origin main
 ```
 
@@ -29,7 +29,7 @@ git push -u origin main
 1. Go to [Cloudflare Dashboard → Pages](https://dash.cloudflare.com/?to=/:account/pages).
 2. Click **Create a project** → **Connect to Git**.
 3. Authorize Cloudflare to access your GitHub.
-4. Select your `shakthi-journal` repository.
+4. Select your `jeevan` repository.
 
 ---
 

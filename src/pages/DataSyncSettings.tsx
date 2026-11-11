@@ -38,8 +38,8 @@ export default function DataSyncSettings() {
 
   function openHealthSync() {
     const w = window as unknown as Record<string, unknown>
-    const handlers = w.webkit as { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } | undefined
-    handlers?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
+    const handlers = w.webkit as { messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } } } | undefined
+    handlers?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
   }
 
   async function handleSignOut() {

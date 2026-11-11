@@ -4,7 +4,7 @@ import Security
 /// Thin wrapper around the iOS Keychain for storing Supabase auth tokens.
 /// Tokens are stored per-device and never sync to iCloud.
 enum KeychainHelper {
-    private static let service = "com.shakthijournal.app"
+    private static let service = "com.jeevan.app"
 
     static let accessTokenKey   = "supabase_access_token"
     static let refreshTokenKey  = "supabase_refresh_token"

@@ -311,8 +311,8 @@ function StepWelcomeAuth({ onGuest, onAuthSuccess, dir }: {
 
   return (
     <StepShell dir={dir}>
-      <div className="ob-welcome-mark">S</div>
-      <h1 className="ob-welcome-title">Shakthi</h1>
+      <img src="/icon-192.png" alt="Jeevan" className="ob-welcome-mark" />
+      <h1 className="ob-welcome-title">Jeevan</h1>
       <p className="ob-welcome-sub">Your private health OS. Data stays on your device unless you create an account.</p>
 
       <div className="ob-spacer" />
@@ -728,7 +728,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
   const platform   = getPlatform()
   const isNativeApp =
     typeof window !== 'undefined' &&
-    (window as unknown as Record<string, unknown>).__shakthiNativeApp === true
+    (window as unknown as Record<string, unknown>).__jeevanNativeApp === true
 
   function toggleDevice(id: DeviceId) {
     const on = data.ownedDevices.includes(id)
@@ -764,7 +764,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <span className="ob-source-icon">❤️</span>
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
-              <span className="ob-source-desc">Connected via the Shakthi iPhone app</span>
+              <span className="ob-source-desc">Connected via the Jeevan iPhone app</span>
             </div>
             <span className="ob-source-badge ob-source-badge--connected"><Check size={13} /> Connected</span>
           </div>
@@ -774,7 +774,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
               <span className="ob-source-desc">
-                Download the <strong>Shakthi</strong> iPhone app to connect Apple Health directly.
+                Download the <strong>Jeevan</strong> iPhone app to connect Apple Health directly.
                 {' '}<span className="ob-source-note">Direct sync, no file export needed.</span>
               </span>
             </div>
@@ -786,7 +786,7 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
               <span className="ob-source-desc">
-                Available in the Shakthi iPhone app.
+                Available in the Jeevan iPhone app.
                 {' '}<span className="ob-source-note">Open this app on your iPhone for direct HealthKit sync.</span>
               </span>
             </div>
@@ -1010,7 +1010,7 @@ function ScreenFinish({ name, loading, isEdit, onFinish }: {
       <p className="ob-finish-sub">Your profile has been saved.</p>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onFinish} disabled={loading}>
-          {loading ? 'Saving…' : isEdit ? 'Save Changes' : 'Enter Shakthi'}
+          {loading ? 'Saving…' : isEdit ? 'Save Changes' : 'Enter Jeevan'}
         </button>
         <p className="ob-fine-print">All settings can be adjusted anytime in the app.</p>
       </div>

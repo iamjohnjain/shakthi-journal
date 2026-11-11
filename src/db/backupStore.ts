@@ -34,7 +34,10 @@ export interface BackupSummary {
 }
 
 export interface BackupData {
-  format: 'shakthi-journal-backup'
+  // 'shakthi-journal-backup' is the pre-rebrand tag — still accepted on
+  // import so a backup exported before the Jeevan rename can still be
+  // restored; every new export writes the current tag.
+  format: 'jeevan-backup' | 'shakthi-journal-backup'
   version: '1'
   appVersion: string
   exportedAt: string
@@ -63,7 +66,7 @@ export async function exportAllData(appVersion: string): Promise<BackupData> {
   ) as unknown as BackupSummary
 
   return {
-    format: 'shakthi-journal-backup',
+    format: 'jeevan-backup',
     version: '1',
     appVersion,
     exportedAt: new Date().toISOString(),
@@ -80,7 +83,7 @@ export function downloadBackup(data: BackupData): void {
   const date = localDateStr()
   const a = document.createElement('a')
   a.href = url
-  a.download = `shakthi-journal-backup-${date}.json`
+  a.download = `jeevan-backup-${date}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -90,7 +93,7 @@ export function downloadBackup(data: BackupData): void {
 export function parseBackupFile(json: string): BackupData | null {
   try {
     const data = JSON.parse(json)
-    if (data.format !== 'shakthi-journal-backup') return null
+    if (data.format !== 'jeevan-backup' && data.format !== 'shakthi-journal-backup') return null
     if (!data.stores || typeof data.stores !== 'object') return null
     if (!data.exportedAt || !data.summary) return null
     return data as BackupData

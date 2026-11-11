@@ -57,7 +57,7 @@ export default function Sidebar() {
         <div className="sidebar-brand">
           <span className="sidebar-name">{displayName}</span>
           <span className="sidebar-tagline">
-            {isGuest ? 'Guest · local only' : 'Shakthi'}
+            {isGuest ? 'Guest · local only' : 'Jeevan'}
           </span>
         </div>
       </div>

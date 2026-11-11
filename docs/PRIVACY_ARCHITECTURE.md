@@ -1,12 +1,12 @@
 # Privacy Architecture
-*Shakthi Journal — Privacy Audit & Principles*
+*Jeevan — Privacy Audit & Principles*
 *Last updated: 2026-06-30*
 
 ---
 
 ## Summary
 
-Shakthi Journal is private by default. As of this audit, it collects no telemetry, sends no data to third parties, and processes all health data locally on the user's device. Cloud sync (Supabase) is entirely opt-in through account creation.
+Jeevan is private by default. As of this audit, it collects no telemetry, sends no data to third parties, and processes all health data locally on the user's device. Cloud sync (Supabase) is entirely opt-in through account creation.
 
 **Privacy risk level: Low.** No third-party data brokers, no analytics, no ad network SDKs.
 
@@ -36,7 +36,7 @@ Shakthi Journal is private by default. As of this audit, it collects no telemetr
 - Collect IP addresses (beyond what any web server logs by default)
 
 ### Data Stored in the Browser
-- **IndexedDB (`shakthi-journal`):** All user-created health data
+- **IndexedDB (`jeevan`):** All user-created health data
 - **No localStorage keys** for user data (Supabase tokens are managed by `@supabase/supabase-js` in localStorage, but only after explicit sign-in)
 - **No cookies** set by the app itself (Supabase may set a session cookie for its own auth flow)
 
@@ -217,7 +217,7 @@ CREATE POLICY "Users can only delete their own workouts"
 | Right to object | ✅ Sync can be stopped by signing out |
 
 ### CCPA
-CCPA applies to businesses with >$25M revenue or >100K CA consumers. At beta scale, Shakthi Journal is not a covered business. Maintain good practices regardless.
+CCPA applies to businesses with >$25M revenue or >100K CA consumers. At beta scale, Jeevan is not a covered business. Maintain good practices regardless.
 
 ### Data Minimization
 The app collects only what the user explicitly enters. No inferred data, no derived data shared with third parties. Profile fields (DOB, sex, height, weight) are optional and are used only to calculate personalized nutrition targets.

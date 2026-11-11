@@ -1,6 +1,6 @@
 # Future Cloud Migration Path
 
-This document explains how Shakthi Journal will eventually support cloud sync — and how no local data will be lost in the transition.
+This document explains how Jeevan will eventually support cloud sync — and how no local data will be lost in the transition.
 
 **Current state:** Local-first. All data in IndexedDB. No accounts. No cloud.
 

@@ -7,7 +7,7 @@ extension Notification.Name {
     /// Posted on the main thread after a successful HealthKit sync.
     /// `userInfo["metrics"]` is `[HealthMetric]` — the records that were uploaded.
     /// WebAppView.Coordinator listens for this and injects the records into IndexedDB.
-    static let shakthiNativeSyncComplete = Notification.Name("ShakthiJournal.NativeSyncComplete")
+    static let jeevanNativeSyncComplete = Notification.Name("Jeevan.NativeSyncComplete")
 }
 
 @MainActor
@@ -156,7 +156,7 @@ final class SyncEngine {
         // Notify WebAppView.Coordinator to inject metrics into the WebView's IndexedDB.
         if !metrics.isEmpty {
             NotificationCenter.default.post(
-                name: .shakthiNativeSyncComplete,
+                name: .jeevanNativeSyncComplete,
                 object: nil,
                 userInfo: ["metrics": metrics]
             )

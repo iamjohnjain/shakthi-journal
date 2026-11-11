@@ -107,7 +107,7 @@ SwiftUI lightweight companion
     ↓ (HTTPS POST)
 Supabase API
     ↓ (real-time subscription)
-Shakthi web app
+Jeevan web app
 ```
 
 The companion app's only jobs:

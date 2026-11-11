@@ -117,7 +117,7 @@ export default function WorkoutCelebration({ session, onDone }: Props) {
             </div>
           )}
 
-          <div className="wc-card-brand">Shakthi Journal</div>
+          <div className="wc-card-brand">Jeevan</div>
         </div>
 
         <h2 className="wc-headline">Workout complete!</h2>

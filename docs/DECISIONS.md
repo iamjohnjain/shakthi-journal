@@ -1,4 +1,4 @@
-# Shakthi Journal — Architecture Decisions
+# Jeevan — Architecture Decisions
 
 A log of non-obvious decisions made during development. Each entry records what was decided, why, and what was rejected. This exists so future sessions don't re-litigate settled choices.
 

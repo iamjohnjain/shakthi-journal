@@ -1,10 +1,10 @@
 # Beta Testing Guide
 
-Thank you for testing Shakthi Journal. This is a private beta for trusted testers.
+Thank you for testing Jeevan. This is a private beta for trusted testers.
 
 ---
 
-## What is Shakthi Journal?
+## What is Jeevan?
 
 A personal health OS that runs entirely in your browser. It tracks:
 
@@ -21,7 +21,7 @@ A personal health OS that runs entirely in your browser. It tracks:
 Open this URL in your browser:
 
 ```
-https://shakthi-journal.pages.dev
+https://jeevan-health.pages.dev
 ```
 
 *(URL will be shared directly by the developer.)*
@@ -120,7 +120,7 @@ Your data is never affected by updates. The local IndexedDB structure is version
 
 ## Privacy notice
 
-Shakthi Journal is a **local-first application**.
+Jeevan is a **local-first application**.
 
 - No health data is transmitted to any server.
 - No analytics, tracking, or telemetry is included.
@@ -134,7 +134,7 @@ Your data belongs to you. It lives on your device and nowhere else.
 
 ## Data storage explanation
 
-When you use Shakthi Journal, your data is stored in **IndexedDB** — a database built into every modern browser. Think of it like a local file on your computer, managed by the browser.
+When you use Jeevan, your data is stored in **IndexedDB** — a database built into every modern browser. Think of it like a local file on your computer, managed by the browser.
 
 | What's stored | Where |
 |---|---|

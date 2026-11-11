@@ -1,4 +1,4 @@
-# Shakthi Journal — Claude Code Guide
+# Jeevan — Claude Code Guide
 
 ## Project Overview
 
@@ -18,7 +18,7 @@ npx tsc --noEmit  # TypeScript check
 ### Stack
 - **Framework:** Vite 6 + React 18 + TypeScript (strict)
 - **Routing:** react-router-dom v7 — nested routes, `<Outlet>` pattern in Layout
-- **Storage:** IndexedDB via `idb` v8 — DB name `shakthi-journal`, version **3**
+- **Storage:** IndexedDB via `idb` v8 — DB name `jeevan`, version **3**
 - **Icons:** lucide-react
 - **Styling:** Pure CSS, dark-mode-first, CSS custom properties in `globals.css`
 - **Tests:** Vitest v4 + jsdom environment

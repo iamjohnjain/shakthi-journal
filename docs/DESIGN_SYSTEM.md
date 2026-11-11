@@ -1,4 +1,4 @@
-# Shakthi Journal — Design System
+# Jeevan — Design System
 
 ## Philosophy
 

@@ -1,4 +1,4 @@
-# Shakthi Journal — Roadmap
+# Jeevan — Roadmap
 
 ## Status Key
 - ✅ Complete
@@ -125,7 +125,7 @@ This phase simplifies the information architecture and fills in the most valuabl
 
 IndexedDB data lives in the browser. If the user clears browser data, all is lost.
 
-- [ ] Export all data as `.sjb` (Shakthi Journal Backup) — JSON blob of all stores
+- [ ] Export all data as `.sjb` (Jeevan Backup) — JSON blob of all stores
 - [ ] Import from backup file — validates schema version, migrates if needed
 - [ ] Auto-export reminder in Settings ("Last backed up: X days ago")
 - [ ] Optional: iCloud Drive / local filesystem access via File System Access API

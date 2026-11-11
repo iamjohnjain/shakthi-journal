@@ -3,7 +3,7 @@ import Observation
 
 /// Handles URLs the app is opened with from outside its own UI — currently
 /// just the home-screen widget's tap target. Not involved in the Google
-/// sign-in redirect (`com.shakthijournal.app://auth-callback`), which
+/// sign-in redirect (`com.jeevan.app://auth-callback`), which
 /// `ASWebAuthenticationSession` intercepts internally before it would ever
 /// reach `.onOpenURL`.
 @MainActor

@@ -371,7 +371,7 @@ export default function Profile() {
       icon: Dumbbell,
       color: 'var(--purple)',
       label: `${dbStats.workoutCount} workouts`,
-      sub: 'Logged in Shakthi',
+      sub: 'Logged in Jeevan',
     }] : []),
     ...(dbStats?.logCount ? [{
       icon: Flame,

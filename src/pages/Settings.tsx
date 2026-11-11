@@ -70,7 +70,7 @@ export default function Settings() {
     <div className="settings-page">
       <header className="page-header">
         <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Shakthi · v{appVersion}</p>
+        <p className="page-subtitle">Jeevan · v{appVersion}</p>
       </header>
 
       {/* ── Units ── */}
@@ -172,7 +172,7 @@ export default function Settings() {
 
       {/* ── About ── */}
       <SettingsSection title="About">
-        <SettingsRow label="App name" value="Shakthi" />
+        <SettingsRow label="App name" value="Jeevan" />
         <SettingsRow label="Version"  value={`v${appVersion}`} />
         <SettingsRow
           label="3D muscle model"

@@ -1,4 +1,4 @@
-# Shakthi Journal
+# Jeevan Journal
 
 A personal health OS — daily readiness, workouts, nutrition, and Apple Health data in a beautiful local-first dashboard.
 

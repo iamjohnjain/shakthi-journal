@@ -3,18 +3,18 @@ import { Dumbbell, LayoutDashboard, Apple } from 'lucide-react'
 import './BottomNav.css'
 
 // Detect native iOS companion app (used by other features, not navigation suppression).
-// The native app injects window.__shakthiNativeApp = true before page scripts run.
+// The native app injects window.__jeevanNativeApp = true before page scripts run.
 export function isInsideNativeApp(): boolean {
   return typeof window !== 'undefined' &&
-    (window as unknown as Record<string, unknown>).__shakthiNativeApp === true
+    (window as unknown as Record<string, unknown>).__jeevanNativeApp === true
 }
 
 // Asks the native iOS wrapper to open its HealthKit sync sheet — shared by
 // every "Sync Data" entry point (Dashboard quick action, empty-state
 // prompts, the Weight Goal card's own sync nudge).
 export function openNativeHealthSync() {
-  const w = window as unknown as { webkit?: { messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } } } }
-  w?.webkit?.messageHandlers?.shakthiNative?.postMessage({ type: 'openHealthSync' })
+  const w = window as unknown as { webkit?: { messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } } } }
+  w?.webkit?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
 }
 
 // Three core tabs, Today centered — profile is reached via the avatar icon

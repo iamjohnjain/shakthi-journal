@@ -1,9 +1,9 @@
 import { getDB } from './index'
-import type { ShakthiDB } from './index'
+import type { JeevanDB } from './index'
 import type { DailySnapshot } from '../types/health'
 import { localDateStr } from '../data/config'
 
-type DBMetric = ShakthiDB['health_metrics']['value']
+type DBMetric = JeevanDB['health_metrics']['value']
 
 // ─── Write ────────────────────────────────────────────────────────────────────
 

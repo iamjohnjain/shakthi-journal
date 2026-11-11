@@ -5,9 +5,9 @@
  */
 
 import { getDB, setSetting, getSetting } from './index'
-import type { ShakthiDB } from './index'
+import type { JeevanDB } from './index'
 
-type DBMetric = ShakthiDB['health_metrics']['value']
+type DBMetric = JeevanDB['health_metrics']['value']
 
 // ─── Source trust hierarchy ───────────────────────────────────────────────────
 

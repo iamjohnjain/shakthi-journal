@@ -1,4 +1,4 @@
-# Shakthi Journal — Product
+# Jeevan — Product
 
 ## The Product in One Sentence
 
@@ -100,23 +100,23 @@ Before implementing any new feature, research the best existing implementations:
 | Cardio / GPS | Strava, Garmin Connect |
 | All-in-one | Samsung Health, Garmin Health Snapshot |
 
-Identify what works well. Understand why it works. Then design an original solution. Do not copy UI patterns directly — take the insight and build something that fits Shakthi Journal's visual language and philosophy.
+Identify what works well. Understand why it works. Then design an original solution. Do not copy UI patterns directly — take the insight and build something that fits Jeevan's visual language and philosophy.
 
 ---
 
 ## Competitive Clarity
 
 ### What we improve over Apple Health
-Apple Health is a data firehose — 150+ metrics with equal visual weight. Shakthi Journal surfaces what matters *for this user's specific goals* on a given day. Less data, more signal.
+Apple Health is a data firehose — 150+ metrics with equal visual weight. Jeevan surfaces what matters *for this user's specific goals* on a given day. Less data, more signal.
 
 ### What we improve over WHOOP
-WHOOP requires $30/month hardware. Shakthi Journal uses Apple Watch HRV and sleep data the user already collects. Same recovery insights, no subscription.
+WHOOP requires $30/month hardware. Jeevan uses Apple Watch HRV and sleep data the user already collects. Same recovery insights, no subscription.
 
 ### What we improve over MacroFactor
-MacroFactor is nutrition-only. Shakthi Journal connects nutrition to training load, recovery status, and body composition in a single coherent view.
+MacroFactor is nutrition-only. Jeevan connects nutrition to training load, recovery status, and body composition in a single coherent view.
 
 ### What we improve over Strong / Hevy
-Training-only apps cannot answer "should I train today?" because they have no recovery data. Shakthi Journal connects workout history to recovery signals to give a contextual answer.
+Training-only apps cannot answer "should I train today?" because they have no recovery data. Jeevan connects workout history to recovery signals to give a contextual answer.
 
 ---
 

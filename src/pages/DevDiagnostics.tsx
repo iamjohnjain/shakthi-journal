@@ -94,11 +94,13 @@ function DevDiagnosticsPanel() {
 
   async function handleResetLocalState() {
     if (!resetConfirm) { setResetConfirm(true); return }
-    await new Promise<void>((resolve, reject) => {
-      const req = indexedDB.deleteDatabase('shakthi-journal')
+    // Also clears the pre-rebrand database name, in case this profile never
+    // got the chance to migrate (or migrated and the old one is just stale).
+    await Promise.all(['jeevan', 'shakthi-journal'].map(name => new Promise<void>((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(name)
       req.onsuccess = () => resolve()
       req.onerror = () => reject(req.error)
-    })
+    })))
     window.location.reload()
   }
 
@@ -139,7 +141,7 @@ function DevDiagnosticsPanel() {
       <DiagSection title="IndexedDB Database">
         <DiagRow label="Status"      value={dbStatus}                  ok={dbStatus === 'ready'} />
         {dbError && <DiagRow label="Error" value={dbError} ok={false} />}
-        <DiagRow label="DB name"     value="shakthi-journal"           mono />
+        <DiagRow label="DB name"     value="jeevan"           mono />
         <DiagRow label="Version"     value={dbStats ? String(dbStats.version) : '…'} mono />
         <DiagRow label="Metrics"     value={dbStats ? `${dbStats.metricCount} records` : '…'} />
         <DiagRow label="Sync log"    value={dbStats ? `${dbStats.syncCount} entries` : '…'} />
@@ -203,7 +205,7 @@ function DevDiagnosticsPanel() {
 
       {/* ── App ── */}
       <DiagSection title="App">
-        <DiagRow label="App name"  value="Shakthi" />
+        <DiagRow label="App name"  value="Jeevan" />
         <DiagRow label="Version"   value={`v${appVersion}`} mono />
         <DiagRow label="Framework" value="Vite 6 · React 18 · TypeScript" mono />
         <DiagRow label="Dev URL"   value="http://localhost:5173" mono />

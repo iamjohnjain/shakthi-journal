@@ -14,9 +14,9 @@
  */
 
 import type { DailySnapshot } from '../types/health'
-import type { ShakthiDB } from '../db'
+import type { JeevanDB } from '../db'
 
-export type DBMetric = ShakthiDB['health_metrics']['value']
+export type DBMetric = JeevanDB['health_metrics']['value']
 
 // ─── HK type identifiers ──────────────────────────────────────────────────────
 

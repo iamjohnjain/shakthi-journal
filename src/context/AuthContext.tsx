@@ -162,9 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'TOKEN_REFRESHED') {
           const w = window as unknown as Record<string, unknown>
           const bridge = (w.webkit as {
-            messageHandlers?: { shakthiNative?: { postMessage: (m: unknown) => void } }
+            messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } }
           } | undefined)
-          bridge?.messageHandlers?.shakthiNative?.postMessage({
+          bridge?.messageHandlers?.jeevanNative?.postMessage({
             type: 'sessionRefreshed',
             accessToken:  s.access_token,
             refreshToken: s.refresh_token,

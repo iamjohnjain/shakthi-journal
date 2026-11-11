@@ -17,7 +17,7 @@ import SwiftUI
 //      the File Inspector (right-hand panel) when you add it.
 //   3. Build the SnapMealWidget scheme once (⌘B) to confirm it compiles.
 //   4. Build/run the main ShakthiJournal scheme, then long-press the Home
-//      Screen → + → search "Shakthi" → add the "Snap Meal" widget.
+//      Screen → + → search "Jeevan" → add the "Snap Meal" widget.
 //
 // Nothing else needs touching — the main app's DeepLinkManager (already
 // wired in) is what receives the tap and opens straight to the camera.
@@ -73,7 +73,7 @@ struct SnapMealWidgetView: View {
         // .onOpenURL (see ShakthiJournalApp.swift) catches it and routes
         // straight to the meal camera. Works on every widget family/iOS
         // version WidgetKit supports, no App Intents setup needed.
-        .widgetURL(URL(string: "com.shakthijournal.app://snap-meal"))
+        .widgetURL(URL(string: "com.jeevan.app://snap-meal"))
     }
 }
 

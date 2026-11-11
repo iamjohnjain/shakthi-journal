@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Shakthi",
-  "short_name": "Shakthi",
+  "name": "Jeevan: Health & Fitness Tracker",
+  "short_name": "Jeevan",
   "description": "Personal health OS — track workouts, nutrition, recovery, and daily readiness. Local-first, private by default.",
   "start_url": "/",
   "display": "standalone",

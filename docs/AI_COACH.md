@@ -1,4 +1,4 @@
-# Shakthi Journal — AI Coach Philosophy
+# Jeevan — AI Coach Philosophy
 
 ## What the coach is
 

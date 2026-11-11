@@ -118,7 +118,7 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
             </div>
           )}
 
-          <div className="ww-card-brand">Shakthi Journal</div>
+          <div className="ww-card-brand">Jeevan</div>
         </div>
 
         <h2 className="ww-headline">{review.summary}</h2>

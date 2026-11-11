@@ -1,4 +1,4 @@
-# Shakthi Journal — Foundation
+# Jeevan — Foundation
 
 > A personal health operating system. Not a tracker. A decision-making tool.
 
@@ -22,13 +22,13 @@ The defining characteristic: it tells you what the data means, not just what it 
 
 ## What It Is Not
 
-**Not a social fitness app.** There are no followers, no leaderboards, no public activities. Health is personal. The only person Shakthi Journal is trying to impress is the user.
+**Not a social fitness app.** There are no followers, no leaderboards, no public activities. Health is personal. The only person Jeevan is trying to impress is the user.
 
 **Not a generic health dashboard.** It is designed for one person with specific goals: body recomposition, strength progress, athletic performance. Generic advice does not live here.
 
 **Not a notification machine.** The app earns daily use by being useful. It does not manufacture urgency.
 
-**Not a medical tool.** Shakthi Journal presents data. It does not diagnose, prescribe, or make clinical claims.
+**Not a medical tool.** Jeevan presents data. It does not diagnose, prescribe, or make clinical claims.
 
 **Not a growth product.** The goal is to serve one person exceptionally well, not to acquire users.
 

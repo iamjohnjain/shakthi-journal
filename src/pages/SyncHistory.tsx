@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, AlertCircle, RefreshCw, Trash2 } from 'lucide-react'
 import DataBadge, { type DataBadgeMode } from '../components/DataBadge'
 import { getSyncHistory, clearSyncHistory } from '../db'
-import type { ShakthiDB } from '../db'
+import type { JeevanDB } from '../db'
 import './SyncHistory.css'
 
-type SyncEntry = ShakthiDB['sync_history']['value']
+type SyncEntry = JeevanDB['sync_history']['value']
 
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -121,7 +121,7 @@ function SyncRow({ entry }: { entry: SyncEntry }) {
           </div>
           <div className="sync-detail-row">
             <span className="sync-detail-label">Storage</span>
-            <span className="sync-detail-value">IndexedDB · shakthi-journal · local only</span>
+            <span className="sync-detail-value">IndexedDB · jeevan · local only</span>
           </div>
           {entry.error && (
             <div className="sync-detail-row sync-detail-row--error">

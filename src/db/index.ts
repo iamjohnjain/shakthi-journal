@@ -295,7 +295,7 @@ export interface SyncQueueEntry {
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
-export interface ShakthiDB extends DBSchema {
+export interface JeevanDB extends DBSchema {
   health_metrics: {
     key: string
     value: {
@@ -440,21 +440,17 @@ export interface ShakthiDB extends DBSchema {
 
 // ─── Database singleton ───────────────────────────────────────────────────────
 
-const DB_NAME = 'shakthi-journal'
+// Renamed from 'shakthi-journal' during the Jeevan rebrand — IndexedDB
+// databases are keyed by name, so a plain rename here would make every
+// existing user's data invisible (still on disk under the old name, but
+// unreachable). `migrateFromLegacyDatabase` below carries it over once,
+// the first time the new name is opened.
+const OLD_DB_NAME = 'shakthi-journal'
+const DB_NAME = 'jeevan'
 const DB_VERSION = 7
 
-// Cache the in-flight promise, not just the resolved value — otherwise concurrent
-// callers before the first openDB() resolves each start their own openDB() call,
-// which on a brand-new database (first-ever upgrade, creating all stores) can
-// collide badly enough to hang the page indefinitely.
-let _dbPromise: Promise<IDBPDatabase<ShakthiDB>> | null = null
-
-export async function getDB(): Promise<IDBPDatabase<ShakthiDB>> {
-  if (_dbPromise) return _dbPromise
-
-  _dbPromise = openDB<ShakthiDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
-      if (oldVersion < 1) {
+function runUpgrade(db: IDBPDatabase<JeevanDB>, oldVersion: number) {
+  if (oldVersion < 1) {
         const metrics = db.createObjectStore('health_metrics', { keyPath: 'id' })
         metrics.createIndex('by-date', 'date')
         metrics.createIndex('by-type', 'type')
@@ -523,8 +519,50 @@ export async function getDB(): Promise<IDBPDatabase<ShakthiDB>> {
 
         db.createObjectStore('coach_memory', { keyPath: 'id' })
       }
-    },
-  })
+}
+
+/** One-time copy of every record from the old-named database into the new
+    one — runs at most once per browser profile (skipped once the new
+    database exists at all, even if migration only partially completed; a
+    partial copy is still far better than silently losing everything, and
+    re-running on every load would just re-copy the same records forever).
+    `indexedDB.databases()` is the only way to check existence without the
+    side effect of creating the database just by trying to open it. */
+async function migrateFromLegacyDatabase(): Promise<void> {
+  if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return
+  try {
+    const existing = await indexedDB.databases()
+    const hasLegacy = existing.some(d => d.name === OLD_DB_NAME)
+    const hasNew = existing.some(d => d.name === DB_NAME)
+    if (!hasLegacy || hasNew) return
+
+    const legacyDb = await openDB<JeevanDB>(OLD_DB_NAME, DB_VERSION)
+    const freshDb = await openDB<JeevanDB>(DB_NAME, DB_VERSION, { upgrade: runUpgrade })
+    for (const storeName of legacyDb.objectStoreNames) {
+      const records = await legacyDb.getAll(storeName)
+      const tx = freshDb.transaction(storeName, 'readwrite')
+      await Promise.all([...records.map(r => tx.store.put(r)), tx.done])
+    }
+    legacyDb.close()
+    freshDb.close()
+  } catch {
+    // Best-effort — any failure here just means the app starts with a fresh
+    // (empty) database instead of blocking startup entirely.
+  }
+}
+
+// Cache the in-flight promise, not just the resolved value — otherwise concurrent
+// callers before the first openDB() resolves each start their own openDB() call,
+// which on a brand-new database (first-ever upgrade, creating all stores) can
+// collide badly enough to hang the page indefinitely.
+let _dbPromise: Promise<IDBPDatabase<JeevanDB>> | null = null
+
+export async function getDB(): Promise<IDBPDatabase<JeevanDB>> {
+  if (_dbPromise) return _dbPromise
+
+  _dbPromise = migrateFromLegacyDatabase().then(() =>
+    openDB<JeevanDB>(DB_NAME, DB_VERSION, { upgrade: runUpgrade })
+  )
 
   return _dbPromise
 }
@@ -550,12 +588,12 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
 
 // ─── Sync history helpers ─────────────────────────────────────────────────────
 
-export async function addSyncHistoryEntry(entry: ShakthiDB['sync_history']['value']): Promise<void> {
+export async function addSyncHistoryEntry(entry: JeevanDB['sync_history']['value']): Promise<void> {
   const db = await getDB()
   await db.put('sync_history', entry)
 }
 
-export async function getSyncHistory(limit = 50): Promise<ShakthiDB['sync_history']['value'][]> {
+export async function getSyncHistory(limit = 50): Promise<JeevanDB['sync_history']['value'][]> {
   const db = await getDB()
   const all = await db.getAll('sync_history')
   return all.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()).slice(0, limit)

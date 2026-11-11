@@ -1,4 +1,4 @@
-# Shakthi Journal — Engineering
+# Jeevan — Engineering
 
 ## Philosophy
 
@@ -144,7 +144,7 @@ Pages not in the main nav remain fully accessible via direct URL. They are de-em
 
 ## IndexedDB Schema
 
-**DB name:** `shakthi-journal`  
+**DB name:** `jeevan`  
 **Current version:** 5
 
 | Store | Key | Indexes | Version |

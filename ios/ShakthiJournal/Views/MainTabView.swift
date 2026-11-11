@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// The web app is the single navigation system (Today / Train / Eat / Goals / Me).
 /// Health sync lives in the web app's Settings → Integrations → "Apple Health Sync",
-/// which calls window.webkit.messageHandlers.shakthiNative.postMessage({ type: 'openHealthSync' })
+/// which calls window.webkit.messageHandlers.jeevanNative.postMessage({ type: 'openHealthSync' })
 /// and we open DashboardView as a sheet in response.
 struct MainTabView: View {
 
