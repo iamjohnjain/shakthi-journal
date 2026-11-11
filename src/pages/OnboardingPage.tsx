@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader,
+  ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader, Camera, X,
 } from 'lucide-react'
 import { setSetting, getSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
-import { setOwnedDevices, GATEABLE_DEVICES } from '../db/deviceStore'
-import type { DeviceId } from '../db/deviceStore'
 import { AvatarPicker, AvatarDisplay } from '../components/Avatar'
 import { useAuth } from '../context/AuthContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
@@ -76,8 +74,6 @@ interface OBData {
   calorieGoal: string
   proteinGoal: string
   trainingDays: number
-  ownedDevices: DeviceId[]
-  intendToConnect: string[]
   importAfterSetup?: boolean
 }
 
@@ -248,7 +244,7 @@ function StepWelcomeAuth({ onGuest, onAuthSuccess, dir }: {
           <ChevronLeft size={18} /> Back
         </button>
         <div className="ob-question">
-          <h1 className="ob-q-title">{isSignup ? 'Create\nyour account' : 'Sign in\nto your account'}</h1>
+          <h1 className="ob-q-title">{isSignup ? 'Create\nYour Account' : 'Sign In\nTo Your Account'}</h1>
         </div>
 
         {error   && <div className="ob-auth-error"><AlertCircle size={14} /><span>{error}</span></div>}
@@ -369,7 +365,7 @@ function StepName({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">What's your<br/>name?</h1>
+        <h1 className="ob-q-title">What's Your<br/>Name?</h1>
         <p className="ob-q-sub">We'll use this to personalize your experience.</p>
       </div>
       <div className="ob-input-zone">
@@ -400,7 +396,7 @@ function StepIdentity({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">A few basics</h1>
+        <h1 className="ob-q-title">A Few Basics</h1>
         <p className="ob-q-sub">Used to personalize your baselines. Never shared.</p>
       </div>
       <div className="ob-form">
@@ -445,7 +441,7 @@ function StepHeight({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">How tall<br/>are you?</h1>
+        <h1 className="ob-q-title">How Tall<br/>Are You?</h1>
       </div>
       <div className="ob-input-zone">
         <div className="ob-height-pickers">
@@ -492,7 +488,7 @@ function StepCurrentWeight({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">What's your<br/>current weight?</h1>
+        <h1 className="ob-q-title">What's Your<br/>Current Weight?</h1>
         <p className="ob-q-sub">Your starting point for tracking progress.</p>
       </div>
       <div className="ob-input-zone">
@@ -523,7 +519,7 @@ function StepGoalWeight({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">What's your<br/>goal weight?</h1>
+        <h1 className="ob-q-title">What's Your<br/>Goal Weight?</h1>
         <p className="ob-q-sub">Where you want to be. You can always change this.</p>
       </div>
       <div className="ob-input-zone">
@@ -552,7 +548,7 @@ function StepActivity({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">How active<br/>are you?</h1>
+        <h1 className="ob-q-title">How Active<br/>Are You?</h1>
         <p className="ob-q-sub">Used to calculate your daily targets.</p>
       </div>
       <div className="ob-activity-list">
@@ -590,7 +586,7 @@ function StepPrimaryGoal({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">What are you<br/>training for?</h1>
+        <h1 className="ob-q-title">What Are You<br/>Training For?</h1>
         <p className="ob-q-sub">Pick the one that fits best right now.</p>
       </div>
       <div className="ob-goal-list ob-goal-list--large">
@@ -620,7 +616,7 @@ function StepTraining({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">How many days<br/>do you train?</h1>
+        <h1 className="ob-q-title">How Many Days<br/>Do You Train?</h1>
         <p className="ob-q-sub">Per week on average — 0 is fine if you're just getting started.</p>
       </div>
       <div className="ob-input-zone">
@@ -664,7 +660,7 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Your nutrition<br/>targets</h1>
+        <h1 className="ob-q-title">Your Nutrition<br/>Targets</h1>
         <p className="ob-q-sub">Calculated from your goal and activity level. Adjust anytime.</p>
       </div>
       <div className="ob-nutrition-stack">
@@ -700,73 +696,33 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
 
 // ─── Step 10: Connect Sources ─────────────────────────────────────────────────
 
-// Real, buildable integrations with no fixed equipment — kept separate from
-// GATEABLE_DEVICES above, which drives what hardware-specific UI is shown
-// elsewhere in the app. These are tracked as "notify me" interest only.
-const FUTURE_INTEGRATIONS = [
-  {
-    id: 'strava',
-    icon: '🏃',
-    name: 'Strava',
-    desc: 'Runs, rides, GPS, pace, heart rate zones',
-  },
-  {
-    id: 'myfitnesspal',
-    icon: '🥗',
-    name: 'MyFitnessPal',
-    desc: 'Food log, calories, macros',
-  },
-  {
-    id: 'garmin',
-    icon: '⌚',
-    name: 'Garmin',
-    desc: 'GPS, HRV, VO₂ Max, training load',
-  },
-]
-
-function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
+function StepConnectSources({ onNext, dir }: StepProps) {
   const platform   = getPlatform()
   const isNativeApp =
     typeof window !== 'undefined' &&
     (window as unknown as Record<string, unknown>).__jeevanNativeApp === true
 
-  function toggleDevice(id: DeviceId) {
-    const on = data.ownedDevices.includes(id)
-    patch({
-      ownedDevices: on
-        ? data.ownedDevices.filter(d => d !== id)
-        : [...data.ownedDevices, id],
-    })
-  }
-
-  function toggleIntent(id: string) {
-    const on = data.intendToConnect.includes(id)
-    patch({
-      intendToConnect: on
-        ? data.intendToConnect.filter(s => s !== id)
-        : [...data.intendToConnect, id],
-    })
-  }
-
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Connect your<br/>health data</h1>
+        <h1 className="ob-q-title">Connect Your<br/>Health Data</h1>
         <p className="ob-q-sub">
-          Link apps and devices to see everything in one place.
+          Everything from Apple Health — weight, steps, sleep, heart rate, and
+          more — shows up automatically. Any device synced to Apple Health,
+          like an Apple Watch or a smart scale, is included with no extra setup.
         </p>
       </div>
 
       <div className="ob-source-list">
         {/* ── iPhone Health — platform-aware, always relevant ── */}
         {isNativeApp ? (
-          <div className="ob-source-row ob-source-row--connected">
+          <div className="ob-source-row ob-source-row--native">
             <span className="ob-source-icon">❤️</span>
             <div className="ob-source-info">
               <span className="ob-source-name">iPhone Health</span>
-              <span className="ob-source-desc">Connected via the Jeevan iPhone app</span>
+              <span className="ob-source-desc">You'll be asked to connect Apple Health right after setup.</span>
             </div>
-            <span className="ob-source-badge ob-source-badge--connected"><Check size={13} /> Connected</span>
+            <span className="ob-source-badge ob-source-badge--native">After setup</span>
           </div>
         ) : platform === 'ios' ? (
           <div className="ob-source-row ob-source-row--native">
@@ -795,60 +751,8 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
         )}
       </div>
 
-      <p className="ob-connect-subhead">Which of these do you have?</p>
-      <p className="ob-connect-subhead-note">
-        Only the ones you pick will show up in the app — nothing else clutters your dashboard.
-      </p>
-      <div className="ob-source-list">
-        {GATEABLE_DEVICES.map(d => {
-          const on = data.ownedDevices.includes(d.id)
-          return (
-            <button
-              key={d.id}
-              type="button"
-              className={`ob-source-row ob-source-row--device ${on ? 'ob-source-row--intent' : ''}`}
-              onClick={() => toggleDevice(d.id)}
-            >
-              <span className="ob-source-icon">{d.icon}</span>
-              <div className="ob-source-info">
-                <span className="ob-source-name">{d.name}</span>
-                <span className="ob-source-desc">{d.desc}</span>
-              </div>
-              <span className={`ob-source-badge ${on ? 'ob-source-badge--intent' : ''}`}>
-                {on ? <><Check size={13} /> I have this</> : 'Tap if you have this'}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      <p className="ob-connect-subhead">Anything else you'd want connected?</p>
-      <div className="ob-source-list">
-        {FUTURE_INTEGRATIONS.map(s => {
-          const on = data.intendToConnect.includes(s.id)
-          return (
-            <button
-              key={s.id}
-              type="button"
-              className={`ob-source-row ob-source-row--soon ${on ? 'ob-source-row--intent' : ''}`}
-              onClick={() => toggleIntent(s.id)}
-            >
-              <span className="ob-source-icon">{s.icon}</span>
-              <div className="ob-source-info">
-                <span className="ob-source-name">{s.name}</span>
-                <span className="ob-source-desc">{s.desc}</span>
-              </div>
-              <span className={`ob-source-badge ${on ? 'ob-source-badge--intent' : 'ob-source-badge--soon'}`}>
-                {on ? 'Notify me' : 'Coming soon'}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
       <p className="ob-connect-footnote">
         Advanced import (Apple Health export.xml) is available after setup in Settings → Import Data.
-        You can change which equipment you own anytime in Settings → Connected Accounts.
       </p>
 
       <div className="ob-footer">
@@ -862,22 +766,77 @@ function StepConnectSources({ data, patch, onNext, dir }: StepProps) {
 
 function StepAvatar({ data, patch, onNext, dir }: StepProps) {
   const displayName = data.name.trim() || 'You'
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [showAvatarPicker, setShowAvatarPicker] = useState(!data.photoDataUrl && !data.avatarId)
+  const [showPhotoMenu,    setShowPhotoMenu]    = useState(false)
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      patch({ photoDataUrl: ev.target?.result as string, avatarId: undefined })
+      setShowAvatarPicker(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleAvatarSelect(id: string | undefined) {
+    patch({ avatarId: id, photoDataUrl: id ? undefined : data.photoDataUrl })
+    if (id) setShowAvatarPicker(false)
+  }
+
+  const hasPicture = Boolean(data.photoDataUrl || data.avatarId)
+
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Pick your<br/>avatar</h1>
-        <p className="ob-q-sub">Choose an animal that represents you.</p>
+        <h1 className="ob-q-title">Pick Your<br/>Avatar</h1>
+        <p className="ob-q-sub">Choose an animal, or upload your own photo.</p>
       </div>
       <div className="ob-input-zone ob-input-zone--avatar">
         <div className="ob-avatar-preview">
-          <AvatarDisplay name={displayName} avatarId={data.avatarId} size="lg" />
+          <div style={{ position: 'relative' }}>
+            <AvatarDisplay name={displayName} avatarId={data.avatarId} photoDataUrl={data.photoDataUrl} size="lg" />
+            {hasPicture && (
+              <button
+                type="button"
+                className="profile-edit-avatar-x"
+                onClick={() => setShowPhotoMenu(true)}
+                aria-label="Change photo"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
           <span className="ob-avatar-preview-name">{displayName}</span>
         </div>
-        <AvatarPicker selectedId={data.avatarId} onSelect={id => patch({ avatarId: id })} />
+
+        <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
+
+        {!hasPicture && (
+          <button type="button" className="ob-photo-btn" onClick={() => fileRef.current?.click()}>
+            <Camera size={15} /> Upload a Photo
+          </button>
+        )}
+
+        {showPhotoMenu && (
+          <div className="profile-photo-menu">
+            <button onClick={() => { patch({ photoDataUrl: undefined, avatarId: undefined }); setShowAvatarPicker(true); setShowPhotoMenu(false) }}>
+              Choose an avatar
+            </button>
+            <button onClick={() => { fileRef.current?.click(); setShowPhotoMenu(false) }}>
+              Upload a different photo
+            </button>
+            <button className="profile-photo-menu-cancel" onClick={() => setShowPhotoMenu(false)}>Cancel</button>
+          </div>
+        )}
+
+        {showAvatarPicker && <AvatarPicker selectedId={data.avatarId} onSelect={handleAvatarSelect} />}
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>
-          {data.avatarId ? 'Continue' : 'Skip for now'}
+          {hasPicture ? 'Continue' : 'Skip for now'}
         </button>
       </div>
     </StepShell>
@@ -893,7 +852,7 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
-        <h1 className="ob-q-title">Review your<br/>setup</h1>
+        <h1 className="ob-q-title">Review Your<br/>Setup</h1>
         <p className="ob-q-sub">Everything looks good? You can change anything after setup too.</p>
       </div>
 
@@ -939,43 +898,6 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
           ))}
         </div>
 
-        {/* Connections */}
-        {data.ownedDevices.length > 0 && (
-          <div className="ob-review-card">
-            <div className="ob-review-card-header">
-              <span className="ob-review-card-title">Equipment</span>
-              <button className="ob-review-edit-btn" onClick={() => goTo(10)}>Edit</button>
-            </div>
-            <div className="ob-review-row">
-              <span className="ob-review-key">You have</span>
-              <span className="ob-review-val">
-                {data.ownedDevices
-                  .map(id => GATEABLE_DEVICES.find(d => d.id === id)?.name)
-                  .filter(Boolean)
-                  .join(', ')}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {data.intendToConnect.length > 0 && (
-          <div className="ob-review-card">
-            <div className="ob-review-card-header">
-              <span className="ob-review-card-title">Notify me when ready</span>
-              <button className="ob-review-edit-btn" onClick={() => goTo(10)}>Edit</button>
-            </div>
-            <div className="ob-review-row">
-              <span className="ob-review-key">Sources</span>
-              <span className="ob-review-val">
-                {data.intendToConnect
-                  .map(id => FUTURE_INTEGRATIONS.find(s => s.id === id)?.name)
-                  .filter(Boolean)
-                  .join(', ')}
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Avatar */}
         <div className="ob-review-card">
           <div className="ob-review-card-header">
@@ -985,14 +907,14 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
           <div className="ob-review-row">
             <span className="ob-review-key">Avatar</span>
             <span className="ob-review-val">
-              <AvatarDisplay name={data.name.trim() || 'You'} avatarId={data.avatarId} size="sm" />
+              <AvatarDisplay name={data.name.trim() || 'You'} avatarId={data.avatarId} photoDataUrl={data.photoDataUrl} size="sm" />
             </span>
           </div>
         </div>
       </div>
 
       <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Finish setup</button>
+        <button className="ob-cta ob-cta--full" onClick={onNext}>Finish Setup</button>
       </div>
     </StepShell>
   )
@@ -1006,7 +928,7 @@ function ScreenFinish({ name, loading, isEdit, onFinish }: {
   return (
     <div className="ob-step ob-step--center">
       <div className="ob-finish-icon"><Check size={34} strokeWidth={3} /></div>
-      <h1 className="ob-finish-title">{name ? `You're all set,\n${name}.` : "You're all set."}</h1>
+      <h1 className="ob-finish-title">{name ? `You're All Set,\n${name}.` : "You're All Set."}</h1>
       <p className="ob-finish-sub">Your profile has been saved.</p>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onFinish} disabled={loading}>
@@ -1054,7 +976,7 @@ export default function OnboardingPage() {
     name: '', dob: '', sex: '', heightFt: '5', heightIn: '10',
     currentWeightLbs: '', goalWeightLbs: '', activityLevel: '',
     avatarId: undefined, primaryGoals: [], calorieGoal: '', proteinGoal: '',
-    trainingDays: 4, ownedDevices: [], intendToConnect: [],
+    trainingDays: 4,
   })
 
   function patch(u: Partial<OBData>) { setData(prev => ({ ...prev, ...u })) }
@@ -1205,8 +1127,6 @@ export default function OnboardingPage() {
       await setSetting('onboarding.completed', true)
       await setSetting(ONBOARDING_DRAFT_KEY, null)
       await setSetting('onboarding.goals', data.primaryGoals)
-      await setSetting('onboarding.intendToConnect', data.intendToConnect)
-      await setOwnedDevices(data.ownedDevices)
       await setSetting('training.daysPerWeek', data.trainingDays)
 
       const dest = isEdit ? '/profile' : (data.importAfterSetup ? '/import/apple-health' : '/')

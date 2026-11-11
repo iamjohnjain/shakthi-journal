@@ -48,7 +48,7 @@
 
 .ob-progress-fill {
   height: 100%;
-  background: var(--blue);
+  background: var(--gradient-brand);
   border-radius: 99px;
   transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -162,7 +162,7 @@
 
 .ob-big-input:focus {
   outline: none;
-  border-bottom-color: var(--blue);
+  border-bottom-color: var(--orange);
 }
 
 .ob-big-input::placeholder {
@@ -203,7 +203,7 @@
 
 .ob-height-select:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--orange);
 }
 
 /* ─── Day selector ────────────────────────────────────────────────────────── */
@@ -231,8 +231,8 @@
 }
 
 .ob-day-tile--on {
-  border-color: var(--blue);
-  background: var(--blue-dim);
+  border-color: var(--orange);
+  background: var(--orange-dim);
 }
 
 .ob-day-num {
@@ -242,7 +242,7 @@
   color: var(--text-primary);
 }
 
-.ob-day-tile--on .ob-day-num { color: var(--blue); }
+.ob-day-tile--on .ob-day-num { color: var(--orange); }
 
 .ob-day-lbl {
   font-size: 10px;
@@ -252,7 +252,7 @@
   letter-spacing: 0.5px;
 }
 
-.ob-day-tile--on .ob-day-lbl { color: var(--blue); }
+.ob-day-tile--on .ob-day-lbl { color: var(--orange); }
 
 /* ─── Goal list ───────────────────────────────────────────────────────────── */
 
@@ -283,8 +283,8 @@
 }
 
 .ob-goal-row--on {
-  border-color: var(--blue);
-  background: var(--blue-dim);
+  border-color: var(--orange);
+  background: var(--orange-dim);
 }
 
 .ob-goal-emoji { font-size: 24px; flex-shrink: 0; line-height: 1; }
@@ -310,8 +310,8 @@
 }
 
 .ob-goal-dot--on {
-  background: var(--blue);
-  border-color: var(--blue);
+  background: var(--orange);
+  border-color: var(--orange);
   color: #fff;
 }
 
@@ -341,16 +341,6 @@
   width: 100%;
 }
 
-.ob-source-row--on {
-  border-color: var(--blue);
-  background: rgba(10, 132, 255, 0.07);
-}
-
-.ob-source-row--soon {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .ob-source-icon { font-size: 22px; flex-shrink: 0; }
 
 .ob-source-info {
@@ -363,20 +353,6 @@
 
 .ob-source-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .ob-source-desc { font-size: 12px; color: var(--text-tertiary); }
-
-.ob-source-status {
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.ob-source-check {
-  color: var(--blue);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
 
 /* ─── Welcome screen ──────────────────────────────────────────────────────── */
 
@@ -492,7 +468,7 @@
   justify-content: center;
   gap: 8px;
   padding: 17px 32px;
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   border-radius: 16px;
   font-size: 16px;
@@ -615,7 +591,7 @@
   font-size: 16px; padding: 12px 14px;
   width: 100%; box-sizing: border-box; transition: border-color 0.15s;
 }
-.ob-auth-field-input:focus { outline: none; border-color: var(--blue); }
+.ob-auth-field-input:focus { outline: none; border-color: var(--orange); }
 
 .ob-auth-pw-wrap { position: relative; }
 .ob-auth-pw-wrap .ob-auth-field-input { padding-right: 46px; }
@@ -641,7 +617,7 @@
   font-size: 13px; color: var(--text-tertiary); text-align: center;
 }
 .ob-auth-switch button {
-  background: none; border: none; color: var(--blue);
+  background: none; border: none; color: var(--orange);
   font-size: 13px; font-weight: 600; cursor: pointer; padding: 0;
 }
 
@@ -691,7 +667,7 @@
   width: 100%; box-sizing: border-box; transition: border-color 0.15s;
   -webkit-appearance: none;
 }
-.ob-field-input:focus { outline: none; border-color: var(--blue); }
+.ob-field-input:focus { outline: none; border-color: var(--orange); }
 
 .ob-field-select {
   appearance: none; -webkit-appearance: none;
@@ -713,8 +689,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 .ob-segment-btn--on {
-  border-color: var(--blue); background: var(--blue-dim);
-  color: var(--blue); font-weight: 700;
+  border-color: var(--orange); background: var(--orange-dim);
+  color: var(--orange); font-weight: 700;
 }
 
 .ob-activity-list { display: flex; flex-direction: column; gap: 8px; }
@@ -726,7 +702,7 @@
   cursor: pointer; text-align: left; transition: all 0.12s; width: 100%;
   -webkit-tap-highlight-color: transparent;
 }
-.ob-activity-row--on { border-color: var(--blue); background: var(--blue-dim); }
+.ob-activity-row--on { border-color: var(--orange); background: var(--orange-dim); }
 
 .ob-activity-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .ob-activity-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
@@ -737,7 +713,7 @@
   border: 2px solid var(--border); transition: all 0.12s;
 }
 .ob-activity-radio--on {
-  border-color: var(--blue); background: var(--blue);
+  border-color: var(--orange); background: var(--orange);
   box-shadow: inset 0 0 0 3px var(--bg-card);
 }
 
@@ -786,7 +762,7 @@
   display: flex; align-items: center; gap: 4px; flex-shrink: 0;
   transition: all 0.12s;
 }
-.ob-url-copy:hover { border-color: var(--blue); color: var(--blue); }
+.ob-url-copy:hover { border-color: var(--orange); color: var(--orange); }
 .ob-url-copy--copied { border-color: var(--green); color: var(--green); }
 
 /* ─── Goals step ──────────────────────────────────────────────────────────── */
@@ -808,7 +784,7 @@
 }
 .ob-macro-input::-webkit-inner-spin-button,
 .ob-macro-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-.ob-macro-input:focus { outline: none; border-color: var(--blue); }
+.ob-macro-input:focus { outline: none; border-color: var(--orange); }
 
 .ob-macro-unit { font-size: 13px; color: var(--text-tertiary); font-weight: 500; }
 
@@ -841,7 +817,7 @@
 }
 
 .ob-review-edit-btn {
-  background: none; border: none; color: var(--blue);
+  background: none; border: none; color: var(--orange);
   font-size: 13px; font-weight: 600; cursor: pointer;
   padding: 2px 6px;
   -webkit-tap-highlight-color: transparent;
@@ -912,18 +888,58 @@
 }
 
 .ob-photo-btn--on {
-  background: var(--blue-dim);
-  border-color: rgba(10,132,255,0.3);
-  color: var(--blue);
+  background: var(--orange-dim);
+  border-color: rgba(251, 122, 60, 0.3);
+  color: var(--orange);
 }
+
+.profile-edit-avatar-x {
+  position: absolute;
+  top: -2px; right: -2px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.profile-edit-avatar-x:hover { color: var(--text-primary); border-color: var(--border-strong); }
+
+.profile-photo-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 4px;
+  margin-top: 10px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.profile-photo-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.profile-photo-menu button:hover { background: rgba(255,255,255,0.06); }
+.profile-photo-menu-cancel { color: var(--text-tertiary) !important; font-weight: 500 !important; }
 
 /* ─── Health data step redesign ───────────────────────────────────────────── */
 
 .ob-health-limitation-card {
   display: flex;
   gap: 12px;
-  background: rgba(10,132,255,0.08);
-  border: 1px solid rgba(10,132,255,0.18);
+  background: rgba(251, 122, 60, 0.08);
+  border: 1px solid rgba(251, 122, 60, 0.18);
   border-radius: var(--r-lg);
   padding: 14px 16px;
   margin-bottom: 4px;
@@ -977,8 +993,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(10,132,255,0.15);
-  color: var(--blue);
+  background: rgba(251, 122, 60, 0.15);
+  color: var(--orange);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -1013,7 +1029,7 @@
   -webkit-appearance: none;
 }
 .ob-big-text-input:focus {
-  border-color: var(--blue);
+  border-color: var(--orange);
 }
 .ob-big-text-input::placeholder {
   color: rgba(255,255,255,0.2);
@@ -1141,7 +1157,7 @@
   min-width: 100px;
 }
 .ob-drum-select:focus {
-  border-color: var(--blue);
+  border-color: var(--orange);
 }
 
 .ob-picker-unit {
@@ -1185,20 +1201,9 @@
 
 /* ─── Connect sources (new clean design) ─────────────────────────────────── */
 
-.ob-source-row--connected {
-  opacity: 1;
-  background: rgba(52,199,89,0.08);
-  border-color: rgba(52,199,89,0.25);
-}
-
 .ob-source-row--native {
   cursor: default;
   opacity: 0.85;
-}
-
-.ob-source-row--intent {
-  background: rgba(10,132,255,0.08);
-  border-color: rgba(10,132,255,0.25);
 }
 
 .ob-source-note {
@@ -1215,27 +1220,9 @@
   white-space: nowrap;
 }
 
-.ob-source-badge--connected {
-  background: rgba(52,199,89,0.15);
-  color: var(--green);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .ob-source-badge--native {
   background: rgba(255,255,255,0.07);
   color: var(--text-tertiary);
-}
-
-.ob-source-badge--soon {
-  background: rgba(255,255,255,0.05);
-  color: var(--text-tertiary);
-}
-
-.ob-source-badge--intent {
-  background: rgba(10,132,255,0.15);
-  color: var(--blue);
 }
 
 .ob-connect-footnote {
@@ -1244,21 +1231,6 @@
   text-align: center;
   padding: 0 16px;
   line-height: 1.5;
-}
-
-.ob-connect-subhead {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  padding: 0 4px;
-  margin: 18px 0 2px;
-}
-
-.ob-connect-subhead-note {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  padding: 0 4px;
-  margin: 0 0 10px;
 }
 
 /* ─── Desktop overrides ───────────────────────────────────────────────────── */
