@@ -67,7 +67,7 @@ export default function DatePickerCalendar({ value, markedDates, maxDate, onChan
       <div className="dp-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="dp-header" {...swipe.handlers}>
           <div className="modal-grabber" />
-          <h2>Jump to date</h2>
+          <h2>Select Date</h2>
           <button className="dp-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 

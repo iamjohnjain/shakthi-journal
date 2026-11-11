@@ -4,7 +4,7 @@
   position: relative;
   overflow: hidden;
   background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(166, 107, 245, 0.16);
   border-radius: var(--r-xl);
   padding: 20px 20px 14px;
   cursor: pointer;
@@ -18,23 +18,20 @@
 
 .goal-ring-card:hover {
   background: var(--bg-card-hover);
-  border-color: var(--border);
+  border-color: rgba(166, 107, 245, 0.28);
 }
 
-/* Ambient glow behind the ring, tinted per metric — makes the card feel lit
-   from within instead of a thin ring floating in an empty dark box. */
+/* A crisp diagonal wash in the app's signature gradient-brand hues — the
+   same "Light Weight / Snap Meal / Sync Data" look, not a blurred glow —
+   dialed brighter or quieter per metric via --goal-glow-op (set inline). */
 .goal-ring-card::before {
   content: '';
   position: absolute;
-  top: -10%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120%;
-  height: 65%;
-  background: radial-gradient(ellipse 60% 70% at 50% 35%,
-    color-mix(in srgb, var(--goal-glow, var(--blue)) 38%, transparent) 0%,
-    transparent 72%);
-  filter: blur(26px);
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(251, 138, 76, var(--goal-glow-op, 0.1)) 0%,
+    rgba(166, 107, 245, var(--goal-glow-op, 0.1)) 50%,
+    rgba(91, 127, 255, var(--goal-glow-op, 0.1)) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -368,17 +365,6 @@
 .goal-ring-modal-btn:hover {
   background: rgba(255,255,255,0.12);
   color: var(--text-primary);
-}
-
-.goal-ring-modal-btn--primary {
-  background: var(--gradient-brand);
-  color: #fff;
-  border-color: transparent;
-}
-
-.goal-ring-modal-btn--primary:hover {
-  opacity: .88;
-  color: #fff;
 }
 
 .goal-ring-modal-weight-note {

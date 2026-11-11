@@ -83,6 +83,13 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
   },
 }
 
+// How strong the card's background wash reads — weight is the "headline"
+// metric so it gets the brighter treatment, steps (and anything else) a
+// quieter one. Same gradient-brand hues either way, just the opacity dial.
+const GLOW_INTENSITY: Record<GoalType, number> = {
+  weight: 0.16, steps: 0.055, bodyFat: 0.09, protein: 0.09, sleep: 0.09,
+}
+
 function clamp(v: number) { return Math.min(100, Math.max(0, v)) }
 
 function shortDate(dateStr: string): string {
@@ -165,7 +172,6 @@ function computePace(opts: {
 
 interface Props {
   snapshot: DailySnapshot
-  yesterday?: DailySnapshot
   dataSource: string
   /** True only in developer mock mode (simulated data). `dataSource` also
       reads 'mock' when there's simply no real data yet for the day — that's
@@ -176,7 +182,7 @@ interface Props {
   latestSleep?: import('../hooks/useDashboardData').LatestSleepInfo
 }
 
-export default function GoalRing({ snapshot, yesterday, latestWeight, latestBodyFat, latestSleep }: Props) {
+export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latestSleep }: Props) {
   const navigate = useNavigate()
   const units = useUnits()
   const [typeIdx, setTypeIdx] = useState(0)
@@ -333,7 +339,7 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
         onKeyDown={e => e.key === 'Enter' && setShowDetail(true)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        style={{ '--goal-glow': cfg.color } as React.CSSProperties}>
+        style={{ '--goal-glow-op': GLOW_INTENSITY[goalType] } as React.CSSProperties}>
 
         <div className="goal-ring-header">
           <span className="goal-ring-type-label">{cfg.label}</span>
@@ -481,21 +487,6 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
                     <span className="goal-ring-modal-row-val" style={color ? { color } : undefined}>{val}</span>
                   </div>
                 ))}
-                {(() => {
-                  const yestValRaw = yesterday ? cfg.current(yesterday) : undefined
-                  const yestVal = yestValRaw != null ? toDisplay(yestValRaw) : undefined
-                  const vstYest = yestVal != null && current != null ? current - yestVal : null
-                  if (vstYest == null) return null
-                  const c = (cfg.higherIsBetter ? vstYest > 0 : vstYest < 0) ? 'var(--green)' : 'var(--orange)'
-                  return (
-                    <div className="goal-ring-modal-row">
-                      <span className="goal-ring-modal-row-label">vs Yesterday</span>
-                      <span className="goal-ring-modal-row-val" style={{ color: c }}>
-                        {vstYest > 0 ? '+' : ''}{cfg.format(Math.abs(vstYest))} {displayUnit}
-                      </span>
-                    </div>
-                  )
-                })()}
               </div>
 
               {!hasProfile && goalType !== 'steps' && goalType !== 'protein' && goalType !== 'sleep' && (
@@ -580,7 +571,7 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
                     <button className="goal-ring-modal-btn" onClick={() => setEditingGoal(false)} disabled={savingEdit}>
                       Cancel
                     </button>
-                    <button className="goal-ring-modal-btn goal-ring-modal-btn--primary" onClick={saveEditGoal} disabled={savingEdit}>
+                    <button className="goal-ring-modal-btn" onClick={saveEditGoal} disabled={savingEdit}>
                       {savingEdit ? 'Saving…' : 'Save'}
                     </button>
                   </>
@@ -589,13 +580,13 @@ export default function GoalRing({ snapshot, yesterday, latestWeight, latestBody
                     <button className="goal-ring-modal-btn" onClick={() => setShowWeightLog(true)}>
                       Log Weight
                     </button>
-                    <button className="goal-ring-modal-btn goal-ring-modal-btn--primary" onClick={openEditGoal}>
+                    <button className="goal-ring-modal-btn" onClick={openEditGoal}>
                       Edit Goal
                     </button>
                   </>
                 ) : (
                   <>
-                    <button className="goal-ring-modal-btn goal-ring-modal-btn--primary"
+                    <button className="goal-ring-modal-btn"
                       onClick={() => { setShowDetail(false); navigate('/profile') }}>
                       Edit Goal
                     </button>

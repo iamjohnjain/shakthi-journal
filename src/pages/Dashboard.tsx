@@ -18,11 +18,10 @@ import { getAllLogDates } from '../db/logStore'
 import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
-import TodayCard from '../components/TodayCard'
 import QuickWeightModal from '../components/QuickWeightModal'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { AvatarDisplay } from '../components/Avatar'
-import { SkeletonHero, SkeletonSection } from '../components/Skeleton'
+import { SkeletonSection } from '../components/Skeleton'
 import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
 import './Dashboard.css'
 
@@ -577,9 +576,12 @@ export default function Dashboard() {
     isMetric,
   }
 
-  // Build ordered list of visible reorderable sections
+  // Build ordered list of visible reorderable sections — the hide/reorder
+  // setting is a "declutter today's view" preference, not a data-access
+  // control, so it never applies when looking back at a past date: every
+  // section you logged for that day should always be there to review.
   const orderedSections = sectionOrder
-    .filter(id => REORDERABLE_IDS.includes(id) && isVisible(id))
+    .filter(id => REORDERABLE_IDS.includes(id) && (isVisible(id) || !isToday))
 
   const viewDateObj = new Date(viewDate + 'T12:00:00')
   const canGoForward = viewDate < todayDateStr()
@@ -636,18 +638,8 @@ export default function Dashboard() {
                back to the last logged weight (or a "log now" prompt) when
                nothing's been entered yet today, instead of disappearing. ── */}
           {isVisible('goal-ring') && (
-            <GoalRing snapshot={today} yesterday={yesterday} dataSource={dataSource} mockMode={mockMode} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
+            <GoalRing snapshot={today} dataSource={dataSource} mockMode={mockMode} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
           )}
-
-          {loading && !isEmpty && !isMock ? (
-            <SkeletonHero />
-          ) : (!isEmpty && !isMock) ? (
-            <TodayCard
-              today={today}
-              todayProgress={todayProgress}
-              dataSource={dataSource}
-            />
-          ) : null}
 
           {/* ── Empty state: no data yet ── */}
           {isEmpty && isVisible('import-status') && (
@@ -684,8 +676,10 @@ export default function Dashboard() {
         <DailyBrief insights={insights} loading={insightsLoading} />
       )}
 
-      {/* ── Hidden sections notice ── */}
-      {!isEmpty && REORDERABLE_IDS.some(id => !isVisible(id)) && (
+      {/* ── Hidden sections notice — today only; a past date always shows
+             everything regardless of this setting, so the notice would be
+             misleading there (nothing is actually hidden on that view). ── */}
+      {isToday && !isEmpty && REORDERABLE_IDS.some(id => !isVisible(id)) && (
         <button
           className="dash-hidden-notice"
           onClick={() => navigate('/settings')}
