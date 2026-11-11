@@ -90,7 +90,10 @@
 .auth-btn--apple:hover:not(:disabled) { background: #f2f2f2; }
 
 .auth-btn--google { background: var(--bg-card); }
-.auth-btn--email  { background: var(--blue-dim); border-color: rgba(10,132,255,.25); color: var(--blue); }
+/* Neutral, matching Google's button above it — Apple/Google keep their own
+   required brand colors, but a plain in-house option (Email) shouldn't
+   introduce a one-off blue that doesn't appear anywhere else in the app. */
+.auth-btn--email  { background: var(--bg-card); }
 
 .auth-btn-note {
   font-size: 10px;
@@ -177,7 +180,7 @@
   align-self: flex-start;
   background: none;
   border: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 13px;
   cursor: pointer;
   padding: 0 0 16px;
@@ -222,7 +225,7 @@
 
 .auth-field input:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--orange);
 }
 
 .auth-pw-wrap { position: relative; }
@@ -248,7 +251,7 @@
   padding: 14px;
   border-radius: 14px;
   border: none;
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -263,7 +266,7 @@
 .auth-toggle-mode {
   background: none;
   border: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 13px;
   cursor: pointer;
   padding: 14px 0 0;
