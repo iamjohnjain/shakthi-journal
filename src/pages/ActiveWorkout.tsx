@@ -34,6 +34,23 @@ interface Props {
   profile: ProfileData | null
   onFinish: (session: WorkoutSession) => void
   onClose: () => void
+  /** Pre-fills the live session from a template or a one-off plan, so
+      picking one gets the same rest-timer/elapsed-clock experience as
+      "Start" instead of silently falling back to the untimed flat-edit
+      view. Sets start un-done regardless of what's in the template — the
+      user still has to actually perform and check off each one. */
+  initial?: { title: string; exercises: WorkoutExerciseEntry[] }
+}
+
+function toActiveExercises(entries: WorkoutExerciseEntry[]): ActiveExercise[] {
+  return entries
+    .filter(e => !e.isBreak)
+    .map(e => ({
+      name: e.name,
+      notes: e.notes ?? '',
+      sets: e.sets.map(s => ({ ...s, done: false })),
+      lastPerf: null,
+    }))
 }
 
 // ─── Timer hooks ──────────────────────────────────────────────────────────────
@@ -94,7 +111,7 @@ function formatTime(s: number): string {
 
 const FALLBACK_NAMES: string[] = EXERCISE_LIBRARY.map(e => e.name)
 
-function ExercisePicker({ onPick, onAiExercises, onClose }: {
+export function ExercisePicker({ onPick, onAiExercises, onClose }: {
   onPick: (name: string) => void
   onAiExercises: (exercises: ParsedExercise[]) => void
   onClose: () => void
@@ -418,12 +435,12 @@ function FinishSummary({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ActiveWorkout({ prMap, profile, onFinish, onClose }: Props) {
+export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initial }: Props) {
   const DEFAULT_KG = profile?.startWeightKg ?? 80
 
   const [workoutType,  setWorkoutType]  = useState<'lifting' | 'cardio'>('lifting')
-  const [title,        setTitle]        = useState('')
-  const [exercises,    setExercises]    = useState<ActiveExercise[]>([])
+  const [title,        setTitle]        = useState(initial?.title ?? '')
+  const [exercises,    setExercises]    = useState<ActiveExercise[]>(() => initial ? toActiveExercises(initial.exercises) : [])
   const [showPicker,   setShowPicker]   = useState(false)
   const [showFinish,   setShowFinish]   = useState(false)
   const elapsed = useElapsedTimer(showFinish)

@@ -13,7 +13,8 @@ import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, us
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import ActiveWorkout from './ActiveWorkout'
+import ActiveWorkout, { ExercisePicker } from './ActiveWorkout'
+import type { ParsedExercise } from '../lib/aiWorkoutParser'
 import TemplateModal from '../components/TemplateModal'
 import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs, annotateExercises, estimateOneRM,
@@ -24,7 +25,7 @@ import {
 } from '../db/workoutStore'
 import type { ExerciseLastPerf, NextSetSuggestion } from '../db/workoutStore'
 import {
-  estimateWorkoutCalories, seedExerciseLibraryIfEmpty,
+  seedExerciseLibraryIfEmpty,
   getAllExerciseNames, capitalizeExerciseName,
 } from '../db/trainingStore'
 import { getTemplates, workoutToTemplate } from '../db/templateStore'
@@ -41,8 +42,6 @@ import DatePickerCalendar from '../components/DatePickerCalendar'
 import WorkoutsSubNav from '../components/WorkoutsSubNav'
 import WheelPicker from '../components/WheelPicker'
 import './WorkoutsPage.css'
-
-const DEFAULT_BODY_WEIGHT_KG = 80  // ~176 lbs fallback when profile has no weight
 
 function todayStr() { return localDateStr() }
 
@@ -399,6 +398,7 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   // changes reference when something external updated this session (e.g. a
   // template merged into it from the picker) — safe to always resync then.
   useEffect(() => { setExercises(w.exercises) }, [w.id, w.updatedAt])
+  const [showExercisePicker, setShowExercisePicker] = useState(false)
   const [showSaveAsTmpl, setShowSaveAsTmpl] = useState(false)
   const [tmplName, setTmplName] = useState('')
   const [tmplSaving, setTmplSaving] = useState(false)
@@ -421,6 +421,23 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   function persist(next: ExEntry[]) {
     setExercises(next)
     annotateExercises(next).then(annotated => updateWorkout(w.id, { exercises: annotated }, { silent: true }))
+  }
+
+  // Same picker as the "Start" live session — pick an existing exercise,
+  // type a new one, or propose it from a photo/voice description — instead
+  // of the blank name field (native <datalist> only) this used to add.
+  function pickExercise(name: string) {
+    persist([...exercises, { name, sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }])
+  }
+  function addAiExercises(parsed: ParsedExercise[]) {
+    persist([
+      ...exercises,
+      ...parsed.map(p => ({
+        name: p.name,
+        sets: p.sets.map(s => ({ weightLbs: s.weightLbs, reps: s.reps })),
+        equipment: 'barbell',
+      })),
+    ])
   }
 
   function handleDragEnd(e: DragEndEvent) {
@@ -504,8 +521,7 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
           </DndContext>
 
           <div className="wk-flat-add-row">
-            <button className="add-exercise-btn"
-              onClick={() => persist([...exercises, { name: '', sets: [{ reps: 0, weightLbs: 0 }], equipment: 'barbell' }])}>
+            <button className="add-exercise-btn" onClick={() => setShowExercisePicker(true)}>
               + Exercise
             </button>
             <button className="add-break-btn"
@@ -522,6 +538,14 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
             message={`Delete "${w.title}"? This cannot be undone.`}
             onConfirm={() => { setConfirmDelete(false); onDelete() }}
             onCancel={() => setConfirmDelete(false)} />
+        )}
+
+        {showExercisePicker && (
+          <ExercisePicker
+            onPick={pickExercise}
+            onAiExercises={addAiExercises}
+            onClose={() => setShowExercisePicker(false)}
+          />
         )}
       </>
     )
@@ -647,6 +671,7 @@ export default function WorkoutsPage() {
   const [workoutDateTypes, setWorkoutDateTypes] = useState<Map<string, 'lift' | 'cardio' | 'both'>>(new Map())
   const [loaded,       setLoaded]       = useState(false)
   const [showActiveWorkout, setShowActiveWorkout] = useState(false)
+  const [activeWorkoutInitial, setActiveWorkoutInitial] = useState<{ title: string; exercises: WorkoutExerciseEntry[] } | null>(null)
   const [copiedWorkout, setCopiedWorkout]  = useState<WorkoutSession | null>(null)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [calendarKey,   setCalendarKey]   = useState(0)
@@ -709,38 +734,18 @@ export default function WorkoutsPage() {
     loadDay(selectedDate)
   }
 
-  /** Applies a template or an ad-hoc one-time plan to the selected day:
-      merges into the existing lifting session if one's already there,
-      otherwise creates a new one — keeps the day to one running list of
-      exercise boxes instead of stacking separate sessions. */
-  async function applyExercisesToDay(data: { title: string; durationMin: number; exercises: WorkoutExerciseEntry[]; notes?: string }) {
-    const existing = dayWorkouts.find(w => w.type === 'lifting')
-    if (existing) {
-      const merged = [...existing.exercises, ...data.exercises]
-      const annotated = await annotateExercises(merged)
-      await updateWorkout(existing.id, { exercises: annotated })
-    } else {
-      const weightKg = profile?.startWeightKg ?? DEFAULT_BODY_WEIGHT_KG
-      const cal = estimateWorkoutCalories('lifting', data.durationMin, weightKg)
-      await saveWorkout({
-        date: selectedDate, type: 'lifting', title: data.title, durationMin: data.durationMin,
-        exercises: data.exercises, notes: data.notes,
-        estimatedCalories: cal.calories, caloriesCalcMethod: cal.method,
-        caloriesConfidence: cal.confidence, caloriesSource: cal.source,
-      })
-    }
-    loadDay(selectedDate)
-    refreshCalendar()
-  }
-
+  // Picking a template (or "Use Once" on an ad-hoc plan below) opens the
+  // same timed live session as "Start", pre-filled with its exercises —
+  // it used to silently auto-save straight into the flat day view instead,
+  // which is how the rest-timer/elapsed-clock went missing for anyone
+  // using a template.
   function applyTemplate(t: WorkoutTemplate) {
     setShowTemplatePicker(false)
-    applyExercisesToDay({
+    setActiveWorkoutInitial({
       title: t.name,
-      durationMin: t.estimatedDurationMin ?? 60,
       exercises: t.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' })),
-      notes: t.notes,
     })
+    setShowActiveWorkout(true)
   }
 
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')
@@ -762,13 +767,15 @@ export default function WorkoutsPage() {
         <ActiveWorkout
           prMap={prMap}
           profile={profile}
+          initial={activeWorkoutInitial ?? undefined}
           onFinish={session => {
             void session
             setShowActiveWorkout(false)
+            setActiveWorkoutInitial(null)
             loadDay(selectedDate)
             refreshCalendar()
           }}
-          onClose={() => setShowActiveWorkout(false)}
+          onClose={() => { setShowActiveWorkout(false); setActiveWorkoutInitial(null) }}
         />
       ) : (
         <>
@@ -887,12 +894,9 @@ export default function WorkoutsPage() {
               onClose={() => setShowCreateTemplate(false)}
               onSaved={() => {}}
               onUseOnce={data => {
-                applyExercisesToDay({
-                  title: data.name,
-                  durationMin: data.estimatedDurationMin,
-                  exercises: data.exercises,
-                  notes: data.notes,
-                })
+                setShowCreateTemplate(false)
+                setActiveWorkoutInitial({ title: data.name, exercises: data.exercises })
+                setShowActiveWorkout(true)
               }}
             />
           )}
