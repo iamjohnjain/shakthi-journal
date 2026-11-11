@@ -115,7 +115,6 @@
   padding: 8px 18px;
   border-radius: 20px;
   border: none;
-  --press-glow-bg: var(--gradient-brand);
   background: var(--gradient-brand);
   color: #fff;
   font-size: 13px;
@@ -306,6 +305,13 @@
   font-weight: 800;
   line-height: 1;
   letter-spacing: -2px;
+}
+
+.goal-ring-modal-pct-num--gradient {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .goal-ring-modal-pct-label {

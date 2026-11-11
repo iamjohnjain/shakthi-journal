@@ -23,7 +23,6 @@ const GOAL_TYPES: GoalType[] = ['weight', 'steps']
 interface GoalCfg {
   label: string
   unit: string
-  color: string
   current: (s: DailySnapshot) => number | undefined
   start:   (p: ProfileData | null, s: DailySnapshot) => number | undefined
   goal:    (p: ProfileData | null, ng: Pick<NutritionGoals, 'proteinG'>) => number | undefined
@@ -37,7 +36,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     // Raw kg here — converted to the user's chosen display unit (lbs/kg) in
     // the component below, since CONFIGS is a static table with no access
     // to the unit-system setting.
-    label: 'Weight Goal', unit: 'lbs', color: 'var(--blue)',
+    label: 'Weight Goal', unit: 'lbs',
     current: s => s.weight ?? undefined,
     start:   (p, s) => p?.startWeightKg ?? (s.weight ? +(s.weight + 6.8).toFixed(1) : undefined),
     goal:    p => p?.goalWeightKg ?? undefined,
@@ -46,7 +45,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     desc:    'toward target weight',
   },
   bodyFat: {
-    label: 'Body Fat Goal', unit: '%', color: 'var(--teal)',
+    label: 'Body Fat Goal', unit: '%',
     current: s => s.bodyFatPct,
     start:   (p, _s) => p?.startBodyFatPct,
     goal:    p => p?.goalBodyFatPct ?? undefined,
@@ -55,7 +54,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     desc:    'toward target body fat',
   },
   steps: {
-    label: 'Daily Steps', unit: 'steps', color: 'var(--green)',
+    label: 'Daily Steps', unit: 'steps',
     current: s => s.steps,
     start:   (_p, _s) => 0,
     goal:    () => STEP_GOAL_DAY,
@@ -64,7 +63,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     desc:    "today's step goal",
   },
   protein: {
-    label: 'Protein Goal', unit: 'g', color: 'var(--orange)',
+    label: 'Protein Goal', unit: 'g',
     current: s => s.proteinG,
     start:   (_p, _s) => 0,
     goal:    (_p, ng) => ng.proteinG,
@@ -73,7 +72,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
     desc:    "today's protein goal",
   },
   sleep: {
-    label: 'Sleep Goal', unit: 'h', color: 'var(--purple)',
+    label: 'Sleep Goal', unit: 'h',
     current: s => s.sleepHours,
     start:   (_p, _s) => 0,
     goal:    () => SLEEP_GOAL_H,
@@ -357,13 +356,21 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                   <feGaussianBlur stdDeviation="4" result="blur" />
                   <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
+                {/* Shared across every goal type — the same brand gradient as
+                    the Start/Share buttons, instead of a different flat hue
+                    per metric (blue for weight, green for steps, etc.). */}
+                <linearGradient id="gr-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FB8A4C" />
+                  <stop offset="50%" stopColor="#A66BF5" />
+                  <stop offset="100%" stopColor="#5B7FFF" />
+                </linearGradient>
               </defs>
               {/* Track */}
               <circle cx="104" cy="104" r={R} fill="none"
                 stroke="rgba(255,255,255,0.07)" strokeWidth="14" />
               {/* Progress arc */}
               <circle cx="104" cy="104" r={R} fill="none"
-                stroke={cfg.color} strokeWidth="14" strokeLinecap="round"
+                stroke="url(#gr-ring-gradient)" strokeWidth="14" strokeLinecap="round"
                 strokeDasharray={`${C} ${C}`}
                 strokeDashoffset={animated ? strokeOffset : C}
                 transform="rotate(-90 104 104)"
@@ -403,7 +410,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
             <div className="goal-ring-dots">
               {GOAL_TYPES.map((_, i) => (
                 <span key={i} className={`goal-ring-dot ${i === typeIdx ? 'goal-ring-dot--active' : ''}`}
-                  style={i === typeIdx ? { background: cfg.color } : undefined} />
+                  style={i === typeIdx ? { background: 'var(--gradient-brand)' } : undefined} />
               ))}
             </div>
 
@@ -469,7 +476,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
             </div>
             <div className="goal-ring-modal-body">
               <div className="goal-ring-modal-pct">
-                <span className="goal-ring-modal-pct-num" style={{ color: cfg.color }}>
+                <span className="goal-ring-modal-pct-num goal-ring-modal-pct-num--gradient">
                   {Math.round(pct)}%
                 </span>
                 <span className="goal-ring-modal-pct-label">{cfg.desc}</span>

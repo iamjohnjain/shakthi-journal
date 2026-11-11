@@ -206,19 +206,19 @@ function QuickActions() {
 
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
-      <button className="quick-action-btn" data-press-glow="fill" onClick={() => setShowWeightModal(true)} aria-label="Log Weight">
+      <button className="quick-action-btn" onClick={() => setShowWeightModal(true)} aria-label="Log Weight">
         <span className="quick-action-icon" aria-hidden="true">
           <Scale size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Log Weight</span>
       </button>
-      <button className="quick-action-btn" data-press-glow="fill" onClick={() => navigate('/nutrition?quick=photo')} aria-label="Snap Meal">
+      <button className="quick-action-btn" onClick={() => navigate('/nutrition?quick=photo')} aria-label="Snap Meal">
         <span className="quick-action-icon" aria-hidden="true">
           <Camera size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Snap Meal</span>
       </button>
-      <button className="quick-action-btn" data-press-glow="fill" onClick={syncData} aria-label="Sync Data">
+      <button className="quick-action-btn" onClick={syncData} aria-label="Sync Data">
         <span className="quick-action-icon" aria-hidden="true">
           <RefreshCw size={17} />
         </span>
