@@ -13,7 +13,7 @@ import WebKit
 /// also destroys the WKWebView and its isolated localStorage.
 struct WebAppView: UIViewRepresentable {
 
-    static let appURL = URL(string: "https://jeevan-health.pages.dev")!
+    static let appURL = URL(string: "https://jeevan-health-fitness-app.pages.dev")!
 
     let accessToken:  String
     let refreshToken: String
@@ -159,7 +159,7 @@ struct WebAppView: UIViewRepresentable {
                 action.navigationType == .linkActivated,
                 let url = action.request.url,
                 let host = url.host,
-                host != "jeevan-health.pages.dev"
+                host != "jeevan-health-fitness-app.pages.dev"
             else {
                 decisionHandler(.allow)
                 return

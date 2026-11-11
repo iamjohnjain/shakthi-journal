@@ -1,13 +1,13 @@
 # iPhone Testing Checklist — Jeevan
 
-**URL:** https://jeevan-health.pages.dev  
+**URL:** https://jeevan-health-fitness-app.pages.dev  
 **Test devices:** iPhone 14 Pro (390px), iPhone 15 Pro Max (430px)
 
 ---
 
 ## 1. Install as PWA
 
-1. Open Safari → go to https://jeevan-health.pages.dev
+1. Open Safari → go to https://jeevan-health-fitness-app.pages.dev
 2. Tap the Share button (box with arrow)
 3. Tap "Add to Home Screen"
 4. Confirm name → "Add"
@@ -147,7 +147,7 @@
 
 ## 12. Beta User Flow (End-to-End)
 
-1. User opens https://jeevan-health.pages.dev (cold, no account)
+1. User opens https://jeevan-health-fitness-app.pages.dev (cold, no account)
 2. Completes onboarding → sets goal, name
 3. Logs a workout → ✅ data persists
 4. Logs a meal → ✅ data persists  

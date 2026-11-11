@@ -2,7 +2,7 @@
 
 This guide assumes you have never deployed a website. Follow each step in order.
 
-When you're done, you'll have a live URL like `https://jeevan-health.pages.dev` accessible from any device, anywhere.
+When you're done, you'll have a live URL like `https://jeevan-health-fitness-app.pages.dev` accessible from any device, anywhere.
 
 ---
 
@@ -131,7 +131,7 @@ This takes about 60–90 seconds. You'll see a build log scroll by. A green chec
 When the build finishes, Cloudflare shows you your live URL:
 
 ```
-https://jeevan-health.pages.dev
+https://jeevan-health-fitness-app.pages.dev
 ```
 
 Click it. The app should open exactly as it does on localhost.
@@ -150,7 +150,7 @@ If a page refresh gives a 404 error, check that `public/_redirects` exists with 
 
 ## Step 9 — Share the URL
 
-Your app is now live at `https://jeevan-health.pages.dev`.
+Your app is now live at `https://jeevan-health-fitness-app.pages.dev`.
 
 Share this URL with anyone you want to give access. They open it in any browser — no app store needed.
 
@@ -216,6 +216,6 @@ Your local data on `localhost:5173` will **not** automatically appear on the dep
 
 To move your data:
 1. On `localhost:5173`: Settings → Backup & Restore → **Export All Data**.
-2. On `https://jeevan-health.pages.dev`: Settings → Backup & Restore → **Choose Backup File** → **Replace all**.
+2. On `https://jeevan-health-fitness-app.pages.dev`: Settings → Backup & Restore → **Choose Backup File** → **Replace all**.
 
 See [BACKUP_RESTORE.md](BACKUP_RESTORE.md) for full details.

@@ -21,7 +21,7 @@ A personal health OS that runs entirely in your browser. It tracks:
 Open this URL in your browser:
 
 ```
-https://jeevan-health.pages.dev
+https://jeevan-health-fitness-app.pages.dev
 ```
 
 *(URL will be shared directly by the developer.)*
