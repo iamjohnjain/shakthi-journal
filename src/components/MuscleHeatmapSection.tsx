@@ -6,6 +6,7 @@ import { getISOWeek, getWeekDates, addWeeks, formatWeekLabel } from '../lib/week
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import { useMuscleLoad } from '../hooks/useMuscleLoad'
+import type { RegionStatus } from '../hooks/useMuscleLoad'
 import { REGION_MUSCLES, REGION_LABEL, MUSCLE_LABEL, type VisualRegion } from '../lib/muscleMap'
 import DatePickerCalendar from './DatePickerCalendar'
 import '../pages/ComparePage.css'
@@ -55,6 +56,12 @@ export default function MuscleHeatmapSection() {
   const isCurrentWeek = weekInfo.week === getISOWeek(new Date()).week && weekInfo.year === getISOWeek(new Date()).year
 
   const detail = selectedRegion ? regions[selectedRegion] : null
+
+  const statusTotals = useMemo(() => {
+    const totals: Record<RegionStatus, number> = { none: 0, under: 0, onTarget: 0, over: 0 }
+    for (const r of Object.values(regions)) totals[r.status] += r.trained
+    return totals
+  }, [regions])
 
   return (
     <section className="muscle-heatmap">
@@ -119,14 +126,11 @@ export default function MuscleHeatmapSection() {
       </Suspense>
 
       <div className="mh-legend">
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--none" />Untrained</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" />Building up</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" />On target</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" />Possibly overtrained</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--none" />Untrained ({statusTotals.none} Sets)</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" />Under Trained ({statusTotals.under} Sets)</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" />On Target ({statusTotals.onTarget} Sets)</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" />Possibly Overtrained ({statusTotals.over} Sets)</span>
       </div>
-      <p className="mh-disclaimer">
-        Based on general training-volume guidelines (roughly 8–12 sets/week per muscle group) — not personalized or medical advice.
-      </p>
 
       {!loading && detail && selectedRegion && createPortal(
         <div className="mh-detail" onClick={() => setSelectedRegion(null)}>

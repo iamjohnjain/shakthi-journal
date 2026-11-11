@@ -78,14 +78,6 @@
 .mh-dot--on    { background: var(--green); }
 .mh-dot--over  { background: var(--red); }
 
-.mh-disclaimer {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  text-align: center;
-  margin: 0;
-  line-height: 1.4;
-}
-
 .mh-detail {
   position: fixed;
   inset: 0;

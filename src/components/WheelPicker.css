@@ -3,8 +3,16 @@
   overflow-y: auto;
   scroll-snap-type: y mandatory;
   -webkit-overflow-scrolling: touch;
+  /* Keeps the scroll gesture contained to the wheel itself — without this,
+     dragging past the top/bottom of its scroll range chains the gesture to
+     the page behind it, which reads as the whole sheet "being dragged
+     around" instead of the wheel settling in place. */
+  overscroll-behavior-y: contain;
   scrollbar-width: none;
   width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
 }
 .wheel-picker::-webkit-scrollbar { display: none; }
 

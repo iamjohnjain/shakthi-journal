@@ -132,13 +132,30 @@ button {
    "Start" button (not a flat color), via the standard mask-composite
    gradient-border trick so it traces each button's own corner radius.
    Scoped to buttons and explicit [role="button"] elements only (never bare
-   divs/empty space). `:not([data-no-press-glow])` is an escape hatch for
-   the rare button that already has its own bespoke pressed state (e.g. a
-   drag handle) that this would visually clash with. */
-button:not([data-no-press-glow]),
-[role="button"]:not([data-no-press-glow]) {
+   divs/empty space).
+
+   The base `position` rule below is a bare element selector (specificity
+   0,0,1) deliberately — NOT `:not([data-no-press-glow])`, which used to
+   carry enough specificity to beat any component's own `.foo { position:
+   absolute }` rule and silently break its layout (this broke the 3D body's
+   spin arrows, which need absolute positioning to sit on opposite edges).
+   A plain class selector on the component's own stylesheet now always
+   wins, so a button needing its own positioning just declares it.
+   `:not([data-no-press-glow])` stays reserved for the ::after glow itself
+   — the escape hatch for a button with its own bespoke pressed state
+   (e.g. a drag handle) that this would visually clash with.
+
+   `-webkit-touch-callout: none` + `user-select: none` stop iOS's long-press
+   text-selection/"Look Up" callout from hijacking the gesture mid-press —
+   without it, a long tap on a button or card can trigger that native UI,
+   which cancels the browser's own :active state and reads as the glow
+   "flickering and stopping" before the finger actually lifts. */
+button, [role="button"] {
   position: relative;
   transition: transform 0.08s ease;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 button:not([data-no-press-glow])::after,
 [role="button"]:not([data-no-press-glow])::after {
@@ -156,8 +173,8 @@ button:not([data-no-press-glow])::after,
   transition: opacity 0.18s ease, transform 0.18s ease;
   pointer-events: none;
 }
-button:not(:disabled):not([data-no-press-glow]):active,
-[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active {
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active {
   transform: scale(0.98);
 }
 button:not(:disabled):not([data-no-press-glow]):active::after,

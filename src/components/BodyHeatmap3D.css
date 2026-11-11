@@ -43,23 +43,30 @@
 .bh3d-spin-arrow--left  { left: 10px; }
 .bh3d-spin-arrow--right { right: 10px; }
 
-/* Quick-select row — tap a muscle group to auto-turn + select it */
+/* Quick-select grid — tap a muscle group to auto-turn + select it. A fixed
+   5-column grid (not flex-wrap) so the 10 regions always lay out as two
+   even rows regardless of label width, instead of wrapping unevenly and
+   leaving the last row's leftover button stranded by itself. */
 .bh3d-quickselect {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-  justify-content: center;
 }
 
 .bh3d-quickselect-btn {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
   color: var(--text-secondary);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  padding: 7px 12px;
-  white-space: nowrap;
+  border-radius: 12px;
+  padding: 8px 2px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
 }
 .bh3d-quickselect-btn:hover { color: var(--text-primary); background: var(--bg-card-hover); }
 .bh3d-quickselect-btn--active {

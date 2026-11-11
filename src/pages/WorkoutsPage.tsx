@@ -750,6 +750,7 @@ export default function WorkoutsPage() {
 
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')
   const dateLabel = formatDate(selectedDateObj)
+  const shortDateLabel = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const isToday = selectedDate === todayStr()
   const canGoForward = selectedDate < todayStr()
   const markedWorkoutDates = new Set(workoutDateTypes.keys())
@@ -782,13 +783,13 @@ export default function WorkoutsPage() {
           <header className="page-header" style={{ marginTop: '8px' }}>
             <div>
               <button className="page-title-datepicker" onClick={() => setShowDatePicker(true)}>
-                <h1 className="page-title">{isToday ? 'Today' : dateLabel}</h1>
+                <h1 className="page-title">{isToday ? 'Today' : shortDateLabel}</h1>
                 <CalendarDays size={18} className="page-title-cal-icon" />
               </button>
-              {isToday && <p className="page-subtitle">{dateLabel}</p>}
+              <p className="page-subtitle">{dateLabel}</p>
               {streak >= 2 && (
                 <div className="wk-streak-chip" title="Consecutive days with a logged session">
-                  <Flame size={13} /> {streak}-day streak
+                  <Flame size={13} /> {streak} Day Streak
                 </div>
               )}
             </div>

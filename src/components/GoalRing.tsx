@@ -83,11 +83,11 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
   },
 }
 
-// How strong the card's background wash reads — weight is the "headline"
-// metric so it gets the brighter treatment, steps (and anything else) a
-// quieter one. Same gradient-brand hues either way, just the opacity dial.
+// How strong the card's background wash reads — kept equal across goal
+// types so cards in the same swipeable row read as one consistent set,
+// not a mix of differently-lit cards. Same gradient-brand hues either way.
 const GLOW_INTENSITY: Record<GoalType, number> = {
-  weight: 0.16, steps: 0.055, bodyFat: 0.09, protein: 0.09, sleep: 0.09,
+  weight: 0.1, steps: 0.1, bodyFat: 0.1, protein: 0.1, sleep: 0.1,
 }
 
 function clamp(v: number) { return Math.min(100, Math.max(0, v)) }

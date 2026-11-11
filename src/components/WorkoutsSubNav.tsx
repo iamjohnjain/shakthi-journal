@@ -9,16 +9,16 @@ export default function WorkoutsSubNav() {
   return (
     <nav className="workouts-subnav">
       <NavLink to="/workouts" end className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Dumbbell size={14} /><span>Today</span>
+        <Dumbbell size={15} /><span>Today</span>
       </NavLink>
       <NavLink to="/workouts/history" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Clock size={14} /><span>History</span>
+        <Clock size={15} /><span>History</span>
       </NavLink>
       <NavLink to="/workouts/progress" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <TrendingUp size={14} /><span>Progress</span>
+        <TrendingUp size={15} /><span>Progress</span>
       </NavLink>
       <NavLink to="/workouts/templates" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <LayoutTemplate size={14} /><span>Templates</span>
+        <LayoutTemplate size={15} /><span>Templates</span>
       </NavLink>
     </nav>
   )
