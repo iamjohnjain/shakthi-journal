@@ -484,7 +484,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
 
               <div className="goal-ring-modal-rows">
                 {([
-                  ['Current',      hasData     ? (goalType === 'weight' && latestWeight ? `${cfg.format(current!)} ${displayUnit} · ${sourceLabel(latestWeight.sourceId)} · ${latestWeight.date}` : goalType === 'bodyFat' && latestBodyFat ? `${cfg.format(current!)} ${displayUnit} · ${sourceLabel(latestBodyFat.sourceId)} · ${latestBodyFat.date}` : goalType === 'sleep' && latestSleep ? `${cfg.format(current!)} ${displayUnit} · ${sourceLabel(latestSleep.sourceId)} · ${latestSleep.date}` : `${cfg.format(current!)} ${displayUnit}`) : '—',      undefined    ],
+                  ['Current',      hasData ? `${cfg.format(current!)} ${displayUnit}` : '—', undefined],
                   ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${displayUnit}`   : '— Set in Profile', undefined],
                   ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${displayUnit}` : '— Set in Profile',   undefined],
                   ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${displayUnit}` : '—', changeColor],
@@ -503,21 +503,15 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                 </p>
               )}
 
-              {goalType === 'weight' && latestWeight && (
-                <p className="goal-ring-modal-weight-note">
-                  Weight from {weightSourceLabel(latestWeight.sourceId)} on {latestWeight.date}.
-                </p>
-              )}
-
               {goalType === 'bodyFat' && latestBodyFat && (
                 <p className="goal-ring-modal-weight-note">
-                  Body fat from {sourceLabel(latestBodyFat.sourceId)} on {latestBodyFat.date}. Sync RENPHO via Apple Health to keep this current.
+                  Sync RENPHO via Apple Health to keep this current.
                 </p>
               )}
 
               {goalType === 'sleep' && latestSleep && (
                 <p className="goal-ring-modal-weight-note">
-                  Sleep from {sourceLabel(latestSleep.sourceId)} on {latestSleep.date}. Open RingConn → ensure Apple Health sync is enabled for Sleep.
+                  Open RingConn → ensure Apple Health sync is enabled for Sleep.
                 </p>
               )}
 
@@ -605,6 +599,22 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                   </>
                 )}
               </div>
+
+              {goalType === 'weight' && latestWeight && (
+                <p className="goal-ring-modal-last-synced">
+                  Last synced: {weightSourceLabel(latestWeight.sourceId)} · {shortDate(latestWeight.date)}
+                </p>
+              )}
+              {goalType === 'bodyFat' && latestBodyFat && (
+                <p className="goal-ring-modal-last-synced">
+                  Last synced: {sourceLabel(latestBodyFat.sourceId)} · {shortDate(latestBodyFat.date)}
+                </p>
+              )}
+              {goalType === 'sleep' && latestSleep && (
+                <p className="goal-ring-modal-last-synced">
+                  Last synced: {sourceLabel(latestSleep.sourceId)} · {shortDate(latestSleep.date)}
+                </p>
+              )}
             </div>
           </div>
         </div>,

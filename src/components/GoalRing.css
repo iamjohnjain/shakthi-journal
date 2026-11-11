@@ -396,6 +396,14 @@
   line-height: 1.4;
 }
 
+.goal-ring-modal-last-synced {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+  margin-top: 14px;
+  line-height: 1.4;
+}
+
 /* ── Weight-goal pace panel ── */
 
 .goal-ring-pace {
