@@ -95,7 +95,9 @@ function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }:
       </div>
       <div className="week-streak-divider" />
       <div className="week-streak-counter" title="Consecutive days logged">
-        <Utensils size={20} className="week-streak-icon" />
+        <span className="week-streak-icon-wrap">
+          <Utensils size={15} className="week-streak-icon" />
+        </span>
         <span className="week-streak-count">{streak}</span>
       </div>
     </div>
@@ -1219,7 +1221,7 @@ export default function NutritionPage() {
           <h1 className="page-title">Meals</h1>
           <p className="page-subtitle">{new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
         </div>
-        <button className="log-workout-btn" onClick={() => openAdd()}>
+        <button className="add-food-btn" onClick={() => openAdd()}>
           <Plus size={16} /> Add Food
         </button>
       </header>

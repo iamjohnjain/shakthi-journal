@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, X, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, CheckCircle2, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
@@ -443,8 +443,9 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
         </div>
 
         {(goalType === 'weight' || goalType === 'steps') && (
-          <div className="goal-ring-sync-line">
-            <span>{lastSyncedAt ? `Last synced ${relativeTime(lastSyncedAt)}` : 'Never synced'}</span>
+          <div className="goal-ring-sync-chip">
+            <RefreshCw size={11} className="goal-ring-sync-icon" />
+            <span>{lastSyncedAt ? `Synced ${relativeTime(lastSyncedAt)}` : 'Not synced yet'}</span>
             {isStaleData && (
               <button className="goal-ring-sync-btn" onClick={e => { e.stopPropagation(); triggerSync() }}>
                 Sync now

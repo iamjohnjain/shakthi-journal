@@ -125,68 +125,93 @@ button {
 }
 
 /* ─── Press glow (haptic-style feedback) ──────────────────────────────────
-   A glowing ring appears the instant a button is pressed and holds for as
-   long as the finger/pointer stays down — CSS :active already tracks
-   exactly that window natively, so no JS press/release bookkeeping is
-   needed. The ring is the same gradient-brand hues as the Workout tab's
-   "Start" button (not a flat color). Scoped to buttons and explicit
-   [role="button"] elements only (never bare divs/empty space).
+   A thin gradient RING appears the instant a button is pressed and holds
+   for as long as the finger/pointer stays down — CSS :active already
+   tracks exactly that window natively, so no JS press/release bookkeeping
+   is needed. Scoped to buttons and explicit [role="button"] elements only
+   (never bare divs/empty space).
 
-   The glow is a solid gradient rounded-rect sitting BEHIND the button
-   (z-index: -1, contained by the button's own stacking context) and
-   slightly larger than it — the button's own opaque background covers
-   the overlapping middle, so only the halo beyond its edges shows,
-   flush against the button with no seam. An earlier version carved the
-   ring shape out of a same-sized box with `mask-composite: exclude`;
-   that technique leaves an antialiased seam exactly at the inner edge of
-   the ring (worse at rounded corners), which read as a visible gap
-   between the button and its glow. Behind-the-button avoids the mask
-   entirely, so there's nothing to seam.
+   Technique: a double-background-clip border, not a mask. A pseudo-element
+   slightly larger than the button (inset -3px) gets a transparent 3px
+   border plus two background layers — the gradient painted into the
+   border-box (so it only shows in that 3px band) and an opaque "fill"
+   painted into the padding-box on top of it (so the band inside the
+   border, which exactly covers the button itself, is concealed). This is
+   the SAME technique already used elsewhere in this app for a gradient
+   ring (the bottom-nav active-tab capsule, `.quick-action-icon`) — proven
+   to render correctly, including rounded corners, in both Chromium and
+   WebKit. An earlier version used `mask-composite: exclude` to carve the
+   ring instead; that leaves a WebKit-only antialiasing seam exactly at the
+   ring's inner corners (confirmed via a WebKit-engine screenshot test —
+   Chromium renders it fine, which is why it looked OK in prior testing),
+   visible as a dark notch at each corner. A pseudo-element can never
+   paint behind its own host's background (z-index can't change that), so
+   there's no way to fake a hollow ring by hiding it behind the button —
+   the "fill" color genuinely has to match whatever surface it's drawn
+   over. `--press-glow-bg` defaults to `--bg-card`, the standard card/
+   secondary-button surface used across most of the app; anything with a
+   different permanent background (the handful of `--gradient-brand`
+   filled buttons — Start, Share, etc.) overrides it locally to match.
 
-   The base `position`/`z-index` rule below is a bare element selector
-   (specificity 0,0,1) deliberately — NOT `:not([data-no-press-glow])`,
-   which used to carry enough specificity to beat any component's own
-   `.foo { position: absolute }` rule and silently break its layout (this
-   broke the 3D body's spin arrows, which need absolute positioning to
-   sit on opposite edges). A plain class selector on the component's own
-   stylesheet now always wins, so a button needing its own positioning
-   just declares it. `:not([data-no-press-glow])` stays reserved for the
-   ::after glow itself — the escape hatch for a button with its own
-   bespoke pressed state (e.g. a drag handle) that this would visually
-   clash with.
+   The base `position` rule is a bare element selector (specificity 0,0,1)
+   deliberately — NOT `:not([data-no-press-glow])`, which used to carry
+   enough specificity to beat any component's own `.foo { position:
+   absolute }` rule and silently break its layout (this broke the 3D
+   body's spin arrows, which need absolute positioning to sit on opposite
+   edges). A plain class selector on the component's own stylesheet now
+   always wins, so a button needing its own positioning just declares it.
+   `:not([data-no-press-glow])` stays reserved for the ::after glow itself
+   — the escape hatch for a button with its own bespoke pressed state
+   (e.g. a drag handle) that this would visually clash with.
+
+   `[data-press-glow="fill"]` is the opt-in for the handful of "hero"
+   controls (bottom-nav Today tab, the three homepage quick-actions) that
+   should flash with a solid glow instead of a thin ring — it's listed as
+   its own selector (not just `[role="button"]`) so it also works on a
+   plain `<a>`/`NavLink`, like the bottom-nav tabs, without having to
+   mislabel a real link with `role="button"`.
 
    `-webkit-touch-callout: none` + `user-select: none` stop iOS's long-press
    text-selection/"Look Up" callout from hijacking the gesture mid-press —
    without it, a long tap on a button or card can trigger that native UI,
    which cancels the browser's own :active state and reads as the glow
    "flickering and stopping" before the finger actually lifts. */
-button, [role="button"] {
+button, [role="button"], [data-press-glow] {
   position: relative;
-  z-index: 0;
+  --press-glow-bg: var(--bg-card);
   transition: transform 0.08s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
 button:not([data-no-press-glow])::after,
-[role="button"]:not([data-no-press-glow])::after {
+[role="button"]:not([data-no-press-glow])::after,
+[data-press-glow]:not([data-no-press-glow])::after {
   content: '';
   position: absolute;
   inset: -3px;
   border-radius: inherit;
-  background: var(--gradient-brand);
-  z-index: -1;
+  border: 3px solid transparent;
+  background:
+    linear-gradient(var(--press-glow-bg), var(--press-glow-bg)) padding-box,
+    var(--gradient-brand) border-box;
   opacity: 0;
   transform: scale(0.92);
   transition: opacity 0.18s ease, transform 0.18s ease;
   pointer-events: none;
 }
+[data-press-glow="fill"]:not([data-no-press-glow])::after {
+  border: none;
+  background: var(--gradient-brand);
+}
 button:not(:disabled):active,
-[role="button"]:not([aria-disabled="true"]):active {
+[role="button"]:not([aria-disabled="true"]):active,
+[data-press-glow]:active {
   transform: scale(0.98);
 }
 button:not(:disabled):not([data-no-press-glow]):active::after,
-[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active::after {
+[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active::after,
+[data-press-glow]:not([data-no-press-glow]):active::after {
   opacity: 1;
   transform: scale(1);
 }

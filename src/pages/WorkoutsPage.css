@@ -52,6 +52,7 @@
 
 .start-workout-btn {
   display: flex; align-items: center; gap: 6px;
+  --press-glow-bg: var(--gradient-brand);
   background: var(--gradient-brand); color: #fff;
   border: none; border-radius: 10px;
   padding: 9px 16px; font-size: 14px; font-weight: 600;

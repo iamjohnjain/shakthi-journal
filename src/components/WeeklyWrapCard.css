@@ -1,7 +1,10 @@
 .ww-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  /* Near-opaque — the Dashboard behind this (insight text, headlines) is
+     dense enough that a lighter backdrop let it bleed through and visually
+     compete with the card. */
+  background: rgba(8, 7, 10, 0.94);
   z-index: 1900;
   display: flex;
   align-items: center;
@@ -163,6 +166,7 @@
 }
 
 .ww-action-btn--primary {
+  --press-glow-bg: var(--gradient-brand);
   background: var(--gradient-brand);
   color: #fff;
   border-color: transparent;

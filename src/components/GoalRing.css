@@ -115,6 +115,7 @@
   padding: 8px 18px;
   border-radius: 20px;
   border: none;
+  --press-glow-bg: var(--gradient-brand);
   background: var(--gradient-brand);
   color: #fff;
   font-size: 13px;
@@ -175,28 +176,42 @@
   letter-spacing: 0.04em;
 }
 
-/* Last-synced status line */
+/* Last-synced status chip — a small self-contained pill (icon + label +
+   optional action) instead of bare centered text, so it reads as one
+   designed element rather than a stray line of text floating under the
+   stats. Neutral grey throughout, including the action — this is a minor
+   utility control, not a CTA, so it stays greyed out rather than pulling
+   in an unrelated accent color. */
 
-.goal-ring-sync-line {
-  display: flex;
+.goal-ring-sync-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 5px 10px 5px 8px;
+  border-radius: var(--r-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
   font-size: 10px;
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   letter-spacing: 0.02em;
+  align-self: center;
+}
+
+.goal-ring-sync-icon {
+  color: var(--text-quaternary);
+  flex-shrink: 0;
 }
 
 .goal-ring-sync-btn {
   font-size: 10px;
   font-weight: 700;
-  color: var(--blue);
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 2px 8px;
+  margin-left: 2px;
 }
 
 /* ─── Detail Modal ────────────────────────────────────────────────────────── */

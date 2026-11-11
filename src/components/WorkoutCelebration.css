@@ -144,6 +144,7 @@
 }
 
 .wc-action-btn--primary {
+  --press-glow-bg: var(--gradient-brand);
   background: var(--gradient-brand);
   color: #fff;
   border-color: transparent;

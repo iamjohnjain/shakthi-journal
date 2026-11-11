@@ -40,11 +40,11 @@
 
 .insight-card:hover { border-color: var(--border); }
 
-/* Severity accent strips */
-.insight--positive { border-left: 3px solid var(--green); }
-.insight--action   { border-left: 3px solid var(--blue); }
-.insight--warning  { border-left: 3px solid rgba(255,159,10,0.9); }
-.insight--info     { border-left: 3px solid var(--border); }
+/* Severity used to tint the left edge per-type (green/blue/orange) — pulled
+   in favor of one neutral card treatment across all insights, so this
+   section doesn't read as a scatter of unrelated accent colors against the
+   rest of the page's brand-gradient-or-greyscale palette. The emoji icon
+   already carries the per-insight meaning. */
 
 /* Card header (always visible, clickable) */
 .insight-header {

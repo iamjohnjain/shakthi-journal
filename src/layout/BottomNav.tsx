@@ -35,6 +35,7 @@ export default function BottomNav() {
           to={tab.path}
           end={tab.end}
           className={({ isActive }) => `bottom-tab ${isActive ? 'active' : ''}`}
+          data-press-glow={tab.label === 'Today' ? 'fill' : undefined}
         >
           <tab.icon size={22} className="bottom-tab-icon" />
           <span className="bottom-tab-label">{tab.label}</span>
