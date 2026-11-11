@@ -32,7 +32,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.jeevan.app</string>
+				<string>jeevan.health.fitness</string>
 			</array>
 		</dict>
 	</array>

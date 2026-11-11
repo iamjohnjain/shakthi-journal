@@ -73,7 +73,7 @@ struct SnapMealWidgetView: View {
         // .onOpenURL (see ShakthiJournalApp.swift) catches it and routes
         // straight to the meal camera. Works on every widget family/iOS
         // version WidgetKit supports, no App Intents setup needed.
-        .widgetURL(URL(string: "com.jeevan.app://snap-meal"))
+        .widgetURL(URL(string: "jeevan.health.fitness://snap-meal"))
     }
 }
 
