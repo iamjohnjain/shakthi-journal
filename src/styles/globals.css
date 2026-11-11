@@ -161,9 +161,13 @@ button:not([data-no-press-glow])::after,
 [role="button"]:not([data-no-press-glow])::after {
   content: '';
   position: absolute;
-  inset: -4px;
+  /* `padding` (ring thickness) must equal `inset`'s magnitude — otherwise
+     the ring's inner edge sits short of the button's own edge, leaving a
+     sliver of bare background visible as a gap between the button and its
+     glow instead of the ring reading as flush against it. */
+  inset: -3px;
   border-radius: inherit;
-  padding: 2.5px;
+  padding: 3px;
   background: var(--gradient-brand);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
