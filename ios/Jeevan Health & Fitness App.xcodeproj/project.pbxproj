@@ -32,7 +32,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A1B2C3D4E5F6A1B2C3D4E510 /* ShakthiJournal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShakthiJournal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F6A1B2C3D4E510 /* Jeevan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Jeevan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4E5F6A1B2C3D4E511 /* ShakthiJournalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakthiJournalApp.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E5F7 /* DeepLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkManager.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E512 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
@@ -77,7 +77,7 @@
 		A1B2C3D4E5F6A1B2C3D4E500 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A1B2C3D4E5F6A1B2C3D4E510 /* ShakthiJournal.app */,
+				A1B2C3D4E5F6A1B2C3D4E510 /* Jeevan.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -182,9 +182,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A1B2C3D4E5F6A1B2C3D4E560 /* ShakthiJournal */ = {
+		A1B2C3D4E5F6A1B2C3D4E560 /* Jeevan */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E571 /* Build configuration list for PBXNativeTarget "ShakthiJournal" */;
+			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E571 /* Build configuration list for PBXNativeTarget "Jeevan" */;
 			buildPhases = (
 				A1B2C3D4E5F6A1B2C3D4E550 /* Sources */,
 				A1B2C3D4E5F6A1B2C3D4E551 /* Frameworks */,
@@ -194,9 +194,9 @@
 			);
 			dependencies = (
 			);
-			name = ShakthiJournal;
-			productName = ShakthiJournal;
-			productReference = A1B2C3D4E5F6A1B2C3D4E510 /* ShakthiJournal.app */;
+			name = Jeevan;
+			productName = Jeevan;
+			productReference = A1B2C3D4E5F6A1B2C3D4E510 /* Jeevan.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -214,7 +214,7 @@
 					};
 				};
 			};
-			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E570 /* Build configuration list for PBXProject "ShakthiJournal" */;
+			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E570 /* Build configuration list for PBXProject "Jeevan" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -227,7 +227,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A1B2C3D4E5F6A1B2C3D4E560 /* ShakthiJournal */,
+				A1B2C3D4E5F6A1B2C3D4E560 /* Jeevan */,
 			);
 		};
 /* End PBXProject section */
@@ -443,7 +443,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A1B2C3D4E5F6A1B2C3D4E570 /* Build configuration list for PBXProject "ShakthiJournal" */ = {
+		A1B2C3D4E5F6A1B2C3D4E570 /* Build configuration list for PBXProject "Jeevan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1B2C3D4E5F6A1B2C3D4E580 /* Debug */,
@@ -452,7 +452,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A1B2C3D4E5F6A1B2C3D4E571 /* Build configuration list for PBXNativeTarget "ShakthiJournal" */ = {
+		A1B2C3D4E5F6A1B2C3D4E571 /* Build configuration list for PBXNativeTarget "Jeevan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1B2C3D4E5F6A1B2C3D4E582 /* Debug */,
