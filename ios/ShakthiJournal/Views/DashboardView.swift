@@ -25,7 +25,7 @@ struct DashboardView: View {
                     .padding(.bottom, 40)
                 }
             }
-            .navigationTitle("Shakthi")
+            .navigationTitle("Jeevan")
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .preferredColorScheme(.dark)
@@ -106,13 +106,9 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
             }
-            .background(Color(hex: "#ff3b30").opacity(0.15))
-            .foregroundStyle(Color(hex: "#ff3b30"))
+            .background(LinearGradient.brand)
+            .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color(hex: "#ff3b30").opacity(0.3), lineWidth: 1)
-            )
         }
     }
 
@@ -146,7 +142,7 @@ struct DashboardView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 46)
             }
-            .background(sync.activity.isRunning ? Color(white: 0.18) : Color(hex: "#1a6ef5"))
+            .background(sync.activity.isRunning ? AnyShapeStyle(Color(white: 0.18)) : AnyShapeStyle(LinearGradient.brand))
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .disabled(sync.activity.isRunning)
@@ -387,7 +383,7 @@ struct DashboardView: View {
                     } label: {
                         Label("Sign In Again", systemImage: "arrow.right.circle")
                             .font(.caption).fontWeight(.semibold)
-                            .foregroundStyle(Color(hex: "#1a6ef5"))
+                            .foregroundStyle(Color.brandAccent)
                     }
                 }
                 .padding(.top, 12)
@@ -411,7 +407,7 @@ struct DashboardView: View {
                         } label: {
                             Label("Try Again", systemImage: "arrow.clockwise")
                                 .font(.caption).fontWeight(.semibold)
-                                .foregroundStyle(Color(hex: "#1a6ef5"))
+                                .foregroundStyle(Color.brandAccent)
                         }
                     }
                 }

@@ -21,7 +21,7 @@ struct ConfigurationView: View {
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
 
-                        Text("Supabase credentials are missing. The app needs a URL and anon key to connect to your Shakthi account.")
+                        Text("Supabase credentials are missing. The app needs a URL and anon key to connect to your Jeevan account.")
                             .font(.subheadline)
                             .foregroundStyle(Color(white: 0.55))
                             .fixedSize(horizontal: false, vertical: true)
@@ -121,9 +121,9 @@ private struct Step: View {
         HStack(alignment: .top, spacing: 12) {
             Text("\(n)")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color(hex: "#1a6ef5"))
+                .foregroundStyle(Color.brandAccent)
                 .frame(width: 22, height: 22)
-                .background(Color(hex: "#1a6ef5").opacity(0.15))
+                .background(Color.brandAccent.opacity(0.15))
                 .clipShape(Circle())
 
             Text(text)

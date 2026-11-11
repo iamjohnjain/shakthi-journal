@@ -15,14 +15,14 @@ struct PermissionsView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Image(systemName: "heart.text.clipboard")
                                 .font(.system(size: 38))
-                                .foregroundStyle(Color(hex: "#ff3b30"))
+                                .foregroundStyle(Color.brandAccent)
                                 .padding(.bottom, 4)
 
                             Text("Connect Apple Health")
                                 .font(.system(size: 22, weight: .bold))
                                 .foregroundStyle(.white)
 
-                            Text("Shakthi reads health data from Apple Health and syncs it to your dashboard. Your data only goes to your own account.")
+                            Text("Jeevan reads health data from Apple Health and syncs it to your dashboard. Your data only goes to your own account.")
                                 .font(.subheadline)
                                 .foregroundStyle(Color(white: 0.6))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -52,7 +52,7 @@ struct PermissionsView: View {
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                        Text("Shakthi will not write to Apple Health yet. Write permission is established now so a future update can log workouts and body measurements without a second permission dialog.")
+                        Text("Jeevan will not write to Apple Health yet. Write permission is established now so a future update can log workouts and body measurements without a second permission dialog.")
                             .font(.caption)
                             .foregroundStyle(Color(white: 0.4))
                             .fixedSize(horizontal: false, vertical: true)
@@ -62,7 +62,7 @@ struct PermissionsView: View {
                         // Read-only note
                         HStack(spacing: 6) {
                             Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color(white: 0.4))
-                            Text("Today's sync is read-only. Data flows from Apple Health → your Shakthi dashboard.")
+                            Text("Today's sync is read-only. Data flows from Apple Health → your Jeevan dashboard.")
                                 .font(.caption)
                                 .foregroundStyle(Color(white: 0.4))
                         }
@@ -99,7 +99,7 @@ struct PermissionsView: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
                         }
-                        .background(Color(hex: "#1a6ef5"))
+                        .background(LinearGradient.brand)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .disabled(hk.isRequestingAuth)

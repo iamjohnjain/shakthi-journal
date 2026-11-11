@@ -17,7 +17,7 @@ struct ContentView: View {
                     ZStack {
                         Color.black.ignoresSafeArea()
                         ProgressView()
-                            .tint(Color(hex: "#1a6ef5"))
+                            .tint(Color.brandAccent)
                             .scaleEffect(1.2)
                     }
 

@@ -82,7 +82,15 @@ struct MainTabView: View {
         guard let type = message["type"] as? String else { return }
         switch type {
         case "openHealthSync":
-            showHealthSync = true
+            if hk.hasRequestedAuth {
+                // Already connected — show the native status/sync screen.
+                showHealthSync = true
+            } else {
+                // Not connected yet — the Apple Health permission prompt IS
+                // the whole point of tapping this, so go straight to it
+                // instead of making the user tap through an app screen first.
+                Task { await hk.requestAuthorization() }
+            }
 
         case "sessionRefreshed":
             // The Supabase JS client in the WebView refreshed its token.

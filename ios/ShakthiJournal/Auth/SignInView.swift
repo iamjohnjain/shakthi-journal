@@ -41,14 +41,14 @@ struct SignInView: View {
 
     private var header: some View {
         VStack(spacing: 14) {
-            Text("S")
+            Text("J")
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 76, height: 76)
-                .background(Color(hex: "#1a6ef5"))
+                .background(LinearGradient.brand)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            Text("Shakthi")
+            Text("Jeevan")
                 .font(.system(size: 26, weight: .bold))
                 .foregroundStyle(.white)
 
@@ -81,7 +81,7 @@ struct SignInView: View {
                 .foregroundStyle(selected ? .white : Color(white: 0.45))
                 .frame(maxWidth: .infinity)
                 .frame(height: 42)
-                .background(selected ? Color(hex: "#1a6ef5") : Color.clear)
+                .background(selected ? AnyShapeStyle(LinearGradient.brand) : AnyShapeStyle(Color.clear))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .padding(3)
@@ -229,7 +229,7 @@ struct SignInView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 50)
         }
-        .background(canSubmit ? Color(hex: "#1a6ef5") : Color(white: 0.2))
+        .background(canSubmit ? AnyShapeStyle(LinearGradient.brand) : AnyShapeStyle(Color(white: 0.2)))
         .foregroundStyle(.white)
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
         .disabled(!canSubmit)
@@ -244,7 +244,7 @@ struct SignInView: View {
 
             Image(systemName: "envelope.badge.fill")
                 .font(.system(size: 52))
-                .foregroundStyle(Color(hex: "#1a6ef5"))
+                .foregroundStyle(Color.brandAccent)
 
             VStack(spacing: 10) {
                 Text("Check your email")
@@ -268,7 +268,7 @@ struct SignInView: View {
                 confirmPassword = ""
             }
             .font(.subheadline).fontWeight(.semibold)
-            .foregroundStyle(Color(hex: "#1a6ef5"))
+            .foregroundStyle(Color.brandAccent)
 
             Spacer()
         }
@@ -279,8 +279,8 @@ struct SignInView: View {
 
     private var footerNote: some View {
         Text(mode == .signIn
-             ? "Use the same email and password as the\nShakthi web app."
-             : "Your account works on both the iOS app\nand the Shakthi web dashboard.")
+             ? "Use the same email and password as the\nJeevan web app."
+             : "Your account works on both the iOS app\nand the Jeevan web dashboard.")
             .font(.caption)
             .foregroundStyle(Color(white: 0.35))
             .multilineTextAlignment(.center)
@@ -324,4 +324,20 @@ extension Color {
         let b = Double(rgb         & 0xFF) / 255
         self.init(red: r, green: g, blue: b)
     }
+
+    /// The app's single flat accent — used anywhere a gradient doesn't fit
+    /// (inline text links, small icon tints). Mirrors the web app's --orange.
+    static let brandAccent = Color(hex: "#FB7A3C")
+}
+
+// MARK: - Brand gradient
+
+/// Mirrors the web app's --gradient-brand (orange → purple → blue), used for
+/// primary buttons and other large fills across the native screens.
+extension LinearGradient {
+    static let brand = LinearGradient(
+        colors: [Color(hex: "#FB8A4C"), Color(hex: "#A66BF5"), Color(hex: "#5B7FFF")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }
