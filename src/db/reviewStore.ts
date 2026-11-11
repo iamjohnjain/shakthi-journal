@@ -19,6 +19,13 @@ export async function getAllWeeklyReviews(): Promise<WeeklyReview[]> {
   return all.sort((a, b) => b.weekStart.localeCompare(a.weekStart))
 }
 
+export async function markWeeklyReviewSeen(weekStart: string): Promise<void> {
+  const db = await getDB()
+  const existing = await db.get('weekly_reviews', `week_${weekStart}`)
+  if (!existing) return
+  await db.put('weekly_reviews', { ...existing, seen: true })
+}
+
 // ─── Monthly Reviews ───────────────────────────────────────────────────────────
 
 export async function saveMonthlyReview(review: MonthlyReview): Promise<void> {

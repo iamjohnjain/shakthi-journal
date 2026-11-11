@@ -423,6 +423,19 @@
   padding: 4px 0;
 }
 
+.profile-wrap-row {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+.profile-wrap-row .profile-device-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── Edit Modal ─────────────────────────────────────────── */
 
 .profile-modal-overlay {

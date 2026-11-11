@@ -1,14 +1,19 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { getSetting } from '../db'
+import { useWeeklyWrapNotice } from '../hooks/useWeeklyWrapNotice'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import Toast from '../components/Toast'
+import WeeklyWrapBanner from '../components/WeeklyWrapBanner'
+import WeeklyWrapCard from '../components/WeeklyWrapCard'
 import './Layout.css'
 
 export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { pendingReview, dismiss } = useWeeklyWrapNotice()
+  const [showWrap, setShowWrap] = useState(false)
 
   useEffect(() => {
     getSetting<boolean>('onboarding.completed', false).then(done => {
@@ -30,6 +35,15 @@ export default function Layout() {
       </main>
       <BottomNav />
       <Toast />
+      {pendingReview && !showWrap && (
+        <WeeklyWrapBanner onOpen={() => setShowWrap(true)} onDismiss={dismiss} />
+      )}
+      {pendingReview && showWrap && (
+        <WeeklyWrapCard
+          review={pendingReview}
+          onDone={() => { setShowWrap(false); dismiss() }}
+        />
+      )}
     </div>
   )
 }

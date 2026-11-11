@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
-  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut,
+  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut, Sparkles,
 } from 'lucide-react'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
@@ -11,7 +11,10 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { getProfile, saveProfile } from '../db/profileStore'
 import { getDBStats } from '../db'
 import type { ProfileData } from '../db/profileStore'
+import type { WeeklyReview } from '../db'
+import { getAllWeeklyReviews } from '../db/reviewStore'
 import { AvatarDisplay, AvatarPicker } from '../components/Avatar'
+import WeeklyWrapCard from '../components/WeeklyWrapCard'
 import { useAuth } from '../context/AuthContext'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
@@ -308,11 +311,14 @@ export default function Profile() {
   const [editing,     setEditing]     = useState(false)
   const [dbStats,     setDbStats]     = useState<{ workoutCount: number; logCount: number; nutritionCount: number } | null>(null)
   const [ownedDevices, setOwnedDevicesState] = useState<DeviceId[] | null>(null)
+  const [weeklyWraps, setWeeklyWraps] = useState<WeeklyReview[]>([])
+  const [openWrap,    setOpenWrap]    = useState<WeeklyReview | null>(null)
 
   useEffect(() => {
     getProfile().then(setProfileData)
     getDBStats().then(s => setDbStats({ workoutCount: s.workoutCount, logCount: s.logCount, nutritionCount: s.nutritionCount }))
     getOwnedDevices().then(setOwnedDevicesState)
+    getAllWeeklyReviews().then(setWeeklyWraps)
   }, [])
 
   const ownedDeviceRows = DEVICES.filter(d => owns(ownedDevices, d.id))
@@ -551,6 +557,32 @@ export default function Profile() {
           </button>
         </section>
 
+        {/* ── Weekly Wraps ── */}
+        {weeklyWraps.length > 0 && (
+          <section className="profile-card">
+            <div className="profile-card-title-row">
+              <h2 className="profile-card-title">Weekly Wraps</h2>
+            </div>
+            <div className="profile-devices-list">
+              {weeklyWraps.map(w => (
+                <button key={w.id} className="profile-device-row profile-wrap-row" onClick={() => setOpenWrap(w)}>
+                  <div className="profile-device-icon-wrap">
+                    <Sparkles size={18} />
+                  </div>
+                  <div className="profile-device-info">
+                    <span className="profile-device-name">
+                      {new Date(w.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {' – '}
+                      {new Date(w.weekEnd + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                    <span className="profile-device-sub">{w.biggestWin ?? w.summary}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── Connected Devices ── */}
         <section className="profile-card">
           <div className="profile-card-title-row">
@@ -582,6 +614,8 @@ export default function Profile() {
         </section>
 
       </div>
+
+      {openWrap && <WeeklyWrapCard review={openWrap} onDone={() => setOpenWrap(null)} />}
     </div>
   )
 }

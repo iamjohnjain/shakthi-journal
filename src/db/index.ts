@@ -223,6 +223,7 @@ export interface WeeklyReview {
   biggestChallenge: string | null
   recommendations: string[]
   confidence: 'high' | 'medium' | 'low'
+  seen?: boolean
 }
 
 export interface MonthlyReview {
