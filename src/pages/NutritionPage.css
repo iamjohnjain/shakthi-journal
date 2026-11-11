@@ -96,6 +96,14 @@
 
 .week-streak-dot--viewed { box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent); }
 
+/* The day button's hit-area spans both the letter and the dot, but the
+   press-glow ring should hug just the circle, not the whole tall rectangle —
+   so this button opts out of the global ring (data-no-press-glow) and gets
+   its own, scoped to the dot's actual shape. */
+.week-streak-day:active .week-streak-dot {
+  box-shadow: 0 0 0 3px var(--orange);
+}
+
 .week-streak-divider { width: 1px; align-self: stretch; background: var(--border); }
 
 .week-streak-counter {

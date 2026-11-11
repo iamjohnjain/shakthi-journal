@@ -78,7 +78,7 @@ function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }:
           const isFuture = d > today
           const isViewed = d === viewDate
           return (
-            <button key={d} className="week-streak-day" onClick={() => onSelectDate(d)} aria-label={d}>
+            <button key={d} className="week-streak-day" data-no-press-glow onClick={() => onSelectDate(d)} aria-label={d}>
               <span className="week-streak-letter">{DAY_LETTERS[i]}</span>
               <span className={[
                 'week-streak-dot',
