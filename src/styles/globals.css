@@ -129,21 +129,31 @@ button {
    long as the finger/pointer stays down — CSS :active already tracks
    exactly that window natively, so no JS press/release bookkeeping is
    needed. The ring is the same gradient-brand hues as the Workout tab's
-   "Start" button (not a flat color), via the standard mask-composite
-   gradient-border trick so it traces each button's own corner radius.
-   Scoped to buttons and explicit [role="button"] elements only (never bare
-   divs/empty space).
+   "Start" button (not a flat color). Scoped to buttons and explicit
+   [role="button"] elements only (never bare divs/empty space).
 
-   The base `position` rule below is a bare element selector (specificity
-   0,0,1) deliberately — NOT `:not([data-no-press-glow])`, which used to
-   carry enough specificity to beat any component's own `.foo { position:
-   absolute }` rule and silently break its layout (this broke the 3D body's
-   spin arrows, which need absolute positioning to sit on opposite edges).
-   A plain class selector on the component's own stylesheet now always
-   wins, so a button needing its own positioning just declares it.
-   `:not([data-no-press-glow])` stays reserved for the ::after glow itself
-   — the escape hatch for a button with its own bespoke pressed state
-   (e.g. a drag handle) that this would visually clash with.
+   The glow is a solid gradient rounded-rect sitting BEHIND the button
+   (z-index: -1, contained by the button's own stacking context) and
+   slightly larger than it — the button's own opaque background covers
+   the overlapping middle, so only the halo beyond its edges shows,
+   flush against the button with no seam. An earlier version carved the
+   ring shape out of a same-sized box with `mask-composite: exclude`;
+   that technique leaves an antialiased seam exactly at the inner edge of
+   the ring (worse at rounded corners), which read as a visible gap
+   between the button and its glow. Behind-the-button avoids the mask
+   entirely, so there's nothing to seam.
+
+   The base `position`/`z-index` rule below is a bare element selector
+   (specificity 0,0,1) deliberately — NOT `:not([data-no-press-glow])`,
+   which used to carry enough specificity to beat any component's own
+   `.foo { position: absolute }` rule and silently break its layout (this
+   broke the 3D body's spin arrows, which need absolute positioning to
+   sit on opposite edges). A plain class selector on the component's own
+   stylesheet now always wins, so a button needing its own positioning
+   just declares it. `:not([data-no-press-glow])` stays reserved for the
+   ::after glow itself — the escape hatch for a button with its own
+   bespoke pressed state (e.g. a drag handle) that this would visually
+   clash with.
 
    `-webkit-touch-callout: none` + `user-select: none` stop iOS's long-press
    text-selection/"Look Up" callout from hijacking the gesture mid-press —
@@ -152,6 +162,7 @@ button {
    "flickering and stopping" before the finger actually lifts. */
 button, [role="button"] {
   position: relative;
+  z-index: 0;
   transition: transform 0.08s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -161,17 +172,10 @@ button:not([data-no-press-glow])::after,
 [role="button"]:not([data-no-press-glow])::after {
   content: '';
   position: absolute;
-  /* `padding` (ring thickness) must equal `inset`'s magnitude — otherwise
-     the ring's inner edge sits short of the button's own edge, leaving a
-     sliver of bare background visible as a gap between the button and its
-     glow instead of the ring reading as flush against it. */
   inset: -3px;
   border-radius: inherit;
-  padding: 3px;
   background: var(--gradient-brand);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  z-index: -1;
   opacity: 0;
   transform: scale(0.92);
   transition: opacity 0.18s ease, transform 0.18s ease;
