@@ -70,8 +70,11 @@
   --page-padding: 32px;
   --page-padding-mobile: 20px;
 
-  /* Accent alias */
-  --accent: var(--blue);
+  /* Accent alias — the app's single flat "selected/primary action" color,
+     used anywhere a gradient fill doesn't fit (active tabs, Save buttons,
+     selection borders). Orange, not blue — kept in one place so it can't
+     drift back toward the blue/purple look the app has moved away from. */
+  --accent: var(--orange);
 
   /* Background aliases (referenced by Phase 4 CSS) */
   --bg-secondary: #15121A;
@@ -197,7 +200,7 @@ a {
 /* ─── Focus rings (keyboard nav + accessibility) ──────────────────────────── */
 
 :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--orange);
   outline-offset: 2px;
   border-radius: 4px;
 }
