@@ -264,6 +264,25 @@ a {
   line-height: 1.4;
 }
 
+/* Shared "back to today" chip — any page with its own date nav (Dashboard,
+   Workouts) uses this so jumping back doesn't require opening the full date
+   picker just to tap "Today" inside it. */
+.jump-today-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--orange);
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.jump-today-btn:hover {
+  background: var(--bg-card-hover);
+}
+
 /* Shared drag handle for swipe-to-close bottom sheets */
 .modal-grabber {
   position: absolute;

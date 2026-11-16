@@ -130,12 +130,12 @@
   gap: 8px;
   margin: 0 16px 12px;
   padding: 10px 14px;
-  background: color-mix(in srgb, var(--blue) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--blue) 25%, transparent);
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--orange) 25%, transparent);
   border-radius: var(--r-lg);
   font-size: 14px;
   font-weight: 600;
-  color: var(--blue);
+  color: var(--orange);
   font-variant-numeric: tabular-nums;
 }
 
@@ -143,7 +143,7 @@
   margin-left: auto;
   font-size: 12px;
   font-weight: 600;
-  color: var(--blue);
+  color: var(--orange);
   opacity: 0.7;
   background: none;
   border: none;
@@ -299,7 +299,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.aw-set-field:focus { outline: none; border-color: var(--blue); }
+.aw-set-field:focus { outline: none; border-color: var(--orange); }
 .aw-set-field::placeholder { color: var(--text-tertiary); font-weight: 400; }
 
 .aw-set-x {
@@ -348,7 +348,7 @@
   border-top: 1px solid var(--border-subtle);
   font-size: 12px;
   font-weight: 600;
-  color: var(--blue);
+  color: var(--orange);
   cursor: pointer;
   width: 100%;
 }
@@ -444,7 +444,7 @@
   color: var(--text-primary);
 }
 
-.aw-picker-input:focus { outline: none; border-color: var(--blue); }
+.aw-picker-input:focus { outline: none; border-color: var(--orange); }
 
 .aw-picker-close {
   display: flex;
@@ -481,7 +481,13 @@
 }
 
 .aw-picker-item:hover { background: var(--bg-card); }
-.aw-picker-item--custom { color: var(--blue); font-weight: 600; }
+.aw-picker-item--custom { color: var(--orange); font-weight: 600; }
+
+.aw-picker-from-day {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.aw-picker-from-day .log-tmpl-saved { margin: 10px 16px; }
+.aw-picker-from-day .log-save-tmpl { margin: 10px 16px; }
 
 .aw-picker-ai-btn {
   display: flex;
@@ -516,7 +522,7 @@
   font-size: 14px;
   color: var(--text-primary);
 }
-.aw-picker-dictate input:focus { outline: none; border-color: var(--blue); }
+.aw-picker-dictate input:focus { outline: none; border-color: var(--orange); }
 
 .aw-picker-dictate-send {
   display: flex;
@@ -525,7 +531,7 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  background: var(--blue);
+  background: var(--gradient-brand);
   border: none;
   border-radius: var(--r-full);
   color: #fff;

@@ -126,19 +126,6 @@
 
 .dash-date-nav-today {
   margin-left: auto;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--blue);
-  white-space: nowrap;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-}
-
-.dash-date-nav-today:hover {
-  background: var(--bg-card-hover);
 }
 
 

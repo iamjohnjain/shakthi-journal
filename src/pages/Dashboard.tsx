@@ -500,7 +500,7 @@ export default function Dashboard() {
             <ChevronRight size={16} />
           </button>
           {!isToday && (
-            <button className="dash-date-nav-today" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
+            <button className="dash-date-nav-today jump-today-btn" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
           )}
         </div>
       </div>

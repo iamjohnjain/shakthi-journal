@@ -615,16 +615,42 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
 
 // ─── Template picker (quick-start "+ Template" from the Today page) ──────────
 
-function TemplatePickerSheet({ onPick, onCreateNew, onClose }: {
+function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabel }: {
   onPick: (t: WorkoutTemplate) => void
   onCreateNew: () => void
   onClose: () => void
+  /** The selected day's own logged lifting session, if any — lets someone
+      turn a day they already trained into a reusable template right from
+      here, instead of only being able to start a *new* workout. */
+  dayWorkout?: WorkoutSession
+  dayLabel: string
 }) {
   const [templates, setTemplates] = useState<WorkoutTemplate[] | null>(null)
+  const [savingFromDay, setSavingFromDay] = useState(false)
+  const [dayTmplName, setDayTmplName] = useState(dayWorkout?.title ?? '')
+  const [dayTmplSaving, setDayTmplSaving] = useState(false)
+  const [dayTmplSaved, setDayTmplSaved] = useState(false)
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
 
   useEffect(() => { getTemplates().then(setTemplates) }, [])
+
+  async function handleSaveDayAsTemplate() {
+    if (!dayWorkout || !dayTmplName.trim()) return
+    setDayTmplSaving(true)
+    try {
+      await workoutToTemplate(
+        dayTmplName,
+        dayWorkout.exercises.filter(ex => ex.name.trim() && !ex.isBreak),
+        { notes: dayWorkout.notes, estimatedDurationMin: dayWorkout.durationMin },
+      )
+      setDayTmplSaved(true)
+      setSavingFromDay(false)
+      setTimeout(() => setDayTmplSaved(false), 2500)
+    } finally {
+      setDayTmplSaving(false)
+    }
+  }
 
   return createPortal(
     <div className="aw-picker-overlay" onClick={onClose}>
@@ -634,6 +660,26 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose }: {
           <button className="aw-picker-close" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="aw-picker-list">
+          {dayWorkout && dayWorkout.type === 'lifting' && (
+            <div className="aw-picker-from-day">
+              {dayTmplSaved ? (
+                <div className="log-tmpl-saved"><Check size={13} /> Saved as a template!</div>
+              ) : savingFromDay ? (
+                <div className="log-save-tmpl">
+                  <input className="log-tmpl-name-input" placeholder="Template name…"
+                    value={dayTmplName} onChange={e => setDayTmplName(e.target.value)} autoFocus
+                    onKeyDown={e => e.key === 'Enter' && handleSaveDayAsTemplate()} />
+                  <button className="log-tmpl-save-btn" onClick={handleSaveDayAsTemplate} disabled={!dayTmplName.trim() || dayTmplSaving}>
+                    {dayTmplSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              ) : (
+                <button className="aw-picker-item aw-picker-item--custom" onClick={() => setSavingFromDay(true)}>
+                  <LayoutTemplate size={14} /> Save {dayLabel}'s Workout as a Template
+                </button>
+              )}
+            </div>
+          )}
           {templates === null ? (
             <p className="log-tmpl-empty">Loading…</p>
           ) : templates.length === 0 ? (
@@ -782,10 +828,15 @@ export default function WorkoutsPage() {
         <>
           <header className="page-header" style={{ marginTop: '8px' }}>
             <div>
-              <button className="page-title-datepicker" onClick={() => setShowDatePicker(true)}>
-                <h1 className="page-title">{isToday ? 'Today' : shortDateLabel}</h1>
-                <CalendarDays size={18} className="page-title-cal-icon" />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button className="page-title-datepicker" onClick={() => setShowDatePicker(true)}>
+                  <h1 className="page-title">{isToday ? 'Today' : shortDateLabel}</h1>
+                  <CalendarDays size={18} className="page-title-cal-icon" />
+                </button>
+                {!isToday && (
+                  <button className="jump-today-btn" onClick={() => setSelectedDate(todayStr())}>Today</button>
+                )}
+              </div>
               <p className="page-subtitle">{dateLabel}</p>
               {streak >= 2 && (
                 <div className="wk-streak-chip" title="Consecutive days with a logged session">
@@ -887,6 +938,8 @@ export default function WorkoutsPage() {
               onPick={applyTemplate}
               onCreateNew={() => { setShowTemplatePicker(false); setShowCreateTemplate(true) }}
               onClose={() => setShowTemplatePicker(false)}
+              dayWorkout={dayWorkouts.find(w => w.type === 'lifting')}
+              dayLabel={isToday ? "Today" : shortDateLabel}
             />
           )}
 
