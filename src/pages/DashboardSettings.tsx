@@ -18,7 +18,7 @@ export default function DashboardSettings() {
           <h1 className="page-title">Dashboard Layout</h1>
           <p className="page-subtitle">Choose which cards appear and in what order.</p>
         </div>
-        <LayoutDashboard size={28} style={{ color: 'var(--blue)', flexShrink: 0, marginTop: 4 }} />
+        <LayoutDashboard size={28} style={{ color: 'var(--orange)', flexShrink: 0, marginTop: 4 }} />
       </header>
 
       {/* Preset buttons */}

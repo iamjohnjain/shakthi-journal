@@ -7,7 +7,7 @@
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: var(--blue);
+  color: var(--orange);
   background: none;
   border: none;
   padding: 0;
@@ -203,7 +203,7 @@
   transition: border-color .12s, color .12s, background .12s;
 }
 .su-btn--on {
-  border-color: var(--blue); color: var(--blue); background: var(--blue-dim);
+  border-color: var(--orange); color: var(--orange); background: var(--orange-dim);
 }
 .settings-units-detail {
   font-size: 12px; color: var(--text-tertiary);
@@ -216,8 +216,8 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--blue-dim);
-  border: 1px solid rgba(10,132,255,.18);
+  background: var(--orange-dim);
+  border: 1px solid rgba(251,122,60,.18);
   border-radius: 10px;
   font-size: 12px;
   color: var(--text-secondary);
@@ -225,7 +225,7 @@
   margin-bottom: 2px;
 }
 
-.settings-safety-notice svg { color: var(--blue); flex-shrink: 0; margin-top: 1px; }
+.settings-safety-notice svg { color: var(--orange); flex-shrink: 0; margin-top: 1px; }
 
 /* ─── Cloud notice ───────────────────────────────────────────── */
 .settings-cloud-notice {
@@ -303,7 +303,7 @@
 .settings-confirm-go {
   flex: 1;
   height: 44px;
-  background: var(--blue);
+  background: var(--gradient-brand);
   border: none;
   border-radius: var(--r-full);
   font-size: 15px;

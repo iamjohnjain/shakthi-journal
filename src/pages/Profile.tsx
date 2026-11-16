@@ -351,7 +351,7 @@ export default function Profile() {
   const milestones = [
     ...(days != null ? [{
       icon: Calendar,
-      color: 'var(--blue)',
+      color: 'var(--teal)',
       label: `${days} days tracked`,
       sub: `Since ${new Date(profileData!.startDate! + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
     }] : []),
@@ -465,7 +465,7 @@ export default function Profile() {
               current={currentWeightLbs}
               unit={` ${wUnit}`}
               lowerIsBetter={startWeightLbs > goalWeightLbs}
-              colorGood="var(--blue)"
+              colorGood="var(--orange)"
             />
           )}
           {currentBF != null && startBF != null && goalBF != null && (
@@ -508,13 +508,13 @@ export default function Profile() {
             )}
             {goalWeightLbs != null && (
               <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalWeightLbs} {wUnit}</span>
+                <span className="profile-baseline-val" style={{ color: 'var(--orange)' }}>{goalWeightLbs} {wUnit}</span>
                 <span className="profile-baseline-label">Goal weight</span>
               </div>
             )}
             {goalBF != null && (
               <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--blue)' }}>{goalBF}%</span>
+                <span className="profile-baseline-val" style={{ color: 'var(--orange)' }}>{goalBF}%</span>
                 <span className="profile-baseline-label">Goal body fat</span>
               </div>
             )}

@@ -79,9 +79,6 @@ export default function Settings() {
           <span className="settings-row-icon"><Ruler size={15} /></span>
           <div className="settings-row-text">
             <span className="settings-row-label">Unit System</span>
-            <span className="settings-row-description">
-              US/Hybrid: lbs, miles, ft-in, grams · Metric: kg, km, cm, grams
-            </span>
           </div>
           <div className="settings-unit-toggle">
             <button
@@ -151,8 +148,7 @@ export default function Settings() {
             <li>Tap <strong>Add</strong> — the app will appear on your home screen.</li>
           </ol>
           <p className="settings-install-note">
-            Once installed it runs fullscreen, no browser chrome.
-            For best icon quality, PNG icons at 192×192 and 512×512 should be placed in <code>public/</code> as <code>icon-192.png</code> and <code>icon-512.png</code>.
+            Once installed it runs fullscreen, with no browser chrome.
           </p>
         </div>
       </SettingsSection>
@@ -164,9 +160,7 @@ export default function Settings() {
           label="Where is my data stored?"
         />
         <div className="settings-privacy-note">
-          All health data is stored locally in your browser's IndexedDB database. Nothing is sent to third-party services.
-          Cloud sync (if enabled) sends data only to your own Supabase account.
-          Clearing your browser data or using private mode will erase local data.
+          Stored locally on this device, synced only to your own account if you sign in — never to third parties.
         </div>
       </SettingsSection>
 

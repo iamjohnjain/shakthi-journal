@@ -21,8 +21,8 @@
 .profile-hero-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 60% 0%, rgba(102,126,234,0.18) 0%, transparent 65%),
-              radial-gradient(ellipse at 20% 100%, rgba(10,132,255,0.10) 0%, transparent 50%);
+  background: radial-gradient(ellipse at 60% 0%, rgba(166,107,245,0.16) 0%, transparent 65%),
+              radial-gradient(ellipse at 20% 100%, rgba(251,122,60,0.10) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -63,14 +63,14 @@
   width: 90px;
   height: 90px;
   border-radius: 28px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--gradient-brand);
   color: #fff;
   font-size: 2.4rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 12px 32px rgba(166, 107, 245, 0.35);
 }
 
 .profile-avatar--photo {
@@ -98,7 +98,7 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.profile-avatar-edit-btn:hover { background: var(--blue); color: #fff; }
+.profile-avatar-edit-btn:hover { background: var(--gradient-brand); color: #fff; }
 
 .profile-name {
   font-size: 2rem;
@@ -334,7 +334,7 @@
 }
 
 .profile-goal-icon {
-  color: var(--blue);
+  color: var(--orange);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -349,12 +349,12 @@
 
 .profile-activity-chip {
   padding: 5px 12px;
-  background: var(--blue-dim);
-  border: 1px solid rgba(10,132,255,0.2);
+  background: var(--orange-dim);
+  border: 1px solid rgba(251,122,60,0.2);
   border-radius: var(--r-full);
   font-size: 0.78rem;
   font-weight: 500;
-  color: var(--blue);
+  color: var(--orange);
 }
 
 /* ─── Devices ────────────────────────────────────────────── */
@@ -412,7 +412,7 @@
   border: none;
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--blue);
+  color: var(--orange);
   cursor: pointer;
   padding: 0;
 }
@@ -617,6 +617,18 @@
 .profile-edit-field input:focus,
 .profile-edit-field textarea:focus { border-color: rgba(255,255,255,0.22); }
 
+/* The native calendar-picker glyph on date inputs renders flush against
+   the input's own edge by default, crowding the rounded corner — give it
+   real breathing room instead. */
+.profile-edit-field input[type="date"] {
+  padding-right: 8px;
+}
+.profile-edit-field input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: 8px;
+  padding: 2px;
+  opacity: 0.7;
+}
+
 .profile-edit-height-row { display: flex; gap: 8px; }
 .profile-edit-height-row input { width: 0; flex: 1; }
 .profile-edit-field textarea { resize: vertical; }
@@ -642,7 +654,7 @@
 .profile-modal-cancel:hover { background: rgba(255,255,255,0.09); }
 
 .profile-modal-save {
-  background: var(--blue); border: none; color: #fff;
+  background: var(--gradient-brand); border: none; color: #fff;
   border-radius: var(--r-full); padding: 8px 20px;
   font-size: 13px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; gap: 6px;
@@ -711,9 +723,9 @@
   .profile-settings-btn:hover { background: var(--bg-card-hover); }
 
   .profile-auth-btn {
-    color: var(--blue);
-    border-color: rgba(10,132,255,0.25);
-    background: rgba(10,132,255,0.08);
+    color: var(--orange);
+    border-color: rgba(251,122,60,0.25);
+    background: rgba(251,122,60,0.08);
   }
 
   .profile-auth-btn--out {
@@ -743,6 +755,6 @@
 }
 
 .profile-setup-again-btn:hover {
-  border-color: var(--blue);
-  color: var(--blue);
+  border-color: var(--orange);
+  color: var(--orange);
 }
