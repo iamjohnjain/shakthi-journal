@@ -19,7 +19,7 @@
 .mh-mode-btn {
   flex: 1;
   background: none;
-  border: none;
+  border: 1.5px solid transparent;
   border-radius: 8px;
   padding: 7px 0;
   font-size: 13px;
@@ -27,7 +27,14 @@
   color: var(--text-tertiary);
   cursor: pointer;
 }
-.mh-mode-btn--on { background: var(--bg-secondary); color: var(--text-primary); }
+/* Same gradient ring as the Workouts sub-nav's active tab, so switching
+   Day/Week/Range reads as clearly as switching Today/History/Progress. */
+.mh-mode-btn--on {
+  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
+}
 
 .mh-day-picker {
   align-self: center;

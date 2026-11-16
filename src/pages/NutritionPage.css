@@ -68,6 +68,12 @@
 .week-streak-days { display: flex; flex: 1; justify-content: space-between; }
 
 .week-streak-day {
+  /* explicit z-index (not just position:relative) so this button establishes
+     its own stacking context — otherwise the ring's z-index: -1 below
+     escapes to the nearest ancestor context instead of staying scoped here,
+     and can end up rendering behind unrelated content further up the page. */
+  position: relative;
+  z-index: 0;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   background: none; border: none; padding: 0; cursor: pointer;
 }
@@ -98,7 +104,30 @@
 
 .week-streak-dot--future { opacity: 0.4; }
 
-.week-streak-dot--viewed { box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent); }
+/* "Viewed" draws its gradient ring on the *button*, not the dot — a
+   transparent-centered background-clip layer doesn't reliably clip in
+   Chrome/WebKit (the "hole" lets the gradient bleed through the whole
+   shape instead of just the ring), so this uses an opaque fill and relies
+   on normal paint order instead: the button itself has no background of
+   its own, so a negative-z-index pseudo-element on it paints behind its
+   in-flow children (the letter and the dot) rather than on top of them —
+   which only works because there's no element-level background to get
+   covered first, unlike the dot's own --today ring. */
+.week-streak-day--viewed::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 34px;
+  z-index: -1;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  background: linear-gradient(var(--bg-secondary), var(--bg-secondary)) padding-box,
+              var(--gradient-brand) border-box;
+  pointer-events: none;
+}
 
 /* The day button's hit-area spans both the letter and the dot, but the
    press-glow ring should hug just the circle, not the whole tall rectangle —
@@ -394,7 +423,15 @@
   font-size: 13px; color: var(--text-tertiary);
   cursor: pointer; transition: border-color .15s, color .15s;
 }
-.meal-empty:hover { border-color: var(--accent); color: var(--accent); }
+/* Same gradient ring as the Workouts tab, instead of a flat accent border. */
+.meal-empty:hover, .meal-empty:active {
+  border-style: solid;
+  border-color: transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
+}
 
 /* ─── Add Modal ───────────────────────────────────────────────── */
 .add-modal-overlay {
