@@ -1020,43 +1020,6 @@
   font-weight: 500;
 }
 
-.dash-empty-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 4px;
-}
-
-.dash-empty-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 16px;
-  border-radius: 99px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.12s, transform 0.1s;
-  background: var(--blue);
-  color: #fff;
-  border: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.dash-empty-btn:hover { opacity: 0.85; }
-.dash-empty-btn:active { transform: scale(0.97); }
-
-.dash-empty-btn--ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-.dash-empty-btn--ghost:hover {
-  opacity: 1;
-  border-color: var(--text-tertiary);
-  color: var(--text-primary);
-}
-
 /* ─── Metric card stagger animation ─────────────────────────── */
 
 .metric-grid .metric-card:nth-child(1) { animation-delay: 0ms; }

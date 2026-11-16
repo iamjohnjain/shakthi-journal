@@ -15,9 +15,12 @@ export const GATEABLE_DEVICES: Array<{ id: DeviceId; name: string; icon: string;
 const KEY = 'owned-devices'
 
 /**
- * `null` means the user has never set this (pre-feature account, or skipped
- * onboarding) — callers should treat that as "show everything," so existing
- * users see no regression. Only an explicit array (even an empty one) gates.
+ * `null` means the user has never confirmed owning anything (set only via
+ * Settings → Connected Accounts) — callers should treat that as "owns
+ * nothing," so equipment-specific prompts don't show by default to someone
+ * who was never asked and never has the hardware. Real synced data from a
+ * device still shows regardless of this flag; it only gates the empty-state
+ * nudge toward syncing something that can't produce anything for most users.
  */
 export async function getOwnedDevices(): Promise<DeviceId[] | null> {
   return getSetting<DeviceId[] | null>(KEY, null)
@@ -28,5 +31,5 @@ export async function setOwnedDevices(ids: DeviceId[]): Promise<void> {
 }
 
 export function owns(owned: DeviceId[] | null, id: DeviceId): boolean {
-  return owned === null || owned.includes(id)
+  return owned !== null && owned.includes(id)
 }

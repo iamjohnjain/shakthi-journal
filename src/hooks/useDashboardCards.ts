@@ -17,15 +17,14 @@ export interface CardConfig {
 export const CARD_REGISTRY: CardConfig[] = [
   { id: 'goal-ring',     label: 'Main Goal Ring',       group: 'Overview',  description: 'Animated progress ring toward weight and daily steps',    defaultVisible: true  },
   { id: 'quick-actions', label: 'Quick Actions',        group: 'Overview',  description: 'Log Weight, Log Workout, Log Meals buttons',              defaultVisible: true  },
-  { id: 'body',          label: 'Body Composition',     group: 'Health',    description: 'Weight, body fat %, muscle mass cards',                   defaultVisible: true  },
-  { id: 'activity',      label: 'Activity & Steps',     group: 'Health',    description: 'Daily steps and active calorie progress',                 defaultVisible: true  },
+  { id: 'body',          label: 'Body Composition',     group: 'Health',    description: 'Body fat % and muscle mass cards',                        defaultVisible: true  },
   { id: 'vitals',        label: 'Vitals',               group: 'Health',    description: 'HRV and resting heart rate cards',                        defaultVisible: true  },
   { id: 'coach-notes',   label: 'Coach Notes',          group: 'Insights',  description: 'Rule-based daily recommendations (no AI)',                defaultVisible: true  },
   { id: 'import-status', label: 'Import Status Banner', group: 'Data',      description: 'Shows when data was last imported',                       defaultVisible: true  },
 ]
 
 // Sections that appear in the reorderable area below the fixed header
-export const REORDERABLE_IDS = ['body', 'activity', 'vitals']
+export const REORDERABLE_IDS = ['body', 'vitals']
 const DEFAULT_ORDER = REORDERABLE_IDS
 
 const VISIBILITY_KEY = 'dashboard-cards'

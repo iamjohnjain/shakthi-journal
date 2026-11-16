@@ -249,7 +249,7 @@ export default function ConnectedAccounts() {
   }, [])
 
   async function toggleOwnedDevice(id: DeviceId) {
-    const current = ownedDevices ?? GATEABLE_DEVICES.map(d => d.id)
+    const current = ownedDevices ?? []
     const next = current.includes(id) ? current.filter(d => d !== id) : [...current, id]
     setOwnedDevicesState(next)
     await setOwnedDevices(next)
@@ -450,7 +450,7 @@ export default function ConnectedAccounts() {
       <div className="accounts-coming-soon">
         <h3 className="accounts-cs-heading">Your equipment</h3>
         <p className="accounts-cs-sub">
-          Only checked equipment shows up in Recovery, Profile, and here. Uncheck anything you don't own.
+          Check anything you own — only checked equipment shows up in Recovery, Profile, and the dashboard.
         </p>
         {GATEABLE_DEVICES.map(d => {
           const checked = owns(ownedDevices, d.id)

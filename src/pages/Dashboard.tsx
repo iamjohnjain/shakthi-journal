@@ -2,7 +2,6 @@ import { useState, useEffect, memo } from 'react'
 import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
-import { getSetting } from '../db'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useDashboardCards, REORDERABLE_IDS } from '../hooks/useDashboardCards'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
@@ -159,35 +158,6 @@ const Section = memo(function Section({
   )
 })
 
-// ─── Empty state card ────────────────────────────────────────────────────────
-
-function EmptyState({
-  icon, message, primaryLabel, primaryPath, secondaryLabel, secondaryPath,
-}: {
-  icon: string
-  message: string
-  primaryLabel: string
-  primaryPath: string
-  secondaryLabel?: string
-  secondaryPath?: string
-}) {
-  const navigate = useNavigate()
-  return (
-    <div className="dash-empty-card">
-      <span className="dash-empty-icon">{icon}</span>
-      <p className="dash-empty-msg">{message}</p>
-      <div className="dash-empty-actions">
-        <button className="dash-empty-btn" onClick={() => navigate(primaryPath)}>{primaryLabel}</button>
-        {secondaryLabel && secondaryPath && (
-          <button className="dash-empty-btn dash-empty-btn--ghost" onClick={() => navigate(secondaryPath)}>
-            {secondaryLabel}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── Quick Actions ───────────────────────────────────────────────────────────
 
 function QuickActions() {
@@ -310,14 +280,13 @@ interface SectionCtx {
   today: ReturnType<typeof useDashboardData>['today']
   yesterday: ReturnType<typeof useDashboardData>['yesterday']
   dataSource: ReturnType<typeof useDashboardData>['dataSource']
-  todayProgress: ReturnType<typeof useHealthInsights>['todayProgress']
-  stepGoal: number
   sectionOrder: string[]
   inNative: boolean
   menuFor: (id: string) => React.ComponentProps<typeof CardMenu>
-  /** From onboarding's "which of these do you have?" step. `null` means the
-      user was never asked (pre-feature account, or skipped) — treat that as
-      "show everything" so nothing regresses for existing users. */
+  /** Set only via Settings → Connected Accounts. `null` means the user has
+      never confirmed owning any gateable hardware — treated as "owns
+      nothing," so equipment-specific empty-state cards stay hidden by
+      default instead of assuming everyone has a smart scale or wearable. */
   ownedDevices: DeviceId[] | null
   isMetric: boolean
 }
@@ -326,124 +295,44 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
   const { today, yesterday, inNative, menuFor, ownedDevices, isMetric } = ctx
   const weightUnit    = isMetric ? 'kg' : 'lbs'
-  const weightDisp    = today.weight != null     ? (isMetric ? today.weight     : kgToLbs(today.weight))     : undefined
-  const prevWeightDisp= yesterday.weight != null ? (isMetric ? yesterday.weight : kgToLbs(yesterday.weight)) : undefined
-  const weightDelta   = weightDisp != null && prevWeightDisp != null ? delta(weightDisp, prevWeightDisp) : null
   const bodyFatDelta  = today.bodyFatPct != null && yesterday.bodyFatPct != null
     ? delta(today.bodyFatPct, yesterday.bodyFatPct) : null
   const muscleDisp    = today.muscleMassKg != null     ? (isMetric ? today.muscleMassKg     : kgToLbs(today.muscleMassKg))     : undefined
   const prevMuscleDisp= yesterday.muscleMassKg != null ? (isMetric ? yesterday.muscleMassKg : kgToLbs(yesterday.muscleMassKg)) : undefined
   const muscleDelta   = muscleDisp != null && prevMuscleDisp != null ? delta(muscleDisp, prevMuscleDisp) : null
-  const hasBody = !!(today.weight || today.bodyFatPct)
   // Body fat / muscle mass only ever come from a smart scale — prompting
   // "Import Apple Health" for someone who never said they own one just
   // clutters the dashboard with a card that can't do anything for them.
+  // Weight itself isn't shown here at all — it already has its own goal
+  // card on the dashboard, so repeating it in this section is redundant.
   const hasScale = owns(ownedDevices, 'renpho')
-  const showBodyFat    = today.bodyFatPct    != null || hasScale
-  const showMuscleMass = today.muscleMassKg  != null || hasScale
+  const hasBodyData = today.bodyFatPct != null || today.muscleMassKg != null
+  if (!hasBodyData && !hasScale) return null
 
   return (
     <Section title="Body" accent="var(--purple)" menuProps={menuFor('body')}>
-      {hasBody ? (
-        <>
-          <MetricCard
-            label="Weight"
-            value={weightDisp}
-            unit={weightUnit}
-            sub={today.weight != null ? (isMetric ? `${kgToLbs(today.weight)} lbs` : `${today.weight.toFixed(1)} kg`) : undefined}
-            trend={weightDelta != null ? (weightDelta < 0 ? 'down' : 'up') : undefined}
-            trendLabel={weightDelta != null ? `${Math.abs(weightDelta)} ${weightUnit}` : undefined}
-            trendPositive={false}
-            empty={weightDisp == null}
-            emptyPrompt="Log weight"
-            onEmptyClick={() => navigate('/log')}
-          />
-          {showBodyFat && (
-            <MetricCard
-              label="Body Fat"
-              value={today.bodyFatPct}
-              unit="%"
-              trend={bodyFatDelta != null ? (bodyFatDelta < 0 ? 'down' : 'up') : undefined}
-              trendLabel={bodyFatDelta != null ? `${Math.abs(bodyFatDelta)}%` : undefined}
-              trendPositive={false}
-              empty={today.bodyFatPct == null}
-              emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-              onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-            />
-          )}
-          {showMuscleMass && (
-            <MetricCard
-              label="Muscle Mass"
-              value={muscleDisp}
-              unit={weightUnit}
-              sub={today.muscleMassKg != null ? (isMetric ? `${kgToLbs(today.muscleMassKg)} lbs` : `${today.muscleMassKg} kg`) : undefined}
-              trend={muscleDelta != null ? (muscleDelta >= 0 ? 'up' : 'down') : undefined}
-              trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} ${weightUnit}` : undefined}
-              trendPositive={true}
-              empty={today.muscleMassKg == null}
-              emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-              onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-            />
-          )}
-        </>
-      ) : (
-        <EmptyState
-          icon="🫀"
-          message="No body data yet"
-          primaryLabel={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-          primaryPath="/import/apple-health"
-          secondaryLabel="Log manually"
-          secondaryPath="/log"
-        />
-      )}
-    </Section>
-  )
-}
-
-function ActivitySection({ ctx }: { ctx: SectionCtx }) {
-  const navigate = useNavigate()
-  const { today, todayProgress, stepGoal, inNative, menuFor } = ctx
-  const steps    = today.steps
-  const stepsPct = steps ? Math.round((steps / stepGoal) * 100) : 0
-
-  return (
-    <Section title="Activity" accent="var(--orange)" menuProps={menuFor('activity')}>
       <MetricCard
-        label="Steps"
-        value={steps ? steps.toLocaleString() : undefined}
-        unit="steps"
-        sub={steps ? `${stepsPct}% of ${stepGoal.toLocaleString()} step goal` : undefined}
-        trend={stepsPct >= 100 ? 'up' : 'neutral'}
-        trendLabel={stepsPct >= 100 ? 'Goal hit' : steps ? `${100 - stepsPct}% left` : undefined}
-        progress={steps ?? 0}
-        progressMax={stepGoal}
-        progressColor={stepsPct >= 100 ? 'var(--green)' : 'var(--blue)'}
-        empty={steps == null}
+        label="Body Fat"
+        value={today.bodyFatPct}
+        unit="%"
+        trend={bodyFatDelta != null ? (bodyFatDelta < 0 ? 'down' : 'up') : undefined}
+        trendLabel={bodyFatDelta != null ? `${Math.abs(bodyFatDelta)}%` : undefined}
+        trendPositive={false}
+        empty={today.bodyFatPct == null}
         emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
         onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
       />
       <MetricCard
-        label="Calories Burned"
-        value={today.activeCalories ? today.activeCalories.toLocaleString() : undefined}
-        unit="kcal"
-        sub="Active energy"
-        accentColor="var(--orange)"
-        empty={today.activeCalories == null}
+        label="Muscle Mass"
+        value={muscleDisp}
+        unit={weightUnit}
+        sub={today.muscleMassKg != null ? (isMetric ? `${kgToLbs(today.muscleMassKg)} lbs` : `${today.muscleMassKg} kg`) : undefined}
+        trend={muscleDelta != null ? (muscleDelta >= 0 ? 'up' : 'down') : undefined}
+        trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} ${weightUnit}` : undefined}
+        trendPositive={true}
+        empty={today.muscleMassKg == null}
         emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
         onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-      />
-      <MetricCard
-        label="Workout"
-        value={todayProgress.workoutLogged
-          ? (todayProgress.workoutType
-              ? todayProgress.workoutType.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-              : 'Logged')
-          : undefined}
-        sub={todayProgress.workoutLogged ? `${todayProgress.workoutDuration ?? '?'}min` : undefined}
-        accentColor="var(--yellow)"
-        empty={!todayProgress.workoutLogged}
-        emptyPrompt="Log workout"
-        onEmptyClick={() => navigate('/workouts')}
       />
     </Section>
   )
@@ -498,9 +387,8 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
 
 // Map section IDs to their render components
 const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>> = {
-  body:     BodySection,
-  activity: ActivitySection,
-  vitals:   VitalsSection,
+  body:   BodySection,
+  vitals: VitalsSection,
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -510,7 +398,7 @@ export default function Dashboard() {
   const { mockMode } = useApp()
   const [viewDate, setViewDate] = useState(todayDateStr)
   const { today, yesterday, dataSource, isToday, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData(viewDate)
-  const { insights, todayProgress, loading: insightsLoading } = useHealthInsights(mockMode)
+  const { insights, loading: insightsLoading } = useHealthInsights(mockMode)
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
   const { goals: nutritionGoals } = useNutritionSettings()
@@ -518,7 +406,6 @@ export default function Dashboard() {
   const isMetric = units.system === 'metric'
   const [userName,    setUserName]    = useState<string | null>(null)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
-  const [stepGoal,    setStepGoal]    = useState(10_000)
   const [ownedDevices, setOwnedDevices] = useState<DeviceId[] | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [markedDates, setMarkedDates] = useState<Set<string>>(new Set())
@@ -528,7 +415,6 @@ export default function Dashboard() {
       if (p?.name) setUserName(p.name)
       setProfileData(p)
     })
-    getSetting<number>('step-goal', 10_000).then(setStepGoal)
     getOwnedDevices().then(setOwnedDevices)
     function onProfileUpdated(e: Event) {
       const p = (e as CustomEvent<ProfileData>).detail
@@ -569,7 +455,7 @@ export default function Dashboard() {
 
   const sectionCtx: SectionCtx = {
     today, yesterday, dataSource,
-    todayProgress, stepGoal, sectionOrder,
+    sectionOrder,
     inNative,
     menuFor,
     ownedDevices,
