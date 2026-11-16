@@ -34,9 +34,9 @@
 .cmp-preset:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .cmp-preset--active {
-  background: var(--blue-dim);
-  border-color: rgba(10,132,255,0.45);
-  color: var(--blue);
+  background: var(--orange-dim);
+  border-color: rgba(251,122,60,0.45);
+  color: var(--orange);
 }
 
 .cmp-preset--star {
@@ -87,7 +87,7 @@
   transition: border-color 0.15s;
 }
 
-.cmp-date-input:focus { outline: none; border-color: var(--blue); }
+.cmp-date-input:focus { outline: none; border-color: var(--orange); }
 
 .cmp-swap {
   width: 38px;
@@ -166,7 +166,7 @@
 .cmp-chips-toggle-all {
   font-size: 12px;
   font-weight: 500;
-  color: var(--blue);
+  color: var(--orange);
   cursor: pointer;
 }
 
@@ -239,7 +239,7 @@
 .cmp-error-actions button {
   font-size: 12px;
   font-weight: 500;
-  color: var(--blue);
+  color: var(--orange);
   cursor: pointer;
 }
 
@@ -417,7 +417,7 @@
 }
 
 .cmp-mock-note button {
-  color: var(--blue);
+  color: var(--orange);
   font-size: 12px;
   cursor: pointer;
 }

@@ -76,12 +76,12 @@
 .dp-cell:disabled { color: var(--text-quaternary); cursor: default; }
 
 .dp-cell--today .dp-cell-num {
-  color: var(--blue);
+  color: var(--orange);
   font-weight: 700;
 }
 
 .dp-cell--selected {
-  background: var(--blue);
+  background: var(--gradient-brand);
 }
 .dp-cell--selected .dp-cell-num {
   color: #fff;
@@ -102,7 +102,7 @@
   margin-top: 4px;
   align-self: center;
   background: none; border: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 14px; font-weight: 600;
   cursor: pointer;
   padding: 6px 12px;

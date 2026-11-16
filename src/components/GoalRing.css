@@ -468,5 +468,5 @@
 
 .goal-ring-edit-field input:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--orange);
 }

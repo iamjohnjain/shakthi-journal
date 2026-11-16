@@ -92,7 +92,7 @@ export function WeeklyReviewCard({ review }: { review: WeeklyReview }) {
 
           {/* Stats */}
           <div className="rev-stats">
-            <StatRow icon={Dumbbell} label="Workouts" color="var(--blue)"   value={review.stats.workoutCount > 0 ? `${review.stats.workoutCount}` : 'None'} />
+            <StatRow icon={Dumbbell} label="Workouts" color="var(--teal)"   value={review.stats.workoutCount > 0 ? `${review.stats.workoutCount}` : 'None'} />
             <StatRow icon={Moon}     label="Avg sleep" color="var(--purple)" value={review.stats.avgSleepHours !== null ? `${review.stats.avgSleepHours}h` : null} />
             <StatRow icon={Utensils} label="Avg protein" color="var(--green)" value={review.stats.avgProteinG !== null ? `${review.stats.avgProteinG}g` : null} />
             <StatRow icon={Scale}    label="Weight change" color="var(--orange)" value={weightStr} />
@@ -167,7 +167,7 @@ export function MonthlyReviewCard({ review }: { review: MonthlyReview }) {
       {expanded && (
         <div className="review-card-detail">
           <div className="rev-stats">
-            <StatRow icon={Dumbbell} label="Workouts"     color="var(--blue)"   value={review.stats.workoutCount > 0 ? `${review.stats.workoutCount}` : 'None'} />
+            <StatRow icon={Dumbbell} label="Workouts"     color="var(--teal)"   value={review.stats.workoutCount > 0 ? `${review.stats.workoutCount}` : 'None'} />
             <StatRow icon={Moon}     label="Avg sleep"    color="var(--purple)" value={review.stats.avgSleepHours !== null ? `${review.stats.avgSleepHours}h` : null} />
             <StatRow icon={Utensils} label="Avg protein"  color="var(--green)"  value={review.stats.avgProteinG !== null ? `${review.stats.avgProteinG}g` : null} />
             <StatRow icon={Scale}    label="Weight Δ"     color="var(--orange)" value={weightStr} />

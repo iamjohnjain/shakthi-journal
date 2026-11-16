@@ -43,7 +43,7 @@
 
 .source-card.drag-over {
   border-color: var(--accent);
-  background: rgba(10, 132, 255, 0.08);
+  background: rgba(251, 122, 60, 0.08);
 }
 
 .source-card.parsing {
@@ -165,8 +165,8 @@
 }
 
 .parse-result.parsing-state {
-  border-color: rgba(10, 132, 255, 0.2);
-  background: rgba(10, 132, 255, 0.05);
+  border-color: rgba(251, 122, 60, 0.2);
+  background: rgba(251, 122, 60, 0.05);
 }
 
 .parse-result-header {
@@ -269,7 +269,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 132, 255, 0.12);
+  background: rgba(251, 122, 60, 0.12);
   border: 2px dashed var(--accent);
   border-radius: var(--radius-lg);
   font-size: 1rem;

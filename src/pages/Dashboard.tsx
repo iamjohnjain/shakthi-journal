@@ -59,9 +59,6 @@ interface MetricCardProps {
   trendLabel?: string
   trendPositive?: boolean
   accentColor?: string
-  progress?: number
-  progressColor?: string
-  progressMax?: number
   wide?: boolean
   empty?: boolean
   emptyPrompt?: string
@@ -70,12 +67,9 @@ interface MetricCardProps {
 
 const MetricCard = memo(function MetricCard({
   label, value, unit, sub, trend, trendLabel, trendPositive = true,
-  accentColor, progress, progressColor, progressMax = 100, wide,
+  accentColor, wide,
   empty, emptyPrompt, onEmptyClick,
 }: MetricCardProps) {
-  const [ready, setReady] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setReady(true), 200); return () => clearTimeout(t) }, [])
-
   if (empty) {
     return (
       <div className={`metric-card metric-card--empty ${wide ? 'metric-card--wide' : ''}`}>
@@ -93,7 +87,6 @@ const MetricCard = memo(function MetricCard({
   const isGoodTrend = (trend === 'up' && trendPositive) || (trend === 'down' && !trendPositive)
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus
   const trendColor = isGoodTrend ? 'var(--green)' : trend === 'neutral' ? 'var(--text-tertiary)' : 'var(--red)'
-  const fillPct = progress != null ? Math.min((progress / (progressMax ?? 100)) * 100, 100) : null
 
   return (
     <div className={`metric-card ${wide ? 'metric-card--wide' : ''}`}>
@@ -113,18 +106,6 @@ const MetricCard = memo(function MetricCard({
         {unit && <span className="metric-unit">{unit}</span>}
       </div>
       {sub && <p className="metric-sub">{sub}</p>}
-      {fillPct != null && (
-        <div className="metric-progress-track">
-          <div
-            className="metric-progress-fill"
-            style={{
-              width: ready ? `${fillPct}%` : '0%',
-              background: progressColor ?? 'var(--blue)',
-              transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-          />
-        </div>
-      )}
     </div>
   )
 })
@@ -215,7 +196,7 @@ function FirstDayCard({ profile, nutritionGoals, fmtWeight }: {
   const protein         = nutritionGoals.proteinG
 
   const stats: { label: string; value: string; color: string }[] = []
-  if (profile.startWeightKg) stats.push({ label: 'Current weight', value: fmtWeight(profile.startWeightKg), color: 'var(--blue)' })
+  if (profile.startWeightKg) stats.push({ label: 'Current weight', value: fmtWeight(profile.startWeightKg), color: 'var(--teal)' })
   if (profile.goalWeightKg)  stats.push({ label: 'Goal weight',    value: fmtWeight(profile.goalWeightKg),  color: 'var(--green)' })
   if (calories)       stats.push({ label: 'Daily calories', value: `${calories} kcal`,       color: 'var(--orange)' })
   if (protein)        stats.push({ label: 'Protein goal',   value: `${protein}g`,            color: 'var(--purple)' })

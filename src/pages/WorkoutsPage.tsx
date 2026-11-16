@@ -802,8 +802,8 @@ export default function WorkoutsPage() {
   const markedWorkoutDates = new Set(workoutDateTypes.keys())
   const dotColorFor: Record<'lift' | 'cardio' | 'both', string> = {
     lift: 'var(--green)',
-    cardio: 'var(--blue)',
-    both: 'linear-gradient(90deg, var(--green) 50%, var(--blue) 50%)',
+    cardio: 'var(--purple)',
+    both: 'linear-gradient(90deg, var(--green) 50%, var(--purple) 50%)',
   }
 
   return (

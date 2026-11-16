@@ -24,7 +24,7 @@ function dateGroupLabel(dateStr: string): string {
 // ─── Event card ───────────────────────────────────────────────────────────────
 
 const TYPE_COLORS: Partial<Record<TimelineEvent['type'], string>> = {
-  workout:   'var(--blue)',
+  workout:   'var(--red)',
   pr:        'var(--yellow)',
   nutrition: 'var(--green)',
   weight:    'var(--teal)',

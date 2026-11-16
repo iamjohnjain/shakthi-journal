@@ -375,7 +375,7 @@
   color: var(--text-tertiary); padding: 4px;
   border-radius: 6px; transition: color .1s;
 }
-.food-entry-copy:hover { color: var(--blue); }
+.food-entry-copy:hover { color: var(--orange); }
 .food-entry-delete:hover { color: var(--red); }
 
 /* ─── Copy-to-meal sheet ───────────────────────────────────────── */
@@ -695,7 +695,7 @@
   background: var(--accent);
 }
 
-.ai-confidence--barcode { color: var(--blue); background: var(--blue-dim); }
+.ai-confidence--barcode { color: var(--teal); background: var(--teal-dim); }
 
 /* ─── Clarification follow-up ────────────────────────────────────── */
 

@@ -49,10 +49,14 @@
   color: var(--text-primary);
 }
 
+/* Same gradient ring as the Workouts tabs, instead of a flat blue fill. */
+
 .prog-range-btn.active {
-  background: var(--blue-dim);
-  border-color: rgba(10,132,255,0.28);
-  color: var(--blue);
+  border-color: transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -352,7 +356,7 @@
 .prog-empty-btn {
   margin-top: 4px;
   padding: 10px 22px;
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   border-radius: var(--r-full);
   font-size: 0.875rem;

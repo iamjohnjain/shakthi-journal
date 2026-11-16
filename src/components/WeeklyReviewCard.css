@@ -46,8 +46,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.7px;
-  color: var(--blue);
-  background: rgba(10,132,255,0.1);
+  color: var(--orange);
+  background: rgba(251, 122, 60, 0.1);
   padding: 3px 9px;
   border-radius: 99px;
   flex-shrink: 0;
@@ -217,7 +217,7 @@
 }
 
 .rev-rec-bullet {
-  color: var(--blue);
+  color: var(--orange);
   flex-shrink: 0;
   font-weight: 600;
 }
@@ -253,8 +253,8 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  background: rgba(10,132,255,0.06);
-  border: 1px solid rgba(10,132,255,0.15);
+  background: rgba(251, 122, 60, 0.06);
+  border: 1px solid rgba(251, 122, 60, 0.15);
   border-radius: var(--r-lg);
 }
 
@@ -263,7 +263,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--blue);
+  color: var(--orange);
 }
 
 .rev-pr-val {

@@ -47,9 +47,9 @@ function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): Me
   const toM = (cm: number) => isMetric ? cm : cm / 2.54
   return [
   // Body
-  { id: 'weight',     label: 'Weight',         group: 'Body',      unit: wUnit,      higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => s.weight ? toW(s.weight) : undefined },
+  { id: 'weight',     label: 'Weight',         group: 'Body',      unit: wUnit,      higherIsBetter: false, color: 'var(--red)',     format: v => v.toFixed(1),                   get: s => s.weight ? toW(s.weight) : undefined },
   { id: 'bodyFat',    label: 'Body Fat',        group: 'Body',      unit: '%',        higherIsBetter: false, color: 'var(--teal)',   format: v => v.toFixed(1),                   get: s => s.bodyFatPct },
-  { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--blue)',   format: v => v.toFixed(1),                   get: s => (s.weight && heightM > 0) ? +(s.weight / (heightM * heightM)).toFixed(1) : undefined },
+  { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--red)',     format: v => v.toFixed(1),                   get: s => (s.weight && heightM > 0) ? +(s.weight / (heightM * heightM)).toFixed(1) : undefined },
   { id: 'leanMass',   label: 'Lean Mass',       group: 'Body',      unit: wUnit,      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => s.muscleMassKg ? toW(s.muscleMassKg) : undefined },
   { id: 'fatFree',    label: 'Fat-Free Mass',   group: 'Body',      unit: wUnit,      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => (s.weight && s.bodyFatPct != null) ? toW(s.weight * (1 - s.bodyFatPct / 100)) : undefined },
   { id: 'waist',      label: 'Waist',           group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--orange)',format: v => v.toFixed(1),                   get: s => s.waistCm != null ? toM(s.waistCm) : undefined },
@@ -63,11 +63,11 @@ function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): Me
   { id: 'hrv',        label: 'HRV',             group: 'Recovery',  unit: 'ms',       higherIsBetter: true,  color: 'var(--teal)',  format: v => Math.round(v).toString(),       get: s => s.hrv },
   { id: 'restingHR',  label: 'Resting HR',      group: 'Recovery',  unit: 'bpm',      higherIsBetter: false, color: 'var(--red)',   format: v => Math.round(v).toString(),       get: s => s.restingHeartRate },
   // Training
-  { id: 'workouts',   label: 'Workouts',        group: 'Training',  unit: 'sessions', higherIsBetter: true,  color: 'var(--blue)',  format: v => Math.round(v).toString(),       get: s => s._workoutCount },
+  { id: 'workouts',   label: 'Workouts',        group: 'Training',  unit: 'sessions', higherIsBetter: true,  color: 'var(--pink)', format: v => Math.round(v).toString(),       get: s => s._workoutCount },
   // Nutrition
   { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${proteinGoalG}g`, higherIsBetter: true, color: 'var(--orange)', format: v => Math.round(v).toString(), get: s => s.proteinG },
   { id: 'caloriesIn', label: 'Calories Eaten',  group: 'Nutrition', unit: 'kcal',     higherIsBetter: false, color: 'var(--yellow)',format: v => Math.round(v).toLocaleString(), get: s => s.caloriesIn },
-  { id: 'water',      label: 'Water',           group: 'Nutrition', unit: 'oz',       higherIsBetter: true,  color: 'var(--blue)',  format: v => Math.round(v).toString(),       get: s => s.waterMl ? +(s.waterMl / 29.574).toFixed(0) : undefined },
+  { id: 'water',      label: 'Water',           group: 'Nutrition', unit: 'oz',       higherIsBetter: true,  color: 'var(--teal)', format: v => Math.round(v).toString(),       get: s => s.waterMl ? +(s.waterMl / 29.574).toFixed(0) : undefined },
 ]}
 
 const DEFAULT_SELECTED = ['weight', 'bodyFat', 'leanMass', 'steps', 'sleep', 'hrv', 'protein']

@@ -70,9 +70,9 @@
 }
 .bh3d-quickselect-btn:hover { color: var(--text-primary); background: var(--bg-card-hover); }
 .bh3d-quickselect-btn--active {
-  color: var(--blue);
-  background: var(--blue-dim);
-  border-color: rgba(91, 127, 255, 0.3);
+  color: var(--orange);
+  background: var(--orange-dim);
+  border-color: rgba(251, 122, 60, 0.3);
 }
 
 .bh3d-lost {
@@ -90,7 +90,7 @@
   font-size: 13px;
 }
 .bh3d-lost button {
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   border: none;
   border-radius: 8px;

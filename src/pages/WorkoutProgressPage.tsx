@@ -6,7 +6,7 @@ import type { ExerciseHistory } from '../db/trainingStore'
 import SubNav from '../components/WorkoutsSubNav'
 import './WorkoutProgressPage.css'
 
-function MiniBar({ pct, color = 'var(--blue)' }: { pct: number; color?: string }) {
+function MiniBar({ pct, color = 'var(--orange)' }: { pct: number; color?: string }) {
   return (
     <div className="wpr-bar-track">
       <div className="wpr-bar-fill" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color }} />
@@ -50,7 +50,7 @@ function HistoryCard({ history }: { history: ExerciseHistory }) {
             return (
               <div key={i} className="wpr-session-row">
                 <span className="wpr-session-date">{s.date}</span>
-                <MiniBar pct={pct} color={i === 0 ? 'var(--green)' : 'var(--blue)'} />
+                <MiniBar pct={pct} color={i === 0 ? 'var(--green)' : 'var(--orange)'} />
                 <span className="wpr-session-e1rm">
                   {s.bestE1RM > 0 ? `${s.bestE1RM}lb` : '—'}
                 </span>

@@ -22,7 +22,7 @@
 .sync-status:disabled { cursor: default; }
 
 .sync-status--synced            { color: var(--green); }
-.sync-status--syncing           { color: var(--blue); }
+.sync-status--syncing           { color: var(--teal); }
 .sync-status--offline           { color: var(--text-tertiary); }
 .sync-status--error             { color: var(--red); }
 .sync-status--needs_attention   { color: var(--yellow); }
@@ -36,7 +36,7 @@
 .sync-icon--muted   { color: var(--text-tertiary); opacity: .5; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-.sync-icon--spin { animation: spin .9s linear infinite; color: var(--blue); }
+.sync-icon--spin { animation: spin .9s linear infinite; color: var(--teal); }
 
 .sync-status-label { line-height: 1; }
 
@@ -71,7 +71,7 @@
 .sync-row-action--warn { color: var(--yellow); font-weight: 600; }
 
 .sync-row--synced           { }
-.sync-row--syncing          { color: var(--blue); }
+.sync-row--syncing          { color: var(--teal); }
 .sync-row--error            { color: var(--red); }
 .sync-row--needs_attention  { color: var(--yellow); }
 .sync-row--offline          { color: var(--text-tertiary); }
@@ -141,7 +141,7 @@
   border-radius: 10px;
   border: 1px solid var(--border);
   background: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;

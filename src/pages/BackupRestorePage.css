@@ -12,7 +12,7 @@
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: var(--blue);
+  color: var(--orange);
   background: none;
   border: none;
   padding: 0;
@@ -26,14 +26,14 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: var(--blue-dim);
-  border: 1px solid rgba(10, 132, 255, 0.2);
+  background: var(--orange-dim);
+  border: 1px solid rgba(251, 122, 60, 0.2);
   border-radius: 14px;
   padding: 16px 18px;
 }
 
 .br-safety-icon {
-  color: var(--blue);
+  color: var(--orange);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -123,7 +123,7 @@
 }
 
 .br-card-icon--export { color: var(--green); }
-.br-card-icon--import { color: var(--blue); }
+.br-card-icon--import { color: var(--pink); }
 
 .br-card-title {
   font-size: 16px;
@@ -159,7 +159,7 @@
 }
 
 .br-action-btn--import {
-  background: var(--blue);
+  background: var(--pink);
   color: #fff;
 }
 
@@ -340,8 +340,8 @@
 }
 
 .br-mode-btn--on {
-  border-color: var(--blue);
-  background: var(--blue-dim);
+  border-color: var(--orange);
+  background: var(--orange-dim);
 }
 
 .br-mode-btn-title {
@@ -394,7 +394,7 @@
   padding: 12px;
   border-radius: 12px;
   border: none;
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   font-size: 14px;
   font-weight: 600;

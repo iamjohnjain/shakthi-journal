@@ -33,7 +33,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--blue);
+  color: var(--orange);
   flex-shrink: 0;
 }
 
@@ -101,13 +101,13 @@ code {
 
 .drop-zone:hover,
 .drop-zone--active {
-  border-color: var(--blue);
-  background: var(--blue-dim);
+  border-color: var(--orange);
+  background: var(--orange-dim);
 }
 
 .drop-zone-icon { color: var(--text-tertiary); }
 .drop-zone--active .drop-zone-icon,
-.drop-zone:hover .drop-zone-icon { color: var(--blue); }
+.drop-zone:hover .drop-zone-icon { color: var(--orange); }
 
 .drop-zone-title {
   font-size: 16px;
@@ -156,7 +156,7 @@ code {
   line-height: 1.5;
 }
 
-.spin { animation: spin 1s linear infinite; color: var(--blue); }
+.spin { animation: spin 1s linear infinite; color: var(--orange); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Preview */
@@ -296,7 +296,7 @@ code {
 
 .preview-type-daily {
   font-size: 11px;
-  color: var(--blue);
+  color: var(--orange);
   font-weight: 600;
   min-width: 70px;
   text-align: right;
@@ -320,7 +320,7 @@ code {
   gap: 6px;
   background: none;
   border: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -382,7 +382,7 @@ code {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--blue);
+  background: var(--gradient-brand);
   color: #fff;
   border: none;
   border-radius: var(--r-full);
@@ -413,7 +413,7 @@ code {
 .btn-text {
   background: none;
   border: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;

@@ -103,8 +103,8 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--blue);
-  background: rgba(10, 132, 255, 0.1);
+  color: var(--orange);
+  background: var(--orange-dim);
   border: none;
   border-radius: 8px;
   padding: 3px 8px;
@@ -154,7 +154,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  background: var(--blue);
+  background: var(--gradient-brand);
   border: none;
   border-radius: 10px;
   padding: 10px 18px;

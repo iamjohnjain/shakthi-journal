@@ -11,17 +11,17 @@ import './BodyHeatmap3D.css'
 // Three.js materials need JS color values, not CSS custom properties.
 const STATUS_COLOR: Record<RegionLoad['status'], string> = {
   none:     '#9CA3AF', // neutral grey — untrained (not a skin/race tone)
-  under:    '#5B7FFF', // blue
+  under:    '#FBBF24', // yellow
   onTarget: '#34D399', // green
   over:     '#F2545B', // red (possibly overtrained)
 }
 const NEUTRAL = new THREE.Color(STATUS_COLOR.none)
 
-/** Blue → green within the "under target" band so a deeper shade still reads
-    as more-trained progress; flat color for onTarget/over. No blend toward a
-    flesh tone here (unlike the old primitive figure) — this mesh already has
-    real anatomical shape and baked ambient occlusion, so status colors stay
-    fully saturated for maximum before/after contrast. */
+/** Yellow → green within the "under target" band so a deeper shade still
+    reads as more-trained progress; flat color for onTarget/over. No blend
+    toward a flesh tone here (unlike the old primitive figure) — this mesh
+    already has real anatomical shape and baked ambient occlusion, so status
+    colors stay fully saturated for maximum before/after contrast. */
 function colorFor(load: RegionLoad | undefined): THREE.Color {
   if (!load || load.status === 'none') return NEUTRAL.clone()
   if (load.status === 'under') {

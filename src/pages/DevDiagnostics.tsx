@@ -69,7 +69,7 @@ const STATUS_LABEL: Record<Integration['realStatus'], string> = {
 
 const STATUS_COLOR: Record<Integration['realStatus'], string> = {
   live_api:          'var(--green)',
-  import_only:       'var(--blue)',
+  import_only:       'var(--pink)',
   via_hub:           'var(--teal)',
   no_api:            'var(--text-tertiary)',
   needs_credentials: 'var(--yellow)',

@@ -69,7 +69,7 @@
   align-items: center;
   gap: 8px;
   padding: 9px 12px;
-  background: linear-gradient(135deg, rgba(166, 107, 245, 0.18), rgba(10, 132, 255, 0.14));
+  background: linear-gradient(135deg, rgba(251,138,76,0.16), rgba(166,107,245,0.16), rgba(91,127,255,0.14));
   border: 1px solid rgba(166, 107, 245, 0.22);
   border-radius: var(--r-md);
   font-size: 0.82rem;
@@ -84,7 +84,7 @@
 }
 
 .sidebar-ai-btn.active {
-  background: linear-gradient(135deg, rgba(166, 107, 245, 0.28), rgba(10, 132, 255, 0.22));
+  background: linear-gradient(135deg, rgba(251,138,76,0.26), rgba(166,107,245,0.26), rgba(91,127,255,0.22));
   border-color: rgba(166, 107, 245, 0.38);
   color: color-mix(in srgb, var(--purple) 50%, white);
 }
@@ -128,6 +128,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
+  border: 1px solid transparent;
   border-radius: 10px;
   font-size: 0.83rem;
   font-weight: 500;
@@ -144,13 +145,16 @@
 }
 
 .sidebar-item.active {
-  background: rgba(10, 132, 255, 0.12);
-  color: var(--blue);
+  border: 1px solid transparent;
+  background-image: linear-gradient(rgba(8, 8, 10, 0.96), rgba(8, 8, 10, 0.96)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .sidebar-item.active .sidebar-item-icon {
-  color: var(--blue);
+  color: var(--orange);
 }
 
 .sidebar-item-icon {

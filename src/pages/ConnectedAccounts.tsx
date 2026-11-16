@@ -43,7 +43,7 @@ interface Account {
 
 function StatusBadge({ status }: { status: AccountStatus }) {
   const cfg: Record<AccountStatus, { label: string; color: string }> = {
-    import_ready: { label: 'Import Ready', color: 'var(--blue)' },
+    import_ready: { label: 'Import Ready', color: 'var(--pink)' },
     connected:    { label: 'Connected',    color: 'var(--green)' },
     needs_setup:  { label: 'Needs Setup',  color: 'var(--orange)' },
     no_api:       { label: 'No API',       color: 'var(--text-tertiary)' },
@@ -83,7 +83,7 @@ function AccountCard({
 
   const iconColor =
     account.status === 'connected' ? 'var(--green)' :
-    account.status === 'import_ready' ? 'var(--blue)' :
+    account.status === 'import_ready' ? 'var(--pink)' :
     account.status === 'needs_setup' ? 'var(--orange)' :
     'var(--text-tertiary)'
 
@@ -436,7 +436,7 @@ export default function ConnectedAccounts() {
         </div>
         <div className="accounts-summary-divider" />
         <div className="accounts-summary-stat">
-          <span className="accounts-summary-num" style={{ color: 'var(--blue)' }}>{importReadyCount}</span>
+          <span className="accounts-summary-num" style={{ color: 'var(--pink)' }}>{importReadyCount}</span>
           <span className="accounts-summary-label">Import Ready</span>
         </div>
         <div className="accounts-summary-divider" />

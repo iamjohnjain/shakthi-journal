@@ -107,9 +107,9 @@
   padding: 9px;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--blue);
-  background: rgba(10,132,255,0.08);
-  border: 1px solid rgba(10,132,255,0.18);
+  color: var(--orange);
+  background: rgba(251, 122, 60, 0.08);
+  border: 1px solid rgba(251, 122, 60, 0.18);
   border-radius: var(--r-md);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -126,9 +126,9 @@
   font-weight: 600;
   padding: 2px 7px;
   border-radius: var(--r-full);
-  background: rgba(10,132,255,0.1);
-  color: var(--blue);
-  border: 1px solid rgba(10,132,255,0.2);
+  background: rgba(251, 122, 60, 0.1);
+  color: var(--orange);
+  border: 1px solid rgba(251, 122, 60, 0.2);
 }
 
 .insight-missing {
@@ -145,7 +145,7 @@
   align-self: center;
   background: none;
   border: none;
-  color: var(--blue);
+  color: var(--orange);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -154,4 +154,4 @@
   transition: background 0.12s;
   margin-top: 2px;
 }
-.brief-show-more:hover { background: rgba(10,132,255,0.1); }
+.brief-show-more:hover { background: rgba(251, 122, 60, 0.1); }

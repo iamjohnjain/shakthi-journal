@@ -39,11 +39,11 @@
 .data-badge--mock .data-badge-dot { background: var(--yellow); }
 
 .data-badge--imported {
-  background: var(--blue-dim);
-  color: var(--blue);
-  border: 1px solid rgba(91, 127, 255, 0.3);
+  background: var(--pink-dim);
+  color: var(--pink);
+  border: 1px solid rgba(251, 111, 146, 0.3);
 }
-.data-badge--imported .data-badge-dot { background: var(--blue); }
+.data-badge--imported .data-badge-dot { background: var(--pink); }
 
 .data-badge--live {
   background: var(--green-dim);

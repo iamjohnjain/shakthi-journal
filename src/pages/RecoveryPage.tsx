@@ -54,7 +54,7 @@ function RecoveryRing({ score }: { score?: number | null }) {
   const circ = 2 * Math.PI * radius
   const dash = (pct / 100) * circ
 
-  const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--blue)' : pct >= 25 ? 'var(--orange)' : 'var(--red)'
+  const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : pct >= 25 ? 'var(--orange)' : 'var(--red)'
   const label = pct >= 75 ? 'Peak' : pct >= 50 ? 'Good' : pct >= 25 ? 'Fair' : 'Low'
 
   return (
@@ -170,7 +170,7 @@ export default function RecoveryPage() {
             label="SpO2"
             value={today.spO2}
             unit="%"
-            color="var(--blue)"
+            color="var(--pink)"
             note={today.spO2 != null ? (today.spO2 >= 95 ? 'Normal range' : 'Below normal — consider retesting') : undefined}
           />
           <MetricCard
