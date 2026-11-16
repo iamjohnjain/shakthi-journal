@@ -41,11 +41,10 @@ struct SignInView: View {
 
     private var header: some View {
         VStack(spacing: 14) {
-            Text("J")
-                .font(.system(size: 40, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+            Image("AppLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
                 .frame(width: 76, height: 76)
-                .background(LinearGradient.brand)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
             Text("Jeevan")
