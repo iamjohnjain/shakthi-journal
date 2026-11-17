@@ -276,6 +276,27 @@ export interface CoachMemory {
   recurringWins: Array<{ type: string; lastSeen: string; count: number }>
 }
 
+// ─── Coach chat ───────────────────────────────────────────────────────────────
+
+/** One entry per chat message. Shape stays close to the OpenAI/Groq wire
+    format (camelCase instead of snake_case) so converting to/from the Edge
+    Function's request body is a near-1:1 rename, not a real transform. */
+export interface CoachChatToolCall {
+  id: string
+  name: string
+  arguments: string   // JSON-encoded tool arguments, as Groq sends them
+}
+
+export interface CoachChatMessage {
+  id: string                          // uuid, local primary key
+  createdAt: string                   // ISO — also the sort/index field
+  role: 'user' | 'assistant' | 'tool'
+  content: string | null              // null on an assistant message that's pure tool_calls
+  toolCalls?: CoachChatToolCall[]      // present on an assistant message that calls tools
+  toolCallId?: string                  // present on a 'tool' role message — links back to the call
+  toolName?: string                    // present on a 'tool' role message — which tool ran
+}
+
 // ─── Sync queue ───────────────────────────────────────────────────────────────
 
 export interface SyncQueueEntry {
@@ -436,6 +457,12 @@ export interface JeevanDB extends DBSchema {
     key: string           // 'main'
     value: CoachMemory
   }
+
+  coach_chat: {
+    key: string           // message id
+    value: CoachChatMessage
+    indexes: { 'by-date': string }
+  }
 }
 
 // ─── Database singleton ───────────────────────────────────────────────────────
@@ -447,7 +474,7 @@ export interface JeevanDB extends DBSchema {
 // the first time the new name is opened.
 const OLD_DB_NAME = 'shakthi-journal'
 const DB_NAME = 'jeevan'
-const DB_VERSION = 7
+const DB_VERSION = 8
 
 function runUpgrade(db: IDBPDatabase<JeevanDB>, oldVersion: number) {
   if (oldVersion < 1) {
@@ -518,6 +545,12 @@ function runUpgrade(db: IDBPDatabase<JeevanDB>, oldVersion: number) {
         ach.createIndex('by-date', 'unlockedAt')
 
         db.createObjectStore('coach_memory', { keyPath: 'id' })
+      }
+
+      // v7 → v8: Coach chat history
+      if (oldVersion < 8) {
+        const chat = db.createObjectStore('coach_chat', { keyPath: 'id' })
+        chat.createIndex('by-date', 'createdAt')
       }
 }
 

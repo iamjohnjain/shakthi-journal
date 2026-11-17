@@ -410,6 +410,12 @@ verify_jwt = false
 [functions.parse-workout-plan]
 verify_jwt = false
 
+[functions.chat-coach]
+# The Coach chat never touches a database — the user's real data lives in
+# IndexedDB, not somewhere this function can reach — so like every other AI
+# function here, it's fully anonymous/stateless and needs no user JWT.
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Dumbbell, LayoutDashboard, Apple } from 'lucide-react'
+import { Dumbbell, LayoutDashboard, Apple, Sparkles } from 'lucide-react'
 import './BottomNav.css'
 
 // Detect native iOS companion app (used by other features, not navigation suppression).
@@ -17,13 +17,14 @@ export function openNativeHealthSync() {
   w?.webkit?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
 }
 
-// Three core tabs, Today centered — profile is reached via the avatar icon
+// Four core tabs, Today centered — profile is reached via the avatar icon
 // on the Today header instead of its own tab, and Goals isn't in primary
 // nav for now (still reachable at /goals, just not a bottom-nav slot).
 const TABS = [
   { path: '/workouts',  label: 'Workout', icon: Dumbbell },
   { path: '/',          label: 'Today',   icon: LayoutDashboard, end: true },
   { path: '/nutrition', label: 'Meals',   icon: Apple },
+  { path: '/ai-coach',  label: 'Coach',   icon: Sparkles },
 ]
 
 export default function BottomNav() {
