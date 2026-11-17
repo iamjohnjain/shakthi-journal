@@ -9,15 +9,44 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
 export class GroqCallError extends Error {}
 
+// Same retry-with-backoff as `_shared/groq.ts`'s `callGroq()` — a transient
+// rate-limit or server hiccup mid-conversation shouldn't read to the user as
+// "couldn't reach Jeevan" when a second attempt a moment later would have
+// worked. Only retries failures with a real chance of succeeding again
+// (network errors, 429, 5xx); a 400/401 fails fast since it'll fail
+// identically on retry. Confirmed live: a tool-calling round genuinely hit
+// this during testing before this was added, and surfaced as the generic
+// fallback text despite nothing being wrong with the request itself.
+const MAX_ATTEMPTS = 3
+const RETRY_DELAYS_MS = [400, 1200]
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
 export interface GroqToolCall {
   id: string
   type: 'function'
   function: { name: string; arguments: string }
 }
 
+// A message's content is normally plain text, but a vision turn (the user
+// attached a photo) needs the OpenAI-style multimodal array instead — one
+// text part plus one or more image_url parts. `callGroq()`'s single-turn
+// caller builds this same shape inline for its one fixed user message; here
+// it has to be a per-message option since any turn in a long conversation
+// could be the one carrying an image.
+export type GroqContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
 export interface GroqMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | GroqContentPart[] | null
   tool_calls?: GroqToolCall[]
   tool_call_id?: string
   name?: string
@@ -49,35 +78,50 @@ export async function callGroqChat(opts: {
   temperature?: number
   maxTokens?: number
 }): Promise<GroqMessage> {
-  let res: Response
-  try {
-    res = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${opts.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages,
-        ...(opts.tools && opts.tools.length > 0
-          ? { tools: opts.tools, tool_choice: 'auto' }
-          : {}),
-        temperature: opts.temperature ?? 0.4,
-        max_tokens: opts.maxTokens ?? 1024,
-      }),
-    })
-  } catch (e) {
-    throw new GroqCallError(`network error calling Groq: ${e}`)
+  const body = JSON.stringify({
+    model: opts.model,
+    messages: opts.messages,
+    ...(opts.tools && opts.tools.length > 0
+      ? { tools: opts.tools, tool_choice: 'auto' }
+      : {}),
+    temperature: opts.temperature ?? 0.4,
+    max_tokens: opts.maxTokens ?? 1024,
+  })
+
+  let lastError: GroqCallError | null = null
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let res: Response
+    try {
+      res = await fetch(GROQ_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${opts.apiKey}`,
+        },
+        body,
+      })
+    } catch (e) {
+      lastError = new GroqCallError(`network error calling Groq: ${e}`)
+      if (attempt < MAX_ATTEMPTS - 1) { await sleep(RETRY_DELAYS_MS[attempt]); continue }
+      throw lastError
+    }
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '')
+      lastError = new GroqCallError(`Groq API error ${res.status}: ${errText}`)
+      if (isRetryableStatus(res.status) && attempt < MAX_ATTEMPTS - 1) {
+        await sleep(RETRY_DELAYS_MS[attempt])
+        continue
+      }
+      throw lastError
+    }
+
+    const data = await res.json()
+    const message = data?.choices?.[0]?.message
+    if (!message) throw new GroqCallError('Groq response had no message')
+    return message as GroqMessage
   }
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '')
-    throw new GroqCallError(`Groq API error ${res.status}: ${errText}`)
-  }
-
-  const data = await res.json()
-  const message = data?.choices?.[0]?.message
-  if (!message) throw new GroqCallError('Groq response had no message')
-  return message as GroqMessage
+  throw lastError ?? new GroqCallError('Groq call failed')
 }

@@ -189,6 +189,17 @@ export interface WorkoutTemplate {
   updatedAt: string
 }
 
+export type ProgressPhotoPose = 'front' | 'back' | 'side' | 'flexed' | 'custom'
+
+export interface ProgressPhoto {
+  id: string
+  date: string              // YYYY-MM-DD
+  pose: ProgressPhotoPose
+  customLabel?: string      // set when pose === 'custom', e.g. "vacuum pose"
+  photoDataUrl: string      // compressed JPEG data URL
+  createdAt: string
+}
+
 export interface NutritionGoals {
   calories: number
   proteinG: number
@@ -287,6 +298,15 @@ export interface CoachChatToolCall {
   arguments: string   // JSON-encoded tool arguments, as Groq sends them
 }
 
+/** A workout the model proposed via the `propose_workout` tool — stashed on
+    the assistant message that called it (not written to any store) so
+    CoachChat can render Save/Log action buttons under that bubble. */
+export interface CoachProposedWorkout {
+  title: string
+  exercises: WorkoutExerciseEntry[]
+  notes?: string
+}
+
 export interface CoachChatMessage {
   id: string                          // uuid, local primary key
   createdAt: string                   // ISO — also the sort/index field
@@ -295,6 +315,9 @@ export interface CoachChatMessage {
   toolCalls?: CoachChatToolCall[]      // present on an assistant message that calls tools
   toolCallId?: string                  // present on a 'tool' role message — links back to the call
   toolName?: string                    // present on a 'tool' role message — which tool ran
+  imageDataUrl?: string                // present on a user message that attached a photo
+  proposedWorkout?: CoachProposedWorkout // present on an assistant message that called propose_workout
+  proposedWorkoutActedAs?: 'template' | 'logged' // set once the user taps Save/Log, so the buttons don't double-fire
 }
 
 // ─── Sync queue ───────────────────────────────────────────────────────────────
@@ -463,6 +486,12 @@ export interface JeevanDB extends DBSchema {
     value: CoachChatMessage
     indexes: { 'by-date': string }
   }
+
+  progress_photos: {
+    key: string            // photo id
+    value: ProgressPhoto
+    indexes: { 'by-date': string; 'by-pose': string }
+  }
 }
 
 // ─── Database singleton ───────────────────────────────────────────────────────
@@ -474,7 +503,7 @@ export interface JeevanDB extends DBSchema {
 // the first time the new name is opened.
 const OLD_DB_NAME = 'shakthi-journal'
 const DB_NAME = 'jeevan'
-const DB_VERSION = 8
+const DB_VERSION = 9
 
 function runUpgrade(db: IDBPDatabase<JeevanDB>, oldVersion: number) {
   if (oldVersion < 1) {
@@ -551,6 +580,13 @@ function runUpgrade(db: IDBPDatabase<JeevanDB>, oldVersion: number) {
       if (oldVersion < 8) {
         const chat = db.createObjectStore('coach_chat', { keyPath: 'id' })
         chat.createIndex('by-date', 'createdAt')
+      }
+
+      // v8 → v9: progress check-in photos
+      if (oldVersion < 9) {
+        const photos = db.createObjectStore('progress_photos', { keyPath: 'id' })
+        photos.createIndex('by-date', 'date')
+        photos.createIndex('by-pose', 'pose')
       }
 }
 

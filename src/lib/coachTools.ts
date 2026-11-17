@@ -10,7 +10,7 @@
 // risk that would add) on day one.
 
 import type { NavigateFunction } from 'react-router-dom'
-import { saveWorkout, getRecentWorkouts, getCurrentWorkoutStreak } from '../db/workoutStore'
+import { saveWorkout, getRecentWorkouts, getCurrentWorkoutStreak, getWorkoutsByDateRange } from '../db/workoutStore'
 import type { WorkoutExerciseEntry } from '../db'
 import { addNutritionEntry, getDailyTotals, getCurrentStreak as getNutritionStreak } from '../db/nutritionStore'
 import { saveTemplate } from '../db/templateStore'
@@ -21,7 +21,8 @@ import type { WeightPoint } from '../engine/healthIntelligence'
 import { getSetting, setSetting } from '../db'
 import type { NutritionGoals } from '../db'
 import { DEFAULT_GOALS } from '../hooks/useNutritionSettings'
-import { localDateStr, kgToLbs } from '../data/config'
+import { localDateStr, kgToLbs, addLocalDays } from '../data/config'
+import { regionsForExerciseNames, REGION_LABEL } from './muscleMap'
 
 export interface GroqToolDef {
   type: 'function'
@@ -39,6 +40,7 @@ const NAVIGABLE_ROUTES: Record<string, string> = {
   workout_history: '/workouts/history',
   workout_progress: '/workouts/progress',
   workout_templates: '/workouts/templates',
+  workout_checkins: '/workouts/checkins',
   nutrition: '/nutrition',
   goals: '/goals',
   settings: '/settings',
@@ -84,6 +86,42 @@ export const COACH_TOOLS: GroqToolDef[] = [
           notes: { type: 'string' },
         },
         required: ['title', 'type', 'durationMin'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'propose_workout',
+      description: "Hand the user a concrete workout plan to review — exercises, sets, reps — WITHOUT logging or saving it. Call this (not log_workout or create_template directly) whenever you're recommending a specific session, so the app can show it with 'Save as Template' / 'Log for Today' buttons the user can tap, or reply to adjust it first. Call it again with a revised plan if they ask for changes.",
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short name for the session, e.g. "Push Day" or "Leg Day".' },
+          exercises: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                sets: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      reps: { type: 'number' },
+                      weightLbs: { type: 'number', description: 'Use 0 if their working weight for this lift is unknown — they can fill it in.' },
+                    },
+                    required: ['reps', 'weightLbs'],
+                  },
+                },
+              },
+              required: ['name', 'sets'],
+            },
+          },
+          notes: { type: 'string' },
+        },
+        required: ['title', 'exercises'],
       },
     },
   },
@@ -214,6 +252,16 @@ async function execLogWorkout(args: ToolArgs) {
   return { ok: true, id: session.id, title: session.title }
 }
 
+// No-op by design — this tool exists purely as a structured hand-off to the
+// client UI (see useCoachChat, which stashes the parsed args on the
+// assistant message as `proposedWorkout` for CoachChat to render as action
+// buttons). Nothing is written to any store until the user actually taps
+// Save/Log, so there's no hallucinated-write risk even if the model
+// proposes something the user never acts on.
+async function execProposeWorkout() {
+  return { ok: true }
+}
+
 async function execLogMeal(args: ToolArgs) {
   const entry = await addNutritionEntry({
     date: localDateStr(),
@@ -274,14 +322,24 @@ async function execUpdateGoals(args: ToolArgs) {
     logged yet gets back a mostly-empty object, never a thrown error. */
 async function execGetHealthContext() {
   const today = localDateStr()
-  const [profile, snapshots, todayTotals, recentWorkouts, workoutStreak, nutritionStreak] = await Promise.all([
+  const weekAgo = addLocalDays(today, -6)
+  const [profile, snapshots, todayTotals, recentWorkouts, workoutStreak, nutritionStreak, lastWeekWorkouts] = await Promise.all([
     getProfile(),
     getLatestSnapshots(30),
     getDailyTotals(today),
     getRecentWorkouts(5),
     getCurrentWorkoutStreak(),
     getNutritionStreak(),
+    getWorkoutsByDateRange(weekAgo, today),
   ])
+
+  // Which visual muscle regions got trained in the last 7 days — lets the
+  // model reason about split/recovery ("hit chest yesterday, legs are
+  // untrained this week") instead of suggesting the same thing on repeat.
+  const exerciseNamesLast7Days = lastWeekWorkouts
+    .filter(w => w.type === 'lifting')
+    .flatMap(w => w.exercises.map(e => e.name))
+  const muscleGroupsTrainedLast7Days = regionsForExerciseNames(exerciseNamesLast7Days).map(r => REGION_LABEL[r])
 
   const weightPoints: WeightPoint[] = snapshots
     .filter(s => s.weight != null)
@@ -320,7 +378,16 @@ async function execGetHealthContext() {
     },
     workouts: {
       currentStreak: workoutStreak,
-      recent: recentWorkouts.map(w => ({ date: w.date, title: w.title, type: w.type, durationMin: w.durationMin })),
+      recent: recentWorkouts.map(w => ({
+        date: w.date,
+        title: w.title,
+        type: w.type,
+        durationMin: w.durationMin,
+        exercises: w.exercises.map(e => e.name),
+      })),
+      // Muscle regions actually trained in the last 7 days — use this to avoid
+      // suggesting the same muscles again and to favor what's been undertrained.
+      muscleGroupsTrainedLast7Days,
     },
   }
 }
@@ -338,6 +405,7 @@ export const TOOL_EXECUTORS: Record<
   (args: ToolArgs, ctx: { navigate: NavigateFunction }) => Promise<unknown>
 > = {
   log_workout: execLogWorkout,
+  propose_workout: execProposeWorkout,
   log_meal: execLogMeal,
   create_template: execCreateTemplate,
   update_nutrition_goals: execUpdateNutritionGoals,

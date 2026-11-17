@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { CoachChatMessage } from '../db'
+import type { CoachChatMessage, CoachProposedWorkout } from '../db'
 import { getChatHistory, saveChatMessage, clearChatHistory } from '../db/chatStore'
 import { sendToCoach } from '../lib/coachChatApi'
 import { TOOL_EXECUTORS } from '../lib/coachTools'
+import { saveWorkout } from '../db/workoutStore'
+import { workoutToTemplate } from '../db/templateStore'
+import { localDateStr } from '../data/config'
 
 const MAX_TOOL_ROUNDS = 5
 
@@ -11,8 +14,29 @@ function genId() {
   return `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 }
 
-function userMessage(text: string): CoachChatMessage {
-  return { id: genId(), createdAt: new Date().toISOString(), role: 'user', content: text }
+function userMessage(text: string, imageDataUrl?: string): CoachChatMessage {
+  return {
+    id: genId(),
+    createdAt: new Date().toISOString(),
+    role: 'user',
+    content: text,
+    ...(imageDataUrl ? { imageDataUrl } : {}),
+  }
+}
+
+/** Pulls a `propose_workout` call's parsed args off an assistant message's
+    tool_calls, if present — stashed as `proposedWorkout` so CoachChat can
+    render Save/Log action buttons without re-parsing tool-call internals. */
+function extractProposedWorkout(toolCalls: CoachChatMessage['toolCalls']): CoachProposedWorkout | undefined {
+  const call = toolCalls?.find(c => c.name === 'propose_workout')
+  if (!call) return undefined
+  try {
+    const args = JSON.parse(call.arguments || '{}')
+    if (!args.title || !Array.isArray(args.exercises)) return undefined
+    return { title: String(args.title), exercises: args.exercises, notes: typeof args.notes === 'string' ? args.notes : undefined }
+  } catch {
+    return undefined
+  }
 }
 
 export function useCoachChat() {
@@ -39,12 +63,13 @@ export function useCoachChat() {
     await saveChatMessage(message)
   }, [])
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, imageDataUrl?: string) => {
     const trimmed = text.trim()
-    if (!trimmed || sending) return
+    if (!trimmed && !imageDataUrl) return
+    if (sending) return
     setSending(true)
     try {
-      await appendAndPersist(userMessage(trimmed))
+      await appendAndPersist(userMessage(trimmed, imageDataUrl))
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const reply = await sendToCoach(historyRef.current)
@@ -65,6 +90,7 @@ export function useCoachChat() {
           role: 'assistant',
           content: reply.content,
           toolCalls: reply.toolCalls,
+          proposedWorkout: extractProposedWorkout(reply.toolCalls),
         })
 
         for (const call of reply.toolCalls) {
@@ -102,11 +128,58 @@ export function useCoachChat() {
     }
   }, [sending, appendAndPersist, navigate])
 
+  /** User tapped "Save as Template" or "Log for Today" under a proposed
+      workout. Writes directly to the real store — no further LLM round-trip,
+      so there's no hallucination risk on the actual save — then marks the
+      message acted-on (so the buttons don't fire twice) and drops a
+      confirmation pill, reusing the exact same tool-result rendering a
+      model-initiated log_workout/create_template already gets. */
+  const actOnProposedWorkout = useCallback(async (messageId: string, action: 'template' | 'logged') => {
+    const message = historyRef.current.find(m => m.id === messageId)
+    const proposed = message?.proposedWorkout
+    if (!message || !proposed || message.proposedWorkoutActedAs) return
+
+    let result: unknown
+    try {
+      if (action === 'template') {
+        const template = await workoutToTemplate(proposed.title, proposed.exercises, { notes: proposed.notes })
+        result = { ok: true, id: template.id, name: template.name }
+      } else {
+        const totalSets = proposed.exercises.reduce((sum, e) => sum + e.sets.length, 0)
+        const session = await saveWorkout({
+          date: localDateStr(),
+          type: 'lifting',
+          title: proposed.title,
+          durationMin: totalSets > 0 ? totalSets * 4 : 30,
+          exercises: proposed.exercises,
+          notes: proposed.notes,
+        })
+        result = { ok: true, id: session.id, title: session.title }
+      }
+    } catch (e) {
+      result = { ok: false, reason: e instanceof Error ? e.message : 'Could not save that.' }
+    }
+
+    const updated: CoachChatMessage = { ...message, proposedWorkoutActedAs: action }
+    historyRef.current = historyRef.current.map(m => (m.id === messageId ? updated : m))
+    setMessages(historyRef.current)
+    await saveChatMessage(updated)
+
+    await appendAndPersist({
+      id: genId(),
+      createdAt: new Date().toISOString(),
+      role: 'tool',
+      content: JSON.stringify(result),
+      toolCallId: `local_${action}_${messageId}`,
+      toolName: action === 'template' ? 'create_template' : 'log_workout',
+    })
+  }, [appendAndPersist])
+
   const resetChat = useCallback(async () => {
     await clearChatHistory()
     historyRef.current = []
     setMessages([])
   }, [])
 
-  return { messages, loaded, sending, sendMessage, resetChat }
+  return { messages, loaded, sending, sendMessage, resetChat, actOnProposedWorkout }
 }

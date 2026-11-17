@@ -32,6 +32,12 @@ export async function sendToCoach(messages: CoachChatMessage[]): Promise<CoachRe
     ...(m.toolCalls ? { toolCalls: m.toolCalls } : {}),
     ...(m.toolCallId ? { toolCallId: m.toolCallId } : {}),
     ...(m.toolName ? { toolName: m.toolName } : {}),
+    // Only matters server-side when it's the trailing message in the array —
+    // true exactly on the round right after the user attaches a photo, since
+    // later rounds in the same sendMessage() call only append assistant/tool
+    // messages after it. Sent on every message that carries one regardless;
+    // the server decides whether it's the latest.
+    ...(m.imageDataUrl ? { imageDataUrl: m.imageDataUrl } : {}),
   }))
 
   try {

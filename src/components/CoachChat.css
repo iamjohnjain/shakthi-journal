@@ -56,6 +56,39 @@
   margin: auto 0;
 }
 
+.coach-chat-starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  max-width: 320px;
+}
+
+.coach-chat-starter {
+  padding: 8px 13px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.coach-chat-starter:hover {
+  color: var(--text-primary);
+  border-color: var(--orange);
+}
+
+.coach-msg-image {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
 .coach-msg {
   max-width: 85%;
   padding: 10px 14px;
@@ -93,6 +126,61 @@
 }
 .coach-msg-list:last-child { margin-bottom: 0; }
 .coach-msg-list li { padding-left: 2px; }
+
+.coach-proposal {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.coach-proposal--standalone {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.coach-proposal-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+
+.coach-proposal-exercises {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.coach-proposal-actions {
+  display: flex;
+  gap: 8px;
+}
+.coach-proposal-actions button {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.coach-proposal-actions button:disabled { opacity: 0.5; cursor: default; }
+
+.coach-proposal-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+  font-size: 12.5px;
+  font-weight: 600;
+}
 
 .coach-msg--tool {
   align-self: flex-start;
@@ -140,16 +228,98 @@
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
+.coach-chat-pending-image {
+  position: relative;
+  display: inline-flex;
+  margin: 0 0 8px 4px;
+}
+.coach-chat-pending-image img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+.coach-chat-pending-image button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.coach-chat-attach-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+.coach-chat-attach-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.coach-chat-attach-menu button:hover { background: var(--bg-card); }
+
 .coach-chat-input-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px;
   border-radius: var(--r-full);
   border: 1.5px solid transparent;
   background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
   background-origin: border-box;
   background-clip: padding-box, border-box;
+}
+
+.coach-chat-attach,
+.coach-chat-mic {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.coach-chat-attach:hover,
+.coach-chat-mic:hover { color: var(--text-primary); }
+.coach-chat-mic--active {
+  color: var(--orange);
+  animation: coach-mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes coach-mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .coach-chat-input {
@@ -190,4 +360,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .coach-chat::before { animation: none; }
+  .coach-chat-mic--active { animation: none; }
 }

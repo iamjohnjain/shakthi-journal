@@ -1,8 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Sparkles, Check } from 'lucide-react'
+import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, X } from 'lucide-react'
 import { useCoachChat } from '../hooks/useCoachChat'
+import { useSpeechToText } from '../hooks/useSpeechToText'
+import { compressImageToDataUrl } from '../lib/imageUtils'
 import type { CoachChatMessage } from '../db'
+import LiveCamera from './LiveCamera'
 import './CoachChat.css'
+
+const STARTER_PROMPTS = [
+  'Suggest a workout for today',
+  'Help me set a goal',
+  'What should I eat today?',
+  "How's my progress?",
+]
 
 /** Short, human label for a tool-result chip — the raw tool name/JSON isn't
     meant for the user to see, just a quiet confirmation that something
@@ -11,6 +21,7 @@ import './CoachChat.css'
 function toolResultLabel(message: CoachChatMessage): string | null {
   const name = message.toolName ?? ''
   if (name === 'get_health_context') return null  // silent — a lookup isn't news
+  if (name === 'propose_workout') return null      // silent — the action buttons under the message are the real UI
 
   let parsed: { ok?: boolean; reason?: string } = {}
   try { parsed = message.content ? JSON.parse(message.content) : {} } catch { /* leave empty */ }
@@ -28,21 +39,53 @@ function toolResultLabel(message: CoachChatMessage): string | null {
   }
 }
 
+/** Strips the inline markdown the model is told not to use but sometimes
+    emits anyway — paired `**bold**`/`__bold__` markers and leading `#`
+    headings — never trust a model to fully obey formatting instructions. */
+function stripInlineMarkdown(line: string): string {
+  return line
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/^#{1,6}\s+/, '')
+}
+
+/** A markdown table's separator row (`|---|:---:|---|`) carries no content —
+    skip it outright rather than rendering literal dashes/pipes. */
+function isTableSeparatorLine(line: string): boolean {
+  return line.includes('-') && /^[\s|:-]+$/.test(line)
+}
+
+/** A markdown table data row (`| Exercise | Sets | Tip |`) — turned into one
+    bullet-friendly string instead of a paragraph full of literal pipes. The
+    system prompt asks the model not to use tables at all, but this is the
+    fallback for when it does anyway. */
+function tableRowToText(line: string): string | null {
+  const match = /^\|(.+)\|$/.exec(line)
+  if (!match) return null
+  const cells = match[1].split('|').map(c => c.trim()).filter(Boolean)
+  return cells.length > 0 ? cells.join(' — ') : null
+}
+
 /** Minimal markdown-lite rendering for assistant replies — just the two
     things the system prompt is told to use: numbered steps and bulleted
-    lists. Everything else stays as plain paragraphs. No library — this is
-    a handful of lines for a narrow, known shape, not general markdown. */
+    lists (plus graceful fallbacks for stray bold/table syntax above).
+    Everything else stays as plain paragraphs. No library — this is a
+    handful of lines for a narrow, known shape, not general markdown. */
 function MessageBody({ text }: { text: string }) {
   const lines = text.split('\n')
   const blocks: Array<{ type: 'p' | 'ul' | 'ol'; items: string[] }> = []
 
   for (const raw of lines) {
-    const line = raw.trim()
+    let line = raw.trim()
     if (!line) continue
+    if (isTableSeparatorLine(line)) continue
+    line = stripInlineMarkdown(line)
+
+    const tableRow = tableRowToText(line)
     const bullet = /^[-*]\s+(.*)/.exec(line)
     const numbered = /^\d+[.)]\s+(.*)/.exec(line)
-    const kind: 'p' | 'ul' | 'ol' = bullet ? 'ul' : numbered ? 'ol' : 'p'
-    const content = bullet?.[1] ?? numbered?.[1] ?? line
+    const kind: 'p' | 'ul' | 'ol' = tableRow ? 'ul' : bullet ? 'ul' : numbered ? 'ol' : 'p'
+    const content = tableRow ?? bullet?.[1] ?? numbered?.[1] ?? line
     const last = blocks[blocks.length - 1]
     if (last && last.type === kind && kind !== 'p') {
       last.items.push(content)
@@ -67,9 +110,18 @@ function MessageBody({ text }: { text: string }) {
 }
 
 export default function CoachChat() {
-  const { messages, loaded, sending, sendMessage } = useCoachChat()
+  const { messages, loaded, sending, sendMessage, actOnProposedWorkout } = useCoachChat()
   const [input, setInput] = useState('')
+  const [pendingImage, setPendingImage] = useState<string | null>(null)
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
+  const [actingOn, setActingOn] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { listening, toggle: toggleMic, supported: micSupported } = useSpeechToText(
+    t => setInput(cur => (cur ? `${cur} ${t}` : t))
+  )
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' })
@@ -77,17 +129,28 @@ export default function CoachChat() {
 
   function handleSend() {
     const text = input.trim()
-    if (!text || sending) return
+    if ((!text && !pendingImage) || sending) return
     setInput('')
-    void sendMessage(text)
+    const image = pendingImage ?? undefined
+    setPendingImage(null)
+    void sendMessage(text, image)
+  }
+
+  async function handleFileChosen(file: File) {
+    setShowAttachMenu(false)
+    const dataUrl = await compressImageToDataUrl(file)
+    setPendingImage(dataUrl)
   }
 
   // Tool-call-only assistant messages (content: null) are internal plumbing,
   // not something to render as an empty bubble — their tool-result messages
-  // right after are what actually shows. Silent lookups (get_health_context)
-  // don't get a chip at all — they're not news to the user.
+  // right after are what actually shows. The one exception is a
+  // propose_workout call: content is still null (it's a pure tool call,
+  // same as any other), but proposedWorkout is the actual thing the user
+  // needs to see — the whole point of the action-button card. Silent
+  // lookups (get_health_context) don't get a chip at all — not news to the user.
   const visible = messages.filter(m => {
-    if (m.role === 'assistant' && m.content == null) return false
+    if (m.role === 'assistant' && m.content == null && !m.proposedWorkout) return false
     if (m.role === 'tool' && toolResultLabel(m) == null) return false
     return true
   })
@@ -99,6 +162,13 @@ export default function CoachChat() {
           <div className="coach-chat-empty">
             <Sparkles size={20} />
             <p>Ask about training or nutrition, or have me log something for you.</p>
+            <div className="coach-chat-starters">
+              {STARTER_PROMPTS.map(prompt => (
+                <button key={prompt} className="coach-chat-starter" onClick={() => void sendMessage(prompt)}>
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {visible.map(m => (
@@ -108,9 +178,40 @@ export default function CoachChat() {
             </div>
           ) : (
             <div key={m.id} className={`coach-msg coach-msg--${m.role}`}>
+              {m.imageDataUrl && <img src={m.imageDataUrl} alt="" className="coach-msg-image" />}
               {m.role === 'assistant'
                 ? <MessageBody text={m.content ?? ''} />
                 : m.content}
+              {m.proposedWorkout && (
+                <div className={`coach-proposal ${m.content ? '' : 'coach-proposal--standalone'}`}>
+                  <div className="coach-proposal-title">{m.proposedWorkout.title}</div>
+                  <ul className="coach-proposal-exercises">
+                    {m.proposedWorkout.exercises.map((ex, i) => (
+                      <li key={i}>{ex.name} — {ex.sets.length}×{ex.sets[0]?.reps ?? '?'}</li>
+                    ))}
+                  </ul>
+                  {m.proposedWorkoutActedAs ? (
+                    <div className="coach-proposal-done">
+                      <Check size={12} /> {m.proposedWorkoutActedAs === 'template' ? 'Saved as template' : 'Logged for today'}
+                    </div>
+                  ) : (
+                    <div className="coach-proposal-actions">
+                      <button
+                        disabled={actingOn === m.id}
+                        onClick={async () => { setActingOn(m.id); await actOnProposedWorkout(m.id, 'template'); setActingOn(null) }}
+                      >
+                        Save as Template
+                      </button>
+                      <button
+                        disabled={actingOn === m.id}
+                        onClick={async () => { setActingOn(m.id); await actOnProposedWorkout(m.id, 'logged'); setActingOn(null) }}
+                      >
+                        Log for Today
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         ))}
@@ -124,7 +225,39 @@ export default function CoachChat() {
       </div>
 
       <div className="coach-chat-input-wrap">
+        {pendingImage && (
+          <div className="coach-chat-pending-image">
+            <img src={pendingImage} alt="" />
+            <button onClick={() => setPendingImage(null)} aria-label="Remove photo"><X size={13} /></button>
+          </div>
+        )}
+
+        {showAttachMenu && (
+          <div className="coach-chat-attach-menu">
+            <button onClick={() => { setShowAttachMenu(false); setShowCamera(true) }}>
+              <Camera size={15} /> Take Photo
+            </button>
+            <button onClick={() => fileInputRef.current?.click()}>
+              <ImageIcon size={15} /> Choose from Library
+            </button>
+          </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) void handleFileChosen(f) }}
+        />
+
         <div className="coach-chat-input-row">
+          <button
+            className="coach-chat-attach"
+            onClick={() => setShowAttachMenu(v => !v)}
+            aria-label="Attach a photo"
+          >
+            <Plus size={17} />
+          </button>
           <input
             className="coach-chat-input"
             placeholder="Message Jeevan…"
@@ -133,10 +266,20 @@ export default function CoachChat() {
             onKeyDown={e => { if (e.key === 'Enter') handleSend() }}
             disabled={sending}
           />
+          {micSupported && (
+            <button
+              className={`coach-chat-mic ${listening ? 'coach-chat-mic--active' : ''}`}
+              onClick={toggleMic}
+              aria-label="Dictate"
+              type="button"
+            >
+              <Mic size={16} />
+            </button>
+          )}
           <button
             className="coach-chat-send"
             onClick={handleSend}
-            disabled={sending || !input.trim()}
+            disabled={sending || (!input.trim() && !pendingImage)}
             aria-label="Send"
           >
             <Send size={16} />
@@ -146,6 +289,13 @@ export default function CoachChat() {
           General guidance, not medical advice.
         </p>
       </div>
+
+      {showCamera && (
+        <LiveCamera
+          onCapture={async blob => { setShowCamera(false); const dataUrl = await compressImageToDataUrl(blob); setPendingImage(dataUrl) }}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   )
 }

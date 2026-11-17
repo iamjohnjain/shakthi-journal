@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Dumbbell, Clock, TrendingUp, LayoutTemplate } from 'lucide-react'
+import { Dumbbell, Clock, TrendingUp, LayoutTemplate, Camera } from 'lucide-react'
 import './WorkoutsSubNav.css'
 
 /** Shared sub-nav for every /workouts/* page. Previously copy-pasted once
@@ -19,6 +19,9 @@ export default function WorkoutsSubNav() {
       </NavLink>
       <NavLink to="/workouts/templates" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
         <LayoutTemplate size={15} /><span>Templates</span>
+      </NavLink>
+      <NavLink to="/workouts/checkins" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
+        <Camera size={15} /><span>Check-Ins</span>
       </NavLink>
     </nav>
   )
