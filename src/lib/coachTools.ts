@@ -10,15 +10,18 @@
 // risk that would add) on day one.
 
 import type { NavigateFunction } from 'react-router-dom'
-import { saveWorkout, getRecentWorkouts } from '../db/workoutStore'
+import { saveWorkout, getRecentWorkouts, getCurrentWorkoutStreak } from '../db/workoutStore'
 import type { WorkoutExerciseEntry } from '../db'
-import { addNutritionEntry, getDailyTotals, getEntriesForDate } from '../db/nutritionStore'
+import { addNutritionEntry, getDailyTotals, getCurrentStreak as getNutritionStreak } from '../db/nutritionStore'
 import { saveTemplate } from '../db/templateStore'
 import { getProfile, saveProfile } from '../db/profileStore'
+import { getLatestSnapshots } from '../db/healthStore'
+import { calcWeightTrend } from '../engine/healthIntelligence'
+import type { WeightPoint } from '../engine/healthIntelligence'
 import { getSetting, setSetting } from '../db'
 import type { NutritionGoals } from '../db'
 import { DEFAULT_GOALS } from '../hooks/useNutritionSettings'
-import { localDateStr } from '../data/config'
+import { localDateStr, kgToLbs } from '../data/config'
 
 export interface GroqToolDef {
   type: 'function'
@@ -173,29 +176,8 @@ export const COACH_TOOLS: GroqToolDef[] = [
   {
     type: 'function',
     function: {
-      name: 'get_recent_workouts',
-      description: "Look up the user's most recent logged workouts.",
-      parameters: {
-        type: 'object',
-        properties: {
-          limit: { type: 'number', description: 'How many to return, default 5.' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_todays_nutrition',
-      description: "Look up what the user has logged for food today, and their totals so far.",
-      parameters: { type: 'object', properties: {} },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_profile_summary',
-      description: "Look up the user's profile: height, current/goal weight, activity level, goals.",
+      name: 'get_health_context',
+      description: "Look up everything known about the user: profile and goals, weight trend, recent nutrition (today and the last week), recent workouts, and logging streaks. Call this whenever a question depends on their actual history, trends, or current goals rather than general knowledge — e.g. before suggesting a calorie change, commenting on progress, or recalling what they've logged. Missing data just comes back as null/empty — that's normal, especially for new accounts, and isn't an error.",
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -285,31 +267,61 @@ async function execUpdateGoals(args: ToolArgs) {
   return { ok: true }
 }
 
-async function execGetRecentWorkouts(args: ToolArgs) {
-  const limit = typeof args.limit === 'number' ? args.limit : 5
-  const workouts = await getRecentWorkouts(limit)
-  return workouts.map(w => ({ date: w.date, title: w.title, type: w.type, durationMin: w.durationMin }))
-}
-
-async function execGetTodaysNutrition() {
+/** One consolidated snapshot instead of several narrow lookups — fewer tool
+    round-trips, and the model sees the whole picture (or the whole absence
+    of one) at once rather than piecing it together call by call. Every
+    field is independently nullable/empty; a brand-new account with nothing
+    logged yet gets back a mostly-empty object, never a thrown error. */
+async function execGetHealthContext() {
   const today = localDateStr()
-  const [entries, totals] = await Promise.all([getEntriesForDate(today), getDailyTotals(today)])
-  return {
-    totals,
-    entries: entries.map(e => ({ mealType: e.mealType, food: e.food, calories: e.calories, proteinG: e.proteinG })),
-  }
-}
+  const [profile, snapshots, todayTotals, recentWorkouts, workoutStreak, nutritionStreak] = await Promise.all([
+    getProfile(),
+    getLatestSnapshots(30),
+    getDailyTotals(today),
+    getRecentWorkouts(5),
+    getCurrentWorkoutStreak(),
+    getNutritionStreak(),
+  ])
 
-async function execGetProfileSummary() {
-  const profile = await getProfile()
-  if (!profile) return { ok: false, reason: 'No profile set up yet.' }
+  const weightPoints: WeightPoint[] = snapshots
+    .filter(s => s.weight != null)
+    .map(s => ({ date: s.date, weightKg: s.weight! }))
+  const trend = calcWeightTrend(weightPoints)
+  const latestWeightKg = weightPoints[0]?.weightKg ?? null
+
+  const nutritionDays = snapshots.filter(s => s.caloriesIn != null).slice(0, 7)
+  const avg = (nums: number[]) => nums.length > 0 ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : null
+
+  const goals = await getSetting<NutritionGoals>('nutrition-goals', DEFAULT_GOALS)
+
   return {
-    name: profile.name,
-    heightCm: profile.heightCm,
-    startWeightKg: profile.startWeightKg,
-    goalWeightKg: profile.goalWeightKg,
-    goalDate: profile.goalDate,
-    activityLevel: profile.activityLevel,
+    profile: profile ? {
+      name: profile.name || null,
+      heightCm: profile.heightCm ?? null,
+      currentWeightLbs: profile.startWeightKg != null ? Math.round(kgToLbs(profile.startWeightKg)) : null,
+      goalWeightLbs: profile.goalWeightKg != null ? Math.round(kgToLbs(profile.goalWeightKg)) : null,
+      goalDate: profile.goalDate ?? null,
+      activityLevel: profile.activityLevel ?? null,
+    } : null,
+    weightTrend: {
+      latestLbs: latestWeightKg != null ? Math.round(kgToLbs(latestWeightKg) * 10) / 10 : null,
+      dataPointsLast30Days: weightPoints.length,
+      recentDirection: trend?.direction ?? null,        // 'up' | 'down' | 'flat' | null (null = not enough data)
+      recentRateLbsPerWeek: trend ? Math.round(trend.rateLbsPerWeek * 10) / 10 : null,
+    },
+    nutrition: {
+      calorieGoal: goals.calories,
+      proteinGoalG: goals.proteinG,
+      today: { calories: todayTotals.calories, proteinG: todayTotals.proteinG, entryCount: todayTotals.entryCount },
+      last7DaysAvgCalories: avg(nutritionDays.map(s => s.caloriesIn!)),
+      last7DaysAvgProteinG: avg(nutritionDays.filter(s => s.proteinG != null).map(s => s.proteinG!)),
+      daysLoggedLast7: nutritionDays.length,
+      currentLoggingStreak: nutritionStreak,
+    },
+    workouts: {
+      currentStreak: workoutStreak,
+      recent: recentWorkouts.map(w => ({ date: w.date, title: w.title, type: w.type, durationMin: w.durationMin })),
+    },
   }
 }
 
@@ -330,8 +342,6 @@ export const TOOL_EXECUTORS: Record<
   create_template: execCreateTemplate,
   update_nutrition_goals: execUpdateNutritionGoals,
   update_goals: execUpdateGoals,
-  get_recent_workouts: execGetRecentWorkouts,
-  get_todays_nutrition: execGetTodaysNutrition,
-  get_profile_summary: execGetProfileSummary,
+  get_health_context: execGetHealthContext,
   navigate_to: execNavigateTo,
 }

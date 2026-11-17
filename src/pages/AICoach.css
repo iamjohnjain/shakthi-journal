@@ -1,11 +1,20 @@
+/* Full-height chat layout: header is a fixed-size flex item, CoachChat takes
+   the rest and scrolls internally — the page itself never scrolls, so the
+   input stays pinned in view instead of getting carried off by a keyboard
+   or lost below the fold. */
 .ai-page {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: var(--page-padding);
-  gap: 20px;
+  padding-bottom: 0;
   max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
   animation: fadeUp 0.5s ease both;
-  padding-bottom: 32px;
 }
 
 /* ─── Header ─────────────────────────────────────────────── */
@@ -13,119 +22,27 @@
 .ai-header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  flex-shrink: 0;
+  padding-bottom: 14px;
 }
 
 .ai-header-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(251,138,76,0.28), rgba(166,107,245,0.3), rgba(91,127,255,0.25));
-  border: 1px solid rgba(166,107,245,0.25);
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: color-mix(in srgb, var(--purple) 65%, white);
+  color: #fff;
   flex-shrink: 0;
 }
 
 .ai-title {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  letter-spacing: -0.4px;
-}
-
-.ai-subtitle {
-  font-size: 0.82rem;
-  color: var(--text-tertiary);
-  margin-top: 2px;
-}
-
-/* ─── Chat / Catalog sub-nav — same pattern as WorkoutsSubNav ────────── */
-
-.ai-subnav {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 5px;
-}
-
-.ai-subnav-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex: 1;
-  padding: 10px 2px;
-  border: 1.5px solid transparent;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ai-subnav-item:hover { color: var(--text-primary); }
-
-.ai-subnav-item--active {
-  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* ─── Catalog placeholder ─────────────────────────────────── */
-
-.ai-catalog-soon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 48px 24px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-xl);
-  color: var(--text-tertiary);
-}
-
-.ai-catalog-soon h2 {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.ai-catalog-soon p {
-  font-size: 0.85rem;
-  line-height: 1.55;
-  max-width: 340px;
-  margin: 0;
-}
-
-/* ─── Monthly expand toggle ───────────────────────────────── */
-
-.ai-expand-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-lg);
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: left;
-  transition: background 0.15s ease;
-}
-
-.ai-expand-btn:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
 /* ─── Mobile ─────────────────────────────────────────────── */
@@ -133,13 +50,10 @@
 @media (max-width: 900px) {
   .ai-page {
     padding: var(--page-padding-mobile);
-    padding-bottom: 32px;
+    padding-bottom: 0;
   }
-
-
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-page       { animation: none; }
-  .ai-prompt-card { transform: none !important; transition: none; }
+  .ai-page { animation: none; }
 }

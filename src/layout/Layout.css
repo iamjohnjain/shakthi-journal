@@ -25,6 +25,18 @@
    modals out of the page tree first. */
 .page-content > * {
   animation: page-enter 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  /* Gives every route's own root element a real 100%-of-viewport height to
+     size against (e.g. a `height: 100%` chat layout that needs to fill the
+     screen instead of shrinking to its content) — without this, the actual
+     parent a route renders into has no explicit height of its own, so a
+     child's `height: 100%` resolves against nothing and just shrinks to
+     fit. Harmless for ordinary pages: they don't set a height on their own
+     root, so they still just render at their natural content height inside
+     this flex column, and `.page-content`'s own scroll still works the
+     same since nothing here clips overflow. */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes page-enter {

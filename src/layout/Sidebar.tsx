@@ -15,7 +15,7 @@ type NavItem = { path: string; label: string; icon: React.ElementType; end?: boo
 
 const MAIN_NAV: NavItem[] = [
   { path: '/',          label: 'Today',     icon: LayoutDashboard, end: true },
-  { path: '/ai-coach',  label: 'Coach',     icon: Sparkles },
+  { path: '/ai-coach',  label: 'Jeevan',    icon: Sparkles },
   { path: '/timeline',  label: 'Timeline',  icon: Clock },
   { path: '/recovery',  label: 'Recovery',  icon: Zap },
   { path: '/nutrition', label: 'Meals',     icon: Apple },

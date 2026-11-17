@@ -16,7 +16,7 @@ export interface CoachReply {
 }
 
 const SOFT_FAILURE: CoachReply = {
-  content: "Couldn't reach the Coach just now — try again in a moment.",
+  content: "Couldn't reach Jeevan just now — try again in a moment.",
 }
 
 /** Sends the running conversation to the chat-coach Edge Function and
@@ -24,7 +24,7 @@ const SOFT_FAILURE: CoachReply = {
     one or more tools. Never throws, per this app's "no dead-end error
     screens" rule — any failure just becomes a soft text reply. */
 export async function sendToCoach(messages: CoachChatMessage[]): Promise<CoachReply> {
-  if (!supabase) return { content: "Coach chat isn't available in this build." }
+  if (!supabase) return { content: "Chat isn't available in this build." }
 
   const wire = messages.map(m => ({
     role: m.role,
