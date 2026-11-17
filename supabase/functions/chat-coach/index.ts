@@ -19,10 +19,10 @@ import type { GroqMessage, GroqToolDef } from '../_shared/groqChat.ts'
 
 // Groq's free-tier model lineup changes without much notice — override via
 // `supabase secrets set GROQ_CHAT_MODEL=...` if this default gets retired.
-// Llama 3.3 70B is Groq's best-documented function-calling model; kept
-// separate from GROQ_TEXT_MODEL (used by parse-meal etc.) since that one is
-// tuned for single-shot JSON extraction, not a multi-turn tool-calling chat.
-const GROQ_MODEL = Deno.env.get('GROQ_CHAT_MODEL') || 'llama-3.3-70b-versatile'
+// Matches GROQ_TEXT_MODEL's default (parse-meal etc.) since that model is
+// already confirmed live on this account and supports tool-calling; a
+// separate env var is kept in case a chat-tuned model becomes preferable.
+const GROQ_MODEL = Deno.env.get('GROQ_CHAT_MODEL') || 'openai/gpt-oss-120b'
 
 const SYSTEM_PROMPT = `You are Jeevan — the user is talking directly to the app itself, not to a separate "coach" persona layered on top of it. You have access to their real data in this app and can take real actions in it.
 
