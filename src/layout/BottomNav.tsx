@@ -24,7 +24,7 @@ const TABS = [
   { path: '/workouts',  label: 'Workout', icon: Dumbbell },
   { path: '/',          label: 'Today',   icon: LayoutDashboard, end: true },
   { path: '/nutrition', label: 'Meals',   icon: Apple },
-  { path: '/ai-coach',  label: 'Jeevan',  icon: Sparkles },
+  { path: '/ai-coach',  label: 'Coach',   icon: Sparkles },
 ]
 
 export default function BottomNav() {

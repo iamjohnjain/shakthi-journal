@@ -9,7 +9,7 @@ export default function AICoach() {
         <div className="ai-header-icon" aria-hidden="true">
           <Sparkles size={20} />
         </div>
-        <h1 className="ai-title">Jeevan</h1>
+        <h1 className="ai-title">Jeevan AI</h1>
       </header>
 
       <CoachChat />
