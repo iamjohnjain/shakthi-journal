@@ -31,6 +31,17 @@ import './NutritionPage.css'
 
 function todayStr() { return localDateStr() }
 
+/** Which standard meal (by label, case-insensitive) the current phone time
+    suggests logging next — a gentle "you're probably here now" cue, not a
+    hard rule, so a numbered/custom meal style just never matches anything. */
+function currentMealPeriod(): string | null {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 11) return 'breakfast'
+  if (hour >= 11 && hour < 15) return 'lunch'
+  if (hour >= 17 && hour < 21) return 'dinner'
+  return 'snack'
+}
+
 function offsetDateStr(dateStr: string, deltaDays: number): string {
   return addLocalDays(dateStr, deltaDays)
 }
@@ -80,7 +91,7 @@ function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }:
           return (
             <button
               key={d}
-              className={`week-streak-day ${isViewed ? 'week-streak-day--viewed' : ''}`}
+              className={`week-streak-day ${isViewed && !isToday ? 'week-streak-day--viewed' : ''}`}
               data-no-press-glow
               onClick={() => onSelectDate(d)}
               aria-label={d}
@@ -1136,6 +1147,7 @@ export default function NutritionPage() {
   const realToday = todayStr()
   const date = viewDate
   const isToday = date === realToday
+  const currentMealTime = currentMealPeriod()
   const weekStart = startOfWeek(date)
   const thisWeekDates = weekDates(weekStart)
 
@@ -1338,6 +1350,7 @@ export default function NutritionPage() {
         const mealEntries = grouped[id] ?? []
         const mealLabel   = activeMealLabels[i] ?? id
         const mealCal     = mealEntries.reduce((n, e) => n + e.calories, 0)
+        const isCurrentMealTime = isToday && mealLabel.toLowerCase() === currentMealTime
         return (
           <section key={id} className="meal-section">
             <div className="meal-section-header">
@@ -1354,7 +1367,10 @@ export default function NutritionPage() {
                 ))}
               </div>
             ) : (
-              <button className="meal-empty" onClick={() => openAdd(id)}>
+              <button
+                className={`meal-empty ${isCurrentMealTime ? 'meal-empty--current' : ''}`}
+                onClick={() => openAdd(id)}
+              >
                 <Plus size={13} /> Add {mealLabel}
               </button>
             )}

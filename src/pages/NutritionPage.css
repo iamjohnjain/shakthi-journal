@@ -424,7 +424,7 @@
   cursor: pointer; transition: border-color .15s, color .15s;
 }
 /* Same gradient ring as the Workouts tab, instead of a flat accent border. */
-.meal-empty:hover, .meal-empty:active {
+.meal-empty:hover, .meal-empty:active, .meal-empty--current {
   border-style: solid;
   border-color: transparent;
   background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
