@@ -22,8 +22,6 @@ import NutritionPage from './pages/NutritionPage'
 import AthleticGoals from './pages/AthleticGoals'
 import DashboardSettings from './pages/DashboardSettings'
 import WorkoutProgressPage from './pages/WorkoutProgressPage'
-import WorkoutTemplatesPage from './pages/WorkoutTemplatesPage'
-import ProgressCheckIns from './pages/ProgressCheckIns'
 import RecoveryPage from './pages/RecoveryPage'
 import Timeline from './pages/Timeline'
 import BackupRestorePage from './pages/BackupRestorePage'
@@ -77,8 +75,9 @@ export default function App() {
           <Route path="/workouts" element={<WorkoutsPage />} />
           <Route path="/workouts/history" element={<WorkoutHistoryPage />} />
           <Route path="/workouts/progress" element={<WorkoutProgressPage />} />
-          <Route path="/workouts/templates" element={<WorkoutTemplatesPage />} />
-          <Route path="/workouts/checkins" element={<ProgressCheckIns />} />
+          {/* Templates moved behind the Today page's "Template" button; Check-Ins is now the default Progress view */}
+          <Route path="/workouts/templates" element={<Navigate to="/workouts" replace />} />
+          <Route path="/workouts/checkins" element={<Navigate to="/workouts/progress" replace />} />
 
           {/* Goals */}
           <Route path="/goals" element={<AthleticGoals />} />

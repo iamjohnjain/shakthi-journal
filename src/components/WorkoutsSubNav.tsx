@@ -1,10 +1,14 @@
 import { NavLink } from 'react-router-dom'
-import { Dumbbell, Clock, TrendingUp, LayoutTemplate, Camera } from 'lucide-react'
+import { Dumbbell, Clock, TrendingUp } from 'lucide-react'
 import './WorkoutsSubNav.css'
 
 /** Shared sub-nav for every /workouts/* page. Previously copy-pasted once
     per page (five near-identical copies) — now one place to add, remove, or
-    reorder a tab. */
+    reorder a tab. Deliberately just 3 tabs: Templates and Check-Ins used to
+    be separate tabs here but were cramming the bar at normal widths —
+    Templates now lives behind the Today page's "Template" button
+    (CreateTemplateModal/TemplatePickerSheet), and Check-Ins is the default
+    view on the Progress tab instead of its own destination. */
 export default function WorkoutsSubNav() {
   return (
     <nav className="workouts-subnav">
@@ -16,12 +20,6 @@ export default function WorkoutsSubNav() {
       </NavLink>
       <NavLink to="/workouts/progress" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
         <TrendingUp size={15} /><span>Progress</span>
-      </NavLink>
-      <NavLink to="/workouts/templates" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <LayoutTemplate size={15} /><span>Templates</span>
-      </NavLink>
-      <NavLink to="/workouts/checkins" className={({ isActive }) => `wsn-item ${isActive ? 'wsn-item--active' : ''}`}>
-        <Camera size={15} /><span>Check-Ins</span>
       </NavLink>
     </nav>
   )

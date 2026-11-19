@@ -423,11 +423,13 @@
   font-size: 13px; color: var(--text-tertiary);
   cursor: pointer; transition: border-color .15s, color .15s;
 }
-/* Same gradient ring as the Workouts tab, instead of a flat accent border. */
+/* Same gradient ring as the Workouts tab, instead of a flat accent border.
+   Horizontal variant — this row is full-width, where the default diagonal
+   angle reads inconsistently between the top and bottom edges. */
 .meal-empty:hover, .meal-empty:active, .meal-empty--current {
   border-style: solid;
   border-color: transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   color: var(--text-primary);

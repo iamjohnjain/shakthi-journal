@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw, PersonStanding } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -174,6 +174,12 @@ function QuickActions() {
           <RefreshCw size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Sync Data</span>
+      </button>
+      <button className="quick-action-btn" onClick={() => navigate('/workouts/progress')} aria-label="Check-In">
+        <span className="quick-action-icon" aria-hidden="true">
+          <PersonStanding size={17} />
+        </span>
+        <span className="quick-action-label" aria-hidden="true">Check-In</span>
       </button>
       {showWeightModal && (
         <QuickWeightModal onClose={() => setShowWeightModal(false)} onSaved={() => {}} />

@@ -416,6 +416,9 @@ verify_jwt = false
 # function here, it's fully anonymous/stateless and needs no user JWT.
 verify_jwt = false
 
+[functions.transcribe-audio]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

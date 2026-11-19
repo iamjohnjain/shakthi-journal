@@ -19,6 +19,25 @@ const SOFT_FAILURE: CoachReply = {
   content: "Couldn't reach Jeevan just now — try again in a moment.",
 }
 
+// Groq's free-tier TPM (tokens/minute) budget is small, and the system
+// prompt + full tool schema already cost ~2700 tokens before a single
+// message is sent — a long-running conversation resending its entire
+// history every round was observed hitting a real 429 in production. This
+// only trims what's SENT to Groq; the full history still lives in
+// IndexedDB/the UI untouched. Cuts at a 'user' message boundary so a
+// tool_calls/tool-result pair is never sent orphaned (which Groq would
+// reject as a malformed conversation).
+const MAX_SENT_MESSAGES = 16
+
+function trimForWire(messages: CoachChatMessage[]): CoachChatMessage[] {
+  if (messages.length <= MAX_SENT_MESSAGES) return messages
+  const roughStart = messages.length - MAX_SENT_MESSAGES
+  for (let i = roughStart; i < messages.length; i++) {
+    if (messages[i].role === 'user') return messages.slice(i)
+  }
+  return messages
+}
+
 /** Sends the running conversation to the chat-coach Edge Function and
     returns the assistant's next message — plain text, or a request to run
     one or more tools. Never throws, per this app's "no dead-end error
@@ -26,7 +45,7 @@ const SOFT_FAILURE: CoachReply = {
 export async function sendToCoach(messages: CoachChatMessage[]): Promise<CoachReply> {
   if (!supabase) return { content: "Chat isn't available in this build." }
 
-  const wire = messages.map(m => ({
+  const wire = trimForWire(messages).map(m => ({
     role: m.role,
     content: m.content,
     ...(m.toolCalls ? { toolCalls: m.toolCalls } : {}),

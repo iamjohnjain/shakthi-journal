@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, X } from 'lucide-react'
+import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, FileText, X } from 'lucide-react'
 import { useCoachChat } from '../hooks/useCoachChat'
-import { useSpeechToText } from '../hooks/useSpeechToText'
+import { useVoiceDictation } from '../hooks/useVoiceDictation'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import type { CoachChatMessage } from '../db'
 import LiveCamera from './LiveCamera'
+import VoiceListeningOverlay from './VoiceListeningOverlay'
 import './CoachChat.css'
+
+// Same allow-list already proven for workout-plan imports (fileTextExtract.ts
+// handles all of these: PDFs, Word docs, plain text, or images — including
+// scanned/image-only PDF pages). Safety cap below it: a hard ceiling on the
+// raw file, independent of fileTextExtract's own internal compression, so a
+// huge upload fails fast with a clear message instead of hanging or
+// silently never completing.
+const UPLOAD_ACCEPT = 'image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.txt,.csv,.md,text/plain,text/csv'
+const MAX_UPLOAD_BYTES = 15_000_000
 
 const STARTER_PROMPTS = [
   'Suggest a workout for today',
@@ -113,13 +123,15 @@ export default function CoachChat() {
   const { messages, loaded, sending, sendMessage, actOnProposedWorkout } = useCoachChat()
   const [input, setInput] = useState('')
   const [pendingImage, setPendingImage] = useState<string | null>(null)
+  const [pendingDocument, setPendingDocument] = useState<{ fileName: string; text: string } | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
   const [actingOn, setActingOn] = useState<string | null>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { listening, toggle: toggleMic, supported: micSupported } = useSpeechToText(
+  const { listening, phase: micPhase, stream: micStream, toggle: toggleMic, supported: micSupported } = useVoiceDictation(
     t => setInput(cur => (cur ? `${cur} ${t}` : t))
   )
 
@@ -128,18 +140,59 @@ export default function CoachChat() {
   }, [messages, sending])
 
   function handleSend() {
-    const text = input.trim()
-    if ((!text && !pendingImage) || sending) return
-    setInput('')
+    const typed = input.trim()
+    if ((!typed && !pendingImage && !pendingDocument) || sending) return
+    const text = pendingDocument
+      ? `${typed ? `${typed}\n\n` : ''}[Uploaded document: ${pendingDocument.fileName}]\n${pendingDocument.text}`
+      : typed
     const image = pendingImage ?? undefined
+    setInput('')
     setPendingImage(null)
+    setPendingDocument(null)
     void sendMessage(text, image)
   }
 
   async function handleFileChosen(file: File) {
     setShowAttachMenu(false)
-    const dataUrl = await compressImageToDataUrl(file)
-    setPendingImage(dataUrl)
+    setFileError(null)
+    setPendingImage(null)
+    setPendingDocument(null)
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setFileError(`That file's a bit large (max ${Math.round(MAX_UPLOAD_BYTES / 1_000_000)}MB) — try a smaller one.`)
+      return
+    }
+
+    // A plain image from "Choose from Library" is the common case and
+    // doesn't need the heavier pdfjs/mammoth path at all.
+    if (file.type.startsWith('image/')) {
+      setPendingImage(await compressImageToDataUrl(file))
+      return
+    }
+
+    // Dynamically imported — pdfjs-dist/mammoth are heavy and most chat
+    // uploads are images, so this shouldn't be in the main bundle everyone
+    // downloads on every page load. Same utility already proven for
+    // workout-plan template imports.
+    const { extractFileContent } = await import('../lib/fileTextExtract')
+    const extracted = await extractFileContent(file)
+    if (!extracted) {
+      setFileError("Couldn't read that file — try a PDF, Word doc, text file, or image instead.")
+      return
+    }
+    if (extracted.kind === 'image') {
+      setPendingImage(extracted.dataUrls[0])
+    } else {
+      // Capped — an unbounded PDF/doc dump risks the same Groq token-budget
+      // problem the chat's history-trimming already guards against
+      // elsewhere (coachChatApi.ts). Plenty of room for an actual workout
+      // plan; just not an entire book.
+      const MAX_DOC_CHARS = 6000
+      const text = extracted.text.length > MAX_DOC_CHARS
+        ? `${extracted.text.slice(0, MAX_DOC_CHARS)}\n\n[...truncated, document was longer]`
+        : extracted.text
+      setPendingDocument({ fileName: file.name, text })
+    }
   }
 
   // Tool-call-only assistant messages (content: null) are internal plumbing,
@@ -231,6 +284,14 @@ export default function CoachChat() {
             <button onClick={() => setPendingImage(null)} aria-label="Remove photo"><X size={13} /></button>
           </div>
         )}
+        {pendingDocument && (
+          <div className="coach-chat-pending-doc">
+            <FileText size={16} />
+            <span className="coach-chat-pending-doc-name">{pendingDocument.fileName}</span>
+            <button onClick={() => setPendingDocument(null)} aria-label="Remove file"><X size={13} /></button>
+          </div>
+        )}
+        {fileError && <p className="coach-chat-file-error">{fileError}</p>}
 
         {showAttachMenu && (
           <div className="coach-chat-attach-menu">
@@ -245,7 +306,7 @@ export default function CoachChat() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={UPLOAD_ACCEPT}
           style={{ display: 'none' }}
           onChange={e => { const f = e.target.files?.[0]; if (f) void handleFileChosen(f) }}
         />
@@ -254,7 +315,7 @@ export default function CoachChat() {
           <button
             className="coach-chat-attach"
             onClick={() => setShowAttachMenu(v => !v)}
-            aria-label="Attach a photo"
+            aria-label="Attach a photo or file"
           >
             <Plus size={17} />
           </button>
@@ -279,7 +340,7 @@ export default function CoachChat() {
           <button
             className="coach-chat-send"
             onClick={handleSend}
-            disabled={sending || (!input.trim() && !pendingImage)}
+            disabled={sending || (!input.trim() && !pendingImage && !pendingDocument)}
             aria-label="Send"
           >
             <Send size={16} />
@@ -295,6 +356,9 @@ export default function CoachChat() {
           onCapture={async blob => { setShowCamera(false); const dataUrl = await compressImageToDataUrl(blob); setPendingImage(dataUrl) }}
           onClose={() => setShowCamera(false)}
         />
+      )}
+      {listening && (
+        <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleMic} />
       )}
     </div>
   )

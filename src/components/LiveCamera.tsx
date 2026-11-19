@@ -54,7 +54,7 @@ export default function LiveCamera({ onCapture, onClose }: {
 
   if (failed) {
     return createPortal(
-      <div className="live-camera-overlay live-camera-overlay--fallback">
+      <div className="live-camera-overlay live-camera-overlay--fallback" onClick={e => e.stopPropagation()}>
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={e => { const f = e.target.files?.[0]; if (f) onCapture(f) }} />
         <p className="live-camera-fallback-text">Couldn't access the camera — you can still pick a photo instead.</p>
@@ -66,7 +66,12 @@ export default function LiveCamera({ onCapture, onClose }: {
   }
 
   return createPortal(
-    <div className="live-camera-overlay">
+    // Stops a click here (shutter, cancel) from bubbling through React's
+    // component-tree event system to an ancestor's onClick={onClose} — this
+    // portals to document.body, but several callers render it as a React
+    // child of their own backdrop-click-to-close overlay, which would
+    // otherwise also close underneath it on every capture.
+    <div className="live-camera-overlay" onClick={e => e.stopPropagation()}>
       <video
         ref={videoRef}
         autoPlay

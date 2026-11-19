@@ -14,11 +14,19 @@ export class GroqCallError extends Error {}
 // "couldn't reach Jeevan" when a second attempt a moment later would have
 // worked. Only retries failures with a real chance of succeeding again
 // (network errors, 429, 5xx); a 400/401 fails fast since it'll fail
-// identically on retry. Confirmed live: a tool-calling round genuinely hit
-// this during testing before this was added, and surfaced as the generic
-// fallback text despite nothing being wrong with the request itself.
-const MAX_ATTEMPTS = 3
-const RETRY_DELAYS_MS = [400, 1200]
+// identically on retry.
+//
+// Tuned longer than `_shared/groq.ts`'s schedule on purpose: confirmed live
+// in production logs, Groq's free-tier TPM (tokens/minute) limit returned a
+// 429 asking to wait 2.61s before retrying, which the old 2-retry/1.6s-total
+// schedule couldn't cover — the final attempt fired too early and failed
+// again. Groq's 429 body names the actual wait in its message ("Please try
+// again in 2.61s"); parse and honor that when present, since it's a real
+// number from the API, not a guess — fall back to the fixed schedule when
+// it isn't (e.g. a 5xx, which carries no such hint).
+const MAX_ATTEMPTS = 4
+const RETRY_DELAYS_MS = [700, 2000, 4000]
+const MAX_PARSED_DELAY_MS = 8000
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -26,6 +34,16 @@ function sleep(ms: number): Promise<void> {
 
 function isRetryableStatus(status: number): boolean {
   return status === 429 || status >= 500
+}
+
+function parseRetryDelayMs(errText: string, fallbackMs: number): number {
+  const match = /try again in ([\d.]+)s/i.exec(errText)
+  if (!match) return fallbackMs
+  const parsedMs = Math.ceil(parseFloat(match[1]) * 1000)
+  if (!Number.isFinite(parsedMs) || parsedMs <= 0) return fallbackMs
+  // A little headroom on top of Groq's own number — retrying at exactly the
+  // edge of the window risks landing a few ms too early.
+  return Math.min(parsedMs + 300, MAX_PARSED_DELAY_MS)
 }
 
 export interface GroqToolCall {
@@ -111,7 +129,7 @@ export async function callGroqChat(opts: {
       const errText = await res.text().catch(() => '')
       lastError = new GroqCallError(`Groq API error ${res.status}: ${errText}`)
       if (isRetryableStatus(res.status) && attempt < MAX_ATTEMPTS - 1) {
-        await sleep(RETRY_DELAYS_MS[attempt])
+        await sleep(parseRetryDelayMs(errText, RETRY_DELAYS_MS[attempt]))
         continue
       }
       throw lastError

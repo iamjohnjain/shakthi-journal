@@ -17,9 +17,12 @@
 .wsn-item span { overflow: hidden; text-overflow: ellipsis; }
 .wsn-item svg { flex-shrink: 0; }
 .wsn-item:hover { color: var(--text-primary); }
-/* Same gradient ring as the avatar/profile icon, instead of a flat blue fill. */
+/* Same gradient ring as the avatar/profile icon, instead of a flat blue fill.
+   Horizontal variant (--gradient-brand-wide) — this tab is wide/short, where
+   the default diagonal angle reads inconsistently between the top and
+   bottom edges. */
 .wsn-item--active {
-  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand-wide);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   color: var(--text-primary);

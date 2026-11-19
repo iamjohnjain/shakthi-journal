@@ -146,7 +146,7 @@
 
 .sidebar-item.active {
   border: 1px solid transparent;
-  background-image: linear-gradient(rgba(8, 8, 10, 0.96), rgba(8, 8, 10, 0.96)), var(--gradient-brand);
+  background-image: linear-gradient(rgba(8, 8, 10, 0.96), rgba(8, 8, 10, 0.96)), var(--gradient-brand-wide);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   color: var(--text-primary);

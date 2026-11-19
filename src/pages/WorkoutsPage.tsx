@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
-  Plus, ChevronDown, ChevronUp, Trash2, Dumbbell,
+  ChevronDown, ChevronUp, Trash2, Dumbbell,
   Lightbulb, Flame,
   ChevronLeft, ChevronRight, Copy, Clipboard,
   LayoutTemplate, Check, X, AlertTriangle, Play,
   GripVertical, Coffee, CalendarDays,
+  Pencil, Sparkles,
 } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
@@ -16,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import ActiveWorkout, { ExercisePicker } from './ActiveWorkout'
 import type { ParsedExercise } from '../lib/aiWorkoutParser'
 import TemplateModal from '../components/TemplateModal'
+import CreateTemplateModal from '../components/CreateTemplateModal'
 import {
   saveWorkout, updateWorkout, deleteWorkout, getAllTimePRs, annotateExercises, estimateOneRM,
   getWorkoutsForDate, getWorkoutDateTypes, getCurrentWorkoutStreak,
@@ -28,7 +30,7 @@ import {
   seedExerciseLibraryIfEmpty,
   getAllExerciseNames, capitalizeExerciseName,
 } from '../db/trainingStore'
-import { getTemplates, workoutToTemplate } from '../db/templateStore'
+import { getTemplates, deleteTemplate, workoutToTemplate } from '../db/templateStore'
 import type { WorkoutTemplate } from '../db/templateStore'
 import { useWorkoutSuggestion } from '../hooks/useWorkoutSuggestion'
 import { getProfile } from '../db/profileStore'
@@ -613,7 +615,80 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   )
 }
 
+// ─── Template card (view/edit/delete/use) ─────────────────────────────────────
+
+function TemplateCard({ t, onUse, onEdit, onDelete }: {
+  t: WorkoutTemplate
+  onUse: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const updatedDate = new Date(t.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+  return (
+    <>
+      <div className="template-card">
+        <div className="template-card-header">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="template-card-name">{t.name}</div>
+            <div className="template-card-meta">
+              {t.exercises.length} exercise{t.exercises.length !== 1 ? 's' : ''}
+              {t.estimatedDurationMin ? ` · ~${t.estimatedDurationMin} min` : ''}
+              {' · Updated '}{updatedDate}
+            </div>
+          </div>
+          <div className="template-card-actions">
+            <button className="tmpl-action-btn" onClick={() => setExpanded(e => !e)}>
+              {expanded ? 'Hide' : 'View'}
+            </button>
+            <button className="tmpl-action-btn" onClick={onEdit}>
+              <Pencil size={12} /> Edit
+            </button>
+            <button className="tmpl-action-btn tmpl-action-btn--del" onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={12} />
+            </button>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="template-exercises">
+            {t.exercises.map((ex, i) => (
+              <div key={i} className="tmpl-exercise-row">
+                <span className="tmpl-ex-name">{ex.name}</span>
+                <span className="tmpl-ex-sets">
+                  {ex.sets.length} sets
+                  {ex.sets[0]?.reps ? ` × ${ex.sets[0].reps} reps` : ''}
+                  {ex.sets[0]?.weightLbs ? ` @ ${ex.sets[0].weightLbs} lbs` : ''}
+                </span>
+              </div>
+            ))}
+            {t.notes && <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '8px 0 0', fontStyle: 'italic' }}>{t.notes}</p>}
+          </div>
+        )}
+
+        <button className="log-workout-btn" style={{ width: '100%', marginTop: 10, justifyContent: 'center' }} onClick={onUse}>
+          <Play size={14} /> Use This Template
+        </button>
+      </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Delete template "${t.name}"? This cannot be undone.`}
+          onConfirm={() => { setConfirmDelete(false); onDelete() }}
+          onCancel={() => setConfirmDelete(false)} />
+      )}
+    </>
+  )
+}
+
 // ─── Template picker (quick-start "+ Template" from the Today page) ──────────
+// Opened by the Today page's "Template" button — the full template
+// management experience (search, view/edit/delete, use) as a sheet rather
+// than a separate page, per explicit request: "instead of seeing the small
+// page that says choose a template, I wanted to actually open up the full
+// template page."
 
 function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabel }: {
   onPick: (t: WorkoutTemplate) => void
@@ -626,6 +701,8 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
   dayLabel: string
 }) {
   const [templates, setTemplates] = useState<WorkoutTemplate[] | null>(null)
+  const [search, setSearch] = useState('')
+  const [editTarget, setEditTarget] = useState<WorkoutTemplate | null>(null)
   const [savingFromDay, setSavingFromDay] = useState(false)
   const [dayTmplName, setDayTmplName] = useState(dayWorkout?.title ?? '')
   const [dayTmplSaving, setDayTmplSaving] = useState(false)
@@ -633,7 +710,19 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
   useScrollLock()
   const swipe = useSwipeToClose(onClose)
 
-  useEffect(() => { getTemplates().then(setTemplates) }, [])
+  const load = useCallback(() => { getTemplates().then(setTemplates) }, [])
+  useEffect(() => { load() }, [load])
+
+  async function handleDelete(id: string) {
+    await deleteTemplate(id)
+    load()
+  }
+
+  const filtered = templates == null
+    ? null
+    : search.trim()
+      ? templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
+      : templates
 
   async function handleSaveDayAsTemplate() {
     if (!dayWorkout || !dayTmplName.trim()) return
@@ -656,7 +745,7 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
     <div className="aw-picker-overlay" onClick={onClose}>
       <div className="aw-picker" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="aw-picker-search" {...swipe.handlers}>
-          <span className="log-section-title">Choose a template</span>
+          <span className="log-section-title">Templates</span>
           <button className="aw-picker-close" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="aw-picker-list">
@@ -680,23 +769,48 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
               )}
             </div>
           )}
-          {templates === null ? (
+
+          <button className="log-workout-btn" style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }} onClick={onCreateNew}>
+            <Sparkles size={15} /> Create Workout Template
+          </button>
+
+          {templates && templates.length > 4 && (
+            <input
+              className="log-title-input"
+              style={{ marginBottom: 10 }}
+              placeholder="Search templates…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          )}
+
+          {filtered === null ? (
             <p className="log-tmpl-empty">Loading…</p>
-          ) : templates.length === 0 ? (
-            <p className="log-tmpl-empty">No templates yet — create one below.</p>
+          ) : filtered.length === 0 ? (
+            <p className="log-tmpl-empty">
+              {templates && templates.length > 0 ? `No templates match "${search}"` : 'No templates yet — create one above.'}
+            </p>
           ) : (
-            templates.map(t => (
-              <button key={t.id} className="aw-picker-item" onClick={() => onPick(t)}>
-                {t.name}
-                <span className="log-tmpl-meta" style={{ marginLeft: 8 }}>{t.exercises.length} exercises</span>
-              </button>
+            filtered.map(t => (
+              <TemplateCard
+                key={t.id}
+                t={t}
+                onUse={() => onPick(t)}
+                onEdit={() => setEditTarget(t)}
+                onDelete={() => handleDelete(t.id)}
+              />
             ))
           )}
-          <button className="aw-picker-item aw-picker-item--custom" onClick={onCreateNew}>
-            <Plus size={14} /> Create New Template
-          </button>
         </div>
       </div>
+
+      {editTarget && (
+        <TemplateModal
+          existing={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { setEditTarget(null); load() }}
+        />
+      )}
     </div>,
     document.body
   )
@@ -705,7 +819,6 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WorkoutsPage() {
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   // Supports deep-linking from Workout History's "Edit this workout" —
   // ?date=YYYY-MM-DD jumps straight to that day instead of always today.
@@ -724,6 +837,7 @@ export default function WorkoutsPage() {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
   const [showCreateTemplate, setShowCreateTemplate] = useState(false)
+  const [showCreateTemplateChooser, setShowCreateTemplateChooser] = useState(false)
   const [streak, setStreak] = useState(0)
   const seeded = useRef(false)
 
@@ -886,7 +1000,7 @@ export default function WorkoutsPage() {
               </button>
               <button
                 className="workouts-first-empty-secondary"
-                onClick={() => navigate('/workouts/templates')}
+                onClick={() => setShowCreateTemplateChooser(true)}
               >
                 Create Workout Template
               </button>
@@ -936,17 +1050,25 @@ export default function WorkoutsPage() {
           {showTemplatePicker && (
             <TemplatePickerSheet
               onPick={applyTemplate}
-              onCreateNew={() => { setShowTemplatePicker(false); setShowCreateTemplate(true) }}
+              onCreateNew={() => { setShowTemplatePicker(false); setShowCreateTemplateChooser(true) }}
               onClose={() => setShowTemplatePicker(false)}
               dayWorkout={dayWorkouts.find(w => w.type === 'lifting')}
               dayLabel={isToday ? "Today" : shortDateLabel}
             />
           )}
 
+          {showCreateTemplateChooser && (
+            <CreateTemplateModal
+              onClose={() => setShowCreateTemplateChooser(false)}
+              onOpenManual={() => { setShowCreateTemplateChooser(false); setShowCreateTemplate(true) }}
+              onSaved={() => { setShowCreateTemplateChooser(false); setShowTemplatePicker(true) }}
+            />
+          )}
+
           {showCreateTemplate && (
             <TemplateModal
               onClose={() => setShowCreateTemplate(false)}
-              onSaved={() => {}}
+              onSaved={() => { setShowCreateTemplate(false); setShowTemplatePicker(true) }}
               onUseOnce={data => {
                 setShowCreateTemplate(false)
                 setActiveWorkoutInitial({ title: data.name, exercises: data.exercises })

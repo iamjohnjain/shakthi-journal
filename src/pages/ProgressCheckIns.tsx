@@ -1,13 +1,57 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Camera, Video, X, Check } from 'lucide-react'
-import SubNav from '../components/WorkoutsSubNav'
+import { Camera, Video, Upload, X, Check } from 'lucide-react'
 import LiveCamera from '../components/LiveCamera'
+import PhotoLightbox from '../components/PhotoLightbox'
 import { compressImageUnderBytes } from '../lib/imageUtils'
 import { savePhoto, getPhotos, getPoseLabels } from '../db/progressPhotoStore'
 import type { ProgressPhoto, ProgressPhotoPose } from '../db'
-import { localDateStr } from '../data/config'
+import { getLatestSnapshots } from '../db/healthStore'
+import { localDateStr, kgToLbs } from '../data/config'
 import './ProgressCheckIns.css'
+
+interface LightboxState {
+  photoDataUrl: string
+  caption: string
+  meta?: string
+}
+
+/** Finds the logged weight closest in time to `targetDate` (within a year
+    either side), for showing alongside a check-in photo as context — reuses
+    the same snapshot source Coach's get_health_context already relies on,
+    not a new data path. */
+async function findClosestWeightLbs(targetDate: string): Promise<{ weightLbs: number; date: string } | null> {
+  const snapshots = await getLatestSnapshots(365)
+  const withWeight = snapshots.filter(s => s.weight != null)
+  if (withWeight.length === 0) return null
+  const targetMs = new Date(targetDate).getTime()
+  let closest = withWeight[0]
+  let closestDiffMs = Math.abs(new Date(closest.date).getTime() - targetMs)
+  for (const s of withWeight) {
+    const diffMs = Math.abs(new Date(s.date).getTime() - targetMs)
+    if (diffMs < closestDiffMs) { closest = s; closestDiffMs = diffMs }
+  }
+  return { weightLbs: Math.round(kgToLbs(closest.weight!) * 10) / 10, date: closest.date }
+}
+
+function poseLabel(photo: Pick<ProgressPhoto, 'pose' | 'customLabel'>): string {
+  if (photo.pose === 'custom') return photo.customLabel || 'Custom'
+  return photo.pose.charAt(0).toUpperCase() + photo.pose.slice(1)
+}
+
+async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> {
+  const weight = await findClosestWeightLbs(photo.date)
+  const sameDayWeight = weight && weight.date === photo.date
+  return {
+    photoDataUrl: photo.photoDataUrl,
+    caption: `${poseLabel(photo)} — ${photo.date}`,
+    meta: weight
+      ? sameDayWeight
+        ? `${weight.weightLbs} lbs that day`
+        : `${weight.weightLbs} lbs (closest reading, ${weight.date})`
+      : undefined,
+  }
+}
 
 const PRESET_POSES: { pose: ProgressPhotoPose; label: string }[] = [
   { pose: 'front', label: 'Front' },
@@ -15,6 +59,30 @@ const PRESET_POSES: { pose: ProgressPhotoPose; label: string }[] = [
   { pose: 'side', label: 'Side' },
   { pose: 'flexed', label: 'Flexed' },
 ]
+
+// Tried in priority order. MP4/H.264 first — Safari/WebKit (this app's
+// actual native iOS wrapper) cannot play WebM back AT ALL, so recording
+// with no explicit mimeType (which picks webm on Chrome, where this
+// happened to "work" in earlier testing) produced a clip the review
+// <video> could never decode: a permanently black frame, a `duration` that
+// never left 0, and scrub/±0.1s controls that had nothing to act on since
+// there was nothing to seek into. This is the actual root cause, not a
+// video-element bug.
+const VIDEO_MIME_CANDIDATES = [
+  'video/mp4;codecs=h264',
+  'video/mp4;codecs=avc1',
+  'video/mp4',
+  'video/webm;codecs=vp9',
+  'video/webm;codecs=vp8',
+  'video/webm',
+]
+
+function pickSupportedMimeType(): string | undefined {
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return undefined
+  return VIDEO_MIME_CANDIDATES.find(t => MediaRecorder.isTypeSupported(t))
+}
+
+const MIN_RECORDING_MS = 400
 
 /** Record a short clip, then scrub through it frame-by-frame and capture as
     many stills as you want — each one handed to `onFrame` immediately, so
@@ -26,13 +94,23 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const recordedMimeRef = useRef<string>('video/webm')
+  const recordingStartedAtRef = useRef(0)
   const [phase, setPhase] = useState<'recording' | 'reviewing'>('recording')
   const [recording, setRecording] = useState(false)
   const [clipUrl, setClipUrl] = useState<string | null>(null)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [failed, setFailed] = useState(false)
+  const [tooShort, setTooShort] = useState(false)
+  const [reviewFailed, setReviewFailed] = useState(false)
   const [savedCount, setSavedCount] = useState(0)
+  // getUserMedia resolves asynchronously — without this, "Start Recording"
+  // renders immediately but a tap before the stream actually arrives would
+  // silently no-op (startRecording's `if (!stream) return` guard), with
+  // zero feedback to the user. LiveCamera.tsx already guards its shutter
+  // button the same way.
+  const [cameraReady, setCameraReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -45,6 +123,7 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
         if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
+        setCameraReady(true)
       })
       .catch(() => { if (!cancelled) setFailed(true) })
     return () => {
@@ -59,14 +138,25 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
     const stream = streamRef.current
     if (!stream) return
     chunksRef.current = []
-    const recorder = new MediaRecorder(stream)
+    setTooShort(false)
+    const mimeType = pickSupportedMimeType()
+    recordedMimeRef.current = mimeType || 'video/webm'
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' })
       streamRef.current?.getTracks().forEach(t => t.stop())
+      // A near-instant tap-record-tap-stop can produce a clip with no
+      // actual decodable frames — catch it here rather than showing a
+      // silently-black review screen the user can't explain.
+      if (Date.now() - recordingStartedAtRef.current < MIN_RECORDING_MS) {
+        setTooShort(true)
+        return
+      }
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || recordedMimeRef.current })
       setClipUrl(URL.createObjectURL(blob))
       setPhase('reviewing')
     }
+    recordingStartedAtRef.current = Date.now()
     recorder.start()
     recorderRef.current = recorder
     setRecording(true)
@@ -75,6 +165,75 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
   function stopRecording() {
     recorderRef.current?.stop()
     setRecording(false)
+  }
+
+  function retryAfterTooShort() {
+    setTooShort(false)
+    setFailed(false)
+    setCameraReady(false)
+    // Camera track was stopped on the aborted recorder's onstop — re-acquire.
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      .then(stream => {
+        streamRef.current = stream
+        if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
+        setCameraReady(true)
+      })
+      .catch(() => setFailed(true))
+  }
+
+  function retryAfterReviewFailed() {
+    setReviewFailed(false)
+    setPhase('recording')
+    setCameraReady(false)
+    if (clipUrl) { URL.revokeObjectURL(clipUrl); setClipUrl(null) }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      .then(stream => {
+        streamRef.current = stream
+        if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
+        setCameraReady(true)
+      })
+      .catch(() => setFailed(true))
+  }
+
+  /** Chromium has a long-standing bug where a MediaRecorder-produced blob
+      reports `duration: Infinity` (and won't paint a real frame) until you
+      seek past the apparent end once — this forces the browser to actually
+      index the file. Without it the review video stays genuinely black
+      (confirmed, not just a styling issue) and the scrub range's `max`
+      becomes Infinity, so dragging it does nothing. Standard documented
+      workaround: seek absurdly far forward, wait for the duration to
+      resolve via `timeupdate`, then seek back near the start. */
+  function fixDurationThenSeekToStart(video: HTMLVideoElement) {
+    const finish = () => {
+      setDuration(video.duration)
+      video.currentTime = 0.05
+      // A handful of devices/codec combinations report success
+      // (isTypeSupported said yes, the recording "worked") but produce a
+      // blob that decodes with degenerate dimensions — never trust that
+      // silently; surface it as a recoverable error instead of a
+      // confusing black screen nobody can explain.
+      if (video.videoWidth <= 2 || video.videoHeight <= 2) setReviewFailed(true)
+    }
+    if (video.duration === Infinity || Number.isNaN(video.duration)) {
+      video.currentTime = Number.MAX_SAFE_INTEGER
+      let settled = false
+      const settle = () => {
+        if (settled) return
+        settled = true
+        video.removeEventListener('timeupdate', onTimeUpdate)
+        finish()
+      }
+      // A genuinely degenerate blob can just never fire `timeupdate` at all
+      // after the seek — nothing to resolve into. Without this fallback
+      // that hangs forever: no scrub controls (duration stays broken) and
+      // no error shown either, the exact silent-black-screen failure mode
+      // this whole function exists to avoid.
+      const onTimeUpdate = () => settle()
+      video.addEventListener('timeupdate', onTimeUpdate)
+      setTimeout(settle, 2000)
+    } else {
+      finish()
+    }
   }
 
   function captureFrame() {
@@ -112,22 +271,37 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
       {phase === 'recording' ? (
         <>
           <video ref={liveVideoRef} autoPlay playsInline muted className="vfc-video" />
+          {recording && <div className="vfc-recording-badge"><span className="vfc-recording-dot" /> Recording…</div>}
+          {tooShort && (
+            <div className="vfc-too-short">
+              <p>That was too quick to capture — hold Start Recording a little longer.</p>
+              <button className="vfc-done-btn" onClick={retryAfterTooShort}>Try Again</button>
+            </div>
+          )}
           <div className="vfc-controls">
             {!recording ? (
-              <button className="vfc-record-btn" onClick={startRecording}>Start Recording</button>
+              <button className="vfc-record-btn" onClick={startRecording} disabled={!cameraReady}>
+                {cameraReady ? 'Start Recording' : 'Starting camera…'}
+              </button>
             ) : (
               <button className="vfc-stop-btn" onClick={stopRecording}>Stop</button>
             )}
           </div>
         </>
+      ) : reviewFailed ? (
+        <div className="vfc-too-short">
+          <p>That recording didn't come through right — try recording again.</p>
+          <button className="vfc-done-btn" onClick={retryAfterReviewFailed}>Try Again</button>
+        </div>
       ) : (
         <>
           <video
             ref={reviewVideoRef}
             src={clipUrl ?? undefined}
             playsInline
+            muted
             className="vfc-video"
-            onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
+            onLoadedMetadata={e => fixDurationThenSeekToStart(e.currentTarget)}
             onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
           />
           <div className="vfc-scrub-controls">
@@ -197,7 +371,12 @@ interface StagedPhoto {
 
 function genLocalId() { return `staged_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` }
 
-export default function ProgressCheckIns() {
+/** The Capture/Compare photo check-in UI — mounted as the default view of
+    the Progress tab (see WorkoutProgressPage.tsx) rather than its own
+    route, per explicit request to make check-ins "the first thing they see
+    when they click progress." No page chrome of its own (sub-nav, header)
+    — the parent page owns that. */
+export default function CheckInsSection() {
   const [mode, setMode] = useState<'capture' | 'compare'>('capture')
 
   // ── Capture state ── a list, not a single slot: scrubbing a recording can
@@ -216,6 +395,9 @@ export default function ProgressCheckIns() {
   const [dateB, setDateB] = useState('')
   const [comparePhotos, setComparePhotos] = useState<ProgressPhoto[]>([])
   const [compareCustomLabels, setCompareCustomLabels] = useState<string[]>([])
+  const [lightbox, setLightbox] = useState<LightboxState | null>(null)
+  const [progression, setProgression] = useState<{ daysBetween: number; weightDeltaLbs: number | null } | null>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
 
   const loadCustomLabels = useCallback(async () => {
     const labels = await getPoseLabels()
@@ -237,6 +419,25 @@ export default function ProgressCheckIns() {
   useEffect(() => {
     if (mode === 'compare') void refreshComparePhotos()
   }, [mode, refreshComparePhotos])
+
+  // Days-between + weight delta between the two selected dates, when both
+  // are set — factual framing only ("+2.3 lbs" / "no change"), nothing
+  // invented about what the photos themselves show.
+  useEffect(() => {
+    if (!dateA || !dateB) { setProgression(null); return }
+    let cancelled = false
+    Promise.all([findClosestWeightLbs(dateA), findClosestWeightLbs(dateB)]).then(([wA, wB]) => {
+      if (cancelled) return
+      const daysBetween = Math.round(Math.abs(new Date(dateB).getTime() - new Date(dateA).getTime()) / 86_400_000)
+      const weightDeltaLbs = wA && wB ? Math.round((wB.weightLbs - wA.weightLbs) * 10) / 10 : null
+      setProgression({ daysBetween, weightDeltaLbs })
+    })
+    return () => { cancelled = true }
+  }, [dateA, dateB])
+
+  function openLightbox(photo: ProgressPhoto) {
+    void buildLightboxState(photo).then(setLightbox)
+  }
 
   async function handleStagedBlob(blob: Blob) {
     const dataUrl = await compressImageUnderBytes(blob, 1_500_000, 1600)
@@ -276,16 +477,7 @@ export default function ProgressCheckIns() {
   const showingCompare = !!dateA || !!dateB
 
   return (
-    <div className="progress-checkins-page">
-      <SubNav />
-
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">Check-Ins</h1>
-          <p className="page-subtitle">Photo progress, tagged by pose and date</p>
-        </div>
-      </header>
-
+    <div className="progress-checkins-section">
       <div className="pci-mode-toggle">
         <button className={mode === 'capture' ? 'pci-mode-active' : ''} onClick={() => setMode('capture')}>Capture</button>
         <button className={mode === 'compare' ? 'pci-mode-active' : ''} onClick={() => setMode('compare')}>Compare</button>
@@ -302,6 +494,17 @@ export default function ProgressCheckIns() {
               <Video size={22} />
               <span>Record &amp; Pick Frames</span>
             </button>
+            <button className="pci-capture-btn" onClick={() => uploadInputRef.current?.click()}>
+              <Upload size={22} />
+              <span>Upload</span>
+            </button>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) void handleStagedBlob(f) }}
+            />
           </div>
 
           {sessionSavedCount > 0 && staged.length === 0 && (
@@ -310,7 +513,12 @@ export default function ProgressCheckIns() {
 
           {staged.map(item => (
             <div key={item.localId} className="pci-stage">
-              <img src={item.dataUrl} alt="" className="pci-stage-img" />
+              <img
+                src={item.dataUrl}
+                alt=""
+                className="pci-stage-img"
+                onClick={() => setLightbox({ photoDataUrl: item.dataUrl, caption: 'Not saved yet' })}
+              />
 
               <div className="pci-stage-pose">
                 <PoseChips
@@ -384,26 +592,38 @@ export default function ProgressCheckIns() {
           </div>
 
           {showingCompare ? (
-            <div className="pci-compare-grid">
-              <div className="pci-compare-col">
-                <div className="pci-compare-col-label">{dateA || 'Pick a date'}</div>
-                {photosA.length > 0 ? photosA.map(p => (
-                  <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" />
-                )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
+            <>
+              {progression && (
+                <div className="pci-progression">
+                  {progression.daysBetween} day{progression.daysBetween === 1 ? '' : 's'} apart
+                  {progression.weightDeltaLbs != null && (
+                    progression.weightDeltaLbs === 0
+                      ? ' — no change in weight'
+                      : ` — ${progression.weightDeltaLbs > 0 ? '+' : ''}${progression.weightDeltaLbs} lbs`
+                  )}
+                </div>
+              )}
+              <div className="pci-compare-grid">
+                <div className="pci-compare-col">
+                  <div className="pci-compare-col-label">{dateA || 'Pick a date'}</div>
+                  {photosA.length > 0 ? photosA.map(p => (
+                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
+                  )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
+                </div>
+                <div className="pci-compare-col">
+                  <div className="pci-compare-col-label">{dateB || 'Pick a date'}</div>
+                  {photosB.length > 0 ? photosB.map(p => (
+                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
+                  )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
+                </div>
               </div>
-              <div className="pci-compare-col">
-                <div className="pci-compare-col-label">{dateB || 'Pick a date'}</div>
-                {photosB.length > 0 ? photosB.map(p => (
-                  <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" />
-                )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
-              </div>
-            </div>
+            </>
           ) : (
             <div className="pci-grid">
               {comparePhotos.length === 0 ? (
                 <div className="pci-empty">No check-ins yet{filterPose !== 'all' ? ' for this pose' : ''}.</div>
               ) : comparePhotos.map(p => (
-                <div key={p.id} className="pci-grid-item">
+                <div key={p.id} className="pci-grid-item" onClick={() => openLightbox(p)}>
                   <img src={p.photoDataUrl} alt="" />
                   <span>{p.date}</span>
                 </div>
@@ -423,6 +643,14 @@ export default function ProgressCheckIns() {
         <VideoFrameCapture
           onFrame={blob => void handleStagedBlob(blob)}
           onClose={() => setShowRecorder(false)}
+        />
+      )}
+      {lightbox && (
+        <PhotoLightbox
+          photoDataUrl={lightbox.photoDataUrl}
+          caption={lightbox.caption}
+          meta={lightbox.meta}
+          onClose={() => setLightbox(null)}
         />
       )}
     </div>

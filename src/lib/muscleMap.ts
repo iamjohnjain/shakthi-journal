@@ -44,17 +44,25 @@ export const MUSCLE_LABEL: Record<MuscleGroup, string> = {
   hipFlexors: 'Hip Flexors',
 }
 
-/** Roughly how many working sets/week each muscle generally wants, per
-    commonly-cited hypertrophy volume-landmark guidance. General guidance
-    only — not personalized or medical. */
+/** Roughly how many direct working sets/week each muscle generally wants,
+    landing near the middle of the commonly-cited intermediate-lifter range
+    between MEV (minimum effective volume) and MRV (maximum recoverable
+    volume) — the volume-landmark framework popularized by Mike Israetel/
+    Renaissance Periodization, broadly consistent with Schoenfeld et al.'s
+    dose-response meta-analyses (~10-20 sets/muscle/week for most lifters).
+    Smaller muscles that get real secondary stimulus from compound lifts
+    (biceps/triceps from pressing and pulling, lower back/glutes/hamstrings
+    from squats and deadlifts) are weighted lower than muscles that mostly
+    only grow from direct work (quads, calves) — general guidance only, not
+    personalized or medical. */
 export const WEEKLY_SET_TARGET: Record<MuscleGroup, number> = {
-  chest: 12, upperChest: 6,
-  shoulders: 10, rearDelts: 8,
-  lats: 10, traps: 6, lowerBack: 6,
-  biceps: 8, triceps: 10, forearms: 4,
-  core: 10,
-  quads: 12, hamstrings: 8, glutes: 10, calves: 8,
-  hipFlexors: 4,
+  chest: 11, upperChest: 5,
+  shoulders: 10, rearDelts: 6,
+  lats: 10, traps: 5, lowerBack: 3,
+  biceps: 9, triceps: 12, forearms: 3,
+  core: 9,
+  quads: 16, hamstrings: 10, glutes: 12, calves: 12,
+  hipFlexors: 3,
 }
 
 export function regionTarget(region: VisualRegion): number {

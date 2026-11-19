@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Search, TrendingUp, Award } from 'lucide-react'
+import { Search, TrendingUp, Award, Camera } from 'lucide-react'
 import { getExerciseHistory } from '../db/trainingStore'
 import { getExerciseLibrary } from '../db/trainingStore'
 import type { ExerciseHistory } from '../db/trainingStore'
 import SubNav from '../components/WorkoutsSubNav'
+import CheckInsSection from './ProgressCheckIns'
 import './WorkoutProgressPage.css'
 
 function MiniBar({ pct, color = 'var(--orange)' }: { pct: number; color?: string }) {
@@ -69,7 +70,7 @@ function HistoryCard({ history }: { history: ExerciseHistory }) {
   )
 }
 
-export default function WorkoutProgressPage() {
+function PrTrackingSection() {
   const [query,     setQuery]     = useState('')
   const [history,   setHistory]   = useState<ExerciseHistory | null>(null)
   const [loading,   setLoading]   = useState(false)
@@ -96,17 +97,7 @@ export default function WorkoutProgressPage() {
   }
 
   return (
-    <div className="workout-progress-page">
-      <SubNav />
-
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">Progress</h1>
-          <p className="page-subtitle">Per-exercise PR tracking & overload suggestions</p>
-        </div>
-      </header>
-
-      {/* Search */}
+    <>
       <div className="wpr-search-wrap">
         <Search size={14} className="wpr-search-icon" />
         <input
@@ -120,7 +111,6 @@ export default function WorkoutProgressPage() {
         <button className="wpr-search-btn" onClick={() => search()}>Go</button>
       </div>
 
-      {/* Quick picks: show some popular exercises */}
       {!searched && (
         <div className="wpr-quick-picks">
           {['Back Squat','Bench Press','Deadlift','Overhead Press','Pull-up','Barbell Row','Romanian Deadlift'].map(name => (
@@ -148,6 +138,39 @@ export default function WorkoutProgressPage() {
           <p>Search any exercise to see your PR history, volume trend, and progressive overload suggestions.</p>
         </div>
       )}
+    </>
+  )
+}
+
+export default function WorkoutProgressPage() {
+  // Check-Ins loads first — "the first thing they see when they click
+  // progress" — with PR Tracking a tap away, same toggle pattern already
+  // used inside Check-Ins itself for Capture/Compare.
+  const [mode, setMode] = useState<'checkins' | 'pr'>('checkins')
+
+  return (
+    <div className="workout-progress-page">
+      <SubNav />
+
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Progress</h1>
+          <p className="page-subtitle">
+            {mode === 'checkins' ? 'Photo check-ins, tagged by pose and date' : 'Per-exercise PR tracking & overload suggestions'}
+          </p>
+        </div>
+      </header>
+
+      <div className="wpr-mode-toggle">
+        <button className={mode === 'checkins' ? 'wpr-mode-active' : ''} onClick={() => setMode('checkins')}>
+          <Camera size={14} /> Check-Ins
+        </button>
+        <button className={mode === 'pr' ? 'wpr-mode-active' : ''} onClick={() => setMode('pr')}>
+          <TrendingUp size={14} /> PR Tracking
+        </button>
+      </div>
+
+      {mode === 'checkins' ? <CheckInsSection /> : <PrTrackingSection />}
     </div>
   )
 }

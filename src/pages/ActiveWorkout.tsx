@@ -14,7 +14,8 @@ import type { ParsedExercise } from '../lib/aiWorkoutParser'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import LiveCamera from '../components/LiveCamera'
 import WorkoutCelebration from '../components/WorkoutCelebration'
-import { useSpeechToText } from '../hooks/useSpeechToText'
+import VoiceListeningOverlay from '../components/VoiceListeningOverlay'
+import { useVoiceDictation } from '../hooks/useVoiceDictation'
 import { localDateStr } from '../data/config'
 import './ActiveWorkout.css'
 
@@ -141,7 +142,7 @@ export function ExercisePicker({ onPick, onAiExercises, onClose, mode = 'lifting
   const [transcript, setTranscript] = useState('')
   const [busy, setBusy] = useState(false)
   const [aiNote, setAiNote] = useState('')
-  const { listening, toggle: toggleListening, supported: speechSupported } = useSpeechToText(
+  const { listening, phase: micPhase, stream: micStream, toggle: toggleListening, supported: speechSupported } = useVoiceDictation(
     t => setTranscript(d => (d ? `${d} ${t}` : t))
   )
 
@@ -250,6 +251,7 @@ export function ExercisePicker({ onPick, onAiExercises, onClose, mode = 'lifting
       {showCamera && (
         <LiveCamera onCapture={handlePhoto} onClose={() => setShowCamera(false)} />
       )}
+      {listening && <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleListening} />}
     </div>,
     document.body
   )

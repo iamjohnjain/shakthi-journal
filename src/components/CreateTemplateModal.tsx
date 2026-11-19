@@ -1,48 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Plus, Pencil, Trash2,
-  X, AlertTriangle, Sparkles, FileText, Camera, Upload, Mic, Loader2, Check,
+  Plus, X, Sparkles, FileText, Camera, Upload, PenLine, Loader2, Check, Mic,
 } from 'lucide-react'
-import { getTemplates, saveTemplate, deleteTemplate } from '../db/templateStore'
-import type { WorkoutTemplate } from '../db/templateStore'
+import { saveTemplate } from '../db/templateStore'
 import { EXERCISE_LIBRARY } from '../db/workoutStore'
 import { getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise } from '../db/trainingStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
-import { useSpeechToText } from '../hooks/useSpeechToText'
-import { parseWorkoutPlanText, parseWorkoutPlanPhoto, parseWorkoutPlanImages, isAiWorkoutParsingAvailable } from '../lib/aiWorkoutParser'
+import { useVoiceDictation } from '../hooks/useVoiceDictation'
+import { parseWorkoutPlanText, parseWorkoutPlanPhoto, parseWorkoutPlanImages } from '../lib/aiWorkoutParser'
 import type { ParsedPlanDay, WorkoutPlanParseResult } from '../lib/aiWorkoutParser'
 import { compressImageToDataUrl } from '../lib/imageUtils'
-import LiveCamera from '../components/LiveCamera'
-import WorkoutsSubNav from '../components/WorkoutsSubNav'
-import TemplateModal from '../components/TemplateModal'
-import './WorkoutsPage.css'
+import LiveCamera from './LiveCamera'
+import VoiceListeningOverlay from './VoiceListeningOverlay'
+import '../pages/WorkoutsPage.css'
 
 const ALL_EXERCISE_NAMES = EXERCISE_LIBRARY.map(e => e.name)
-
-// ─── Sub-nav ──────────────────────────────────────────────────────────────────
-
-// ─── Confirm dialog ───────────────────────────────────────────────────────────
-
-function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
-  return createPortal(
-    <div className="confirm-overlay" onClick={onCancel}>
-      <div className="confirm-box" onClick={e => e.stopPropagation()}>
-        <AlertTriangle size={20} className="confirm-icon" />
-        <p className="confirm-msg">{message}</p>
-        <div className="confirm-btns">
-          <button className="confirm-cancel" onClick={onCancel}>Cancel</button>
-          <button className="confirm-delete" onClick={onConfirm}>Delete</button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  )
-}
-
-
-// ─── Import Plan Modal (paste text or screenshot → one template per day) ─────
 
 interface DraftExercise { name: string; sets: number; reps: string }
 interface DraftDay { dayName: string; exercises: DraftExercise[] }
@@ -58,7 +32,23 @@ function draftDaysFrom(parsed: ParsedPlanDay[]): DraftDay[] {
   }))
 }
 
-function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+/** The single "✨ Create Workout Template" entry point — replaces what used
+    to be two separate actions (a plain "Create Template" button and a
+    separate "Import Workout Template" button/page). Manual building still
+    uses the existing TemplateModal form (unchanged) — picking that tab here
+    just hands off to it via `onOpenManual` rather than duplicating it — so
+    this component owns only the two AI-assisted paths: paste text, or
+    upload a file/photo. Directly adapted from the former
+    WorkoutTemplatesPage.tsx's ImportPlanModal, now reachable from the
+    Today page instead of a dedicated route, with voice dictation swapped
+    to the Groq-Whisper-backed useVoiceDictation (the old browser
+    SpeechRecognition hook didn't work reliably in this app's real
+    environment — see useVoiceDictation's own doc comment). */
+export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: {
+  onClose: () => void
+  onSaved: () => void
+  onOpenManual: () => void
+}) {
   const [tab, setTab] = useState<'text' | 'file'>('text')
   const [text, setText] = useState('')
   const [status, setStatus] = useState<'input' | 'loading'>('input')
@@ -69,7 +59,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const { listening, toggle: toggleListening, supported: speechSupported } = useSpeechToText(
+  const { listening, phase: micPhase, stream: micStream, toggle: toggleListening, supported: speechSupported } = useVoiceDictation(
     t => setText(d => (d ? `${d} ${t}` : t))
   )
 
@@ -86,7 +76,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       setDays(draftDaysFrom(result.days))
       setNote('')
     } else {
-      setNote(result.note || "Couldn't find a workout plan in that — try again, or build it manually with New Template.")
+      setNote(result.note || "Couldn't find a workout plan in that — try again, or build it manually instead.")
     }
     setStatus('input')
   }
@@ -230,7 +220,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       <div className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="tmpl-modal-header" {...swipe.handlers}>
           <div className="modal-grabber" />
-          <h2>Import Workout Template</h2>
+          <h2><Sparkles size={16} style={{ verticalAlign: -2, marginRight: 6 }} />Create Workout Template</h2>
           <button className="log-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
 
@@ -241,6 +231,9 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
             </button>
             <button className={tab === 'file' ? 'active' : ''} onClick={() => setTab('file')}>
               <Upload size={13} /> Upload File
+            </button>
+            <button onClick={onOpenManual}>
+              <PenLine size={13} /> Manual
             </button>
           </div>
         )}
@@ -264,7 +257,7 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
                     />
                     {speechSupported && (
                       <button type="button" className={`import-mic-btn ${listening ? 'import-mic-btn--active' : ''}`}
-                        onClick={toggleListening} aria-label={listening ? 'Stop dictating' : 'Dictate'} disabled={status === 'loading'}>
+                        onClick={toggleListening} aria-label="Dictate" disabled={status === 'loading'}>
                         <Mic size={14} />
                       </button>
                     )}
@@ -382,171 +375,10 @@ function ImportPlanModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       {showCamera && (
         <LiveCamera onCapture={handlePhoto} onClose={() => setShowCamera(false)} />
       )}
+      {listening && (
+        <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleListening} />
+      )}
     </div>,
     document.body
-  )
-}
-
-// ─── Template Card ────────────────────────────────────────────────────────────
-
-function TemplateCard({ t, onEdit, onDelete }: { t: WorkoutTemplate; onEdit: () => void; onDelete: () => void }) {
-  const [expanded, setExpanded] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const updatedDate = new Date(t.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-
-  return (
-    <>
-      <div className="template-card">
-        <div className="template-card-header">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="template-card-name">{t.name}</div>
-            <div className="template-card-meta">
-              {t.exercises.length} exercise{t.exercises.length !== 1 ? 's' : ''}
-              {t.estimatedDurationMin ? ` · ~${t.estimatedDurationMin} min` : ''}
-              {' · Updated '}{updatedDate}
-            </div>
-          </div>
-          <div className="template-card-actions">
-            <button className="tmpl-action-btn" onClick={() => setExpanded(e => !e)}>
-              {expanded ? 'Hide' : 'View'}
-            </button>
-            <button className="tmpl-action-btn" onClick={onEdit}>
-              <Pencil size={12} /> Edit
-            </button>
-            <button className="tmpl-action-btn tmpl-action-btn--del" onClick={() => setConfirmDelete(true)}>
-              <Trash2 size={12} />
-            </button>
-          </div>
-        </div>
-
-        {expanded && (
-          <div className="template-exercises">
-            {t.exercises.map((ex, i) => (
-              <div key={i} className="tmpl-exercise-row">
-                <span className="tmpl-ex-name">{ex.name}</span>
-                <span className="tmpl-ex-sets">
-                  {ex.sets.length} sets
-                  {ex.sets[0]?.reps ? ` × ${ex.sets[0].reps} reps` : ''}
-                  {ex.sets[0]?.weightLbs ? ` @ ${ex.sets[0].weightLbs} lbs` : ''}
-                </span>
-              </div>
-            ))}
-            {t.notes && <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '8px 0 0', fontStyle: 'italic' }}>{t.notes}</p>}
-          </div>
-        )}
-      </div>
-
-      {confirmDelete && (
-        <ConfirmDialog
-          message={`Delete template "${t.name}"? This cannot be undone.`}
-          onConfirm={() => { setConfirmDelete(false); onDelete() }}
-          onCancel={() => setConfirmDelete(false)} />
-      )}
-    </>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function WorkoutTemplatesPage() {
-  const [templates,    setTemplates]   = useState<WorkoutTemplate[]>([])
-  const [showModal,    setShowModal]   = useState(false)
-  const [showImport,   setShowImport]  = useState(false)
-  const [editTemplate, setEditTemplate] = useState<WorkoutTemplate | null>(null)
-  const [search,       setSearch]      = useState('')
-
-  const load = useCallback(async () => {
-    const all = await getTemplates()
-    setTemplates(all)
-  }, [])
-
-  useEffect(() => { load() }, [load])
-
-  async function handleDelete(id: string) {
-    await deleteTemplate(id)
-    load()
-  }
-
-  function handleEdit(t: WorkoutTemplate) {
-    setEditTemplate(t)
-    setShowModal(true)
-  }
-
-  const filtered = search.trim()
-    ? templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
-    : templates
-
-  return (
-    <div className="templates-page">
-      <WorkoutsSubNav />
-
-      <header className="page-header" style={{ marginTop: 8 }}>
-        <div>
-          <h1 className="page-title">Templates</h1>
-          <p className="page-subtitle">{templates.length} saved template{templates.length !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="tmpl-header-actions">
-          {isAiWorkoutParsingAvailable && (
-            <button className="tmpl-import-btn" onClick={() => setShowImport(true)}>
-              <Sparkles size={16} /> Import Workout Template
-            </button>
-          )}
-          <button className="log-workout-btn" onClick={() => { setEditTemplate(null); setShowModal(true) }}>
-            <Plus size={16} /> Create Template
-          </button>
-        </div>
-      </header>
-
-      {templates.length > 4 && (
-        <input
-          className="log-title-input"
-          style={{ marginBottom: 16 }}
-          placeholder="Search templates…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      )}
-
-      {filtered.length > 0 ? (
-        filtered.map(t => (
-          <TemplateCard key={t.id} t={t}
-            onEdit={() => handleEdit(t)}
-            onDelete={() => handleDelete(t.id)} />
-        ))
-      ) : templates.length === 0 ? (
-        <div className="tmpl-empty">
-          <div className="tmpl-empty-icon">📋</div>
-          <p>No templates yet.</p>
-          <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-            Create a template to quickly load your favorite workouts, or save a logged workout as a template from the Log tab.
-          </p>
-          <button className="tmpl-create-btn" onClick={() => { setEditTemplate(null); setShowModal(true) }}>
-            Create Workout Template
-          </button>
-          {isAiWorkoutParsingAvailable && (
-            <button className="tmpl-import-btn" style={{ marginTop: 10 }} onClick={() => setShowImport(true)}>
-              <Sparkles size={15} /> Import Workout Template
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="tmpl-empty">
-          <p style={{ color: 'var(--text-tertiary)' }}>No templates match "{search}"</p>
-        </div>
-      )}
-
-      {(showModal || editTemplate) && (
-        <TemplateModal
-          existing={editTemplate ?? undefined}
-          onClose={() => { setShowModal(false); setEditTemplate(null) }}
-          onSaved={load} />
-      )}
-
-      {showImport && (
-        <ImportPlanModal
-          onClose={() => setShowImport(false)}
-          onSaved={load} />
-      )}
-    </div>
   )
 }

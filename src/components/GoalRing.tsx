@@ -213,7 +213,21 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
       if (ng?.proteinG) setNutritionGoals({ proteinG: ng.proteinG })
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
+    // Covers a returning user who's completed an Apple Health XML import
+    // before — the only existing writer of sync_history.
     getSyncHistory(1).then(h => setLastSyncedAt(h[0]?.completedAt ?? null))
+  }, [])
+
+  // The native iOS layer syncs HealthKit data directly into IndexedDB and
+  // fires this event when done (same signal useDashboardData.ts listens for
+  // to refresh the rest of the ring) — without this, a native "Sync now"
+  // never updates this chip, since it never navigates away/remounts and
+  // never touches sync_history at all. Set the timestamp to "now" on the
+  // real completion signal instead of relying on a store nothing writes to.
+  useEffect(() => {
+    function onNativeSync() { setLastSyncedAt(new Date().toISOString()) }
+    window.addEventListener('native-health-sync-complete', onNativeSync)
+    return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
   }, [])
   useEffect(() => {
     setAnimated(false)

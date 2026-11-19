@@ -21,10 +21,11 @@ import type { ChartPoint } from '../db/timelineStore'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
-import { useSpeechToText } from '../hooks/useSpeechToText'
+import { useVoiceDictation } from '../hooks/useVoiceDictation'
 import TrendChart from '../components/TrendChart'
 import WheelPicker from '../components/WheelPicker'
 import LiveCamera from '../components/LiveCamera'
+import VoiceListeningOverlay from '../components/VoiceListeningOverlay'
 import { localDateStr, addLocalDays } from '../data/config'
 // logStore removed — water logging retired
 import './NutritionPage.css'
@@ -249,7 +250,7 @@ function MealReviewCard({ item, onUpdate, onRemove, onRefine }: {
   const [refining, setRefining] = useState(false)
   const [detail, setDetail] = useState('')
   const [busy, setBusy] = useState(false)
-  const { listening, toggle: toggleListening, supported: speechCtor } = useSpeechToText(
+  const { listening, phase: micPhase, stream: micStream, toggle: toggleListening, supported: speechCtor } = useVoiceDictation(
     t => setDetail(d => (d ? `${d} ${t}` : t))
   )
 
@@ -340,6 +341,7 @@ function MealReviewCard({ item, onUpdate, onRemove, onRefine }: {
           </button>
         </div>
       )}
+      {listening && <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleListening} />}
     </div>
   )
 }
@@ -376,7 +378,7 @@ function ClarificationBlock({ clarification, onAnswer, busy }: {
   busy: boolean
 }) {
   const [custom, setCustom] = useState('')
-  const { listening, toggle: toggleListening, supported: speechCtor } = useSpeechToText(
+  const { listening, phase: micPhase, stream: micStream, toggle: toggleListening, supported: speechCtor } = useVoiceDictation(
     t => setCustom(c => (c ? `${c} ${t}` : t))
   )
 
@@ -409,6 +411,7 @@ function ClarificationBlock({ clarification, onAnswer, busy }: {
           <Check size={14} />
         </button>
       </div>
+      {listening && <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleListening} />}
     </div>
   )
 }
@@ -436,7 +439,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
   const [clarification, setClarification] = useState<Clarification | null>(null)
   const [note, setNote] = useState('')
   const [answering, setAnswering] = useState(false)
-  const { listening, toggle: toggleListening, supported: speechCtor } = useSpeechToText(
+  const { listening, phase: micPhase, stream: micStream, toggle: toggleListening, supported: speechCtor } = useVoiceDictation(
     t => setDescription(d => (d ? `${d} ${t}` : t))
   )
 
@@ -514,6 +517,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
             ? <><Loader2 size={15} className="ai-spin" /> Estimating…</>
             : <><Sparkles size={15} /> Estimate Nutrition</>}
         </button>
+        {listening && <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleListening} />}
       </div>
     )
   }

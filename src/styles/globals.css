@@ -64,6 +64,17 @@
      → cool focus), for primary CTAs and hero accents. Used sparingly. */
   --gradient-brand: linear-gradient(135deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
+  /* Same blend, horizontal instead of diagonal — for the gradient-ring
+     border technique (background-clip: padding-box, border-box) on wide
+     pill buttons. A 135deg diagonal is fine on a roughly square element
+     (an icon badge, an avatar ring), but on a wide-and-short one it reads
+     the color at very different points of the gradient along the top edge
+     vs. the bottom edge (e.g. orange top-left, magenta-ish bottom-left on
+     the same corner) — a visibly inconsistent ring, not a deliberate
+     diagonal look. A horizontal gradient keeps the color aligned with x
+     position only, so the top and bottom edges always match. */
+  --gradient-brand-wide: linear-gradient(90deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
+
   /* Layout */
   --sidebar-width: 240px;
   --bottom-nav-height: 72px;
