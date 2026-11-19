@@ -39,6 +39,19 @@ function extractProposedWorkout(toolCalls: CoachChatMessage['toolCalls']): Coach
   }
 }
 
+/** Same pattern as extractProposedWorkout, for `reference_workout`. */
+function extractWorkoutReference(toolCalls: CoachChatMessage['toolCalls']): CoachChatMessage['workoutReference'] {
+  const call = toolCalls?.find(c => c.name === 'reference_workout')
+  if (!call) return undefined
+  try {
+    const args = JSON.parse(call.arguments || '{}')
+    if (typeof args.date !== 'string' || !args.date) return undefined
+    return { date: args.date, label: typeof args.label === 'string' ? args.label : undefined }
+  } catch {
+    return undefined
+  }
+}
+
 export function useCoachChat() {
   const [messages, setMessages] = useState<CoachChatMessage[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -71,6 +84,14 @@ export function useCoachChat() {
     try {
       await appendAndPersist(userMessage(trimmed, imageDataUrl))
 
+      // reference_workout is meant to accompany the model's actual text
+      // answer ("alongside your reply, not instead of it" per its own tool
+      // description) — but tool-calling rounds and the final text reply are
+      // always separate messages, so a reference called mid-loop has to be
+      // carried forward and attached to whichever message ends up being
+      // the final text reply, not left stranded on a content:null message.
+      let pendingWorkoutReference: CoachChatMessage['workoutReference']
+
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const reply = await sendToCoach(historyRef.current)
 
@@ -80,9 +101,12 @@ export function useCoachChat() {
             createdAt: new Date().toISOString(),
             role: 'assistant',
             content: reply.content ?? "I didn't catch that — can you try again?",
+            workoutReference: pendingWorkoutReference,
           })
           return
         }
+
+        pendingWorkoutReference = extractWorkoutReference(reply.toolCalls) ?? pendingWorkoutReference
 
         await appendAndPersist({
           id: genId(),
@@ -122,6 +146,7 @@ export function useCoachChat() {
         createdAt: new Date().toISOString(),
         role: 'assistant',
         content: "Done with what I could — let me know if you need anything else.",
+        workoutReference: pendingWorkoutReference,
       })
     } finally {
       setSending(false)

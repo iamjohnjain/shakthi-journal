@@ -27,6 +27,7 @@
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 .wpr-mode-toggle .wpr-mode-active {
   background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand-wide);
@@ -121,3 +122,60 @@
   color: var(--text-secondary); font-size: 14px; line-height: 1.5;
 }
 .wpr-prompt-icon { color: var(--text-tertiary); }
+
+.wpr-back-to-all {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 12px;
+  cursor: pointer;
+}
+.wpr-back-to-all:hover { color: var(--orange); }
+
+.wpr-all-list-header {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+
+.wpr-all-list-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 14px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.wpr-all-list-row:hover { border-color: var(--orange); }
+
+.wpr-all-list-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wpr-all-list-e1rm {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFD700;
+}

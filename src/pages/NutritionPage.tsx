@@ -92,19 +92,21 @@ function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }:
           return (
             <button
               key={d}
-              className={`week-streak-day ${isViewed && !isToday ? 'week-streak-day--viewed' : ''}`}
+              className="week-streak-day"
               data-no-press-glow
               onClick={() => onSelectDate(d)}
               aria-label={d}
             >
               <span className="week-streak-letter">{DAY_LETTERS[i]}</span>
-              <span className={[
-                'week-streak-dot',
-                isLogged ? 'week-streak-dot--logged' : '',
-                isToday ? 'week-streak-dot--today' : '',
-                isFuture ? 'week-streak-dot--future' : '',
-              ].filter(Boolean).join(' ')}>
-                {isLogged && <Check size={13} strokeWidth={3} />}
+              <span className={`week-streak-dot-wrap ${isViewed && !isToday ? 'week-streak-dot-wrap--viewed' : ''}`}>
+                <span className={[
+                  'week-streak-dot',
+                  isLogged ? 'week-streak-dot--logged' : '',
+                  isToday ? 'week-streak-dot--today' : '',
+                  isFuture ? 'week-streak-dot--future' : '',
+                ].filter(Boolean).join(' ')}>
+                  {isLogged && <Check size={13} strokeWidth={3} />}
+                </span>
               </span>
             </button>
           )

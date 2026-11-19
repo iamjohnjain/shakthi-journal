@@ -1,0 +1,85 @@
+.ptr-root {
+  width: 100%;
+}
+
+.ptr-indicator {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-bottom: 8px;
+  transition: opacity 0.15s ease;
+}
+
+.ptr-ring-wrap {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ptr-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.ptr-ring-track {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 2.5;
+}
+.ptr-ring-fill {
+  fill: none;
+  stroke: url(#ptr-gradient);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.05s linear;
+}
+.ptr-ring--spinning {
+  animation: ptr-spin 0.9s linear infinite;
+}
+.ptr-ring--spinning .ptr-ring-fill {
+  transition: none;
+}
+
+@keyframes ptr-spin {
+  to { transform: rotate(270deg); }
+}
+
+.ptr-icon {
+  position: relative;
+  color: var(--orange);
+}
+.ptr-icon--spinning {
+  animation: ptr-icon-spin 0.9s linear infinite;
+}
+
+@keyframes ptr-icon-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ptr-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--gradient-brand-wide);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ptr-last-synced {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-ring--spinning,
+  .ptr-icon--spinning {
+    animation: none;
+  }
+}

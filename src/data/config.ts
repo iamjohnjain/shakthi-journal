@@ -26,6 +26,22 @@ export function formatDate(d = new Date()): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
+/** "November 19, 2026" from a YYYY-MM-DD string — the one unambiguous date
+    format (vs. "11/19" or similar), used anywhere a specific day needs to
+    be shown back to the user without room for misreading. Parses with a
+    noon anchor like the rest of the app's date-string handling, so this
+    never shifts a day near a timezone boundary. */
+export function formatFullDate(dateStr: string): string {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+/** "Nov 19, 2:45 PM" from an ISO timestamp — for "last synced"-style
+    displays that need both the date and the time, compactly. */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+}
+
 /** Local calendar-day string (YYYY-MM-DD). Never use `Date.toISOString()` for
     "today" — it's UTC, so in any timezone behind UTC (most of the Americas)
     it silently reports tomorrow's date during the evening, every single day

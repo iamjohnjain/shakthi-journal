@@ -5,10 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
 import { getProfile, saveProfile } from '../db/profileStore'
-import { getSetting, getSyncHistory } from '../db'
+import { getSetting } from '../db'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
 import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
+import { useLastSynced } from '../hooks/useLastSynced'
 import QuickWeightModal from './QuickWeightModal'
 import './GoalRing.css'
 
@@ -191,7 +192,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
   const [showWeightLog,  setShowWeightLog]  = useState(false)
-  const [lastSyncedAt,   setLastSyncedAt]   = useState<string | null>(null)
+  const lastSyncedAt = useLastSynced()
   const [editingGoal,    setEditingGoal]    = useState(false)
   const [editStart,      setEditStart]      = useState('')
   const [editGoal,       setEditGoal]       = useState('')
@@ -213,21 +214,6 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
       if (ng?.proteinG) setNutritionGoals({ proteinG: ng.proteinG })
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
-    // Covers a returning user who's completed an Apple Health XML import
-    // before — the only existing writer of sync_history.
-    getSyncHistory(1).then(h => setLastSyncedAt(h[0]?.completedAt ?? null))
-  }, [])
-
-  // The native iOS layer syncs HealthKit data directly into IndexedDB and
-  // fires this event when done (same signal useDashboardData.ts listens for
-  // to refresh the rest of the ring) — without this, a native "Sync now"
-  // never updates this chip, since it never navigates away/remounts and
-  // never touches sync_history at all. Set the timestamp to "now" on the
-  // real completion signal instead of relying on a store nothing writes to.
-  useEffect(() => {
-    function onNativeSync() { setLastSyncedAt(new Date().toISOString()) }
-    window.addEventListener('native-health-sync-complete', onNativeSync)
-    return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
   }, [])
   useEffect(() => {
     setAnimated(false)

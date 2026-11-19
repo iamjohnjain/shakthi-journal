@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Search, TrendingUp, Award, Camera } from 'lucide-react'
-import { getExerciseHistory } from '../db/trainingStore'
-import { getExerciseLibrary } from '../db/trainingStore'
+import { getExerciseHistory, getExerciseLibrary } from '../db/trainingStore'
 import type { ExerciseHistory } from '../db/trainingStore'
+import { getAllTimePRs } from '../db/workoutStore'
 import SubNav from '../components/WorkoutsSubNav'
 import CheckInsSection from './ProgressCheckIns'
 import './WorkoutProgressPage.css'
@@ -76,10 +76,22 @@ function PrTrackingSection() {
   const [loading,   setLoading]   = useState(false)
   const [allNames,  setAllNames]  = useState<string[]>([])
   const [searched,  setSearched]  = useState(false)
+  // Default view: every lifted exercise's best e1RM (a real recorded value
+  // when the set itself was flagged a PR, Epley-estimated otherwise —
+  // getAllTimePRs() already prefers the former), heaviest first — "the
+  // number one priority is seeing my 1-rep max whenever I see this tab",
+  // not an empty search prompt.
+  const [allPRs, setAllPRs] = useState<{ name: string; e1rm: number }[] | null>(null)
+
+  const loadAllPRs = useCallback(async () => {
+    const prs = await getAllTimePRs()
+    setAllPRs(Array.from(prs.entries()).map(([name, e1rm]) => ({ name, e1rm })).sort((a, b) => b.e1rm - a.e1rm))
+  }, [])
 
   useEffect(() => {
     getExerciseLibrary().then(lib => setAllNames(lib.map(e => e.name)))
-  }, [])
+    void loadAllPRs()
+  }, [loadAllPRs])
 
   async function search(name?: string) {
     const target = (name ?? query).trim()
@@ -94,6 +106,12 @@ function PrTrackingSection() {
   function handleSelect(name: string) {
     setQuery(name)
     search(name)
+  }
+
+  function backToAll() {
+    setSearched(false)
+    setQuery('')
+    setHistory(null)
   }
 
   return (
@@ -128,14 +146,34 @@ function PrTrackingSection() {
             <p className="wpr-empty-hint">Log this exercise in the Workouts tab to start tracking progress.</p>
           </div>
         ) : (
-          <HistoryCard history={history} />
+          <>
+            <button className="wpr-back-to-all" onClick={backToAll}>← All workouts</button>
+            <HistoryCard history={history} />
+          </>
         )
       )}
 
       {!searched && !loading && (
-        <div className="wpr-prompt">
-          <TrendingUp size={32} className="wpr-prompt-icon" />
-          <p>Search any exercise to see your PR history, volume trend, and progressive overload suggestions.</p>
+        <div className="wpr-all-list">
+          <div className="wpr-all-list-header">All Workouts</div>
+          {allPRs === null ? (
+            <div className="wpr-loading">Loading…</div>
+          ) : allPRs.length === 0 ? (
+            <div className="wpr-prompt">
+              <TrendingUp size={32} className="wpr-prompt-icon" />
+              <p>Log a workout to start tracking your 1-rep max estimates here.</p>
+            </div>
+          ) : (
+            allPRs.map(({ name, e1rm }) => (
+              <button key={name} className="wpr-all-list-row" onClick={() => handleSelect(name)}>
+                <span className="wpr-all-list-name">{name}</span>
+                <span className="wpr-all-list-e1rm">
+                  <Award size={13} className="wpr-pr-icon" />
+                  {e1rm > 0 ? `${e1rm} lb e1RM` : '—'}
+                </span>
+              </button>
+            ))
+          )}
         </div>
       )}
     </>
@@ -156,7 +194,7 @@ export default function WorkoutProgressPage() {
         <div>
           <h1 className="page-title">Progress</h1>
           <p className="page-subtitle">
-            {mode === 'checkins' ? 'Photo check-ins, tagged by pose and date' : 'Per-exercise PR tracking & overload suggestions'}
+            {mode === 'checkins' ? 'Photo check-ins, tagged by pose and date' : 'Your 1-rep max estimates & overload suggestions'}
           </p>
         </div>
       </header>
@@ -166,7 +204,7 @@ export default function WorkoutProgressPage() {
           <Camera size={14} /> Check-Ins
         </button>
         <button className={mode === 'pr' ? 'wpr-mode-active' : ''} onClick={() => setMode('pr')}>
-          <TrendingUp size={14} /> PR Tracking
+          <TrendingUp size={14} /> Progress
         </button>
       </div>
 

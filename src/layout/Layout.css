@@ -39,6 +39,30 @@
   flex-direction: column;
 }
 
+/* This targets the route's own root element — one level deeper than the
+   rule above, which only makes `.page-transition` itself a flex column; a
+   route's actual root (e.g. `.workout-progress-page`) is a flex *item*
+   inside that column. Any such root using the common `max-width: Npx;
+   margin: 0 auto;` centering pattern silently broke once its parent became
+   a flex container: per the flexbox spec, a flex item with auto cross-axis
+   margins (exactly what `margin: 0 auto` sets) is exempted from
+   align-items: stretch, falling back to shrink-to-fit sizing from its
+   *content's* natural width instead of filling the available width.
+   Invisible on most pages (their content happens to be wide enough to hit
+   the same result either way) but very visible on anything whose content
+   width varies by state — WorkoutProgressPage visibly changing width
+   between its Check-Ins/PR-Tracking modes was exactly this, caught via
+   getBoundingClientRect() diffing the two states. Giving every route root
+   an explicit width: 100% up front removes the leftover cross-axis space
+   margin: auto would otherwise have had to eat into — max-width still
+   overrides it exactly as before on wide viewports (that's how max-width
+   always works against width), so desktop centering is unaffected; this
+   only changes the narrow-viewport case where max-width was never binding
+   anyway. */
+.page-content > * > * {
+  width: 100%;
+}
+
 @keyframes page-enter {
   from {
     opacity: 0;

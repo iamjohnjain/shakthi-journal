@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, RefreshCw, PersonStanding } from 'lucide-react'
+import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, PersonStanding } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -21,6 +21,7 @@ import QuickWeightModal from '../components/QuickWeightModal'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { AvatarDisplay } from '../components/Avatar'
 import { SkeletonSection } from '../components/Skeleton'
+import PullToRefresh from '../components/PullToRefresh'
 import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
 import './Dashboard.css'
 
@@ -145,16 +146,6 @@ function QuickActions() {
   const navigate = useNavigate()
   const [showWeightModal, setShowWeightModal] = useState(false)
 
-  function syncData() {
-    if (isInsideNativeApp()) {
-      openNativeHealthSync()
-    } else {
-      // No HealthKit outside the native wrapper — the closest equivalent
-      // action on web is the Apple Health file import flow.
-      navigate('/import/apple-health')
-    }
-  }
-
   return (
     <div className="quick-actions" role="group" aria-label="Quick actions">
       <button className="quick-action-btn" onClick={() => setShowWeightModal(true)} aria-label="Log Weight">
@@ -168,12 +159,6 @@ function QuickActions() {
           <Camera size={17} />
         </span>
         <span className="quick-action-label" aria-hidden="true">Snap Meal</span>
-      </button>
-      <button className="quick-action-btn" onClick={syncData} aria-label="Sync Data">
-        <span className="quick-action-icon" aria-hidden="true">
-          <RefreshCw size={17} />
-        </span>
-        <span className="quick-action-label" aria-hidden="true">Sync Data</span>
       </button>
       <button className="quick-action-btn" onClick={() => navigate('/workouts/progress')} aria-label="Check-In">
         <span className="quick-action-icon" aria-hidden="true">
@@ -460,6 +445,7 @@ export default function Dashboard() {
   const canGoForward = viewDate < todayDateStr()
 
   return (
+    <PullToRefresh>
     <div className="dashboard">
 
       {/* ── Greeting + date nav — grouped so they share tight spacing
@@ -563,5 +549,6 @@ export default function Dashboard() {
       )}
 
     </div>
+    </PullToRefresh>
   )
 }

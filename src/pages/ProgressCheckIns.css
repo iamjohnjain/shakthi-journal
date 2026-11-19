@@ -164,20 +164,34 @@
 .pci-date-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.pci-date-row input[type="date"] {
+.pci-date-btn {
+  flex: 1;
+  min-width: 0;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   color: var(--text-primary);
   font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
-.pci-date-row span { color: var(--text-tertiary); font-size: 12px; }
+.pci-date-btn:hover { border-color: var(--orange); }
+.pci-date-vs {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
 .pci-clear-dates {
+  display: block;
+  margin: 0 auto 18px;
   background: none;
   border: none;
   color: var(--text-tertiary);

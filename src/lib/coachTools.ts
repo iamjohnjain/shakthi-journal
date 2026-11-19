@@ -214,6 +214,21 @@ export const COACH_TOOLS: GroqToolDef[] = [
   {
     type: 'function',
     function: {
+      name: 'reference_workout',
+      description: "Attach a clickable link to a specific day's logged workout under your reply, when you're telling the user what they did on a particular date (e.g. answering \"what did I do Monday\" or mentioning a past session). Call this alongside your text reply, not instead of it — your reply should still briefly say what it was in words; this just adds a tap-through to the real logged entry. Don't call it for every single date you mention in passing, only when seeing the actual log would be useful.",
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'YYYY-MM-DD of the workout being referenced.' },
+          label: { type: 'string', description: 'Short label for the link, e.g. "Push Day" or the workout title. Optional.' },
+        },
+        required: ['date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_health_context',
       description: "Look up everything known about the user: profile and goals, weight trend, recent nutrition (today and the last week), recent workouts, and logging streaks. Call this whenever a question depends on their actual history, trends, or current goals rather than general knowledge — e.g. before suggesting a calorie change, commenting on progress, or recalling what they've logged. Missing data just comes back as null/empty — that's normal, especially for new accounts, and isn't an error.",
       parameters: { type: 'object', properties: {} },
@@ -259,6 +274,13 @@ async function execLogWorkout(args: ToolArgs) {
 // Save/Log, so there's no hallucinated-write risk even if the model
 // proposes something the user never acts on.
 async function execProposeWorkout() {
+  return { ok: true }
+}
+
+// Same no-op-by-design pattern as propose_workout — purely a structured
+// hand-off to the client UI (useCoachChat stashes the parsed args as
+// `workoutReference` for CoachChat to render as a tap-through link).
+async function execReferenceWorkout() {
   return { ok: true }
 }
 
@@ -315,6 +337,16 @@ async function execUpdateGoals(args: ToolArgs) {
   return { ok: true }
 }
 
+/** "Monday, November 16, 2026" from a YYYY-MM-DD string — computing the
+    weekday is left entirely to the JS Date object (always correct) rather
+    than the model, which was observed getting it wrong (e.g. calling
+    11/16/2026 a Wednesday when it's actually a Monday) when only handed a
+    bare date and asked to work out the day itself. Every date surfaced to
+    the model goes through this so it never has to compute one. */
+function formatDateWithWeekday(dateStr: string): string {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+}
+
 /** One consolidated snapshot instead of several narrow lookups — fewer tool
     round-trips, and the model sees the whole picture (or the whole absence
     of one) at once rather than piecing it together call by call. Every
@@ -353,6 +385,10 @@ async function execGetHealthContext() {
   const goals = await getSetting<NutritionGoals>('nutrition-goals', DEFAULT_GOALS)
 
   return {
+    // Anchor for "today"/"yesterday"/"this week" reasoning — always use
+    // this (or the per-item dateFormatted fields below) instead of
+    // computing a weekday from a bare date yourself.
+    today: { date: today, dateFormatted: formatDateWithWeekday(today) },
     profile: profile ? {
       name: profile.name || null,
       heightCm: profile.heightCm ?? null,
@@ -380,6 +416,7 @@ async function execGetHealthContext() {
       currentStreak: workoutStreak,
       recent: recentWorkouts.map(w => ({
         date: w.date,
+        dateFormatted: formatDateWithWeekday(w.date),
         title: w.title,
         type: w.type,
         durationMin: w.durationMin,
@@ -406,6 +443,7 @@ export const TOOL_EXECUTORS: Record<
 > = {
   log_workout: execLogWorkout,
   propose_workout: execProposeWorkout,
+  reference_workout: execReferenceWorkout,
   log_meal: execLogMeal,
   create_template: execCreateTemplate,
   update_nutrition_goals: execUpdateNutritionGoals,

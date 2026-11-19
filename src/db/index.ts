@@ -318,6 +318,7 @@ export interface CoachChatMessage {
   imageDataUrl?: string                // present on a user message that attached a photo
   proposedWorkout?: CoachProposedWorkout // present on an assistant message that called propose_workout
   proposedWorkoutActedAs?: 'template' | 'logged' // set once the user taps Save/Log, so the buttons don't double-fire
+  workoutReference?: { date: string; label?: string } // present on an assistant message that called reference_workout
 }
 
 // ─── Sync queue ───────────────────────────────────────────────────────────────

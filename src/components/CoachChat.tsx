@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, FileText, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, FileText, X, ExternalLink } from 'lucide-react'
 import { useCoachChat } from '../hooks/useCoachChat'
+import { formatFullDate } from '../data/config'
 import { useVoiceDictation } from '../hooks/useVoiceDictation'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import type { CoachChatMessage } from '../db'
@@ -32,6 +34,7 @@ function toolResultLabel(message: CoachChatMessage): string | null {
   const name = message.toolName ?? ''
   if (name === 'get_health_context') return null  // silent — a lookup isn't news
   if (name === 'propose_workout') return null      // silent — the action buttons under the message are the real UI
+  if (name === 'reference_workout') return null    // silent — the link chip under the message is the real UI
 
   let parsed: { ok?: boolean; reason?: string } = {}
   try { parsed = message.content ? JSON.parse(message.content) : {} } catch { /* leave empty */ }
@@ -120,6 +123,7 @@ function MessageBody({ text }: { text: string }) {
 }
 
 export default function CoachChat() {
+  const navigate = useNavigate()
   const { messages, loaded, sending, sendMessage, actOnProposedWorkout } = useCoachChat()
   const [input, setInput] = useState('')
   const [pendingImage, setPendingImage] = useState<string | null>(null)
@@ -264,6 +268,15 @@ export default function CoachChat() {
                     </div>
                   )}
                 </div>
+              )}
+              {m.workoutReference && (
+                <button
+                  className="coach-workout-link"
+                  onClick={() => navigate(`/workouts?date=${m.workoutReference!.date}`)}
+                >
+                  <ExternalLink size={12} />
+                  {m.workoutReference.label || 'View workout'} — {formatFullDate(m.workoutReference.date)}
+                </button>
               )}
             </div>
           )

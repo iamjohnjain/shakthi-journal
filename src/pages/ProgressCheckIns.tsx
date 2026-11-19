@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom'
 import { Camera, Video, Upload, X, Check } from 'lucide-react'
 import LiveCamera from '../components/LiveCamera'
 import PhotoLightbox from '../components/PhotoLightbox'
+import DatePickerCalendar from '../components/DatePickerCalendar'
 import { compressImageUnderBytes } from '../lib/imageUtils'
 import { savePhoto, getPhotos, getPoseLabels } from '../db/progressPhotoStore'
 import type { ProgressPhoto, ProgressPhotoPose } from '../db'
 import { getLatestSnapshots } from '../db/healthStore'
-import { localDateStr, kgToLbs } from '../data/config'
+import { localDateStr, kgToLbs, formatFullDate } from '../data/config'
 import './ProgressCheckIns.css'
 
 interface LightboxState {
@@ -397,6 +398,7 @@ export default function CheckInsSection() {
   const [compareCustomLabels, setCompareCustomLabels] = useState<string[]>([])
   const [lightbox, setLightbox] = useState<LightboxState | null>(null)
   const [progression, setProgression] = useState<{ daysBetween: number; weightDeltaLbs: number | null } | null>(null)
+  const [pickingDate, setPickingDate] = useState<'A' | 'B' | null>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
   const loadCustomLabels = useCallback(async () => {
@@ -583,13 +585,17 @@ export default function CheckInsSection() {
           </button>
 
           <div className="pci-date-row">
-            <input type="date" value={dateA} onChange={e => setDateA(e.target.value)} />
-            <span>vs</span>
-            <input type="date" value={dateB} onChange={e => setDateB(e.target.value)} />
-            {(dateA || dateB) && (
-              <button className="pci-clear-dates" onClick={() => { setDateA(''); setDateB('') }}>Clear</button>
-            )}
+            <button className="pci-date-btn" onClick={() => setPickingDate('A')}>
+              {dateA ? formatFullDate(dateA) : 'Pick a date'}
+            </button>
+            <span className="pci-date-vs">vs</span>
+            <button className="pci-date-btn" onClick={() => setPickingDate('B')}>
+              {dateB ? formatFullDate(dateB) : 'Pick a date'}
+            </button>
           </div>
+          {(dateA || dateB) && (
+            <button className="pci-clear-dates" onClick={() => { setDateA(''); setDateB('') }}>Clear dates</button>
+          )}
 
           {showingCompare ? (
             <>
@@ -651,6 +657,15 @@ export default function CheckInsSection() {
           caption={lightbox.caption}
           meta={lightbox.meta}
           onClose={() => setLightbox(null)}
+        />
+      )}
+      {pickingDate && (
+        <DatePickerCalendar
+          value={(pickingDate === 'A' ? dateA : dateB) || localDateStr()}
+          markedDates={new Set(comparePhotos.map(p => p.date))}
+          maxDate={localDateStr()}
+          onChange={date => { if (pickingDate === 'A') setDateA(date); else setDateB(date); setPickingDate(null) }}
+          onClose={() => setPickingDate(null)}
         />
       )}
     </div>
