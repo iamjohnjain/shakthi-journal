@@ -148,6 +148,16 @@ export default function CoachChat({ messages, loaded, sending, sendMessage, actO
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
   const [actingOn, setActingOn] = useState<string | null>(null)
+  // How many of the most-recent messages are actually mounted in the DOM —
+  // `messages` itself is the full persisted history (can run to hundreds of
+  // entries over weeks of use), and rendering all of it on every open/
+  // re-render is what actually slows the chat down as it grows, not the
+  // size of any one message. The model's own context window is trimmed
+  // separately and much tighter (coachChatApi.ts's MAX_SENT_MESSAGES) — this
+  // is purely about keeping the DOM small; tapping "Show earlier messages"
+  // reveals more of what's already saved, nothing is ever lost.
+  const RENDER_BATCH = 40
+  const [renderCount, setRenderCount] = useState(RENDER_BATCH)
   const threadRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -227,6 +237,8 @@ export default function CoachChat({ messages, loaded, sending, sendMessage, actO
     if (m.role === 'tool' && toolResultLabel(m) == null) return false
     return true
   })
+  const hiddenCount = Math.max(0, visible.length - renderCount)
+  const rendered = hiddenCount > 0 ? visible.slice(-renderCount) : visible
 
   return (
     <div className="coach-chat">
@@ -244,7 +256,12 @@ export default function CoachChat({ messages, loaded, sending, sendMessage, actO
             </div>
           </div>
         )}
-        {visible.map(m => (
+        {hiddenCount > 0 && (
+          <button className="coach-chat-show-earlier" onClick={() => setRenderCount(c => c + RENDER_BATCH)}>
+            Show Earlier Messages ({hiddenCount})
+          </button>
+        )}
+        {rendered.map(m => (
           m.role === 'tool' ? (
             <div key={m.id} className="coach-msg coach-msg--tool">
               <Check size={12} /> {toolResultLabel(m)}

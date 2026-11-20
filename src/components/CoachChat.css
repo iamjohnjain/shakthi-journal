@@ -81,6 +81,23 @@
   border-color: var(--accent);
 }
 
+.coach-chat-show-earlier {
+  display: block;
+  margin: 4px auto 10px;
+  padding: 7px 14px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.coach-chat-show-earlier:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
 .coach-msg-image {
   display: block;
   width: 100%;
