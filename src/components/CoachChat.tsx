@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, FileText, X, ExternalLink } from 'lucide-react'
-import { formatFullDate } from '../data/config'
+import { formatFullDate, localDateStr } from '../data/config'
 import { useVoiceDictation } from '../hooks/useVoiceDictation'
 import { compressImageToDataUrl } from '../lib/imageUtils'
 import type { CoachChatMessage } from '../db'
@@ -19,8 +19,8 @@ const UPLOAD_ACCEPT = 'image/*,.pdf,application/pdf,.docx,application/vnd.openxm
 const MAX_UPLOAD_BYTES = 15_000_000
 
 const STARTER_PROMPTS = [
-  'Suggest a Workout for Today',
-  'Help Me Set a Goal',
+  'Suggest A Workout For Today',
+  'Help Me Set A Goal',
   'What Should I Eat Today?',
   "How's My Progress?",
 ]
@@ -240,6 +240,15 @@ export default function CoachChat({ messages, loaded, sending, sendMessage, actO
   const hiddenCount = Math.max(0, visible.length - renderCount)
   const rendered = hiddenCount > 0 ? visible.slice(-renderCount) : visible
 
+  // The starter suggestions used to only ever show on a totally empty
+  // history — once a user had chatted even once, they vanished for good.
+  // Re-surface them below the thread (not replacing it) on any day where
+  // the running conversation hasn't had a message yet, so there's always
+  // a quick way back in rather than just an empty input box.
+  const today = localDateStr()
+  const lastMessageDay = messages.length > 0 ? messages[messages.length - 1].createdAt.slice(0, 10) : null
+  const showStartersAfterThread = loaded && visible.length > 0 && lastMessageDay !== today
+
   return (
     <div className="coach-chat">
       <div className="coach-chat-thread" ref={threadRef}>
@@ -319,6 +328,15 @@ export default function CoachChat({ messages, loaded, sending, sendMessage, actO
             <span className="coach-typing-dot" />
             <span className="coach-typing-dot" />
             <span className="coach-typing-dot" />
+          </div>
+        )}
+        {showStartersAfterThread && (
+          <div className="coach-chat-starters coach-chat-starters--inline">
+            {STARTER_PROMPTS.map(prompt => (
+              <button key={prompt} className="coach-chat-starter" onClick={() => void sendMessage(prompt)}>
+                {prompt}
+              </button>
+            ))}
           </div>
         )}
       </div>

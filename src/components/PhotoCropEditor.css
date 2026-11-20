@@ -1,0 +1,113 @@
+.pce-overlay {
+  position: fixed; inset: 0; z-index: 2300;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.pce-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.pce-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pce-close {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.pce-frame {
+  position: relative;
+  width: 300px;
+  height: 400px;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  touch-action: none;
+  /* Rainbow ring, same gradient-clip technique as the rest of the app's
+     tab/card borders — matches the lightbox's own ring treatment. */
+  border: 2px solid transparent;
+  background-image: linear-gradient(#000, #000), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.pce-img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pce-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.pce-zoom-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent, #A66BF5);
+}
+
+.pce-zoom-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.pce-hint {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+.pce-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.pce-actions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pce-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.pce-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+}
+.pce-cancel:disabled, .pce-save:disabled { opacity: 0.5; cursor: default; }

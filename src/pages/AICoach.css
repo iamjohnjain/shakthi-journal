@@ -3,6 +3,7 @@
    input stays pinned in view instead of getting carried off by a keyboard
    or lost below the fold. */
 .ai-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -17,6 +18,25 @@
   animation: fadeUp 0.5s ease both;
 }
 
+/* A single ambient wash spanning the whole page — header AND chat thread
+   together — instead of two separate, differently-shaped glows (one scoped
+   narrowly behind the header icon, one starting fresh at the chat thread)
+   that used to meet at the header/chat boundary with no continuity between
+   them, reading as a visible seam/darker band right at that line. One
+   continuous gradient behind everything removes the seam entirely. */
+.ai-page::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(ellipse 70% 45% at 15% 0%, rgba(251, 138, 76, 0.12) 0%, transparent 60%),
+              radial-gradient(ellipse 70% 45% at 85% 10%, rgba(166, 107, 245, 0.09) 0%, transparent 60%),
+              radial-gradient(ellipse 70% 45% at 50% 100%, rgba(91, 127, 255, 0.09) 0%, transparent 60%);
+  background-size: 160% 160%;
+  animation: coach-aurora 18s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ─── Header ─────────────────────────────────────────────── */
 
 .ai-header {
@@ -26,21 +46,6 @@
   gap: 10px;
   flex-shrink: 0;
   padding-bottom: 14px;
-}
-
-/* A soft glow behind the icon in the same hue family as CoachChat's own
-   ambient aurora right below it — without this, the icon's hard-edged,
-   full-opacity gradient block sits directly above a ~10%-opacity wash
-   with nothing bridging the two, which reads as a visible seam right at
-   the icon's bottom edge. */
-.ai-header::before {
-  content: '';
-  position: absolute;
-  inset: -16px -16px -8px 0;
-  width: 90px;
-  background: radial-gradient(ellipse 70% 70% at 15% 40%, rgba(251, 138, 76, 0.12) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
 }
 
 .ai-header-icon {

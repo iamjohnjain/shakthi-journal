@@ -1,102 +1,129 @@
 .lightbox-overlay {
   position: fixed; inset: 0; z-index: 2100;
   background: rgba(0, 0, 0, 0.92);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 24px;
+  display: flex; flex-direction: column; align-items: center;
+  padding: calc(14px + var(--safe-top, 0px)) 14px calc(14px + var(--safe-bottom, 0px));
   box-sizing: border-box;
 }
 .lightbox-close {
-  position: absolute; top: calc(14px + var(--safe-top, 0px)); right: 14px; z-index: 1;
+  position: absolute; top: calc(14px + var(--safe-top, 0px)); right: 14px; z-index: 10;
   width: 38px; height: 38px; border-radius: 50%;
   background: rgba(255,255,255,0.14); border: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
 .lightbox-img {
-  max-width: 100%; max-height: 75vh;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  border-radius: 12px;
 }
 
+/* The stage takes all the space the caption/action rows below it don't
+   need — previously every image was capped at a conservative vh fraction
+   regardless of how much room was actually free, which made the "blown
+   up" photo read as barely bigger than its own grid thumbnail. */
 .lightbox-stage {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   width: 100%;
-  touch-action: pan-y;
-}
-
-.lightbox-stage--split {
+  flex: 1;
+  min-height: 0;
   gap: 10px;
 }
 
 .lightbox-pane {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
   min-width: 0;
+  min-height: 0;
+  flex: 1;
+  border-radius: 14px;
+  /* Rainbow gradient-ring border, same double-background-clip technique
+     used for tab navs/card highlights elsewhere — replaces the old flat
+     orange selection border. Always visible (not just when selected) so
+     every photo reads as framed in the app's own colorway. */
+  border: 2px solid transparent;
+  background-image: linear-gradient(#000, #000), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  overflow: hidden;
 }
 
 .lightbox-pane--split {
-  flex: 1;
+  flex: 1 1 0;
   max-width: 48%;
-  border-radius: 12px;
-  border: 2px solid transparent;
-  padding: 2px;
 }
 
-.lightbox-pane--split .lightbox-img {
-  max-height: 60vh;
-  border-radius: 10px;
-}
-
+/* A brighter/thicker version of the same ring — still the gradient, not a
+   flat color — so the selected pane in Compare mode is still obviously
+   "rainbow", just a touch more prominent. */
 .lightbox-pane--selected {
-  border-color: var(--accent);
+  border-width: 3px;
+}
+
+.lightbox-pane-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-x;
+}
+
+/* Three stacked slots (prev / current / next) in one flex column, each
+   exactly the viewport's own height — normally sitting with the middle
+   (current) slot aligned to the viewport via translateY(-100%), so
+   dragging the track up or down slides the next/prev slot's photo into
+   view from the matching edge instead of jump-cutting straight to it. */
+.lightbox-pane-track {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 300%;
+}
+
+.lightbox-peek-slot {
+  width: 100%;
+  height: 33.3333%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-peek-img {
+  opacity: 0.55;
+}
+
+.lightbox-peek-count {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border-radius: var(--r-full, 999px);
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .lightbox-pane-empty {
   width: 100%;
-  aspect-ratio: 3 / 4;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.4);
   font-size: 13px;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
 }
 
-.lightbox-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  border: none; color: #fff; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.lightbox-nav--prev { left: -4px; }
-.lightbox-nav--next { right: -4px; }
-
-.lightbox-dots {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 12px;
-}
-.lightbox-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-}
-.lightbox-dot--active {
-  background: var(--gradient-brand, #fff);
-}
 .lightbox-caption {
-  margin-top: 18px;
+  margin-top: 14px;
   text-align: center;
   color: #fff;
+  flex-shrink: 0;
 }
 .lightbox-caption-title {
   font-size: 15px;
@@ -111,6 +138,7 @@
 .lightbox-caption-actions {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
@@ -157,9 +185,10 @@
 .lightbox-edit-delete:disabled { opacity: 0.5; cursor: default; }
 
 .lightbox-edit {
-  margin-top: 18px;
+  margin-top: 14px;
   width: 100%;
   max-width: 280px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -210,7 +239,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: var(--accent, #A66BF5);
+  background: var(--gradient-brand);
   border-color: transparent;
   color: #fff;
 }

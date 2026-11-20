@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Pencil, Check, Trash2, Download, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useSwipePage } from '../hooks/useSwipePage'
+import { X, Pencil, Check, Trash2, Download, Crop } from 'lucide-react'
+import { useVerticalPeekSwipe } from '../hooks/useVerticalPeekSwipe'
+import PhotoCropEditor from './PhotoCropEditor'
 import './PhotoLightbox.css'
 
 export interface LightboxEntry {
@@ -20,45 +21,108 @@ interface EditValues {
 
 type Pane = 'primary' | 'secondary'
 
+/** One pane of the lightbox — owns its own same-date photo list and swipes
+    vertically through it (not left/right, and not across dates: comparing
+    just two dates doesn't need cross-date paging, only "show me the other
+    shots from this same day"). Reports whichever photo is currently on
+    screen up to the parent via `onActiveChange`, since the shared Edit/
+    Download/Delete row below both panes acts on whichever one is selected. */
+function LightboxPane({ photos, initialIndex, pane, selectable, selected, onSelect, onActiveChange }: {
+  photos: (LightboxEntry | null)[]
+  initialIndex: number
+  pane: Pane
+  selectable: boolean
+  selected: boolean
+  onSelect: () => void
+  onActiveChange: (pane: Pane, entry: LightboxEntry | null) => void
+}) {
+  const [index, setIndex] = useState(Math.max(0, Math.min(initialIndex, photos.length - 1)))
+  const peek = useVerticalPeekSwipe({ index, count: photos.length, onChange: setIndex })
+
+  const current = photos[index] ?? null
+  const prev = index > 0 ? photos[index - 1] : null
+  const next = index < photos.length - 1 ? photos[index + 1] : null
+
+  useEffect(() => { onActiveChange(pane, current) }, [pane, current, onActiveChange])
+
+  return (
+    <div
+      className={`lightbox-pane ${selectable ? 'lightbox-pane--split' : ''} ${selected ? 'lightbox-pane--selected' : ''}`}
+      onClick={e => { e.stopPropagation(); if (selectable) onSelect() }}
+    >
+      <div
+        ref={peek.containerRef}
+        className="lightbox-pane-viewport"
+        onTouchStart={peek.handlers.onTouchStart}
+        onTouchMove={peek.handlers.onTouchMove}
+        onTouchEnd={peek.handlers.onTouchEnd}
+      >
+        <div
+          className="lightbox-pane-track"
+          style={{
+            transform: `translateY(calc(-33.3333% + ${peek.dragY}px))`,
+            transition: peek.animating ? 'transform 0.26s cubic-bezier(.2,.8,.2,1)' : 'none',
+          }}
+        >
+          <div className="lightbox-peek-slot">
+            {prev && <img src={prev.photoDataUrl} alt="" className="lightbox-img lightbox-peek-img" />}
+          </div>
+          <div className="lightbox-peek-slot lightbox-peek-slot--current">
+            {current ? <img src={current.photoDataUrl} alt="" className="lightbox-img" /> : <div className="lightbox-pane-empty">No photo</div>}
+          </div>
+          <div className="lightbox-peek-slot">
+            {next && <img src={next.photoDataUrl} alt="" className="lightbox-img lightbox-peek-img" />}
+          </div>
+        </div>
+      </div>
+      {photos.length > 1 && <div className="lightbox-peek-count">{index + 1} / {photos.length}</div>}
+    </div>
+  )
+}
+
 /** Full-screen photo viewer — same portal pattern as LiveCamera.
 
-    `primary` is always the photo list being viewed — a single-item list for
-    a plain "tap one photo" open, or several for swipe-paging through a set
-    (the main Check-Ins grid, or a run of staged photos). `secondary`, when
-    given, is a same-length second list shown side-by-side with `primary` at
-    the same index — Compare mode's "both dates at once" view. Swiping pages
-    both lists together, keeping the pair in sync.
+    `primary`/`secondary` are each a pane's full same-date photo set (every
+    shot from that day, already filtered to the active pose filter by the
+    caller — "same tag" vs. "All" is just whichever list got built).
+    `secondary`, when given, renders side-by-side with `primary` — Compare
+    mode's two-dates-at-once view — each pane paging independently via its
+    own vertical swipe, not moving in lockstep.
 
-    `onSave`/`onDelete` opt into the inline edit form / delete confirm for
-    whichever pane is currently selected (tap a pane to select it when both
-    are present) — both only meaningful for an already-saved photo, so a
-    caller viewing a not-yet-saved staged photo simply omits them. */
+    `onSave`/`onDelete`/`onSavePhoto` opt into the inline edit form / delete
+    confirm / crop editor for whichever pane is currently selected (tap a
+    pane to select it when both are present) — all only meaningful for an
+    already-saved photo, so a caller viewing a not-yet-saved staged photo
+    simply omits them. */
 export default function PhotoLightbox({
-  primary, secondary, index, onIndexChange, onClose, onSave, onDelete,
+  primary, secondary, primaryInitialIndex = 0, secondaryInitialIndex = 0, onClose, onSave, onDelete, onSavePhoto,
 }: {
   primary: (LightboxEntry | null)[]
   secondary?: (LightboxEntry | null)[]
-  index: number
-  onIndexChange: (i: number) => void
+  primaryInitialIndex?: number
+  secondaryInitialIndex?: number
   onClose: () => void
   onSave?: (pane: Pane, photoId: string, changes: { date: string; weightLbs: number | null }) => Promise<void> | void
   onDelete?: (pane: Pane, photoId: string) => Promise<void> | void
+  onSavePhoto?: (pane: Pane, photoId: string, newDataUrl: string) => Promise<void> | void
 }) {
   const [selectedPane, setSelectedPane] = useState<Pane>('primary')
+  const [activeEntries, setActiveEntries] = useState<{ primary: LightboxEntry | null; secondary: LightboxEntry | null }>({
+    primary: primary[Math.max(0, Math.min(primaryInitialIndex, primary.length - 1))] ?? null,
+    secondary: secondary ? secondary[Math.max(0, Math.min(secondaryInitialIndex, secondary.length - 1))] ?? null : null,
+  })
   const [editing, setEditing] = useState(false)
+  const [cropping, setCropping] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const sideBySide = !!secondary
-  const activeEntry = (sideBySide && selectedPane === 'secondary' ? secondary![index] : primary[index]) ?? null
-  const canPage = primary.length > 1
-  const atStart = index <= 0
-  const atEnd = index >= primary.length - 1
+  const activeEntry = sideBySide && selectedPane === 'secondary' ? activeEntries.secondary : activeEntries.primary
 
-  function goPrev() { if (!atStart) { setEditing(false); setConfirmingDelete(false); onIndexChange(index - 1) } }
-  function goNext() { if (!atEnd) { setEditing(false); setConfirmingDelete(false); onIndexChange(index + 1) } }
-  const swipe = useSwipePage(goPrev, goNext)
+  const handleActiveChange = useCallback((pane: Pane, entry: LightboxEntry | null) => {
+    setActiveEntries(cur => ({ ...cur, [pane]: entry }))
+  }, [])
 
   const [values, setValues] = useState<EditValues>({ date: '', weightLbs: '' })
 
@@ -82,6 +146,12 @@ export default function PhotoLightbox({
     }
   }
 
+  async function handleSaveCrop(newDataUrl: string) {
+    if (!onSavePhoto || !activeEntry?.photoId) return
+    await onSavePhoto(selectedPane, activeEntry.photoId, newDataUrl)
+    setCropping(false)
+  }
+
   function handleDownload(entry: LightboxEntry) {
     const a = document.createElement('a')
     a.href = entry.photoDataUrl
@@ -102,19 +172,14 @@ export default function PhotoLightbox({
     }
   }
 
-  function renderPane(entry: LightboxEntry | null, pane: Pane) {
-    const selected = sideBySide && selectedPane === pane
-    return (
-      <div
-        className={`lightbox-pane ${sideBySide ? 'lightbox-pane--split' : ''} ${selected ? 'lightbox-pane--selected' : ''}`}
-        onClick={e => { e.stopPropagation(); if (sideBySide) setSelectedPane(pane) }}
-      >
-        {entry ? (
-          <img src={entry.photoDataUrl} alt="" className="lightbox-img" />
-        ) : (
-          <div className="lightbox-pane-empty">No photo</div>
-        )}
-      </div>
+  if (cropping && activeEntry) {
+    return createPortal(
+      <PhotoCropEditor
+        photoDataUrl={activeEntry.photoDataUrl}
+        onCancel={() => setCropping(false)}
+        onSave={handleSaveCrop}
+      />,
+      document.body
     )
   }
 
@@ -124,33 +189,28 @@ export default function PhotoLightbox({
         <X size={20} />
       </button>
 
-      <div
-        className={`lightbox-stage ${sideBySide ? 'lightbox-stage--split' : ''}`}
-        onClick={e => e.stopPropagation()}
-        onTouchStart={swipe.onTouchStart}
-        onTouchEnd={swipe.onTouchEnd}
-      >
-        {canPage && !atStart && (
-          <button className="lightbox-nav lightbox-nav--prev" onClick={e => { e.stopPropagation(); goPrev() }} aria-label="Previous">
-            <ChevronLeft size={22} />
-          </button>
-        )}
-        {renderPane(primary[index] ?? null, 'primary')}
-        {sideBySide && renderPane(secondary![index] ?? null, 'secondary')}
-        {canPage && !atEnd && (
-          <button className="lightbox-nav lightbox-nav--next" onClick={e => { e.stopPropagation(); goNext() }} aria-label="Next">
-            <ChevronRight size={22} />
-          </button>
+      <div className={`lightbox-stage ${sideBySide ? 'lightbox-stage--split' : ''}`} onClick={e => e.stopPropagation()}>
+        <LightboxPane
+          photos={primary}
+          initialIndex={primaryInitialIndex}
+          pane="primary"
+          selectable={sideBySide}
+          selected={selectedPane === 'primary'}
+          onSelect={() => setSelectedPane('primary')}
+          onActiveChange={handleActiveChange}
+        />
+        {sideBySide && (
+          <LightboxPane
+            photos={secondary!}
+            initialIndex={secondaryInitialIndex}
+            pane="secondary"
+            selectable
+            selected={selectedPane === 'secondary'}
+            onSelect={() => setSelectedPane('secondary')}
+            onActiveChange={handleActiveChange}
+          />
         )}
       </div>
-
-      {canPage && (
-        <div className="lightbox-dots" onClick={e => e.stopPropagation()}>
-          {primary.map((_, i) => (
-            <span key={i} className={`lightbox-dot ${i === index ? 'lightbox-dot--active' : ''}`} />
-          ))}
-        </div>
-      )}
 
       {editing ? (
         <div className="lightbox-edit" onClick={e => e.stopPropagation()}>
@@ -198,6 +258,11 @@ export default function PhotoLightbox({
             {onSave && activeEntry?.photoId && (
               <button className="lightbox-edit-btn" onClick={openEdit}>
                 <Pencil size={12} /> Edit
+              </button>
+            )}
+            {onSavePhoto && activeEntry?.photoId && (
+              <button className="lightbox-edit-btn" onClick={() => setCropping(true)}>
+                <Crop size={12} /> Reposition
               </button>
             )}
             {activeEntry && (

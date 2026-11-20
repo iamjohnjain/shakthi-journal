@@ -22,6 +22,13 @@
   position: relative;
   /* Smooth momentum scrolling on iOS */
   -webkit-overflow-scrolling: touch;
+  /* globals.css sets this on html/body/#root, but this element — not
+     body — is the actual scrolling box (#root never scrolls), so that
+     declaration never reached the real rubber-band effect. Without it
+     here, iOS lets a short page's content drag arbitrarily far past its
+     real end before springing back, which reads as a low-quality,
+     "infinitely stretchy" scroll instead of a normal bounded overscroll. */
+  overscroll-behavior: contain;
 }
 
 /* Page entry animation applied to the first child of each route.

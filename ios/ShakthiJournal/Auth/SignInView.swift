@@ -13,7 +13,7 @@ struct SignInView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            dashboardBackground
 
             if auth.emailConfirmationPending {
                 confirmationPendingView
@@ -26,8 +26,6 @@ struct SignInView: View {
                         modePicker
                         Spacer().frame(height: 28)
                         form
-                        Spacer().frame(height: 40)
-                        footerNote
                         Spacer().frame(height: 40)
                     }
                 }
@@ -52,8 +50,8 @@ struct SignInView: View {
                 .foregroundStyle(.white)
 
             Text(mode == .signIn
-                 ? "Sign in to sync Apple Health data\nto your dashboard"
-                 : "Create an account to start syncing\nyour health data")
+                 ? "Sign in to your Jeevan health\nand fitness app"
+                 : "Create an account to start\ntracking your health data")
                 .font(.subheadline)
                 .foregroundStyle(Color(white: 0.55))
                 .multilineTextAlignment(.center)
@@ -106,58 +104,8 @@ struct SignInView: View {
             errorView
 
             actionButton
-
-            divider
-
-            googleButton
         }
         .padding(.horizontal, 28)
-    }
-
-    // MARK: - Google sign-in
-
-    private var divider: some View {
-        HStack(spacing: 10) {
-            Rectangle().fill(Color(white: 0.15)).frame(height: 1)
-            Text("or").font(.caption).foregroundStyle(Color(white: 0.4))
-            Rectangle().fill(Color(white: 0.15)).frame(height: 1)
-        }
-        .padding(.vertical, 4)
-    }
-
-    private var googleButton: some View {
-        VStack(spacing: 8) {
-            Button {
-                auth.signInWithGoogle()
-            } label: {
-                HStack(spacing: 10) {
-                    if auth.isSigningInWithGoogle {
-                        ProgressView().tint(.black)
-                    } else {
-                        Text("G").fontWeight(.bold).foregroundStyle(Color(hex: "#4285F4"))
-                    }
-                    Text("Continue with Google").fontWeight(.semibold)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-            }
-            .background(Color.white)
-            .foregroundStyle(.black)
-            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .disabled(auth.isSigningInWithGoogle)
-
-            if let error = auth.googleSignInError {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundStyle(.red).font(.footnote)
-                    Text(error)
-                        .font(.footnote).foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
-            }
-        }
     }
 
     private func passwordField(placeholder: String, binding: Binding<String>) -> some View {
@@ -274,16 +222,38 @@ struct SignInView: View {
         .padding(28)
     }
 
-    // MARK: - Footer
+    // MARK: - Background
 
-    private var footerNote: some View {
-        Text(mode == .signIn
-             ? "Use the same email and password as the\nJeevan web app."
-             : "Your account works on both the iOS app\nand the Jeevan web dashboard.")
-            .font(.caption)
-            .foregroundStyle(Color(white: 0.35))
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 40)
+    /// Mirrors the web dashboard's --bg-gradient (globals.css): a dark
+    /// vertical base with four soft radial glows (orange top-left, blue
+    /// top-right, purple center, teal bottom) — this screen used to be flat
+    /// black, which didn't match the rest of the app at all.
+    private var dashboardBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "#181220"), Color(hex: "#0E0C13"), Color(hex: "#06050A")],
+                startPoint: .top, endPoint: .bottom
+            )
+            GeometryReader { geo in
+                Circle().fill(Color(hex: "#FB8A4C").opacity(0.16))
+                    .frame(width: geo.size.width * 1.3, height: geo.size.height * 0.55)
+                    .position(x: geo.size.width * 0.1, y: 0)
+                    .blur(radius: 80)
+                Circle().fill(Color(hex: "#5B7FFF").opacity(0.18))
+                    .frame(width: geo.size.width * 1.3, height: geo.size.height * 0.65)
+                    .position(x: geo.size.width * 0.92, y: 0)
+                    .blur(radius: 80)
+                Circle().fill(Color(hex: "#A66BF5").opacity(0.09))
+                    .frame(width: geo.size.width * 0.9, height: geo.size.height * 0.5)
+                    .position(x: geo.size.width * 0.5, y: geo.size.height * 0.38)
+                    .blur(radius: 90)
+                Circle().fill(Color(hex: "#2DD4BF").opacity(0.1))
+                    .frame(width: geo.size.width, height: geo.size.height * 0.55)
+                    .position(x: geo.size.width * 0.5, y: geo.size.height)
+                    .blur(radius: 90)
+            }
+        }
+        .ignoresSafeArea()
     }
 
     // MARK: - Helpers

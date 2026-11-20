@@ -197,9 +197,19 @@ button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active {
   transform: scale(0.98);
 }
+/* Three stacked solid-color rings (one per brand hue) instead of one flat
+   `--accent` ring — box-shadow can't render an actual gradient, but three
+   thin concentric rings in the same orange/purple/blue order as
+   --gradient-brand reads as a rainbow glow rather than a single flat
+   orange ring, matching the gradient-ring borders used elsewhere (tab
+   navs, card highlights) without needing every button to opt into the
+   background-clip double-layer trick those use. */
 button:not(:disabled):not([data-no-press-glow]):active,
 [role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active {
-  box-shadow: 0 0 0 3px var(--accent);
+  box-shadow:
+    0 0 0 1px #FB8A4C,
+    0 0 0 2px #A66BF5,
+    0 0 0 3px #5B7FFF;
 }
 
 a {

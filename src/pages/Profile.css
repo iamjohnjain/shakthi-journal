@@ -665,8 +665,13 @@
 /* ─── Mobile ─────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
-  .profile-hero { padding: 28px 20px 24px; }
+  .profile-hero { padding: 24px 20px 18px; }
   .profile-edit-btn { top: 20px; right: 20px; }
+
+  /* Tighter than desktop's 22px/24px — on a single-column mobile layout
+     with often just 2-3 short lines per card, the desktop padding read as
+     a lot of dead air between sections. */
+  .profile-card { padding: 16px 18px; gap: 10px; }
 
   .profile-content {
     grid-template-columns: 1fr;
@@ -699,7 +704,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px 0;
+    padding: max(12px, var(--safe-top)) max(20px, var(--safe-right)) 0 max(20px, var(--safe-left));
     gap: 10px;
   }
 

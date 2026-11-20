@@ -17,7 +17,7 @@ export async function deletePhoto(id: string): Promise<void> {
 
 /** Corrects a saved photo's date and/or weight after the fact — capture/
     upload time isn't always accurate (e.g. a batch upload of older photos). */
-export async function updatePhoto(id: string, changes: { date?: string; weightKg?: number | null }): Promise<ProgressPhoto | null> {
+export async function updatePhoto(id: string, changes: { date?: string; weightKg?: number | null; photoDataUrl?: string }): Promise<ProgressPhoto | null> {
   const db = await getDB()
   const existing = await db.get('progress_photos', id)
   if (!existing) return null
@@ -25,6 +25,7 @@ export async function updatePhoto(id: string, changes: { date?: string; weightKg
     ...existing,
     ...(changes.date !== undefined ? { date: changes.date } : {}),
     ...(changes.weightKg !== undefined ? { weightKg: changes.weightKg ?? undefined } : {}),
+    ...(changes.photoDataUrl !== undefined ? { photoDataUrl: changes.photoDataUrl } : {}),
   }
   await db.put('progress_photos', updated)
   return updated

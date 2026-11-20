@@ -13,15 +13,16 @@ import './ProgressCheckIns.css'
 
 type Pane = 'primary' | 'secondary'
 
-/** A navigable lightbox viewing session — `primary` always drives the
-    pager/swipe (single-item for one tap-to-view, several for the main grid
-    so swiping steps through it). `secondary`, when present, is the paired
-    "other date" list in Compare mode's side-by-side view, kept in lockstep
-    with `primary` by index. */
+/** A navigable lightbox viewing session — `primary` is always the same-date
+    photo set being swiped through (vertically, within that one date — not
+    across dates, which wouldn't make sense for a two-date comparison).
+    `secondary`, when present, is Compare mode's other date, shown side by
+    side and paged independently of `primary`. */
 interface LightboxSession {
   primary: (LightboxEntry | null)[]
   secondary?: (LightboxEntry | null)[]
-  index: number
+  primaryIndex: number
+  secondaryIndex: number
 }
 
 /** Finds the logged weight closest in time to `targetDate` (within a year
@@ -521,24 +522,31 @@ export default function CheckInsSection() {
     return () => { cancelled = true }
   }, [dateA, dateB])
 
-  /** Opens a swipe-paged single-list session — the main "All" grid, where
-      every currently-visible photo is pageable in display order. */
+  /** Opens a swipe-paged session for one date's photos — the main "All"
+      grid groups by date too (every photo sharing `clicked.date`, already
+      narrowed by the active pose filter since `list` is `comparePhotos`),
+      so swiping browses other shots from that same day, never a different
+      date. */
   async function openGridLightbox(clicked: ProgressPhoto, list: ProgressPhoto[]) {
-    const entries = await Promise.all(list.map(buildLightboxEntry))
-    const index = list.findIndex(p => p.id === clicked.id)
-    setLightboxSession({ primary: entries, index: Math.max(0, index) })
+    const sameDate = list.filter(p => p.date === clicked.date)
+    const entries = await Promise.all(sameDate.map(buildLightboxEntry))
+    const index = sameDate.findIndex(p => p.id === clicked.id)
+    setLightboxSession({ primary: entries, primaryIndex: Math.max(0, index), secondaryIndex: 0 })
   }
 
-  /** Opens the Compare-mode side-by-side session — `photosA`/`photosB` are
-      paired by position (padded to equal length) so swiping pages both
-      date columns together. */
-  async function openComparePair(aList: ProgressPhoto[], bList: ProgressPhoto[], index: number) {
-    const len = Math.max(aList.length, bList.length)
+  /** Opens the Compare-mode side-by-side session — `aList`/`bList` are each
+      one date's full photo set (already pose-filtered); each pane pages
+      through its own list independently, they don't move together. */
+  async function openComparePair(aList: ProgressPhoto[], bList: ProgressPhoto[], pane: Pane, clickedIndex: number) {
     const [primary, secondary] = await Promise.all([
-      Promise.all(Array.from({ length: len }, (_, i) => (aList[i] ? buildLightboxEntry(aList[i]) : Promise.resolve(null)))),
-      Promise.all(Array.from({ length: len }, (_, i) => (bList[i] ? buildLightboxEntry(bList[i]) : Promise.resolve(null)))),
+      Promise.all(aList.map(buildLightboxEntry)),
+      Promise.all(bList.map(buildLightboxEntry)),
     ])
-    setLightboxSession({ primary, secondary, index })
+    setLightboxSession({
+      primary, secondary,
+      primaryIndex: pane === 'primary' ? clickedIndex : 0,
+      secondaryIndex: pane === 'secondary' ? clickedIndex : 0,
+    })
   }
 
   async function handleLightboxSave(pane: Pane, photoId: string, changes: { date: string; weightLbs: number | null }) {
@@ -547,18 +555,31 @@ export default function CheckInsSection() {
       weightKg: changes.weightLbs != null ? lbsToKg(changes.weightLbs) : null,
     })
     if (!updated) return
-    // Refresh the grid/filter state (so compare-by-date picks up a changed
-    // date immediately) and re-resolve just the affected entry in place,
-    // so the session stays open on the same photo with its fresh caption.
     await refreshComparePhotos()
     const newEntry = await buildLightboxEntry(updated)
+    patchLightboxEntry(pane, photoId, newEntry)
+  }
+
+  async function handleLightboxSavePhoto(pane: Pane, photoId: string, newDataUrl: string) {
+    const updated = await updatePhoto(photoId, { photoDataUrl: newDataUrl })
+    if (!updated) return
+    await refreshComparePhotos()
+    const newEntry = await buildLightboxEntry(updated)
+    patchLightboxEntry(pane, photoId, newEntry)
+  }
+
+  /** Replaces one photo's entry in whichever pane's array holds it, by
+      photoId rather than by array position — each pane's current position
+      lives inside PhotoLightbox's own LightboxPane state now (it pages
+      independently), so this component only ever knows the photo's id,
+      not which index it's currently sitting at. */
+  function patchLightboxEntry(pane: Pane, photoId: string, newEntry: LightboxEntry) {
     setLightboxSession(session => {
       if (!session) return session
       const key = pane === 'secondary' ? 'secondary' : 'primary'
       const arr = session[key]
       if (!arr) return session
-      const next = [...arr]
-      next[session.index] = newEntry
+      const next = arr.map(e => (e?.photoId === photoId ? newEntry : e))
       return { ...session, [key]: next }
     })
   }
@@ -722,7 +743,7 @@ export default function CheckInsSection() {
             </button>
           </div>
           {(dateA || dateB) && (
-            <button className="pci-clear-dates" onClick={() => { setDateA(''); setDateB('') }}>Clear dates</button>
+            <button className="pci-clear-dates" onClick={() => { setDateA(''); setDateB('') }}>Clear</button>
           )}
 
           {showingCompare ? (
@@ -741,13 +762,13 @@ export default function CheckInsSection() {
                 <div className="pci-compare-col">
                   <div className="pci-compare-col-label">{dateA ? formatFullDate(dateA) : 'Pick A Date'}</div>
                   {photosA.length > 0 ? photosA.map((p, i) => (
-                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => void openComparePair(photosA, photosB, i)} />
+                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => void openComparePair(photosA, photosB, 'primary', i)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
                 </div>
                 <div className="pci-compare-col">
                   <div className="pci-compare-col-label">{dateB ? formatFullDate(dateB) : 'Pick A Date'}</div>
                   {photosB.length > 0 ? photosB.map((p, i) => (
-                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => void openComparePair(photosA, photosB, i)} />
+                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => void openComparePair(photosA, photosB, 'secondary', i)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
                 </div>
               </div>
@@ -783,18 +804,17 @@ export default function CheckInsSection() {
         <PhotoLightbox
           primary={lightboxSession.primary}
           secondary={lightboxSession.secondary}
-          index={lightboxSession.index}
-          onIndexChange={i => setLightboxSession(session => (session ? { ...session, index: i } : session))}
+          primaryInitialIndex={lightboxSession.primaryIndex}
+          secondaryInitialIndex={lightboxSession.secondaryIndex}
           onClose={() => setLightboxSession(null)}
           onSave={handleLightboxSave}
           onDelete={handleLightboxDelete}
+          onSavePhoto={handleLightboxSavePhoto}
         />
       )}
       {stagedLightbox && (
         <PhotoLightbox
           primary={[{ photoDataUrl: stagedLightbox.photoDataUrl, caption: 'Not saved yet' }]}
-          index={0}
-          onIndexChange={() => {}}
           onClose={() => setStagedLightbox(null)}
         />
       )}

@@ -189,15 +189,22 @@
   font-size: 12px;
   flex-shrink: 0;
 }
+/* Red text (a clear "undo this selection" signal) in a small pill with the
+   same rainbow gradient-ring border used elsewhere — replaces the old
+   plain underlined-text link, which didn't read as a real tappable button. */
 .pci-clear-dates {
   display: block;
   margin: 0 auto 18px;
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
+  padding: 5px 16px;
+  color: var(--red);
   font-size: 12px;
-  text-decoration: underline;
+  font-weight: 600;
   cursor: pointer;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-full);
+  background-image: linear-gradient(var(--bg), var(--bg)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .pci-compare-grid {

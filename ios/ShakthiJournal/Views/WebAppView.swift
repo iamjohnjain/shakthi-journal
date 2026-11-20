@@ -46,6 +46,13 @@ struct WebAppView: UIViewRepresentable {
         // Setting .never prevents WKWebView from adding its own content insets, which
         // would double the status-bar spacing on top of the CSS padding-top.
         wv.scrollView.contentInsetAdjustmentBehavior = .never
+        // The web app's own pages scroll inside their own nested div
+        // (.page-content), not the WKWebView's outer scrollView — so this
+        // outer view has nothing legitimate to rubber-band for, and its
+        // default bounce (dragging the whole screen past its real edge
+        // before springing back) just reads as a sloppy, overly-stretchy
+        // scroll feel on top of whatever the page itself is doing.
+        wv.scrollView.bounces = false
         wv.load(URLRequest(url: Self.appURL))
         return wv
     }
