@@ -363,7 +363,7 @@ export default function Profile() {
     }] : []),
     ...(bfLost != null && bfLost > 0 ? [{
       icon: Target,
-      color: 'var(--orange)',
+      color: 'var(--accent)',
       label: `-${bfLost}% body fat`,
       sub: `${startBF}% → ${currentBF?.toFixed(1)}%`,
     }] : []),
@@ -465,7 +465,7 @@ export default function Profile() {
               current={currentWeightLbs}
               unit={` ${wUnit}`}
               lowerIsBetter={startWeightLbs > goalWeightLbs}
-              colorGood="var(--orange)"
+              colorGood="var(--accent)"
             />
           )}
           {currentBF != null && startBF != null && goalBF != null && (
@@ -508,13 +508,13 @@ export default function Profile() {
             )}
             {goalWeightLbs != null && (
               <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--orange)' }}>{goalWeightLbs} {wUnit}</span>
+                <span className="profile-baseline-val" style={{ color: 'var(--accent)' }}>{goalWeightLbs} {wUnit}</span>
                 <span className="profile-baseline-label">Goal weight</span>
               </div>
             )}
             {goalBF != null && (
               <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--orange)' }}>{goalBF}%</span>
+                <span className="profile-baseline-val" style={{ color: 'var(--accent)' }}>{goalBF}%</span>
                 <span className="profile-baseline-label">Goal body fat</span>
               </div>
             )}

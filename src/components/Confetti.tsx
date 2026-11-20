@@ -4,7 +4,7 @@ import './Confetti.css'
 // Brand-colored pieces only (not a random rainbow) — a brief, tasteful burst
 // rather than a chaotic party-popper effect, matching the rest of the app's
 // restrained use of the gradient-brand palette.
-const COLORS = ['#FB8A4C', '#A66BF5', '#5B7FFF', '#34D399']
+const COLORS = ['#C9A8FB', '#A66BF5', '#5B7FFF', '#34D399']
 const PIECE_COUNT = 56
 const DURATION_MS = 1600
 

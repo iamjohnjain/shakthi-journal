@@ -7,7 +7,7 @@
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: var(--orange);
+  color: var(--accent);
   background: none;
   border: none;
   padding: 0;
@@ -147,8 +147,8 @@
 
 .settings-install-guide {
   padding: 14px 16px;
-  background: rgba(251, 122, 60, 0.05);
-  border: 1px solid rgba(251, 122, 60, 0.15);
+  background: rgba(166, 107, 245, 0.05);
+  border: 1px solid rgba(166, 107, 245, 0.15);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -203,7 +203,7 @@
   transition: border-color .12s, color .12s, background .12s;
 }
 .su-btn--on {
-  border-color: var(--orange); color: var(--orange); background: var(--orange-dim);
+  border-color: var(--accent); color: var(--accent); background: var(--purple-dim);
 }
 .settings-units-detail {
   font-size: 12px; color: var(--text-tertiary);
@@ -216,8 +216,8 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--orange-dim);
-  border: 1px solid rgba(251,122,60,.18);
+  background: var(--purple-dim);
+  border: 1px solid rgba(166,107,245,.18);
   border-radius: 10px;
   font-size: 12px;
   color: var(--text-secondary);
@@ -225,7 +225,7 @@
   margin-bottom: 2px;
 }
 
-.settings-safety-notice svg { color: var(--orange); flex-shrink: 0; margin-top: 1px; }
+.settings-safety-notice svg { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
 
 /* ─── Cloud notice ───────────────────────────────────────────── */
 .settings-cloud-notice {

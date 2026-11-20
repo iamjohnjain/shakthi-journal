@@ -52,12 +52,12 @@ function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): Me
   { id: 'bmi',        label: 'BMI',             group: 'Body',      unit: '',         higherIsBetter: false, color: 'var(--red)',     format: v => v.toFixed(1),                   get: s => (s.weight && heightM > 0) ? +(s.weight / (heightM * heightM)).toFixed(1) : undefined },
   { id: 'leanMass',   label: 'Lean Mass',       group: 'Body',      unit: wUnit,      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => s.muscleMassKg ? toW(s.muscleMassKg) : undefined },
   { id: 'fatFree',    label: 'Fat-Free Mass',   group: 'Body',      unit: wUnit,      higherIsBetter: true,  color: 'var(--green)', format: v => v.toFixed(1),                   get: s => (s.weight && s.bodyFatPct != null) ? toW(s.weight * (1 - s.bodyFatPct / 100)) : undefined },
-  { id: 'waist',      label: 'Waist',           group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--orange)',format: v => v.toFixed(1),                   get: s => s.waistCm != null ? toM(s.waistCm) : undefined },
+  { id: 'waist',      label: 'Waist',           group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--accent)',format: v => v.toFixed(1),                   get: s => s.waistCm != null ? toM(s.waistCm) : undefined },
   { id: 'chest',      label: 'Chest',           group: 'Body',      unit: mUnit,      higherIsBetter: true,  color: 'var(--purple)',format: v => v.toFixed(1),                   get: s => s.chestCm != null ? toM(s.chestCm) : undefined },
   { id: 'hips',       label: 'Hips',            group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--pink)',  format: v => v.toFixed(1),                   get: s => s.hipsCm != null ? toM(s.hipsCm) : undefined },
   // Activity
   { id: 'steps',      label: 'Steps',           group: 'Activity',  unit: '',         higherIsBetter: true,  color: 'var(--green)', format: v => Math.round(v).toLocaleString(), get: s => s.steps },
-  { id: 'activeKcal', label: 'Active Calories', group: 'Activity',  unit: 'kcal',     higherIsBetter: true,  color: 'var(--orange)',format: v => Math.round(v).toLocaleString(), get: s => s.activeCalories },
+  { id: 'activeKcal', label: 'Active Calories', group: 'Activity',  unit: 'kcal',     higherIsBetter: true,  color: 'var(--accent)',format: v => Math.round(v).toLocaleString(), get: s => s.activeCalories },
   // Recovery
   { id: 'sleep',      label: 'Sleep',           group: 'Recovery',  unit: 'h',        higherIsBetter: true,  color: 'var(--purple)',format: v => v.toFixed(1),                   get: s => s.sleepHours },
   { id: 'hrv',        label: 'HRV',             group: 'Recovery',  unit: 'ms',       higherIsBetter: true,  color: 'var(--teal)',  format: v => Math.round(v).toString(),       get: s => s.hrv },
@@ -65,7 +65,7 @@ function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): Me
   // Training
   { id: 'workouts',   label: 'Workouts',        group: 'Training',  unit: 'sessions', higherIsBetter: true,  color: 'var(--pink)', format: v => Math.round(v).toString(),       get: s => s._workoutCount },
   // Nutrition
-  { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${proteinGoalG}g`, higherIsBetter: true, color: 'var(--orange)', format: v => Math.round(v).toString(), get: s => s.proteinG },
+  { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${proteinGoalG}g`, higherIsBetter: true, color: 'var(--accent)', format: v => Math.round(v).toString(), get: s => s.proteinG },
   { id: 'caloriesIn', label: 'Calories Eaten',  group: 'Nutrition', unit: 'kcal',     higherIsBetter: false, color: 'var(--yellow)',format: v => Math.round(v).toLocaleString(), get: s => s.caloriesIn },
   { id: 'water',      label: 'Water',           group: 'Nutrition', unit: 'oz',       higherIsBetter: true,  color: 'var(--teal)', format: v => Math.round(v).toString(),       get: s => s.waterMl ? +(s.waterMl / 29.574).toFixed(0) : undefined },
 ]}
@@ -120,7 +120,7 @@ function MetricCard({ m, snapA, snapB, dateA, dateB }: {
   const d = vA != null && vB != null ? vB - vA : null
   const dir: Dir = d != null ? deltaDir(d, m.higherIsBetter) : 'neutral'
 
-  const dirColor = dir === 'up' ? 'var(--green)' : dir === 'down' ? 'var(--orange)' : 'var(--text-tertiary)'
+  const dirColor = dir === 'up' ? 'var(--green)' : dir === 'down' ? 'var(--accent)' : 'var(--text-tertiary)'
   const DirIcon  = dir === 'up' ? TrendingUp : dir === 'down' ? TrendingDown : Minus
 
   const fmtDelta = d != null

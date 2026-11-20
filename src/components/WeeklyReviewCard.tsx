@@ -95,7 +95,7 @@ export function WeeklyReviewCard({ review }: { review: WeeklyReview }) {
             <StatRow icon={Dumbbell} label="Workouts" color="var(--teal)"   value={review.stats.workoutCount > 0 ? `${review.stats.workoutCount}` : 'None'} />
             <StatRow icon={Moon}     label="Avg sleep" color="var(--purple)" value={review.stats.avgSleepHours !== null ? `${review.stats.avgSleepHours}h` : null} />
             <StatRow icon={Utensils} label="Avg protein" color="var(--green)" value={review.stats.avgProteinG !== null ? `${review.stats.avgProteinG}g` : null} />
-            <StatRow icon={Scale}    label="Weight change" color="var(--orange)" value={weightStr} />
+            <StatRow icon={Scale}    label="Weight change" color="var(--accent)" value={weightStr} />
           </div>
 
           {/* Win / challenge */}
@@ -170,7 +170,7 @@ export function MonthlyReviewCard({ review }: { review: MonthlyReview }) {
             <StatRow icon={Dumbbell} label="Workouts"     color="var(--teal)"   value={review.stats.workoutCount > 0 ? `${review.stats.workoutCount}` : 'None'} />
             <StatRow icon={Moon}     label="Avg sleep"    color="var(--purple)" value={review.stats.avgSleepHours !== null ? `${review.stats.avgSleepHours}h` : null} />
             <StatRow icon={Utensils} label="Avg protein"  color="var(--green)"  value={review.stats.avgProteinG !== null ? `${review.stats.avgProteinG}g` : null} />
-            <StatRow icon={Scale}    label="Weight Δ"     color="var(--orange)" value={weightStr} />
+            <StatRow icon={Scale}    label="Weight Δ"     color="var(--accent)" value={weightStr} />
           </div>
 
           {/* Consistency score */}

@@ -64,7 +64,7 @@
   color: var(--text-secondary); cursor: pointer;
   transition: border-color .12s, color .12s;
 }
-.wpr-quick-chip:hover { border-color: var(--orange); color: var(--orange); }
+.wpr-quick-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 .wpr-loading { color: var(--text-tertiary); font-size: 14px; padding: 20px; }
 
@@ -81,7 +81,7 @@
   font-size: 14px; font-weight: 700; border-radius: 8px; padding: 4px 10px;
 }
 .wpr-improvement--up   { background: var(--green-dim); color: var(--green); }
-.wpr-improvement--down { background: var(--orange-dim);color: var(--orange);}
+.wpr-improvement--down { background: var(--purple-dim);color: var(--accent);}
 
 .wpr-pr-row {
   display: flex; align-items: center; gap: 8px;
@@ -104,8 +104,8 @@
 
 .wpr-suggestion {
   display: flex; align-items: flex-start; gap: 8px;
-  background: var(--orange-dim); border: 1px solid rgba(251,122,60,.2);
-  border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--orange);
+  background: var(--purple-dim); border: 1px solid rgba(166,107,245,.2);
+  border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--accent);
   line-height: 1.4;
 }
 .wpr-sugg-icon { flex-shrink: 0; margin-top: 1px; }
@@ -134,7 +134,7 @@
   padding: 0 0 12px;
   cursor: pointer;
 }
-.wpr-back-to-all:hover { color: var(--orange); }
+.wpr-back-to-all:hover { color: var(--accent); }
 
 .wpr-all-list-header {
   font-size: 12px;
@@ -162,7 +162,7 @@
   cursor: pointer;
   text-align: left;
 }
-.wpr-all-list-row:hover { border-color: var(--orange); }
+.wpr-all-list-row:hover { border-color: var(--accent); }
 
 .wpr-all-list-name {
   overflow: hidden;

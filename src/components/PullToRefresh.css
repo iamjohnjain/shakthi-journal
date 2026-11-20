@@ -53,7 +53,7 @@
 
 .ptr-icon {
   position: relative;
-  color: var(--orange);
+  color: var(--accent);
 }
 .ptr-icon--spinning {
   animation: ptr-icon-spin 0.9s linear infinite;

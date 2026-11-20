@@ -98,7 +98,7 @@ function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }:
               aria-label={d}
             >
               <span className="week-streak-letter">{DAY_LETTERS[i]}</span>
-              <span className={`week-streak-dot-wrap ${isViewed && !isToday ? 'week-streak-dot-wrap--viewed' : ''}`}>
+              <span className={`week-streak-dot-wrap ${isViewed ? 'week-streak-dot-wrap--viewed' : ''}`}>
                 <span className={[
                   'week-streak-dot',
                   isLogged ? 'week-streak-dot--logged' : '',
@@ -1288,7 +1288,7 @@ export default function NutritionPage() {
         <div className="macro-bars">
           <MacroBar label="Protein"      value={totals.proteinG} goal={goals.proteinG} color="var(--accent)" />
           <MacroBar label="Carbohydrates" value={totals.carbsG}   goal={goals.carbsG}   color="var(--yellow)" />
-          <MacroBar label="Fat"          value={totals.fatG}     goal={goals.fatG}     color="var(--orange)" />
+          <MacroBar label="Fat"          value={totals.fatG}     goal={goals.fatG}     color="var(--accent)" />
         </div>
       </div>
 
@@ -1308,7 +1308,11 @@ export default function NutritionPage() {
         </div>
       )}
 
-      {/* Smart nutrition callout — only when there's something logged */}
+      {/* Smart nutrition callout — only when there's something logged, and
+          only when there's an actually concrete suggestion to make; past a
+          certain remaining amount there's no specific food that closes the
+          gap, and restating the number the macro bar above already shows
+          isn't worth a second callout. */}
       {entries.length > 0 && protPct < 100 && (() => {
         const remaining = Math.max(0, goals.proteinG - Math.round(totals.proteinG))
         const suggestion = remaining <= 31
@@ -1317,7 +1321,8 @@ export default function NutritionPage() {
           ? `${remaining}g remaining — one chicken breast + a protein shake`
           : remaining <= 80
           ? `${remaining}g remaining — a solid meal with protein will close the gap`
-          : `${remaining}g remaining — prioritise protein at every meal`
+          : null
+        if (!suggestion) return null
         return (
           <div className="protein-callout">
             <span>🥩 {suggestion}</span>

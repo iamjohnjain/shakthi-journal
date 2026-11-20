@@ -103,8 +103,8 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--orange);
-  background: var(--orange-dim);
+  color: var(--accent);
+  background: var(--purple-dim);
   border: none;
   border-radius: 8px;
   padding: 3px 8px;

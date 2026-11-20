@@ -30,7 +30,7 @@ const TYPE_COLORS: Partial<Record<TimelineEvent['type'], string>> = {
   weight:    'var(--teal)',
   sleep:     'var(--purple)',
   recovery:  'var(--pink)',
-  import:    'var(--orange)',
+  import:    'var(--accent)',
   note:      'var(--text-tertiary)',
   body:      'var(--teal)',
 }

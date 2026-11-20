@@ -29,8 +29,7 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg,
-    rgba(251, 138, 76, var(--goal-glow-op, 0.1)) 0%,
-    rgba(166, 107, 245, var(--goal-glow-op, 0.1)) 50%,
+    rgba(166, 107, 245, var(--goal-glow-op, 0.1)) 0%,
     rgba(91, 127, 255, var(--goal-glow-op, 0.1)) 100%);
   pointer-events: none;
   z-index: 0;
@@ -427,8 +426,8 @@
 }
 
 .goal-ring-pace--behind {
-  background: var(--orange-dim);
-  color: var(--orange);
+  background: var(--purple-dim);
+  color: var(--accent);
 }
 
 .goal-ring-pace--no-data,
@@ -468,5 +467,5 @@
 
 .goal-ring-edit-field input:focus {
   outline: none;
-  border-color: var(--orange);
+  border-color: var(--accent);
 }

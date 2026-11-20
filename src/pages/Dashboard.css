@@ -248,8 +248,8 @@
 .brief-log-btn:hover { opacity: .75; }
 
 .brief-log-btn--workout {
-  background: var(--orange-dim);
-  color: var(--orange);
+  background: var(--purple-dim);
+  color: var(--accent);
 }
 
 .brief-log-btn--food {
@@ -304,7 +304,7 @@
 }
 
 .brief-priority--action   { background: var(--purple-dim); }
-.brief-priority--warning  { background: var(--orange-dim); }
+.brief-priority--warning  { background: var(--purple-dim); }
 .brief-priority--positive { background: var(--green-dim); }
 .brief-priority--tip      { background: rgba(255,255,255,0.04); border: 1px solid var(--border-subtle); }
 
@@ -554,12 +554,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--orange-dim);
-  border: 1px solid rgba(251, 122, 60, 0.2);
+  background: var(--purple-dim);
+  border: 1px solid rgba(166, 107, 245, 0.2);
   border-radius: var(--r-md);
   padding: 10px 16px;
   font-size: 12px;
-  color: var(--orange);
+  color: var(--accent);
 }
 
 /* ─── Metric grid ────────────────────────────────────────── */
@@ -646,8 +646,7 @@
 
 .ai-insight-card {
   background: linear-gradient(135deg,
-    rgba(251, 138, 76, 0.08) 0%,
-    rgba(166, 107, 245, 0.08) 55%,
+    rgba(166, 107, 245, 0.08) 0%,
     rgba(91, 127, 255, 0.06) 100%);
   border: 1px solid rgba(166, 107, 245, 0.18);
   border-radius: var(--r-xl);
@@ -746,7 +745,7 @@
 .metric-log-btn {
   background: none;
   border: 1px dashed rgba(255,255,255,0.15);
-  color: var(--orange);
+  color: var(--accent);
   border-radius: var(--r-full);
   padding: 4px 10px;
   font-size: 11px;
@@ -758,7 +757,7 @@
   width: fit-content;
   transition: background 0.15s;
 }
-.metric-log-btn:hover { background: rgba(251, 122, 60, 0.08); }
+.metric-log-btn:hover { background: rgba(166, 107, 245, 0.08); }
 
 .dash-empty-state {
   grid-column: 1 / -1;
@@ -778,7 +777,7 @@
 .dash-empty-state button {
   background: none;
   border: none;
-  color: var(--orange);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -883,7 +882,7 @@
 }
 .coach-note-src--missing {
   border: 1px dashed var(--border);
-  color: var(--orange);
+  color: var(--accent);
   background: transparent;
 }
 
@@ -897,7 +896,7 @@
 
 .coach-note-confidence--high   { color: var(--green);  background: var(--green-dim);  }
 .coach-note-confidence--medium { color: var(--yellow); background: var(--yellow-dim); }
-.coach-note-confidence--low    { color: var(--orange); background: var(--orange-dim); }
+.coach-note-confidence--low    { color: var(--accent); background: var(--purple-dim); }
 
 /* ─── Quick Actions ──────────────────────────────────────── */
 
@@ -1044,7 +1043,7 @@
 }
 
 .dash-firstday-icon {
-  color: var(--orange);
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -1060,7 +1059,7 @@
 .dash-firstday-edit {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--orange);
+  color: var(--accent);
   background: none;
   border: none;
   cursor: pointer;

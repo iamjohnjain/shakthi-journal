@@ -88,18 +88,19 @@
   transition: all 0.15s ease;
 }
 
+/* Flat fill, not the brand gradient — a row of several logged dots sitting
+   side by side each used to repaint the full diagonal gradient inside its
+   own small circle, so the color visibly "restarted" at every cell instead
+   of reading as one continuous run. A flat color has no such seam. */
 .week-streak-dot--logged {
-  background: var(--gradient-brand); border-color: transparent; color: #fff;
+  background: var(--accent); border-color: transparent; color: #fff;
 }
 
-/* "Today" gets the same gradient ring as the avatar/profile icon, instead of
-   a flat dashed accent border — a logged day's solid fill already reads as
-   "done," so the ring only applies when today hasn't been logged yet. */
+/* "Today" gets the same ring treatment as the avatar/profile icon, instead
+   of a flat dashed accent border — a logged day's solid fill already reads
+   as "done," so the ring only applies when today hasn't been logged yet. */
 .week-streak-dot--today:not(.week-streak-dot--logged) {
-  border: 1.5px solid transparent;
-  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
+  border: 1.5px solid var(--accent);
 }
 
 .week-streak-dot--future { opacity: 0.4; }
@@ -122,21 +123,17 @@
   display: flex;
 }
 
-/* A transparent-centered background-clip layer doesn't reliably clip in
-   Chrome/WebKit for a ring like this (the "hole" lets the gradient bleed
-   through the whole shape instead of just the ring), so this uses an
-   opaque fill behind the dot and relies on normal paint order instead: the
-   wrapper has no background of its own, so a negative-z-index
-   pseudo-element on it paints behind the dot rather than on top of it. */
+/* The wrapper has no background of its own, so a negative-z-index
+   pseudo-element on it paints behind the dot rather than on top of it —
+   a plain flat-color border reads as a ring peeking out from behind the
+   dot's edges, with no clipping trick needed since it's a solid color. */
 .week-streak-dot-wrap--viewed::before {
   content: '';
   position: absolute;
   inset: -4px;
   z-index: -1;
   border-radius: 50%;
-  border: 1.5px solid transparent;
-  background: linear-gradient(var(--bg-secondary), var(--bg-secondary)) padding-box,
-              var(--gradient-brand) border-box;
+  border: 1.5px solid var(--accent);
   pointer-events: none;
 }
 
@@ -145,7 +142,7 @@
    so this button opts out of the global ring (data-no-press-glow) and gets
    its own, scoped to the dot's actual shape. */
 .week-streak-day:active .week-streak-dot {
-  box-shadow: 0 0 0 3px var(--orange);
+  box-shadow: 0 0 0 3px var(--accent);
 }
 
 .week-streak-divider { width: 1px; align-self: stretch; background: var(--border); }
@@ -155,20 +152,15 @@
   flex-shrink: 0;
 }
 
-/* Gradient-bordered chip, matching the same double-background-clip ring used
-   by the Dashboard's quick-action icons and the Meals bottom-nav tab's own
-   active highlight — so this streak icon reads as part of the same "Meals"
-   color language instead of an unrelated flat orange. */
+/* Flat accent-bordered chip, matching the flat fill used by the logged dots
+   in the same bar — a consistent, single-color treatment end to end. */
 .week-streak-icon-wrap {
   width: 28px; height: 28px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-primary);
   background: var(--bg-card);
-  border: 1px solid transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
+  border: 1px solid var(--accent);
 }
 
 .week-streak-icon { color: var(--text-primary); }
@@ -225,7 +217,7 @@
   background: rgba(255,149,0,.08);
   border: 1px solid rgba(255,149,0,.2);
   border-radius: 10px; padding: 10px 14px;
-  font-size: 13px; color: var(--orange);
+  font-size: 13px; color: var(--accent);
   margin-bottom: 20px;
 }
 
@@ -386,7 +378,7 @@
   color: var(--text-tertiary); padding: 4px;
   border-radius: 6px; transition: color .1s;
 }
-.food-entry-copy:hover { color: var(--orange); }
+.food-entry-copy:hover { color: var(--accent); }
 .food-entry-delete:hover { color: var(--red); }
 
 /* ─── Copy-to-meal sheet ───────────────────────────────────────── */
@@ -683,7 +675,7 @@
   border-radius: var(--r-full); padding: 3px 8px;
 }
 .ai-confidence--high   { color: var(--green);  background: var(--green-dim); }
-.ai-confidence--medium { color: var(--orange); background: var(--orange-dim); }
+.ai-confidence--medium { color: var(--accent); background: var(--purple-dim); }
 .ai-confidence--low    { color: var(--red);    background: var(--red-dim); }
 
 .ai-review-actions {

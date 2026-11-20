@@ -46,8 +46,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.7px;
-  color: var(--orange);
-  background: rgba(251, 122, 60, 0.1);
+  color: var(--accent);
+  background: rgba(166, 107, 245, 0.1);
   padding: 3px 9px;
   border-radius: 99px;
   flex-shrink: 0;
@@ -75,7 +75,7 @@
 
 .rev-conf--high   { background: rgba(48,209,88,0.1);  color: var(--green);  }
 .rev-conf--medium { background: rgba(255,214,10,0.1); color: var(--yellow); }
-.rev-conf--low    { background: rgba(255,159,10,0.1); color: var(--orange); }
+.rev-conf--low    { background: rgba(255,159,10,0.1); color: var(--accent); }
 
 /* Summary row */
 .review-card-summary {
@@ -197,7 +197,7 @@
 }
 
 .rev-highlight--win .rev-highlight-label     { color: var(--green); }
-.rev-highlight--challenge .rev-highlight-label { color: var(--orange); }
+.rev-highlight--challenge .rev-highlight-label { color: var(--accent); }
 
 .rev-highlight-text {
   font-size: 13px;
@@ -217,7 +217,7 @@
 }
 
 .rev-rec-bullet {
-  color: var(--orange);
+  color: var(--accent);
   flex-shrink: 0;
   font-weight: 600;
 }
@@ -253,8 +253,8 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  background: rgba(251, 122, 60, 0.06);
-  border: 1px solid rgba(251, 122, 60, 0.15);
+  background: rgba(166, 107, 245, 0.06);
+  border: 1px solid rgba(166, 107, 245, 0.15);
   border-radius: var(--r-lg);
 }
 
@@ -263,7 +263,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--orange);
+  color: var(--accent);
 }
 
 .rev-pr-val {

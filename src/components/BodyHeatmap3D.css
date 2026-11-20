@@ -70,9 +70,9 @@
 }
 .bh3d-quickselect-btn:hover { color: var(--text-primary); background: var(--bg-card-hover); }
 .bh3d-quickselect-btn--active {
-  color: var(--orange);
-  background: var(--orange-dim);
-  border-color: rgba(251, 122, 60, 0.3);
+  color: var(--accent);
+  background: var(--purple-dim);
+  border-color: rgba(166, 107, 245, 0.3);
 }
 
 .bh3d-lost {

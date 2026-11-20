@@ -12,7 +12,16 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                // Mirrors the web app's --bg-gradient base layer (a warm-
+                // charcoal-to-near-black vertical blend) instead of flat
+                // black, so this sheet reads as the same app rather than a
+                // bare system default.
+                LinearGradient(
+                    colors: [Color(hex: "#181220"), Color(hex: "#0E0C13"), Color(hex: "#06050A")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -29,6 +38,7 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .preferredColorScheme(.dark)
+            .tint(Color.brandAccent)
             .sheet(isPresented: $showPermissions) {
                 PermissionsView()
             }
@@ -56,6 +66,10 @@ struct DashboardView: View {
         .padding(16)
         .background(Color(white: 0.1))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.brandAccent.opacity(0.25), lineWidth: 1)
+        )
     }
 
     // MARK: - Health connection card (connect / sync button)

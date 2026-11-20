@@ -34,9 +34,9 @@
 .cmp-preset:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .cmp-preset--active {
-  background: var(--orange-dim);
-  border-color: rgba(251,122,60,0.45);
-  color: var(--orange);
+  background: var(--purple-dim);
+  border-color: rgba(166,107,245,0.45);
+  color: var(--accent);
 }
 
 .cmp-preset--star {
@@ -87,7 +87,7 @@
   transition: border-color 0.15s;
 }
 
-.cmp-date-input:focus { outline: none; border-color: var(--orange); }
+.cmp-date-input:focus { outline: none; border-color: var(--accent); }
 
 .cmp-swap {
   width: 38px;
@@ -166,7 +166,7 @@
 .cmp-chips-toggle-all {
   font-size: 12px;
   font-weight: 500;
-  color: var(--orange);
+  color: var(--accent);
   cursor: pointer;
 }
 
@@ -239,7 +239,7 @@
 .cmp-error-actions button {
   font-size: 12px;
   font-weight: 500;
-  color: var(--orange);
+  color: var(--accent);
   cursor: pointer;
 }
 
@@ -302,7 +302,7 @@
 }
 
 .cmp-summary-block--win .cmp-summary-item { color: var(--green); }
-.cmp-summary-block--opp .cmp-summary-item { color: var(--orange); }
+.cmp-summary-block--opp .cmp-summary-item { color: var(--accent); }
 
 /* ─── Metric cards grid ──────────────────────────────────── */
 
@@ -333,7 +333,7 @@
 .cmp-metric-card:hover { background: var(--bg-card-hover); }
 
 .cmp-metric-card--up    { border-left: 2px solid var(--green); }
-.cmp-metric-card--down  { border-left: 2px solid var(--orange); }
+.cmp-metric-card--down  { border-left: 2px solid var(--accent); }
 
 /* Top row */
 
@@ -417,7 +417,7 @@
 }
 
 .cmp-mock-note button {
-  color: var(--orange);
+  color: var(--accent);
   font-size: 12px;
   cursor: pointer;
 }

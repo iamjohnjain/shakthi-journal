@@ -197,6 +197,11 @@ export interface ProgressPhoto {
   pose: ProgressPhotoPose
   customLabel?: string      // set when pose === 'custom', e.g. "vacuum pose"
   photoDataUrl: string      // compressed JPEG data URL
+  /** Manually entered, independent of the live nearest-date health-snapshot
+      lookup used elsewhere — this corrects what THIS photo's own weight was,
+      for when the capture/upload date doesn't match when the photo was
+      actually taken. Takes precedence over the derived lookup when set. */
+  weightKg?: number
   createdAt: string
 }
 

@@ -231,7 +231,7 @@ export default function WorkoutHistoryPage() {
           <Dumbbell size={32} style={{ opacity: 0.25, marginBottom: 12 }} />
           <p>No workouts logged yet.</p>
           <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-            Head to <NavLink to="/workouts" style={{ color: 'var(--orange)' }}>Today</NavLink> to log your first session.
+            Head to <NavLink to="/workouts" style={{ color: 'var(--accent)' }}>Today</NavLink> to log your first session.
           </p>
         </div>
       )}

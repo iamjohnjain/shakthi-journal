@@ -67,7 +67,7 @@
 .log-today-btn {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  color: var(--orange);
+  color: var(--accent);
   border-radius: var(--r-full);
   padding: 5px 12px;
   font-size: 12px;
@@ -254,8 +254,8 @@
 }
 .log-rating-btn:hover { background: var(--hover); }
 .log-rating-btn.active {
-  background: rgba(251, 122, 60, 0.15);
-  border-color: rgba(251, 122, 60, 0.4);
+  background: rgba(166, 107, 245, 0.15);
+  border-color: rgba(166, 107, 245, 0.4);
 }
 
 .log-rating-num {
@@ -263,7 +263,7 @@
   font-weight: 700;
   color: var(--text-primary);
 }
-.log-rating-btn.active .log-rating-num { color: var(--orange); }
+.log-rating-btn.active .log-rating-num { color: var(--accent); }
 
 .log-rating-label {
   font-size: 9px;
@@ -272,7 +272,7 @@
   color: var(--text-tertiary);
   white-space: nowrap;
 }
-.log-rating-btn.active .log-rating-label { color: var(--orange); }
+.log-rating-btn.active .log-rating-label { color: var(--accent); }
 
 /* ─── Save bar ───────────────────────────────────────────────────────────────── */
 

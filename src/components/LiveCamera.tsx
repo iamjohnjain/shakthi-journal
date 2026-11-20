@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, SwitchCamera, Timer } from 'lucide-react'
 import './LiveCamera.css'
+
+const TIMER_OPTIONS = [0, 3, 10] as const
+type TimerOption = typeof TIMER_OPTIONS[number]
 
 /** Full-screen live camera — getUserMedia + a real viewfinder and shutter
     button, not a handoff to the OS camera sheet. Falls back to a plain photo
@@ -18,6 +21,10 @@ export default function LiveCamera({ onCapture, onClose }: {
   const fileRef = useRef<HTMLInputElement>(null)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
+  const [timerOption, setTimerOption] = useState<TimerOption>(0)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -25,7 +32,8 @@ export default function LiveCamera({ onCapture, onClose }: {
       setFailed(true)
       return
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    setReady(false)
+    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
       .then(stream => {
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
@@ -38,9 +46,11 @@ export default function LiveCamera({ onCapture, onClose }: {
       cancelled = true
       streamRef.current?.getTracks().forEach(t => t.stop())
     }
-  }, [])
+  }, [facingMode])
 
-  function capture() {
+  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current) }, [])
+
+  function captureNow() {
     const video = videoRef.current
     if (!video || !video.videoWidth) return
     const canvas = document.createElement('canvas')
@@ -50,6 +60,25 @@ export default function LiveCamera({ onCapture, onClose }: {
     if (!ctx) return
     ctx.drawImage(video, 0, 0)
     canvas.toBlob(blob => { if (blob) onCapture(blob) }, 'image/jpeg', 0.88)
+  }
+
+  function handleShutter() {
+    if (timerOption === 0) { captureNow(); return }
+    setCountdown(timerOption)
+    countdownRef.current = setInterval(() => {
+      setCountdown(c => {
+        if (c == null || c <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current)
+          captureNow()
+          return null
+        }
+        return c - 1
+      })
+    }, 1000)
+  }
+
+  function cycleTimer() {
+    setTimerOption(t => TIMER_OPTIONS[(TIMER_OPTIONS.indexOf(t) + 1) % TIMER_OPTIONS.length])
   }
 
   if (failed) {
@@ -83,11 +112,27 @@ export default function LiveCamera({ onCapture, onClose }: {
       {!ready && (
         <div className="live-camera-loading"><Loader2 size={22} className="live-camera-spin" /></div>
       )}
+      {countdown != null && (
+        <div className="live-camera-countdown">{countdown}</div>
+      )}
+      <div className="live-camera-top-controls">
+        <button
+          className={`live-camera-timer-btn ${timerOption > 0 ? 'live-camera-timer-btn--active' : ''}`}
+          onClick={cycleTimer}
+          aria-label="Self-timer"
+        >
+          <Timer size={16} />
+          {timerOption > 0 && <span>{timerOption}s</span>}
+        </button>
+        <button className="live-camera-flip-btn" onClick={() => setFacingMode(m => m === 'environment' ? 'user' : 'environment')} aria-label="Switch camera">
+          <SwitchCamera size={18} />
+        </button>
+      </div>
       <div className="live-camera-controls">
         <button className="live-camera-cancel" onClick={onClose} aria-label="Cancel">
           <X size={22} />
         </button>
-        <button className="live-camera-shutter" onClick={capture} disabled={!ready} aria-label="Take photo" />
+        <button className="live-camera-shutter" onClick={handleShutter} disabled={!ready || countdown != null} aria-label="Take photo" />
         <span className="live-camera-spacer" />
       </div>
     </div>,

@@ -1,20 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Camera, Video, Upload, X, Check } from 'lucide-react'
+import { Camera, Video, Upload, X, Check, SwitchCamera } from 'lucide-react'
 import LiveCamera from '../components/LiveCamera'
 import PhotoLightbox from '../components/PhotoLightbox'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { compressImageUnderBytes } from '../lib/imageUtils'
-import { savePhoto, getPhotos, getPoseLabels } from '../db/progressPhotoStore'
+import { savePhoto, getPhotos, getPoseLabels, updatePhoto } from '../db/progressPhotoStore'
 import type { ProgressPhoto, ProgressPhotoPose } from '../db'
 import { getLatestSnapshots } from '../db/healthStore'
-import { localDateStr, kgToLbs, formatFullDate } from '../data/config'
+import { localDateStr, kgToLbs, lbsToKg, formatFullDate } from '../data/config'
 import './ProgressCheckIns.css'
 
 interface LightboxState {
+  photoId?: string
   photoDataUrl: string
   caption: string
   meta?: string
+  date?: string
+  weightLbs?: number | null
 }
 
 /** Finds the logged weight closest in time to `targetDate` (within a year
@@ -41,9 +44,24 @@ function poseLabel(photo: Pick<ProgressPhoto, 'pose' | 'customLabel'>): string {
 }
 
 async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> {
+  // A manually-corrected weight on the photo itself always wins over the
+  // derived nearest-date lookup — it exists specifically to override a
+  // wrong guess, so it would be strange for the guess to still show.
+  if (photo.weightKg != null) {
+    const weightLbs = kgToLbs(photo.weightKg)
+    return {
+      photoId: photo.id,
+      photoDataUrl: photo.photoDataUrl,
+      caption: `${poseLabel(photo)} — ${photo.date}`,
+      meta: `${weightLbs} lbs`,
+      date: photo.date,
+      weightLbs,
+    }
+  }
   const weight = await findClosestWeightLbs(photo.date)
   const sameDayWeight = weight && weight.date === photo.date
   return {
+    photoId: photo.id,
     photoDataUrl: photo.photoDataUrl,
     caption: `${poseLabel(photo)} — ${photo.date}`,
     meta: weight
@@ -51,6 +69,8 @@ async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> 
         ? `${weight.weightLbs} lbs that day`
         : `${weight.weightLbs} lbs (closest reading, ${weight.date})`
       : undefined,
+    date: photo.date,
+    weightLbs: null,
   }
 }
 
@@ -112,6 +132,10 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
   // zero feedback to the user. LiveCamera.tsx already guards its shutter
   // button the same way.
   const [cameraReady, setCameraReady] = useState(false)
+  // Defaults to front-facing — this is built for a continuous rep-check/
+  // pose recording where the user is usually recording themselves, unlike
+  // LiveCamera's single-shot photo (which defaults to the back camera).
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user')
 
   useEffect(() => {
     let cancelled = false
@@ -119,7 +143,8 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
       setFailed(true)
       return
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    setCameraReady(false)
+    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
       .then(stream => {
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
@@ -133,7 +158,7 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
       if (clipUrl) URL.revokeObjectURL(clipUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [facingMode])
 
   function startRecording() {
     const stream = streamRef.current
@@ -173,7 +198,7 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
     setFailed(false)
     setCameraReady(false)
     // Camera track was stopped on the aborted recorder's onstop — re-acquire.
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
       .then(stream => {
         streamRef.current = stream
         if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
@@ -187,7 +212,7 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
     setPhase('recording')
     setCameraReady(false)
     if (clipUrl) { URL.revokeObjectURL(clipUrl); setClipUrl(null) }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
       .then(stream => {
         streamRef.current = stream
         if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
@@ -204,16 +229,52 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
       becomes Infinity, so dragging it does nothing. Standard documented
       workaround: seek absurdly far forward, wait for the duration to
       resolve via `timeupdate`, then seek back near the start. */
+  /** A handful of devices/codec combinations report success (isTypeSupported
+      said yes, the recording "worked") but produce a blob whose video track
+      never actually paints a visible frame — `videoWidth`/`videoHeight` can
+      report a perfectly normal resolution with nothing real behind it, so
+      checking dimensions alone isn't enough (this was the gap that let the
+      black-screen bug through the first fix). This draws the frame the seek
+      landed on to a small offscreen canvas and checks for real, non-black
+      pixel data — the same test a human eye would apply, just automated. */
+  function probeFramePainted(video: HTMLVideoElement): boolean {
+    if (video.videoWidth <= 2 || video.videoHeight <= 2 || video.readyState < video.HAVE_CURRENT_DATA) {
+      return false
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.min(48, video.videoWidth)
+    canvas.height = Math.min(48, video.videoHeight)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return true // can't probe — don't fail a frame that might be fine
+    try {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      let sum = 0
+      for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i + 1] + data[i + 2]
+      const avgChannel = sum / (data.length / 4)
+      return avgChannel >= 4 // effectively solid black otherwise
+    } catch {
+      return true // tainted/inaccessible canvas — same reasoning as above
+    }
+  }
+
   function fixDurationThenSeekToStart(video: HTMLVideoElement) {
     const finish = () => {
       setDuration(video.duration)
+      let settled = false
+      const settleProbe = () => {
+        if (settled) return
+        settled = true
+        video.removeEventListener('seeked', onSeeked)
+        if (!probeFramePainted(video)) setReviewFailed(true)
+      }
+      const onSeeked = () => settleProbe()
+      video.addEventListener('seeked', onSeeked)
       video.currentTime = 0.05
-      // A handful of devices/codec combinations report success
-      // (isTypeSupported said yes, the recording "worked") but produce a
-      // blob that decodes with degenerate dimensions — never trust that
-      // silently; surface it as a recoverable error instead of a
-      // confusing black screen nobody can explain.
-      if (video.videoWidth <= 2 || video.videoHeight <= 2) setReviewFailed(true)
+      // A genuinely broken blob can fail to fire `seeked` at all for this
+      // second seek too — don't hang forever waiting for it, same fallback
+      // reasoning as the timeupdate listener below.
+      setTimeout(settleProbe, 800)
     }
     if (video.duration === Infinity || Number.isNaN(video.duration)) {
       video.currentTime = Number.MAX_SAFE_INTEGER
@@ -273,6 +334,15 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
         <>
           <video ref={liveVideoRef} autoPlay playsInline muted className="vfc-video" />
           {recording && <div className="vfc-recording-badge"><span className="vfc-recording-dot" /> Recording…</div>}
+          {!recording && (
+            <button
+              className="vfc-flip-btn"
+              onClick={() => setFacingMode(m => m === 'user' ? 'environment' : 'user')}
+              aria-label="Switch camera"
+            >
+              <SwitchCamera size={16} />
+            </button>
+          )}
           {tooShort && (
             <div className="vfc-too-short">
               <p>That was too quick to capture — hold Start Recording a little longer.</p>
@@ -439,6 +509,18 @@ export default function CheckInsSection() {
 
   function openLightbox(photo: ProgressPhoto) {
     void buildLightboxState(photo).then(setLightbox)
+  }
+
+  async function handleLightboxSave(photoId: string, changes: { date: string; weightLbs: number | null }) {
+    const updated = await updatePhoto(photoId, {
+      date: changes.date,
+      weightKg: changes.weightLbs != null ? lbsToKg(changes.weightLbs) : null,
+    })
+    if (!updated) return
+    // Refresh both the grid/filter state (so compare-by-date picks up a
+    // changed date immediately) and the open lightbox's own caption.
+    await refreshComparePhotos()
+    void buildLightboxState(updated).then(setLightbox)
   }
 
   async function handleStagedBlob(blob: Blob) {
@@ -657,6 +739,11 @@ export default function CheckInsSection() {
           caption={lightbox.caption}
           meta={lightbox.meta}
           onClose={() => setLightbox(null)}
+          editDate={lightbox.date}
+          editWeightLbs={lightbox.weightLbs}
+          onSave={lightbox.photoId
+            ? changes => handleLightboxSave(lightbox.photoId!, changes)
+            : undefined}
         />
       )}
       {pickingDate && (

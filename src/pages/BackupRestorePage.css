@@ -12,7 +12,7 @@
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: var(--orange);
+  color: var(--accent);
   background: none;
   border: none;
   padding: 0;
@@ -26,14 +26,14 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: var(--orange-dim);
-  border: 1px solid rgba(251, 122, 60, 0.2);
+  background: var(--purple-dim);
+  border: 1px solid rgba(166, 107, 245, 0.2);
   border-radius: 14px;
   padding: 16px 18px;
 }
 
 .br-safety-icon {
-  color: var(--orange);
+  color: var(--accent);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -340,8 +340,8 @@
 }
 
 .br-mode-btn--on {
-  border-color: var(--orange);
-  background: var(--orange-dim);
+  border-color: var(--accent);
+  background: var(--purple-dim);
 }
 
 .br-mode-btn-title {
@@ -361,12 +361,12 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  background: var(--orange-dim);
+  background: var(--purple-dim);
   border: 1px solid rgba(255,159,10,.25);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 12px;
-  color: var(--orange);
+  color: var(--accent);
 }
 
 .br-modal-footer {

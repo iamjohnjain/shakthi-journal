@@ -58,7 +58,7 @@
   line-height: 1.25;
   cursor: pointer;
 }
-.pci-capture-btn:hover { border-color: var(--orange); color: var(--orange); }
+.pci-capture-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .pci-saved-note {
   display: flex;
@@ -147,7 +147,7 @@
   cursor: pointer;
   transition: border-color .12s, color .12s;
 }
-.pci-chip:hover { border-color: var(--orange); color: var(--orange); }
+.pci-chip:hover { border-color: var(--accent); color: var(--accent); }
 .pci-chip--active {
   background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
   background-origin: border-box;
@@ -183,7 +183,7 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.pci-date-btn:hover { border-color: var(--orange); }
+.pci-date-btn:hover { border-color: var(--accent); }
 .pci-date-vs {
   color: var(--text-tertiary);
   font-size: 12px;
@@ -283,6 +283,12 @@
 }
 .vfc-close {
   position: absolute; top: calc(14px + var(--safe-top, 0px)); right: 14px; z-index: 1;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,0.14); border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.vfc-flip-btn {
+  position: absolute; top: calc(14px + 38px + 8px + var(--safe-top, 0px)); right: 14px; z-index: 1;
   width: 38px; height: 38px; border-radius: 50%;
   background: rgba(255,255,255,0.14); border: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;

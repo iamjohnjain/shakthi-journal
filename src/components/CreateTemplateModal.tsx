@@ -250,7 +250,7 @@ export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: 
                     <textarea
                       className="import-textarea"
                       rows={8}
-                      placeholder={'e.g.\nDay 1 – Push\nBench Press 4x8\nShoulder Press 3x10\n\nDay 2 – Pull\nLat Pulldown 4x10\nBarbell Row 3x8'}
+                      placeholder={'e.x.\nDay 1: Push - Bench Press, Shoulder Press\nDay 2: Pull - Lat Pulldown, Barbell Row'}
                       value={text}
                       onChange={e => setText(e.target.value)}
                       disabled={status === 'loading'}

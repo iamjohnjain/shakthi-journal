@@ -41,7 +41,7 @@ function smoothPath(points: { x: number; y: number }[]): string {
 }
 
 export default function TrendChart({
-  data, period, color = 'var(--orange)', unit = '', formatValue, goalValue, height = 120,
+  data, period, color = 'var(--accent)', unit = '', formatValue, goalValue, height = 120,
 }: Props) {
   const containerRef = useRef<SVGSVGElement>(null)
   const [animated, setAnimated] = useState(false)

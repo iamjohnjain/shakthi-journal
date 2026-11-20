@@ -7,7 +7,7 @@ import SubNav from '../components/WorkoutsSubNav'
 import CheckInsSection from './ProgressCheckIns'
 import './WorkoutProgressPage.css'
 
-function MiniBar({ pct, color = 'var(--orange)' }: { pct: number; color?: string }) {
+function MiniBar({ pct, color = 'var(--accent)' }: { pct: number; color?: string }) {
   return (
     <div className="wpr-bar-track">
       <div className="wpr-bar-fill" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color }} />
@@ -51,7 +51,7 @@ function HistoryCard({ history }: { history: ExerciseHistory }) {
             return (
               <div key={i} className="wpr-session-row">
                 <span className="wpr-session-date">{s.date}</span>
-                <MiniBar pct={pct} color={i === 0 ? 'var(--green)' : 'var(--orange)'} />
+                <MiniBar pct={pct} color={i === 0 ? 'var(--green)' : 'var(--accent)'} />
                 <span className="wpr-session-e1rm">
                   {s.bestE1RM > 0 ? `${s.bestE1RM}lb` : '—'}
                 </span>
@@ -201,7 +201,7 @@ export default function WorkoutProgressPage() {
 
       <div className="wpr-mode-toggle">
         <button className={mode === 'checkins' ? 'wpr-mode-active' : ''} onClick={() => setMode('checkins')}>
-          <Camera size={14} /> Check-Ins
+          <Camera size={14} /> Check-in
         </button>
         <button className={mode === 'pr' ? 'wpr-mode-active' : ''} onClick={() => setMode('pr')}>
           <TrendingUp size={14} /> Progress

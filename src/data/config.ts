@@ -15,6 +15,10 @@ export function kgToLbs(kg: number) {
   return +(kg * 2.20462).toFixed(1)
 }
 
+export function lbsToKg(lbs: number) {
+  return +(lbs / 2.20462).toFixed(2)
+}
+
 export function getGreeting(): string {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'

@@ -30,3 +30,83 @@
   font-size: 13px;
   color: rgba(255, 255, 255, 0.7);
 }
+
+.lightbox-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: var(--r-full, 999px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lightbox-edit-btn:hover { background: rgba(255, 255, 255, 0.14); }
+
+.lightbox-edit {
+  margin-top: 18px;
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lightbox-edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lightbox-edit-row label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lightbox-edit-row input {
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 14px;
+  color-scheme: dark;
+}
+
+.lightbox-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.lightbox-edit-actions button {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lightbox-edit-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.lightbox-edit-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--accent, #A66BF5);
+  border-color: transparent;
+  color: #fff;
+}
+.lightbox-edit-save:disabled,
+.lightbox-edit-cancel:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

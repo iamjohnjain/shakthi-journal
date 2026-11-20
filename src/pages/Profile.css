@@ -22,7 +22,7 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse at 60% 0%, rgba(166,107,245,0.16) 0%, transparent 65%),
-              radial-gradient(ellipse at 20% 100%, rgba(251,122,60,0.10) 0%, transparent 50%);
+              radial-gradient(ellipse at 20% 100%, rgba(166,107,245,0.10) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -193,7 +193,6 @@
 }
 
 .profile-card {
-  background: var(--bg);
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
@@ -334,7 +333,7 @@
 }
 
 .profile-goal-icon {
-  color: var(--orange);
+  color: var(--accent);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -349,12 +348,12 @@
 
 .profile-activity-chip {
   padding: 5px 12px;
-  background: var(--orange-dim);
-  border: 1px solid rgba(251,122,60,0.2);
+  background: var(--purple-dim);
+  border: 1px solid rgba(166,107,245,0.2);
   border-radius: var(--r-full);
   font-size: 0.78rem;
   font-weight: 500;
-  color: var(--orange);
+  color: var(--accent);
 }
 
 /* ─── Devices ────────────────────────────────────────────── */
@@ -412,7 +411,7 @@
   border: none;
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--orange);
+  color: var(--accent);
   cursor: pointer;
   padding: 0;
 }
@@ -723,9 +722,9 @@
   .profile-settings-btn:hover { background: var(--bg-card-hover); }
 
   .profile-auth-btn {
-    color: var(--orange);
-    border-color: rgba(251,122,60,0.25);
-    background: rgba(251,122,60,0.08);
+    color: var(--accent);
+    border-color: rgba(166,107,245,0.25);
+    background: rgba(166,107,245,0.08);
   }
 
   .profile-auth-btn--out {
@@ -755,6 +754,6 @@
 }
 
 .profile-setup-again-btn:hover {
-  border-color: var(--orange);
-  color: var(--orange);
+  border-color: var(--accent);
+  color: var(--accent);
 }

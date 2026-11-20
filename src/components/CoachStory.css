@@ -1,7 +1,6 @@
 .coach-story {
   background: linear-gradient(135deg,
-    rgba(251, 138, 76, 0.06) 0%,
-    rgba(166, 107, 245, 0.07) 55%,
+    rgba(166, 107, 245, 0.07) 0%,
     rgba(91, 127, 255, 0.05) 100%);
   border: 1px solid rgba(166, 107, 245, 0.2);
   border-radius: var(--r-xl);
@@ -43,7 +42,7 @@
 
 .story-conf--high   { background: rgba(48,209,88,0.12);  color: var(--green);  }
 .story-conf--medium { background: rgba(255,214,10,0.12); color: var(--yellow); }
-.story-conf--low    { background: rgba(255,159,10,0.12); color: var(--orange); }
+.story-conf--low    { background: rgba(255,159,10,0.12); color: var(--accent); }
 
 .story-text {
   font-size: 15px;
