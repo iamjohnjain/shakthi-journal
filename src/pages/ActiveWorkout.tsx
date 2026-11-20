@@ -625,7 +625,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
   }
 
   if (showFinish) {
-    return (
+    return createPortal(
       <div className="aw-overlay">
         <FinishSummary
           title={title.trim() || (workoutType === 'lifting' ? 'Lifting session' : 'Cardio session')}
@@ -635,11 +635,12 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
           onConfirm={handleConfirmFinish}
           onBack={() => setShowFinish(false)}
         />
-      </div>
+      </div>,
+      document.body
     )
   }
 
-  return (
+  return createPortal(
     <div className="aw-overlay">
       <div className="aw-modal">
 
@@ -747,6 +748,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
           onClose={() => setShowPicker(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -6,6 +6,7 @@ import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
 import { getProfile, saveProfile } from '../db/profileStore'
 import { getSetting } from '../db'
+import { calcNutrition } from '../lib/nutritionMath'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
 import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
@@ -187,7 +188,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   const units = useUnits()
   const [typeIdx, setTypeIdx] = useState(0)
   const [profile,        setProfile]        = useState<ProfileData | null>(null)
-  const [nutritionGoals, setNutritionGoals] = useState<Pick<NutritionGoals, 'proteinG'>>({ proteinG: 200 })
+  const [nutritionGoals, setNutritionGoals] = useState<Pick<NutritionGoals, 'proteinG' | 'calories'>>({ proteinG: 200, calories: 2300 })
   const [stepGoal,       setStepGoal]       = useState(10_000)
   const [animated,       setAnimated]       = useState(false)
   const [showDetail,     setShowDetail]     = useState(false)
@@ -209,7 +210,8 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   useEffect(() => {
     getProfile().then(setProfile)
     getSetting<NutritionGoals | null>('nutrition-goals', null).then(ng => {
-      if (ng?.proteinG) setNutritionGoals({ proteinG: ng.proteinG })
+      if (ng?.proteinG) setNutritionGoals(prev => ({ ...prev, proteinG: ng.proteinG }))
+      if (ng?.calories) setNutritionGoals(prev => ({ ...prev, calories: ng.calories }))
     })
     getSetting<number>('step-goal', 10_000).then(setStepGoal)
   }, [])
@@ -270,6 +272,22 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
         higherIsBetter: cfg.higherIsBetter,
       })
     : null
+
+  // Calories/day needed to hit the weight goal by the target date — same
+  // rate→calorie conversion as the onboarding nutrition step (calcNutrition),
+  // just run in reverse: here the date is fixed and the rate comes from
+  // computePace's requiredPerWeek instead of a user-picked rate.
+  const calorieTarget = (() => {
+    if (goalType !== 'weight' || !pace) return null
+    if (pace.status !== 'behind' && pace.status !== 'on-track') return null
+    if (pace.requiredPerWeek == null || profile?.goalWeightKg == null) return null
+    const goalWeightLbs = kgToLbs(profile.goalWeightKg)
+    // computePace's requiredPerWeek is always a positive magnitude — negate
+    // it for a gain goal (higherIsBetter) so calcNutrition adds calories for
+    // a surplus instead of subtracting them for a deficit.
+    const rateLbsPerWeek = cfg.higherIsBetter ? -pace.requiredPerWeek : pace.requiredPerWeek
+    return calcNutrition(goalWeightLbs, profile?.activityLevel || 'moderate', rateLbsPerWeek).calories
+  })()
 
   function openEditGoal() {
     setEditStart(startVal != null ? String(startVal) : '')
@@ -541,6 +559,26 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                       to reach your goal by {profile?.goalDate ? shortDate(profile.goalDate) : ''}.
                     </span>
                   )}
+                </div>
+              )}
+
+              {/* ── Calories/day needed to hit this goal by the target date,
+                     shown as a simple current-vs-needed comparison bar. ── */}
+              {goalType === 'weight' && !editingGoal && calorieTarget != null && (
+                <div className="goal-ring-calorie-target">
+                  <div className="goal-ring-calorie-target-row">
+                    <span>Current goal: {nutritionGoals.calories} cal</span>
+                    <span>Needed: {calorieTarget} cal</span>
+                  </div>
+                  <div className="goal-ring-calorie-target-track">
+                    <div className="goal-ring-calorie-target-marker goal-ring-calorie-target-marker--current"
+                      style={{ left: `${clamp((nutritionGoals.calories ?? 0) / Math.max(nutritionGoals.calories ?? 0, calorieTarget) * 100)}%` }} />
+                    <div className="goal-ring-calorie-target-marker goal-ring-calorie-target-marker--needed"
+                      style={{ left: `${clamp(calorieTarget / Math.max(nutritionGoals.calories ?? 0, calorieTarget) * 100)}%` }} />
+                  </div>
+                  <p className="goal-ring-calorie-target-note">
+                    ~{calorieTarget} cal/day to hit your goal by {profile?.goalDate ? shortDate(profile.goalDate) : 'your target date'}.
+                  </p>
                 </div>
               )}
 

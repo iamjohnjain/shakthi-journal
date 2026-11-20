@@ -89,12 +89,13 @@
   transition: all 0.15s ease;
 }
 
-/* Flat fill, not the brand gradient — a row of several logged dots sitting
-   side by side each used to repaint the full diagonal gradient inside its
-   own small circle, so the color visibly "restarted" at every cell instead
-   of reading as one continuous run. A flat color has no such seam. */
+/* Each logged dot gets the full brand gradient rather than a flat accent
+   fill — the earlier flat-color choice was to avoid a "restart" seam
+   across adjacent cells, but at this size (26px) each dot reads as its
+   own self-contained badge, same as the bottom-nav active pill and other
+   small gradient-filled chips elsewhere in the app. */
 .week-streak-dot--logged {
-  background: var(--accent); border-color: transparent; color: #fff;
+  background: var(--gradient-brand); border-color: transparent; color: #fff;
 }
 
 /* "Today" gets the same ring treatment as the avatar/profile icon, instead
@@ -153,15 +154,18 @@
   flex-shrink: 0;
 }
 
-/* Flat accent-bordered chip, matching the flat fill used by the logged dots
-   in the same bar — a consistent, single-color treatment end to end. */
+/* Gradient-ring border, same double-background-clip technique as
+   .meal-empty--current / .add-modal — matches the gradient fill now used
+   by the logged dots in the same bar. */
 .week-streak-icon-wrap {
   width: 28px; height: 28px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-primary);
-  background: var(--bg-card);
-  border: 1px solid var(--accent);
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .week-streak-icon { color: var(--text-primary); }

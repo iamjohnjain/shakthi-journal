@@ -11,35 +11,8 @@ import { AUTH_PROVIDERS } from '../lib/authProviders'
 import { syncEngine } from '../db/syncEngine'
 import type { ProfileData } from '../db'
 import { localDateStr } from '../data/config'
+import { calcNutrition } from '../lib/nutritionMath'
 import './OnboardingPage.css'
-
-// ─── Nutrition math ───────────────────────────────────────────────────────────
-
-const ACTIVITY_MULTIPLIERS: Record<string, number> = {
-  sedentary: 12, light: 13, moderate: 14, active: 15.5, 'very-active': 17,
-}
-
-// 3500 kcal ≈ 1 lb of fat, so a weekly deficit of (rate × 3500) kcal spread
-// over 7 days is (rate × 500) kcal/day — the standard, uncontroversial
-// conversion (no fancier metabolic-adaptation modeling here, same spirit as
-// the rest of this app's "simple and honest over falsely precise" formulas).
-// Floored at 1200 cal/day regardless of rate — a safety floor, not a
-// suggestion, so an aggressive rate selection can't compute something unsafe.
-const MIN_SAFE_CALORIES = 1200
-const CALORIE_DEFICIT_PER_LB_PER_WEEK = 500
-
-function calcNutrition(goalWeightLbs: number, activityLevel: string, rateLbsPerWeek: number) {
-  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] ?? 14
-  const baseCalories = goalWeightLbs * multiplier
-  const calories = Math.max(MIN_SAFE_CALORIES, Math.round(baseCalories - rateLbsPerWeek * CALORIE_DEFICIT_PER_LB_PER_WEEK))
-  // 1g per lb of goal weight by default (not the old 0.82g/lb factor) — still
-  // freely adjustable down from there on the same screen.
-  const proteinG = Math.round(goalWeightLbs * 1.0)
-  const proteinCal = proteinG * 4
-  const fatG = Math.max(0, Math.round((calories - proteinCal) * 0.3 / 9))
-  const carbsG = Math.max(0, Math.round((calories - proteinCal) * 0.7 / 4))
-  return { calories, proteinG, fatG, carbsG, waterMl: 3785 }
-}
 
 const WEIGHT_LOSS_RATE_VALUES = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 

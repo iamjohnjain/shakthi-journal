@@ -16,6 +16,83 @@
   object-fit: contain;
   border-radius: 12px;
 }
+
+.lightbox-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.lightbox-stage--split {
+  gap: 10px;
+}
+
+.lightbox-pane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.lightbox-pane--split {
+  flex: 1;
+  max-width: 48%;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  padding: 2px;
+}
+
+.lightbox-pane--split .lightbox-img {
+  max-height: 60vh;
+  border-radius: 10px;
+}
+
+.lightbox-pane--selected {
+  border-color: var(--accent);
+}
+
+.lightbox-pane-empty {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.lightbox-nav--prev { left: -4px; }
+.lightbox-nav--next { right: -4px; }
+
+.lightbox-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+.lightbox-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+}
+.lightbox-dot--active {
+  background: var(--gradient-brand, #fff);
+}
 .lightbox-caption {
   margin-top: 18px;
   text-align: center;

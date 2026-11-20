@@ -126,6 +126,7 @@
 }
 .coach-msg-list:last-child { margin-bottom: 0; }
 .coach-msg-list li { padding-left: 2px; }
+.coach-msg-p strong, .coach-msg-list strong { font-weight: 700; color: var(--text-primary); }
 
 .coach-proposal {
   margin-top: 10px;

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, FileText, X, ExternalLink } from 'lucide-react'
 import { formatFullDate } from '../data/config'
@@ -51,14 +51,24 @@ function toolResultLabel(message: CoachChatMessage): string | null {
   }
 }
 
-/** Strips the inline markdown the model is told not to use but sometimes
-    emits anyway — paired `**bold**`/`__bold__` markers and leading `#`
-    headings — never trust a model to fully obey formatting instructions. */
+/** Strips leading `#` headings the model is told not to use but sometimes
+    emits anyway — never trust a model to fully obey formatting instructions.
+    `**bold**`/`__bold__` markers are left in place for renderInline() below
+    to turn into real <strong> text, since bold is now a supported, allowed
+    way to call out exercise names/key numbers in text-heavy replies. */
 function stripInlineMarkdown(line: string): string {
-  return line
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/^#{1,6}\s+/, '')
+  return line.replace(/^#{1,6}\s+/, '')
+}
+
+/** Turns `**bold**`/`__bold__` spans into real <strong> elements — the only
+    inline markdown the renderer understands beyond bullets/numbers. */
+function renderInline(line: string): ReactNode {
+  const parts = line.split(/(\*\*.+?\*\*|__.+?__)/g).filter(Boolean)
+  if (parts.length === 1) return parts[0]
+  return parts.map((part, i) => {
+    const m = /^\*\*(.+)\*\*$/.exec(part) ?? /^__(.+)__$/.exec(part)
+    return m ? <strong key={i}>{m[1]}</strong> : <span key={i}>{part}</span>
+  })
 }
 
 /** A markdown table's separator row (`|---|:---:|---|`) carries no content —
@@ -110,12 +120,12 @@ function MessageBody({ text }: { text: string }) {
     <>
       {blocks.map((block, i) => {
         if (block.type === 'ul') {
-          return <ul key={i} className="coach-msg-list">{block.items.map((it, j) => <li key={j}>{it}</li>)}</ul>
+          return <ul key={i} className="coach-msg-list">{block.items.map((it, j) => <li key={j}>{renderInline(it)}</li>)}</ul>
         }
         if (block.type === 'ol') {
-          return <ol key={i} className="coach-msg-list">{block.items.map((it, j) => <li key={j}>{it}</li>)}</ol>
+          return <ol key={i} className="coach-msg-list">{block.items.map((it, j) => <li key={j}>{renderInline(it)}</li>)}</ol>
         }
-        return <p key={i} className="coach-msg-p">{block.items[0]}</p>
+        return <p key={i} className="coach-msg-p">{renderInline(block.items[0])}</p>
       })}
     </>
   )

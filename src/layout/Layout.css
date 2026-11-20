@@ -1,15 +1,24 @@
+/* The ambient gradient lives here, not on .page-content below — WebKit/iOS
+   Safari has a known weak spot where `background-attachment: fixed` on a
+   *nested*, independently-scrolling element (as opposed to body/html itself)
+   fails to repaint reliably during/after momentum scroll, flashing
+   transparent/black right at the newest-painted edge — exactly the reserved
+   bottom-nav-clearance padding at the end of a scroll. `.app-shell` itself
+   never scrolls (`overflow: hidden`, fixed to the viewport), so a fixed
+   background painted here has nothing to fight with. */
 .app-shell {
   display: flex;
   height: 100dvh;
   overflow: hidden;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
 }
 
 .page-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--bg-gradient);
-  background-attachment: fixed;
+  background: transparent;
   position: relative;
   /* Smooth momentum scrolling on iOS */
   -webkit-overflow-scrolling: touch;
@@ -95,10 +104,14 @@
 
   .page-content {
     /* Reserve space for the floating bottom nav (height + its lift gap) + safe
-       area, plus real breathing room above it — the nav's own drop shadow
+       area, plus a little breathing room above it — the nav's own drop shadow
        eats a few more pixels, so a thin buffer here reads as content
-       clipped right at the nav's edge. */
-    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 40px);
+       clipped right at the nav's edge. Kept small (16px, not the 40px this
+       used to be) since the ambient background now extends seamlessly
+       through this space (see .app-shell above) rather than any part of it
+       risking a flat/black render — there's no longer a reason for the gap
+       itself to look larger than the nav actually needs. */
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px);
     /* Reserve top for iPhone status bar in standalone mode */
     padding-top: var(--safe-top);
   }

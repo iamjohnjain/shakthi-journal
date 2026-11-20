@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Camera, Video, Upload, X, Check, SwitchCamera } from 'lucide-react'
 import LiveCamera from '../components/LiveCamera'
-import PhotoLightbox from '../components/PhotoLightbox'
+import PhotoLightbox, { type LightboxEntry } from '../components/PhotoLightbox'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { compressImageUnderBytes } from '../lib/imageUtils'
 import { savePhoto, getPhotos, getPoseLabels, updatePhoto, deletePhoto } from '../db/progressPhotoStore'
@@ -11,13 +11,17 @@ import { getLatestSnapshots } from '../db/healthStore'
 import { localDateStr, kgToLbs, lbsToKg, formatFullDate } from '../data/config'
 import './ProgressCheckIns.css'
 
-interface LightboxState {
-  photoId?: string
-  photoDataUrl: string
-  caption: string
-  meta?: string
-  date?: string
-  weightLbs?: number | null
+type Pane = 'primary' | 'secondary'
+
+/** A navigable lightbox viewing session — `primary` always drives the
+    pager/swipe (single-item for one tap-to-view, several for the main grid
+    so swiping steps through it). `secondary`, when present, is the paired
+    "other date" list in Compare mode's side-by-side view, kept in lockstep
+    with `primary` by index. */
+interface LightboxSession {
+  primary: (LightboxEntry | null)[]
+  secondary?: (LightboxEntry | null)[]
+  index: number
 }
 
 /** Finds the logged weight closest in time to `targetDate` (within a year
@@ -45,7 +49,7 @@ function poseLabel(photo: Pick<ProgressPhoto, 'pose' | 'customLabel'>): string {
   return photo.pose.charAt(0).toUpperCase() + photo.pose.slice(1)
 }
 
-async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> {
+async function buildLightboxEntry(photo: ProgressPhoto): Promise<LightboxEntry> {
   // Caption is just the pose — the date/weight context lives in `meta`
   // instead of being dash-joined into one string, both for a cleaner look
   // and so the date always goes through formatFullDate (Month Day, Year)
@@ -475,7 +479,8 @@ export default function CheckInsSection() {
   const [dateB, setDateB] = useState('')
   const [comparePhotos, setComparePhotos] = useState<ProgressPhoto[]>([])
   const [compareCustomLabels, setCompareCustomLabels] = useState<string[]>([])
-  const [lightbox, setLightbox] = useState<LightboxState | null>(null)
+  const [lightboxSession, setLightboxSession] = useState<LightboxSession | null>(null)
+  const [stagedLightbox, setStagedLightbox] = useState<{ photoDataUrl: string } | null>(null)
   const [progression, setProgression] = useState<{ daysBetween: number; weightDeltaLbs: number | null } | null>(null)
   const [pickingDate, setPickingDate] = useState<'A' | 'B' | null>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
@@ -516,25 +521,51 @@ export default function CheckInsSection() {
     return () => { cancelled = true }
   }, [dateA, dateB])
 
-  function openLightbox(photo: ProgressPhoto) {
-    void buildLightboxState(photo).then(setLightbox)
+  /** Opens a swipe-paged single-list session — the main "All" grid, where
+      every currently-visible photo is pageable in display order. */
+  async function openGridLightbox(clicked: ProgressPhoto, list: ProgressPhoto[]) {
+    const entries = await Promise.all(list.map(buildLightboxEntry))
+    const index = list.findIndex(p => p.id === clicked.id)
+    setLightboxSession({ primary: entries, index: Math.max(0, index) })
   }
 
-  async function handleLightboxSave(photoId: string, changes: { date: string; weightLbs: number | null }) {
+  /** Opens the Compare-mode side-by-side session — `photosA`/`photosB` are
+      paired by position (padded to equal length) so swiping pages both
+      date columns together. */
+  async function openComparePair(aList: ProgressPhoto[], bList: ProgressPhoto[], index: number) {
+    const len = Math.max(aList.length, bList.length)
+    const [primary, secondary] = await Promise.all([
+      Promise.all(Array.from({ length: len }, (_, i) => (aList[i] ? buildLightboxEntry(aList[i]) : Promise.resolve(null)))),
+      Promise.all(Array.from({ length: len }, (_, i) => (bList[i] ? buildLightboxEntry(bList[i]) : Promise.resolve(null)))),
+    ])
+    setLightboxSession({ primary, secondary, index })
+  }
+
+  async function handleLightboxSave(pane: Pane, photoId: string, changes: { date: string; weightLbs: number | null }) {
     const updated = await updatePhoto(photoId, {
       date: changes.date,
       weightKg: changes.weightLbs != null ? lbsToKg(changes.weightLbs) : null,
     })
     if (!updated) return
-    // Refresh both the grid/filter state (so compare-by-date picks up a
-    // changed date immediately) and the open lightbox's own caption.
+    // Refresh the grid/filter state (so compare-by-date picks up a changed
+    // date immediately) and re-resolve just the affected entry in place,
+    // so the session stays open on the same photo with its fresh caption.
     await refreshComparePhotos()
-    void buildLightboxState(updated).then(setLightbox)
+    const newEntry = await buildLightboxEntry(updated)
+    setLightboxSession(session => {
+      if (!session) return session
+      const key = pane === 'secondary' ? 'secondary' : 'primary'
+      const arr = session[key]
+      if (!arr) return session
+      const next = [...arr]
+      next[session.index] = newEntry
+      return { ...session, [key]: next }
+    })
   }
 
-  async function handleLightboxDelete(photoId: string) {
+  async function handleLightboxDelete(_pane: Pane, photoId: string) {
     await deletePhoto(photoId)
-    setLightbox(null)
+    setLightboxSession(null)
     await refreshComparePhotos()
   }
 
@@ -616,7 +647,7 @@ export default function CheckInsSection() {
                 src={item.dataUrl}
                 alt=""
                 className="pci-stage-img"
-                onClick={() => setLightbox({ photoDataUrl: item.dataUrl, caption: 'Not saved yet' })}
+                onClick={() => setStagedLightbox({ photoDataUrl: item.dataUrl })}
               />
 
               <div className="pci-stage-pose">
@@ -709,14 +740,14 @@ export default function CheckInsSection() {
               <div className="pci-compare-grid">
                 <div className="pci-compare-col">
                   <div className="pci-compare-col-label">{dateA ? formatFullDate(dateA) : 'Pick A Date'}</div>
-                  {photosA.length > 0 ? photosA.map(p => (
-                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
+                  {photosA.length > 0 ? photosA.map((p, i) => (
+                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => void openComparePair(photosA, photosB, i)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
                 </div>
                 <div className="pci-compare-col">
                   <div className="pci-compare-col-label">{dateB ? formatFullDate(dateB) : 'Pick A Date'}</div>
-                  {photosB.length > 0 ? photosB.map(p => (
-                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
+                  {photosB.length > 0 ? photosB.map((p, i) => (
+                    <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => void openComparePair(photosA, photosB, i)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
                 </div>
               </div>
@@ -726,7 +757,7 @@ export default function CheckInsSection() {
               {comparePhotos.length === 0 ? (
                 <div className="pci-empty">No check-ins yet{filterPose !== 'all' ? ' for this pose' : ''}.</div>
               ) : comparePhotos.map(p => (
-                <div key={p.id} className="pci-grid-item" onClick={() => openLightbox(p)}>
+                <div key={p.id} className="pci-grid-item" onClick={() => void openGridLightbox(p, comparePhotos)}>
                   <img src={p.photoDataUrl} alt="" />
                   <span>{formatFullDate(p.date)}</span>
                 </div>
@@ -748,20 +779,23 @@ export default function CheckInsSection() {
           onClose={() => setShowRecorder(false)}
         />
       )}
-      {lightbox && (
+      {lightboxSession && (
         <PhotoLightbox
-          photoDataUrl={lightbox.photoDataUrl}
-          caption={lightbox.caption}
-          meta={lightbox.meta}
-          onClose={() => setLightbox(null)}
-          editDate={lightbox.date}
-          editWeightLbs={lightbox.weightLbs}
-          onSave={lightbox.photoId
-            ? changes => handleLightboxSave(lightbox.photoId!, changes)
-            : undefined}
-          onDelete={lightbox.photoId
-            ? () => handleLightboxDelete(lightbox.photoId!)
-            : undefined}
+          primary={lightboxSession.primary}
+          secondary={lightboxSession.secondary}
+          index={lightboxSession.index}
+          onIndexChange={i => setLightboxSession(session => (session ? { ...session, index: i } : session))}
+          onClose={() => setLightboxSession(null)}
+          onSave={handleLightboxSave}
+          onDelete={handleLightboxDelete}
+        />
+      )}
+      {stagedLightbox && (
+        <PhotoLightbox
+          primary={[{ photoDataUrl: stagedLightbox.photoDataUrl, caption: 'Not saved yet' }]}
+          index={0}
+          onIndexChange={() => {}}
+          onClose={() => setStagedLightbox(null)}
         />
       )}
       {pickingDate && (
