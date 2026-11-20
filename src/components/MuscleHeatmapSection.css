@@ -66,16 +66,18 @@
   background: var(--bg-elevated);
 }
 
+/* One item per row — this used to wrap two-per-line at narrow widths,
+   which read as a messy grid rather than an ordered list of four rules. */
 .mh-legend {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
 }
 .mh-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 11px;
   color: var(--text-tertiary);
 }

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { toPng } from 'html-to-image'
 import {
   X, Plus, Check, ChevronDown,
-  Dumbbell, RotateCcw, Flame, Camera, Mic, Loader2, Play, Pause, Download, Share2,
+  Dumbbell, RotateCcw, Flame, Camera, Mic, Loader2, Play, Pause,
 } from 'lucide-react'
 import { saveWorkout, getLastExercisePerformance, EXERCISE_LIBRARY, WORKOUT_TYPES } from '../db/workoutStore'
 import { getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise } from '../db/trainingStore'
@@ -361,115 +360,6 @@ function ExerciseBlock({
   )
 }
 
-// ─── Finish summary ───────────────────────────────────────────────────────────
-
-function FinishSummary({
-  title, exercises, elapsed, prMap, onConfirm, onBack,
-}: {
-  title: string
-  exercises: ActiveExercise[]
-  elapsed: number
-  prMap: Map<string, number>
-  onConfirm: () => void
-  onBack: () => void
-}) {
-  const cardRef  = useRef<HTMLDivElement>(null)
-  const [sharing, setSharing] = useState(false)
-  const [saved,   setSaved]   = useState(false)
-
-  const totalSets  = exercises.reduce((s, e) => s + e.sets.filter(x => x.done && !x.isWarmup).length, 0)
-  const totalVol   = exercises.reduce((s, e) => s + e.sets.filter(x => x.done && !x.isWarmup).reduce((sv, x) => sv + x.weightLbs * x.reps, 0), 0)
-  const prs        = exercises.reduce((count, e) => {
-    const prLbs = prMap.get(e.name)
-    if (!prLbs) return count
-    const hasPR = e.sets.some(s => s.done && !s.isWarmup && s.weightLbs * (1 + s.reps / 30) > prLbs)
-    return count + (hasPR ? 1 : 0)
-  }, 0)
-
-  async function captureCard(): Promise<Blob | null> {
-    if (!cardRef.current) return null
-    const dataUrl = await toPng(cardRef.current, { pixelRatio: 2 })
-    const res = await fetch(dataUrl)
-    return res.blob()
-  }
-
-  async function handleShare() {
-    setSharing(true)
-    try {
-      const blob = await captureCard()
-      if (!blob) return
-      const file = new File([blob], 'workout.png', { type: 'image/png' })
-      const nav = navigator as Navigator & { canShare?: (data: { files: File[] }) => boolean }
-      if (nav.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title })
-      } else {
-        await handleDownload(blob)
-      }
-    } catch {
-      /* user cancelled share sheet — nothing to do */
-    } finally {
-      setSharing(false)
-    }
-  }
-
-  async function handleDownload(preBlob?: Blob) {
-    const blob = preBlob ?? await captureCard()
-    if (!blob) return
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${title.replace(/\s+/g, '-').toLowerCase()}.png`
-    a.click()
-    URL.revokeObjectURL(url)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1800)
-  }
-
-  return (
-    <div className="aw-summary">
-      <div className="aw-summary-card" ref={cardRef}>
-        <div className="aw-summary-icon">💪</div>
-        <h2 className="aw-summary-title">Workout complete!</h2>
-        <span className="aw-summary-name">{title}</span>
-        <div className="aw-summary-stats">
-          <div className="aw-summary-stat">
-            <span className="aw-summary-stat-value">{formatTime(elapsed)}</span>
-            <span className="aw-summary-stat-label">Duration</span>
-          </div>
-          <div className="aw-summary-stat">
-            <span className="aw-summary-stat-value">{totalSets}</span>
-            <span className="aw-summary-stat-label">Sets done</span>
-          </div>
-          <div className="aw-summary-stat">
-            <span className="aw-summary-stat-value">
-              {totalVol >= 1000 ? `${(totalVol / 1000).toFixed(1)}k` : totalVol.toLocaleString()}
-            </span>
-            <span className="aw-summary-stat-label">lbs lifted</span>
-          </div>
-        </div>
-        {prs > 0 && (
-          <div className="aw-summary-pr">
-            🏆 {prs} New PR{prs > 1 ? 's' : ''}
-          </div>
-        )}
-        <div className="aw-summary-brand">Jeevan</div>
-      </div>
-
-      <div className="aw-summary-share-row">
-        <button className="aw-summary-share-btn" onClick={() => handleDownload()} disabled={sharing}>
-          {saved ? <><Check size={15} /> Saved</> : <><Download size={15} /> Download</>}
-        </button>
-        <button className="aw-summary-share-btn aw-summary-share-btn--primary" onClick={handleShare} disabled={sharing}>
-          <Share2 size={15} /> Share
-        </button>
-      </div>
-
-      <button className="aw-confirm-btn" onClick={onConfirm}>Save Workout</button>
-      <button className="aw-back-btn" onClick={onBack}>Keep going</button>
-    </div>
-  )
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initial }: Props) {
@@ -479,10 +369,9 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
   const [title,        setTitle]        = useState(initial?.title ?? '')
   const [exercises,    setExercises]    = useState<ActiveExercise[]>(() => initial ? toActiveExercises(initial.exercises) : [])
   const [showPicker,   setShowPicker]   = useState(false)
-  const [showFinish,   setShowFinish]   = useState(false)
   const [celebrationSession, setCelebrationSession] = useState<WorkoutSession | null>(null)
   const [timerPaused, setTimerPaused] = useState(false)
-  const elapsed = useElapsedTimer(showFinish || timerPaused)
+  const elapsed = useElapsedTimer(timerPaused)
   const [showTypeMenu, setShowTypeMenu] = useState(false)
   const [saving,       setSaving]       = useState(false)
 
@@ -611,7 +500,6 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
     // instead of needing to be typed out in full again.
     void Promise.all(saved.map(e => rememberCustomExercise(e.name)))
     setSaving(false)
-    setShowFinish(false)
     setCelebrationSession(result)
   }
 
@@ -621,22 +509,6 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
         session={celebrationSession}
         onDone={() => onFinish(celebrationSession)}
       />
-    )
-  }
-
-  if (showFinish) {
-    return createPortal(
-      <div className="aw-overlay">
-        <FinishSummary
-          title={title.trim() || (workoutType === 'lifting' ? 'Lifting session' : 'Cardio session')}
-          exercises={exercises}
-          elapsed={elapsed}
-          prMap={prMap}
-          onConfirm={handleConfirmFinish}
-          onBack={() => setShowFinish(false)}
-        />
-      </div>,
-      document.body
     )
   }
 
@@ -731,7 +603,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
           </button>
           <button
             className="aw-finish-btn"
-            onClick={() => setShowFinish(true)}
+            onClick={() => void handleConfirmFinish()}
             disabled={exercises.length === 0 || saving}
           >
             {saving ? 'Saving…' : 'Finish'}

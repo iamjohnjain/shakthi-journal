@@ -117,9 +117,10 @@
 /* ── Chrome around the card — not part of the captured image ── */
 
 .wc-headline {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
 }
 
 .wc-actions {
@@ -152,8 +153,12 @@
 .wc-action-btn:disabled { opacity: 0.6; }
 
 .wc-done-btn {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  padding: 4px 8px;
+  width: 100%;
+  height: 46px;
+  border-radius: var(--r-md);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--gradient-brand);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }

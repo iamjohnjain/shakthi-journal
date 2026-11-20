@@ -6,7 +6,7 @@ import { getISOWeek, getWeekDates, addWeeks, formatWeekLabel } from '../lib/week
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import { useMuscleLoad } from '../hooks/useMuscleLoad'
-import { REGION_MUSCLES, REGION_LABEL, MUSCLE_LABEL, regionTarget, type VisualRegion } from '../lib/muscleMap'
+import { REGION_MUSCLES, REGION_LABEL, MUSCLE_LABEL, type VisualRegion } from '../lib/muscleMap'
 import DatePickerCalendar from './DatePickerCalendar'
 import '../pages/ComparePage.css'
 import './MuscleHeatmapSection.css'
@@ -56,19 +56,6 @@ export default function MuscleHeatmapSection() {
 
   const detail = selectedRegion ? regions[selectedRegion] : null
 
-  // Real per-region weekly targets range 10-18 sets (see muscleMap.ts), so
-  // the under/over thresholds (50%/150% of each region's own target) land
-  // in a different spot per muscle. Rather than quoting the percentage rule
-  // with no visible number, show the actual spread of set counts those
-  // percentages work out to across every region.
-  const legendBounds = useMemo(() => {
-    const targets = (Object.keys(REGION_MUSCLES) as VisualRegion[]).map(regionTarget)
-    const underLo = Math.round(Math.min(...targets) * 0.5)
-    const underHi = Math.round(Math.max(...targets) * 0.5)
-    const overLo = Math.round(Math.min(...targets) * 1.5)
-    const overHi = Math.round(Math.max(...targets) * 1.5)
-    return { underLo, underHi, overLo, overHi }
-  }, [])
 
   return (
     <section className="muscle-heatmap">
@@ -132,16 +119,14 @@ export default function MuscleHeatmapSection() {
         />
       </Suspense>
 
-      {/* Set-count ranges, not the raw percentage rule — the real per-region
-          target varies 10-18 sets/week (muscleMap.ts), so "50% of target"
-          lands at a different number per muscle. Showing the actual spread
-          those percentages work out to gives a real, readable number;
-          tapping a region below shows that muscle's own exact numbers. */}
+      {/* One simple, non-overlapping set of numbers shared by every region —
+          see useMuscleLoad.ts's statusFor() for the matching thresholds
+          (under 10, 10-20 on target, over 20) this legend describes. */}
       <div className="mh-legend">
         <span className="mh-legend-item"><i className="mh-dot mh-dot--none" />Untrained — 0 Sets</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" />Under-Trained — Under {legendBounds.underLo}-{legendBounds.underHi} Sets</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" />On Target — {legendBounds.underLo}-{legendBounds.overHi} Sets</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" />Possibly Overtrained — Over {legendBounds.overLo}-{legendBounds.overHi} Sets</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" />Under-Trained — Under 10 Sets</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" />On Target — 10-20 Sets</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" />Possibly Overtrained — 20+ Sets</span>
       </div>
 
       {!loading && detail && selectedRegion && createPortal(
@@ -151,27 +136,35 @@ export default function MuscleHeatmapSection() {
               <span className="mh-detail-title">{REGION_LABEL[selectedRegion]}</span>
               <button className="mh-detail-close" onClick={() => setSelectedRegion(null)}>×</button>
             </div>
-            {showStatusLabels && (
-              <>
-                <div className="mh-detail-summary">
-                  {detail.trained} / {Math.round(detail.target)} sets · {
-                    detail.status === 'none' ? 'Not trained' :
-                    detail.status === 'under' ? 'Under target' :
-                    detail.status === 'onTarget' ? 'On target' : 'Possibly overtrained'
-                  }
-                </div>
-                <div className="mh-detail-optimal">
-                  Optimal range: {Math.round(detail.target * 0.5)}-{Math.round(detail.target * 1.5)} sets/week
-                </div>
-                <div className="mh-detail-tip">
-                  {detail.status === 'under' || detail.status === 'none'
-                    ? `Add ${Math.max(1, Math.round(detail.target * 0.5) - detail.trained)} more set${Math.max(1, Math.round(detail.target * 0.5) - detail.trained) === 1 ? '' : 's'} this week to reach the optimal range.`
-                    : detail.status === 'onTarget'
-                    ? "You're in the optimal range — keep this volume up for steady progress."
-                    : 'Consider trimming volume next week to stay within a recoverable range.'}
-                </div>
-              </>
-            )}
+            {showStatusLabels && (() => {
+              // `detail.target` is the universal "possibly overtrained" cutoff
+              // (useMuscleLoad.ts's OVER_TRAINED_WEEKLY, scaled to this range);
+              // the "under-trained" cutoff is always exactly half of it.
+              const overMax = Math.round(detail.target)
+              const underMax = Math.round(detail.target / 2)
+              const needed = Math.max(1, underMax - detail.trained)
+              return (
+                <>
+                  <div className="mh-detail-summary">
+                    {detail.trained} sets · {
+                      detail.status === 'none' ? 'Not trained' :
+                      detail.status === 'under' ? 'Under target' :
+                      detail.status === 'onTarget' ? 'On target' : 'Possibly overtrained'
+                    }
+                  </div>
+                  <div className="mh-detail-optimal">
+                    Optimal range: {underMax}-{overMax} sets/week
+                  </div>
+                  <div className="mh-detail-tip">
+                    {detail.status === 'under' || detail.status === 'none'
+                      ? `Add ${needed} more set${needed === 1 ? '' : 's'} this week to reach the optimal range.`
+                      : detail.status === 'onTarget'
+                      ? "You're in the optimal range — keep this volume up for steady progress."
+                      : 'Consider trimming volume next week to stay within a recoverable range.'}
+                  </div>
+                </>
+              )
+            })()}
             {!showStatusLabels && <div className="mh-detail-summary">{detail.trained} sets logged</div>}
             <div className="mh-detail-breakdown">
               {REGION_MUSCLES[selectedRegion].map(m => (

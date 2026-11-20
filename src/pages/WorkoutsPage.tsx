@@ -912,18 +912,34 @@ export default function WorkoutsPage() {
     loadDay(selectedDate)
   }
 
-  // Picking a template (or "Use Once" on an ad-hoc plan below) opens the
-  // same timed live session as "Start", pre-filled with its exercises —
-  // it used to silently auto-save straight into the flat day view instead,
-  // which is how the rest-timer/elapsed-clock went missing for anyone
-  // using a template.
-  function applyTemplate(t: WorkoutTemplate) {
+  // Picking a template drops its exercises straight into the selected day's
+  // flat log — no timed live session, no new page. A prior version of this
+  // app deliberately routed templates through the timed ActiveWorkout
+  // screen instead (so the rest-timer/elapsed-clock would track it), but
+  // per explicit request this trades that away: using a template should
+  // feel like "add these exercises to today," immediately editable
+  // (including drag-reordering, which WorkoutCard's exercise list already
+  // supports) right there in the day view, not a brand-new session.
+  async function applyTemplate(t: WorkoutTemplate) {
     setShowTemplatePicker(false)
-    setActiveWorkoutInitial({
-      title: t.name,
-      exercises: t.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' })),
-    })
-    setShowActiveWorkout(true)
+    const newExercises = t.exercises.map(ex => ({ ...ex, equipment: (ex as ExEntry).equipment ?? 'barbell' }))
+    const existingLift = dayWorkouts.find(w => w.type === 'lifting')
+    if (existingLift) {
+      const merged = await annotateExercises([...existingLift.exercises, ...newExercises])
+      await updateWorkout(existingLift.id, { exercises: merged })
+    } else {
+      const annotated = await annotateExercises(newExercises)
+      await saveWorkout({
+        date: selectedDate,
+        type: 'lifting',
+        title: t.name,
+        durationMin: 0,
+        exercises: annotated,
+        cardioEntries: [],
+      })
+    }
+    refreshCalendar()
+    loadDay(selectedDate)
   }
 
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')

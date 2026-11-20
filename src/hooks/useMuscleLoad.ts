@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getWorkoutsByDateRange } from '../db/workoutStore'
 import {
-  classifyExercise, REGION_MUSCLES, regionTarget,
+  classifyExercise, REGION_MUSCLES,
   type MuscleGroup, type VisualRegion,
 } from '../lib/muscleMap'
 
@@ -20,17 +20,27 @@ export interface MuscleLoadResult {
   loading: boolean
 }
 
+// A single universal weekly-set framework (10-20 sets/muscle/week, the same
+// "most lifters" range muscleMap.ts's own WEEKLY_SET_TARGET comment already
+// cites) applied the same way to every region, replacing the old per-region
+// 50%/150%-of-target math. That older version produced a different, very
+// wide threshold per muscle (a region with a target of 18 had an "on
+// target" band of 9-27 sets) — accurate to the literature, but impossible
+// to describe with one simple, non-overlapping legend. This trades a little
+// per-muscle nuance for numbers a user can actually read and remember.
+const UNDER_TRAINED_WEEKLY = 10
+const OVER_TRAINED_WEEKLY = 20
+
 function daysInRange(start: string, end: string): number {
   const a = new Date(start + 'T12:00:00').getTime()
   const b = new Date(end + 'T12:00:00').getTime()
   return Math.max(1, Math.round((b - a) / 86400000) + 1)
 }
 
-function statusFor(trained: number, target: number): RegionStatus {
+function statusFor(trained: number, underMax: number, overMax: number): RegionStatus {
   if (trained <= 0) return 'none'
-  const pct = trained / target
-  if (pct < 0.5) return 'under'
-  if (pct <= 1.5) return 'onTarget'
+  if (trained < underMax) return 'under'
+  if (trained <= overMax) return 'onTarget'
   return 'over'
 }
 
@@ -69,13 +79,14 @@ export async function computeMuscleLoad(start: string, end: string): Promise<Omi
 
   const days = daysInRange(start, end)
   const scale = days / 7
+  const underMax = Math.max(1, UNDER_TRAINED_WEEKLY * scale)
+  const overMax = Math.max(1, OVER_TRAINED_WEEKLY * scale)
 
   const fineResult = fineCounts as Record<MuscleGroup, number>
   const regionResult = {} as Record<VisualRegion, RegionLoad>
   for (const region of Object.keys(REGION_MUSCLES) as VisualRegion[]) {
     const trained = REGION_MUSCLES[region].reduce((sum, m) => sum + (fineCounts[m] ?? 0), 0)
-    const target = Math.max(1, regionTarget(region) * scale)
-    regionResult[region] = { trained, target, pct: trained / target, status: statusFor(trained, target) }
+    regionResult[region] = { trained, target: overMax, pct: trained / overMax, status: statusFor(trained, underMax, overMax) }
   }
 
   return { fine: fineResult, regions: regionResult }
