@@ -36,8 +36,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    padding: 6px 0;
+    gap: 4px;
+    padding: 8px 0;
     min-height: 44px;         /* Apple HIG minimum tap target */
     color: var(--text-tertiary);
     transition: color 0.15s ease;

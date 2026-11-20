@@ -15,7 +15,7 @@ function formatRelative(iso: string): string {
   const mins = Math.floor(ms / 60_000)
   const hours = Math.floor(ms / 3_600_000)
   const days = Math.floor(ms / 86_400_000)
-  if (mins < 1) return 'Just now'
+  if (mins < 1) return 'Just Now'
   if (mins < 60) return `${mins}m ago`
   if (hours < 24) return `${hours}h ago`
   return `${days}d ago`

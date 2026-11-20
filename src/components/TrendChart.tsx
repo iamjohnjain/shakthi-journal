@@ -133,11 +133,22 @@ export default function TrendChart({
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
           {gradient && (
-            <linearGradient id="trend-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FB8A4C" />
-              <stop offset="50%" stopColor="#A66BF5" />
-              <stop offset="100%" stopColor="#5B7FFF" />
-            </linearGradient>
+            <>
+              <linearGradient id="trend-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#FB8A4C" />
+                <stop offset="50%" stopColor="#A66BF5" />
+                <stop offset="100%" stopColor="#5B7FFF" />
+              </linearGradient>
+              {/* Diagonal, not vertical — an SVG linearGradient only varies
+                  along one axis, so this is what lets the area "shadow"
+                  carry the same orange→purple→blue hues as the line above
+                  it while still fading out toward the bottom, in one def. */}
+              <linearGradient id="trend-area-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FB8A4C" stopOpacity="0.22" />
+                <stop offset="50%" stopColor="#A66BF5" stopOpacity="0.14" />
+                <stop offset="100%" stopColor="#5B7FFF" stopOpacity="0.05" />
+              </linearGradient>
+            </>
           )}
           <clipPath id="trend-clip">
             <rect x="0" y="0" width={animated ? w : 0} height={h} style={{ transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
@@ -156,7 +167,7 @@ export default function TrendChart({
         )}
 
         {/* Area fill */}
-        <path d={areaPath} fill={`url(#trend-grad-${color.replace(/[^a-z]/gi, '')})`} clipPath="url(#trend-clip)" />
+        <path d={areaPath} fill={gradient ? 'url(#trend-area-gradient)' : `url(#trend-grad-${color.replace(/[^a-z]/gi, '')})`} clipPath="url(#trend-clip)" />
 
         {/* Line */}
         <path

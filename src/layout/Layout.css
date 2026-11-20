@@ -30,11 +30,25 @@
      screen instead of shrinking to its content) — without this, the actual
      parent a route renders into has no explicit height of its own, so a
      child's `height: 100%` resolves against nothing and just shrinks to
-     fit. Harmless for ordinary pages: they don't set a height on their own
-     root, so they still just render at their natural content height inside
-     this flex column, and `.page-content`'s own scroll still works the
-     same since nothing here clips overflow. */
-  height: 100%;
+     fit.
+     `min-height`, not `height` — this was `height: 100%` and the comment
+     here used to claim that was harmless for ordinary (taller-than-
+     viewport) pages. It wasn't: a hard `height: 100%` forces this box to
+     exactly `.page-content`'s content-box height (viewport minus
+     `.page-content`'s own bottom padding, the bottom-nav clearance), and
+     any page whose real content is taller overflows that box rather than
+     growing it — which means `.page-content`'s `scrollHeight` ends up
+     measuring the overflow amount, NOT overflow-amount-plus-padding, so
+     the padding silently gets swallowed on exactly the pages tall enough
+     to need it (confirmed via direct scrollHeight diffing: forcing this
+     to `height: auto` changed scrollHeight by precisely the declared
+     padding amount; forcing a bigger padding-bottom alone changed
+     nothing). `min-height: 100%` keeps the original full-height-for-
+     short-content behavior intact while letting a taller page's box
+     actually grow to its real content height, so the trailing padding
+     lands after the *true* end of the content instead of being absorbed
+     into a height ceiling. */
+  min-height: 100%;
   display: flex;
   flex-direction: column;
 }

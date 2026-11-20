@@ -37,6 +37,50 @@ function statusFor(trained: number, target: number): RegionStatus {
 const EMPTY_FINE = {} as Record<MuscleGroup, number>
 const EMPTY_REGIONS = {} as Record<VisualRegion, RegionLoad>
 
+/** The actual calculation, with no React state/lifecycle attached — shared
+    by the heatmap UI (`useMuscleLoad` below) and the Coach's
+    `get_health_context` tool (`coachTools.ts`, a plain async function that
+    can't call a hook), so there's exactly one place that knows what
+    "under-trained" really means instead of the hook being the only copy. */
+export async function computeMuscleLoad(start: string, end: string): Promise<Omit<MuscleLoadResult, 'loading'>> {
+  const workouts = await getWorkoutsByDateRange(start, end)
+
+  const fineCounts: Partial<Record<MuscleGroup, number>> = {}
+  const classifyCache = new Map<string, MuscleGroup[]>()
+
+  for (const w of workouts) {
+    if (w.type !== 'lifting') continue
+    for (const ex of w.exercises ?? []) {
+      if (ex.isBreak || !ex.name.trim()) continue
+      let muscles = classifyCache.get(ex.name)
+      if (!muscles) {
+        muscles = classifyExercise(ex.name)
+        classifyCache.set(ex.name, muscles)
+      }
+      if (muscles.length === 0) continue
+      for (const set of ex.sets) {
+        if (set.isWarmup) continue
+        for (const m of muscles) {
+          fineCounts[m] = (fineCounts[m] ?? 0) + 1
+        }
+      }
+    }
+  }
+
+  const days = daysInRange(start, end)
+  const scale = days / 7
+
+  const fineResult = fineCounts as Record<MuscleGroup, number>
+  const regionResult = {} as Record<VisualRegion, RegionLoad>
+  for (const region of Object.keys(REGION_MUSCLES) as VisualRegion[]) {
+    const trained = REGION_MUSCLES[region].reduce((sum, m) => sum + (fineCounts[m] ?? 0), 0)
+    const target = Math.max(1, regionTarget(region) * scale)
+    regionResult[region] = { trained, target, pct: trained / target, status: statusFor(trained, target) }
+  }
+
+  return { fine: fineResult, regions: regionResult }
+}
+
 export function useMuscleLoad(range: { start: string; end: string }): MuscleLoadResult {
   const [fine, setFine] = useState<Record<MuscleGroup, number>>(EMPTY_FINE)
   const [regions, setRegions] = useState<Record<VisualRegion, RegionLoad>>(EMPTY_REGIONS)
@@ -46,44 +90,10 @@ export function useMuscleLoad(range: { start: string; end: string }): MuscleLoad
     let cancelled = false
     setLoading(true)
 
-    getWorkoutsByDateRange(range.start, range.end).then(workouts => {
+    computeMuscleLoad(range.start, range.end).then(result => {
       if (cancelled) return
-
-      const fineCounts: Partial<Record<MuscleGroup, number>> = {}
-      const classifyCache = new Map<string, MuscleGroup[]>()
-
-      for (const w of workouts) {
-        if (w.type !== 'lifting') continue
-        for (const ex of w.exercises ?? []) {
-          if (ex.isBreak || !ex.name.trim()) continue
-          let muscles = classifyCache.get(ex.name)
-          if (!muscles) {
-            muscles = classifyExercise(ex.name)
-            classifyCache.set(ex.name, muscles)
-          }
-          if (muscles.length === 0) continue
-          for (const set of ex.sets) {
-            if (set.isWarmup) continue
-            for (const m of muscles) {
-              fineCounts[m] = (fineCounts[m] ?? 0) + 1
-            }
-          }
-        }
-      }
-
-      const days = daysInRange(range.start, range.end)
-      const scale = days / 7
-
-      const fineResult = fineCounts as Record<MuscleGroup, number>
-      const regionResult = {} as Record<VisualRegion, RegionLoad>
-      for (const region of Object.keys(REGION_MUSCLES) as VisualRegion[]) {
-        const trained = REGION_MUSCLES[region].reduce((sum, m) => sum + (fineCounts[m] ?? 0), 0)
-        const target = Math.max(1, regionTarget(region) * scale)
-        regionResult[region] = { trained, target, pct: trained / target, status: statusFor(trained, target) }
-      }
-
-      setFine(fineResult)
-      setRegions(regionResult)
+      setFine(result.fine)
+      setRegions(result.regions)
       setLoading(false)
     })
 

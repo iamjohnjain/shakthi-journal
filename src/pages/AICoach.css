@@ -20,6 +20,7 @@
 /* ─── Header ─────────────────────────────────────────────── */
 
 .ai-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -27,7 +28,24 @@
   padding-bottom: 14px;
 }
 
+/* A soft glow behind the icon in the same hue family as CoachChat's own
+   ambient aurora right below it — without this, the icon's hard-edged,
+   full-opacity gradient block sits directly above a ~10%-opacity wash
+   with nothing bridging the two, which reads as a visible seam right at
+   the icon's bottom edge. */
+.ai-header::before {
+  content: '';
+  position: absolute;
+  inset: -16px -16px -8px 0;
+  width: 90px;
+  background: radial-gradient(ellipse 70% 70% at 15% 40%, rgba(251, 138, 76, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .ai-header-icon {
+  position: relative;
+  z-index: 1;
   width: 36px;
   height: 36px;
   border-radius: 11px;
@@ -37,13 +55,55 @@
   justify-content: center;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .ai-title {
+  flex: 1;
   font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: -0.3px;
 }
+
+.ai-clear-btn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ai-clear-btn:hover { color: var(--red); }
+
+.ai-clear-confirm {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.ai-clear-confirm-yes,
+.ai-clear-confirm-no {
+  padding: 5px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-clear-confirm-yes { color: var(--red); border-color: rgba(242, 84, 91, 0.35); }
+.ai-clear-confirm-no { color: var(--text-secondary); }
 
 /* ─── Mobile ─────────────────────────────────────────────── */
 

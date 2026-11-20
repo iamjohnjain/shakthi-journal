@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Send, Sparkles, Check, Mic, Plus, Camera, Image as ImageIcon, FileText, X, ExternalLink } from 'lucide-react'
-import { useCoachChat } from '../hooks/useCoachChat'
 import { formatFullDate } from '../data/config'
 import { useVoiceDictation } from '../hooks/useVoiceDictation'
 import { compressImageToDataUrl } from '../lib/imageUtils'
@@ -122,9 +121,16 @@ function MessageBody({ text }: { text: string }) {
   )
 }
 
-export default function CoachChat() {
+interface Props {
+  messages: CoachChatMessage[]
+  loaded: boolean
+  sending: boolean
+  sendMessage: (text: string, imageDataUrl?: string) => Promise<void>
+  actOnProposedWorkout: (messageId: string, action: 'template' | 'logged') => Promise<void>
+}
+
+export default function CoachChat({ messages, loaded, sending, sendMessage, actOnProposedWorkout }: Props) {
   const navigate = useNavigate()
-  const { messages, loaded, sending, sendMessage, actOnProposedWorkout } = useCoachChat()
   const [input, setInput] = useState('')
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [pendingDocument, setPendingDocument] = useState<{ fileName: string; text: string } | null>(null)

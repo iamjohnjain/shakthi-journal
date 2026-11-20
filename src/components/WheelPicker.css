@@ -47,3 +47,33 @@
   border-radius: 8px;
   pointer-events: none;
 }
+
+/* ─── Horizontal variant ──────────────────────────────────────────── */
+
+.wheel-picker--horizontal {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  height: 56px;
+}
+
+.wheel-picker--horizontal .wheel-picker-item {
+  flex-shrink: 0;
+  height: 100%;
+  width: auto; /* overridden inline per-item via itemSizeStyle */
+}
+
+.wheel-picker--horizontal .wheel-picker-highlight {
+  left: 50%;
+  right: auto;
+  top: 4px;
+  bottom: 4px;
+  transform: translateX(-50%);
+  border-top: none;
+  border-bottom: none;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Pencil, Check, Trash2 } from 'lucide-react'
+import { X, Pencil, Check, Trash2, Download } from 'lucide-react'
 import './PhotoLightbox.css'
 
 interface EditValues {
@@ -52,6 +52,18 @@ export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, ed
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleDownload() {
+    // Already a data URL — no capture/encode step needed, just the same
+    // <a download> + click() pattern WorkoutCelebration.tsx uses for its
+    // own downloads.
+    const a = document.createElement('a')
+    a.href = photoDataUrl
+    a.download = `jeevan-checkin-${(editDate ?? new Date().toISOString().slice(0, 10))}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   async function handleDelete() {
@@ -112,24 +124,25 @@ export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, ed
             </button>
           </div>
         </div>
-      ) : (caption || meta || onSave || onDelete) && (
+      ) : (
         <div className="lightbox-caption" onClick={e => e.stopPropagation()}>
           {caption && <div className="lightbox-caption-title">{caption}</div>}
           {meta && <div className="lightbox-caption-meta">{meta}</div>}
-          {(onSave || onDelete) && (
-            <div className="lightbox-caption-actions">
-              {onSave && (
-                <button className="lightbox-edit-btn" onClick={openEdit}>
-                  <Pencil size={12} /> Edit date / weight
-                </button>
-              )}
-              {onDelete && (
-                <button className="lightbox-edit-btn lightbox-edit-btn--delete" onClick={() => setConfirmingDelete(true)}>
-                  <Trash2 size={12} /> Delete
-                </button>
-              )}
-            </div>
-          )}
+          <div className="lightbox-caption-actions">
+            {onSave && (
+              <button className="lightbox-edit-btn" onClick={openEdit}>
+                <Pencil size={12} /> Edit
+              </button>
+            )}
+            <button className="lightbox-edit-btn" onClick={handleDownload}>
+              <Download size={12} /> Download
+            </button>
+            {onDelete && (
+              <button className="lightbox-edit-btn lightbox-edit-btn--delete" onClick={() => setConfirmingDelete(true)}>
+                <Trash2 size={12} /> Delete
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>,

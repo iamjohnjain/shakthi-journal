@@ -51,7 +51,8 @@ export async function getPoseLabels(): Promise<{ pose: ProgressPhotoPose; label:
   const presets: { pose: ProgressPhotoPose; label: string }[] = [
     { pose: 'front', label: 'Front' },
     { pose: 'back', label: 'Back' },
-    { pose: 'side', label: 'Side' },
+    { pose: 'side-left', label: 'Side (L)' },
+    { pose: 'side-right', label: 'Side (R)' },
     { pose: 'flexed', label: 'Flexed' },
   ]
   const db = await getDB()

@@ -31,7 +31,7 @@
 .wc-card {
   width: 100%;
   background:
-    radial-gradient(ellipse 140% 80% at 0% 0%, rgba(166, 107, 245, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 140% 80% at 0% 0%, rgba(251, 138, 76, 0.16) 0%, transparent 55%),
     radial-gradient(ellipse 140% 80% at 100% 100%, rgba(91, 127, 255, 0.16) 0%, transparent 55%),
     #15121A;
   border: 1px solid rgba(166, 107, 245, 0.25);

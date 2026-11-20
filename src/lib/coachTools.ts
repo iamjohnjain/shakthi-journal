@@ -22,7 +22,8 @@ import { getSetting, setSetting } from '../db'
 import type { NutritionGoals } from '../db'
 import { DEFAULT_GOALS } from '../hooks/useNutritionSettings'
 import { localDateStr, kgToLbs, addLocalDays } from '../data/config'
-import { regionsForExerciseNames, REGION_LABEL } from './muscleMap'
+import { regionsForExerciseNames, REGION_LABEL, type VisualRegion } from './muscleMap'
+import { computeMuscleLoad } from '../hooks/useMuscleLoad'
 
 export interface GroqToolDef {
   type: 'function'
@@ -355,7 +356,7 @@ function formatDateWithWeekday(dateStr: string): string {
 async function execGetHealthContext() {
   const today = localDateStr()
   const weekAgo = addLocalDays(today, -6)
-  const [profile, snapshots, todayTotals, recentWorkouts, workoutStreak, nutritionStreak, lastWeekWorkouts] = await Promise.all([
+  const [profile, snapshots, todayTotals, recentWorkouts, workoutStreak, nutritionStreak, lastWeekWorkouts, muscleLoad] = await Promise.all([
     getProfile(),
     getLatestSnapshots(30),
     getDailyTotals(today),
@@ -363,6 +364,7 @@ async function execGetHealthContext() {
     getCurrentWorkoutStreak(),
     getNutritionStreak(),
     getWorkoutsByDateRange(weekAgo, today),
+    computeMuscleLoad(weekAgo, today),
   ])
 
   // Which visual muscle regions got trained in the last 7 days — lets the
@@ -372,6 +374,22 @@ async function execGetHealthContext() {
     .filter(w => w.type === 'lifting')
     .flatMap(w => w.exercises.map(e => e.name))
   const muscleGroupsTrainedLast7Days = regionsForExerciseNames(exerciseNamesLast7Days).map(r => REGION_LABEL[r])
+
+  // Real per-region volume vs. each muscle's own weekly target (the same
+  // calculation and thresholds backing the muscle heatmap's own
+  // under/on-target/over buckets, via computeMuscleLoad — not a guess from
+  // the trained-regions list above) — this is the actual signal for which
+  // muscles are genuinely under/untrained, not just "touched vs. not."
+  const muscleStatus = Object.fromEntries(
+    (Object.keys(muscleLoad.regions) as VisualRegion[]).map(region => {
+      const load = muscleLoad.regions[region]
+      return [REGION_LABEL[region], {
+        status: load.status, // 'none' | 'under' | 'onTarget' | 'over'
+        setsThisWeek: load.trained,
+        weeklyTarget: Math.round(load.target),
+      }]
+    })
+  )
 
   const weightPoints: WeightPoint[] = snapshots
     .filter(s => s.weight != null)
@@ -422,9 +440,11 @@ async function execGetHealthContext() {
         durationMin: w.durationMin,
         exercises: w.exercises.map(e => e.name),
       })),
-      // Muscle regions actually trained in the last 7 days — use this to avoid
-      // suggesting the same muscles again and to favor what's been undertrained.
+      // Muscle regions actually trained in the last 7 days — a coarse
+      // "what did they touch" list; muscleStatus below is the real signal
+      // for what's actually under/untrained.
       muscleGroupsTrainedLast7Days,
+      muscleStatus,
     },
   }
 }

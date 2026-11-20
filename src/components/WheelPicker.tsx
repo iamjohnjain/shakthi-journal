@@ -7,6 +7,11 @@ interface WheelPickerProps {
   onChange: (v: string | number) => void
   itemHeight?: number
   visibleCount?: number
+  /** 'horizontal' swaps every scrollTop/height calculation below to
+      scrollLeft/width — used for a left-to-right wheel (e.g. the
+      onboarding weight-loss-rate control) where a vertical wheel doesn't
+      fit the gesture. Same snap-to-value behavior either way. */
+  direction?: 'vertical' | 'horizontal'
 }
 
 /**
@@ -15,13 +20,15 @@ interface WheelPickerProps {
  * in a paired text input) and the wheel will scroll to match.
  */
 export default function WheelPicker({
-  values, value, onChange, itemHeight = 36, visibleCount = 3,
+  values, value, onChange, itemHeight = 36, visibleCount = 3, direction = 'vertical',
 }: WheelPickerProps) {
   const ref = useRef<HTMLDivElement>(null)
   const settleTimer = useRef<ReturnType<typeof setTimeout>>()
   const programmatic = useRef(false)
-  const height = itemHeight * visibleCount
-  const pad = (height - itemHeight) / 2
+  const horizontal = direction === 'horizontal'
+  const itemSize = itemHeight
+  const size = itemSize * visibleCount
+  const pad = (size - itemSize) / 2
 
   // Keep the wheel in sync when `value` changes from outside (typing, preset fill).
   useEffect(() => {
@@ -29,14 +36,15 @@ export default function WheelPicker({
     if (!el) return
     const idx = values.indexOf(value)
     if (idx < 0) return
-    const target = idx * itemHeight
-    if (Math.abs(el.scrollTop - target) < 1) return
+    const target = idx * itemSize
+    const current = horizontal ? el.scrollLeft : el.scrollTop
+    if (Math.abs(current - target) < 1) return
     programmatic.current = true
-    el.scrollTo({ top: target, behavior: 'auto' })
+    el.scrollTo(horizontal ? { left: target, behavior: 'auto' } : { top: target, behavior: 'auto' })
     const t = setTimeout(() => { programmatic.current = false }, 50)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, values.length])
+  }, [value, values.length, horizontal])
 
   function handleScroll() {
     if (programmatic.current) return
@@ -44,28 +52,38 @@ export default function WheelPicker({
     settleTimer.current = setTimeout(() => {
       const el = ref.current
       if (!el) return
-      const idx = Math.round(el.scrollTop / itemHeight)
+      const pos = horizontal ? el.scrollLeft : el.scrollTop
+      const idx = Math.round(pos / itemSize)
       const clamped = Math.min(values.length - 1, Math.max(0, idx))
       if (values[clamped] !== value) onChange(values[clamped])
     }, 100)
   }
 
+  const sizeStyle = horizontal ? { width: size } : { height: size }
+  const itemSizeStyle = horizontal ? { width: itemSize } : { height: itemSize }
+  const padStyle = horizontal ? { width: pad } : { height: pad }
+
   return (
-    <div className="wheel-picker" style={{ height }} ref={ref} onScroll={handleScroll}>
-      <div style={{ height: pad }} />
+    <div
+      className={`wheel-picker ${horizontal ? 'wheel-picker--horizontal' : ''}`}
+      style={sizeStyle}
+      ref={ref}
+      onScroll={handleScroll}
+    >
+      <div style={padStyle} />
       {values.map(v => (
         <button
           key={v}
           type="button"
           className={`wheel-picker-item ${v === value ? 'wheel-picker-item--active' : ''}`}
-          style={{ height: itemHeight }}
+          style={itemSizeStyle}
           onClick={() => onChange(v)}
         >
           {v}
         </button>
       ))}
-      <div style={{ height: pad }} />
-      <div className="wheel-picker-highlight" style={{ height: itemHeight }} />
+      <div style={padStyle} />
+      <div className="wheel-picker-highlight" style={itemSizeStyle} />
     </div>
   )
 }

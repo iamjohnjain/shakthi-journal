@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, Trash2, X, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
-  Sparkles, Mic, Loader2, Camera, Zap, Copy, Coffee, Sun, Moon, Apple,
+  Sparkles, Mic, Loader2, Camera, Zap, Copy,
 } from 'lucide-react'
 import {
   parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, refineOneItem, isAiMealParsingAvailable,
@@ -45,19 +45,6 @@ function currentMealPeriod(): string | null {
 
 function offsetDateStr(dateStr: string, deltaDays: number): string {
   return addLocalDays(dateStr, deltaDays)
-}
-
-/** Keyed by the stable meal `id` (not the customizable display label) — a
-    renamed meal slot still gets the right icon. `Utensils` covers any
-    numbered/custom slot with no preset mapping. */
-const MEAL_ICONS: Record<string, typeof Coffee> = {
-  breakfast: Coffee,
-  lunch: Sun,
-  dinner: Moon,
-  snack: Apple,
-}
-function mealIcon(id: string) {
-  return MEAL_ICONS[id] ?? Utensils
 }
 
 /** Guesses which meal slot to open into: morning → breakfast, midday → lunch,
@@ -541,7 +528,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
     return (
       <div className="ai-describe">
         <SoftNote note={note} onManual={onFallbackToManual} />
-        <button className="ai-describe-back" onClick={reset}>Try again</button>
+        <button className="ai-describe-back" onClick={reset}>Try Again</button>
       </div>
     )
   }
@@ -551,12 +538,12 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
       <p className="ai-describe-hint">Estimated — review and adjust before logging.</p>
       {clarification && <ClarificationBlock clarification={clarification} onAnswer={handleAnswer} busy={answering} />}
       {items.length === 0 ? (
-        <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
+        <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start Over</button></p>
       ) : (
         <>
           <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} onRefine={refineItem} />
           <div className="ai-review-actions">
-            <button className="ai-describe-back" onClick={reset}>Start over</button>
+            <button className="ai-describe-back" onClick={reset}>Start Over</button>
             <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
               food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
               quantity: `${it.qtyNum} ${it.qtyUnit}`,
@@ -699,7 +686,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
       <div className="ai-describe">
         {camera}
         <SoftNote note={note} onManual={onFallbackToManual} />
-        <button className="ai-describe-back" onClick={() => { reset(); setShowCamera(true) }}>Try another photo</button>
+        <button className="ai-describe-back" onClick={() => { reset(); setShowCamera(true) }}>Try Another Photo</button>
       </div>
     )
   }
@@ -710,7 +697,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
       <p className="ai-describe-hint">Estimated from your photo — review and adjust before logging.</p>
       {clarification && <ClarificationBlock clarification={clarification} onAnswer={handleAnswer} busy={answering} />}
       {items.length === 0 ? (
-        <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start over</button></p>
+        <p className="ai-review-empty">Everything was removed. <button className="ai-describe-back" onClick={reset}>Start Over</button></p>
       ) : (
         <>
           <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} onRefine={refineItem} />
@@ -927,7 +914,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
 
         <div className="add-modal-meal-tabs">
           {mealIds.map((id, i) => (
-            <button key={id} className={`meal-tab ${mealId === id ? 'active' : ''}`} onClick={() => chooseMealId(id)}>
+            <button key={id} className={`meal-tab ${mealId === id ? 'active' : ''}`} onClick={() => chooseMealId(id)} data-no-press-glow>
               {mealLabels[i] ?? id}
             </button>
           ))}
@@ -1272,7 +1259,7 @@ export default function NutritionPage() {
           <ChevronRight size={16} />
         </button>
         {!isToday && (
-          <button className="nutr-date-nav-today" onClick={() => setViewDate(realToday)}>Jump to Today</button>
+          <button className="nutr-date-nav-today" onClick={() => setViewDate(realToday)}>Jump To Today</button>
         )}
       </div>
 
@@ -1383,14 +1370,10 @@ export default function NutritionPage() {
         const mealLabel   = activeMealLabels[i] ?? id
         const mealCal     = mealEntries.reduce((n, e) => n + e.calories, 0)
         const isCurrentMealTime = isToday && mealLabel.toLowerCase() === currentMealTime
-        const MealIcon = mealIcon(id)
         return (
           <section key={id} className="meal-section">
             <div className="meal-section-header">
-              <div className="meal-section-title-wrap">
-                <span className="meal-section-icon"><MealIcon size={13} /></span>
-                <h2 className="meal-section-title">{mealLabel}</h2>
-              </div>
+              <h2 className="meal-section-title">{mealLabel}</h2>
               {mealCal > 0 && <span className="meal-cal-total">{mealCal} cal</span>}
             </div>
             {mealEntries.length > 0 ? (

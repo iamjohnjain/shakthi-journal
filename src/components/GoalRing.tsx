@@ -87,7 +87,7 @@ const CONFIGS: Record<GoalType, GoalCfg> = {
 // types so cards in the same swipeable row read as one consistent set,
 // not a mix of differently-lit cards. Same gradient-brand hues either way.
 const GLOW_INTENSITY: Record<GoalType, number> = {
-  weight: 0.1, steps: 0.1, bodyFat: 0.1, protein: 0.1, sleep: 0.1,
+  weight: 0.18, steps: 0.18, bodyFat: 0.18, protein: 0.18, sleep: 0.18,
 }
 
 function clamp(v: number) { return Math.min(100, Math.max(0, v)) }
@@ -101,7 +101,7 @@ function shortDate(dateStr: string): string {
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'just now'
+  if (mins < 1) return 'Just Now'
   if (mins < 60) return `${mins}m ago`
   const hours = Math.floor(mins / 60)
   if (hours < 24) return `${hours}h ago`
@@ -205,8 +205,6 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
     if (sourceId === 'ringconn')    return 'RingConn via Apple Health'
     return 'Apple Health'
   }
-  // Keep old name as alias so existing weight/bodyFat calls don't change
-  const weightSourceLabel = sourceLabel
 
   useEffect(() => {
     getProfile().then(setProfile)
@@ -455,13 +453,13 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
             <span>{lastSyncedAt ? `Synced ${relativeTime(lastSyncedAt)}` : 'Not synced yet'}</span>
             {isStaleData && (
               <button className="goal-ring-sync-btn" onClick={e => { e.stopPropagation(); triggerSync() }}>
-                Sync now
+                Sync Now
               </button>
             )}
           </div>
         )}
 
-        <div className="goal-ring-tap-hint">Tap to see details</div>
+        <div className="goal-ring-tap-hint">Tap To See Details</div>
       </div>
 
       {/* ── Detail Modal ── */}
@@ -560,7 +558,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                       onChange={e => setEditGoal(e.target.value)} placeholder="—" />
                   </label>
                   <label className="goal-ring-edit-field">
-                    <span>Target date</span>
+                    <span>Target Date</span>
                     <input type="date" value={editDate} min={localDateStr()}
                       onChange={e => setEditDate(e.target.value)} />
                   </label>
@@ -602,7 +600,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
 
               {goalType === 'weight' && latestWeight && (
                 <p className="goal-ring-modal-last-synced">
-                  Last synced: {weightSourceLabel(latestWeight.sourceId)} · {shortDate(latestWeight.date)}
+                  Last Synced Via Apple Health · {shortDate(latestWeight.date)}
                 </p>
               )}
               {goalType === 'bodyFat' && latestBodyFat && (

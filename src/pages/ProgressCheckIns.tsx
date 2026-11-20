@@ -40,10 +40,18 @@ async function findClosestWeightLbs(targetDate: string): Promise<{ weightLbs: nu
 
 function poseLabel(photo: Pick<ProgressPhoto, 'pose' | 'customLabel'>): string {
   if (photo.pose === 'custom') return photo.customLabel || 'Custom'
+  if (photo.pose === 'side-left') return 'Side (L)'
+  if (photo.pose === 'side-right') return 'Side (R)'
   return photo.pose.charAt(0).toUpperCase() + photo.pose.slice(1)
 }
 
 async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> {
+  // Caption is just the pose — the date/weight context lives in `meta`
+  // instead of being dash-joined into one string, both for a cleaner look
+  // and so the date always goes through formatFullDate (Month Day, Year)
+  // rather than a raw YYYY-MM-DD string.
+  const dateLabel = formatFullDate(photo.date)
+
   // A manually-corrected weight on the photo itself always wins over the
   // derived nearest-date lookup — it exists specifically to override a
   // wrong guess, so it would be strange for the guess to still show.
@@ -52,8 +60,8 @@ async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> 
     return {
       photoId: photo.id,
       photoDataUrl: photo.photoDataUrl,
-      caption: `${poseLabel(photo)} — ${photo.date}`,
-      meta: `${weightLbs} lbs`,
+      caption: poseLabel(photo),
+      meta: `${dateLabel} · ${weightLbs} lbs`,
       date: photo.date,
       weightLbs,
     }
@@ -63,12 +71,12 @@ async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> 
   return {
     photoId: photo.id,
     photoDataUrl: photo.photoDataUrl,
-    caption: `${poseLabel(photo)} — ${photo.date}`,
+    caption: poseLabel(photo),
     meta: weight
       ? sameDayWeight
-        ? `${weight.weightLbs} lbs that day`
-        : `${weight.weightLbs} lbs (closest reading, ${weight.date})`
-      : undefined,
+        ? `${dateLabel} · ${weight.weightLbs} lbs that day`
+        : `${dateLabel} · ${weight.weightLbs} lbs (closest reading, ${formatFullDate(weight.date)})`
+      : dateLabel,
     date: photo.date,
     weightLbs: null,
   }
@@ -77,7 +85,8 @@ async function buildLightboxState(photo: ProgressPhoto): Promise<LightboxState> 
 const PRESET_POSES: { pose: ProgressPhotoPose; label: string }[] = [
   { pose: 'front', label: 'Front' },
   { pose: 'back', label: 'Back' },
-  { pose: 'side', label: 'Side' },
+  { pose: 'side-left', label: 'Side (L)' },
+  { pose: 'side-right', label: 'Side (R)' },
   { pose: 'flexed', label: 'Flexed' },
 ]
 
@@ -674,11 +683,11 @@ export default function CheckInsSection() {
 
           <div className="pci-date-row">
             <button className="pci-date-btn" onClick={() => setPickingDate('A')}>
-              {dateA ? formatFullDate(dateA) : 'Pick a date'}
+              {dateA ? formatFullDate(dateA) : 'Pick A Date'}
             </button>
             <span className="pci-date-vs">vs</span>
             <button className="pci-date-btn" onClick={() => setPickingDate('B')}>
-              {dateB ? formatFullDate(dateB) : 'Pick a date'}
+              {dateB ? formatFullDate(dateB) : 'Pick A Date'}
             </button>
           </div>
           {(dateA || dateB) && (
@@ -699,13 +708,13 @@ export default function CheckInsSection() {
               )}
               <div className="pci-compare-grid">
                 <div className="pci-compare-col">
-                  <div className="pci-compare-col-label">{dateA ? formatFullDate(dateA) : 'Pick a date'}</div>
+                  <div className="pci-compare-col-label">{dateA ? formatFullDate(dateA) : 'Pick A Date'}</div>
                   {photosA.length > 0 ? photosA.map(p => (
                     <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
                 </div>
                 <div className="pci-compare-col">
-                  <div className="pci-compare-col-label">{dateB ? formatFullDate(dateB) : 'Pick a date'}</div>
+                  <div className="pci-compare-col-label">{dateB ? formatFullDate(dateB) : 'Pick A Date'}</div>
                   {photosB.length > 0 ? photosB.map(p => (
                     <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}

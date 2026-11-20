@@ -189,7 +189,11 @@ export interface WorkoutTemplate {
   updatedAt: string
 }
 
-export type ProgressPhotoPose = 'front' | 'back' | 'side' | 'flexed' | 'custom'
+// 'side' stays valid (not removed) purely for existing saved photos from
+// before the left/right split below — there's no migration path for old
+// data, so a legacy 'side' photo keeps working and just shows as "Side."
+// New captures use 'side-left'/'side-right' instead.
+export type ProgressPhotoPose = 'front' | 'back' | 'side' | 'side-left' | 'side-right' | 'flexed' | 'custom'
 
 export interface ProgressPhoto {
   id: string

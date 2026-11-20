@@ -18,6 +18,7 @@ import GoalRing from '../components/GoalRing'
 import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
 import QuickWeightModal from '../components/QuickWeightModal'
+import FirstDayEditModal from '../components/FirstDayEditModal'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { AvatarDisplay } from '../components/Avatar'
 import { SkeletonSection } from '../components/Skeleton'
@@ -175,12 +176,13 @@ function QuickActions() {
 
 // ─── First-day welcome card ──────────────────────────────────────────────────
 
-function FirstDayCard({ profile, nutritionGoals, fmtWeight }: {
+function FirstDayCard({ profile, nutritionGoals, updateNutritionGoals, fmtWeight }: {
   profile: ProfileData | null
   nutritionGoals: ReturnType<typeof useNutritionSettings>['goals']
+  updateNutritionGoals: ReturnType<typeof useNutritionSettings>['updateGoals']
   fmtWeight: (kg: number) => string
 }) {
-  const navigate = useNavigate()
+  const [showEditModal, setShowEditModal] = useState(false)
   if (!profile) return null
 
   const calories        = nutritionGoals.calories
@@ -199,7 +201,7 @@ function FirstDayCard({ profile, nutritionGoals, fmtWeight }: {
       <div className="dash-firstday-header">
         <Target size={16} className="dash-firstday-icon" />
         <span className="dash-firstday-title">Your starting point</span>
-        <button className="dash-firstday-edit" onClick={() => navigate('/onboarding?edit=1')}>Edit</button>
+        <button className="dash-firstday-edit" onClick={() => setShowEditModal(true)}>Edit</button>
       </div>
       <div className="dash-firstday-stats">
         {stats.map(s => (
@@ -210,6 +212,14 @@ function FirstDayCard({ profile, nutritionGoals, fmtWeight }: {
         ))}
       </div>
       <p className="dash-firstday-note">Log your weight and meals daily to track progress here.</p>
+      {showEditModal && (
+        <FirstDayEditModal
+          goals={nutritionGoals}
+          updateGoals={updateNutritionGoals}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => {}}
+        />
+      )}
     </div>
   )
 }
@@ -373,7 +383,7 @@ export default function Dashboard() {
   const { insights, loading: insightsLoading } = useHealthInsights(mockMode)
   const loading = dataLoading || insightsLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
-  const { goals: nutritionGoals } = useNutritionSettings()
+  const { goals: nutritionGoals, updateGoals: updateNutritionGoals } = useNutritionSettings()
   const units = useUnits()
   const isMetric = units.system === 'metric'
   const [userName,    setUserName]    = useState<string | null>(null)
@@ -473,7 +483,7 @@ export default function Dashboard() {
             <ChevronRight size={16} />
           </button>
           {!isToday && (
-            <button className="dash-date-nav-today jump-today-btn" onClick={() => setViewDate(todayDateStr())}>Jump to Today</button>
+            <button className="dash-date-nav-today jump-today-btn" onClick={() => setViewDate(todayDateStr())}>Jump To Today</button>
           )}
         </div>
       </div>
@@ -503,7 +513,7 @@ export default function Dashboard() {
           {/* ── Empty state: no data yet ── */}
           {isEmpty && isVisible('import-status') && (
             <>
-              <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} fmtWeight={units.fmtWeight} />
+              <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} updateNutritionGoals={updateNutritionGoals} fmtWeight={units.fmtWeight} />
               <TodaysFocus />
             </>
           )}

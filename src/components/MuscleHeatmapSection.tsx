@@ -6,7 +6,6 @@ import { getISOWeek, getWeekDates, addWeeks, formatWeekLabel } from '../lib/week
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import { useMuscleLoad } from '../hooks/useMuscleLoad'
-import type { RegionStatus } from '../hooks/useMuscleLoad'
 import { REGION_MUSCLES, REGION_LABEL, MUSCLE_LABEL, type VisualRegion } from '../lib/muscleMap'
 import DatePickerCalendar from './DatePickerCalendar'
 import '../pages/ComparePage.css'
@@ -56,12 +55,6 @@ export default function MuscleHeatmapSection() {
   const isCurrentWeek = weekInfo.week === getISOWeek(new Date()).week && weekInfo.year === getISOWeek(new Date()).year
 
   const detail = selectedRegion ? regions[selectedRegion] : null
-
-  const statusTotals = useMemo(() => {
-    const totals: Record<RegionStatus, number> = { none: 0, under: 0, onTarget: 0, over: 0 }
-    for (const r of Object.values(regions)) totals[r.status] += r.trained
-    return totals
-  }, [regions])
 
   return (
     <section className="muscle-heatmap">
@@ -125,11 +118,15 @@ export default function MuscleHeatmapSection() {
         />
       </Suspense>
 
+      {/* Shows the fixed rule that actually defines each bucket (a
+          percentage of that muscle's own weekly target, per statusFor() in
+          useMuscleLoad.ts) — not a current set-count total, which varies
+          by user/week and explains nothing about what the bucket means. */}
       <div className="mh-legend">
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--none" />Untrained ({statusTotals.none} Sets)</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" />Under Trained ({statusTotals.under} Sets)</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" />On Target ({statusTotals.onTarget} Sets)</span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" />Possibly Overtrained ({statusTotals.over} Sets)</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--none" />Untrained — 0 Sets</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" />Under-Trained — Under 50% of Weekly Target</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" />On Target — 50-150% of Weekly Target</span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" />Possibly Overtrained — Over 150% of Weekly Target</span>
       </div>
 
       {!loading && detail && selectedRegion && createPortal(

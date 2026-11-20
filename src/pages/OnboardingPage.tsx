@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader, Camera, X,
+  ChevronLeft, Check, Mail, Eye, EyeOff, AlertCircle, Loader,
 } from 'lucide-react'
 import { setSetting, getSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
-import { AvatarPicker, AvatarDisplay } from '../components/Avatar'
+import WheelPicker from '../components/WheelPicker'
 import { useAuth } from '../context/AuthContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
 import { syncEngine } from '../db/syncEngine'
@@ -13,30 +13,43 @@ import type { ProfileData } from '../db'
 import { localDateStr } from '../data/config'
 import './OnboardingPage.css'
 
-// ─── Platform detection ───────────────────────────────────────────────────────
-
-function getPlatform(): 'ios' | 'android' | 'desktop' {
-  if (typeof navigator === 'undefined') return 'desktop'
-  const ua = navigator.userAgent
-  if (/iPad|iPhone|iPod/.test(ua)) return 'ios'
-  if (/Android/.test(ua)) return 'android'
-  return 'desktop'
-}
-
 // ─── Nutrition math ───────────────────────────────────────────────────────────
 
 const ACTIVITY_MULTIPLIERS: Record<string, number> = {
   sedentary: 12, light: 13, moderate: 14, active: 15.5, 'very-active': 17,
 }
 
-function calcNutrition(goalWeightLbs: number, activityLevel: string, trainingDays: number) {
-  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] ?? (12 + trainingDays * 0.7)
-  const calories = Math.round(goalWeightLbs * multiplier)
-  const proteinG = Math.round(goalWeightLbs * 0.82)
+// 3500 kcal ≈ 1 lb of fat, so a weekly deficit of (rate × 3500) kcal spread
+// over 7 days is (rate × 500) kcal/day — the standard, uncontroversial
+// conversion (no fancier metabolic-adaptation modeling here, same spirit as
+// the rest of this app's "simple and honest over falsely precise" formulas).
+// Floored at 1200 cal/day regardless of rate — a safety floor, not a
+// suggestion, so an aggressive rate selection can't compute something unsafe.
+const MIN_SAFE_CALORIES = 1200
+const CALORIE_DEFICIT_PER_LB_PER_WEEK = 500
+
+function calcNutrition(goalWeightLbs: number, activityLevel: string, rateLbsPerWeek: number) {
+  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] ?? 14
+  const baseCalories = goalWeightLbs * multiplier
+  const calories = Math.max(MIN_SAFE_CALORIES, Math.round(baseCalories - rateLbsPerWeek * CALORIE_DEFICIT_PER_LB_PER_WEEK))
+  // 1g per lb of goal weight by default (not the old 0.82g/lb factor) — still
+  // freely adjustable down from there on the same screen.
+  const proteinG = Math.round(goalWeightLbs * 1.0)
   const proteinCal = proteinG * 4
-  const fatG = Math.round((calories - proteinCal) * 0.3 / 9)
-  const carbsG = Math.round((calories - proteinCal) * 0.7 / 4)
+  const fatG = Math.max(0, Math.round((calories - proteinCal) * 0.3 / 9))
+  const carbsG = Math.max(0, Math.round((calories - proteinCal) * 0.7 / 4))
   return { calories, proteinG, fatG, carbsG, waterMl: 3785 }
+}
+
+const WEIGHT_LOSS_RATE_VALUES = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+
+function rateDescription(rate: number): string {
+  if (rate === 0) return 'Maintain your current weight'
+  const base = `Lose ${rate} lb${rate === 1 ? '' : 's'}/week`
+  // The app's own established framing elsewhere (coach commentary) treats
+  // 0.5–1.5 lbs/week as the sustainable range — reuse that same opinion
+  // here instead of inventing a different number.
+  return rate > 1.5 ? `${base} (aggressive pace)` : base
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -73,7 +86,9 @@ interface OBData {
   primaryGoals: string[]
   calorieGoal: string
   proteinGoal: string
-  trainingDays: number
+  carbsGoal: string
+  fatGoal: string
+  weightLossRateLbsPerWeek: number
   importAfterSetup?: boolean
 }
 
@@ -610,59 +625,64 @@ function StepPrimaryGoal({ data, patch, onNext, dir }: StepProps) {
   )
 }
 
-// ─── Step 8: Training Days ────────────────────────────────────────────────────
-
-function StepTraining({ data, patch, onNext, dir }: StepProps) {
-  return (
-    <StepShell dir={dir}>
-      <div className="ob-question">
-        <h1 className="ob-q-title">How Many Days<br/>Do You Train?</h1>
-        <p className="ob-q-sub">Per week on average — 0 is fine if you're just getting started.</p>
-      </div>
-      <div className="ob-input-zone">
-        <div className="ob-day-selector ob-day-selector--large">
-          {[0, 1, 2, 3, 4, 5, 6, 7].map(d => (
-            <button
-              key={d}
-              type="button"
-              className={`ob-day-tile ${data.trainingDays === d ? 'ob-day-tile--on' : ''}`}
-              onClick={() => patch({ trainingDays: d })}
-            >
-              <span className="ob-day-num">{d}</span>
-              <span className="ob-day-lbl">days</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-        <button className="ob-skip" onClick={onNext}>Skip for now</button>
-      </div>
-    </StepShell>
-  )
-}
-
-// ─── Step 9: Nutrition Targets ────────────────────────────────────────────────
+// ─── Step 8: Nutrition Targets ─────────────────────────────────────────────────
 
 function StepNutrition({ data, patch, onNext, dir }: StepProps) {
+  // Seeds all four macros from the rate once, on arrival — same
+  // seed-then-freely-editable pattern the old calories/protein steppers
+  // already used, just covering carbs/fat too now.
   useEffect(() => {
     const goalLbs = parseFloat(data.goalWeightLbs)
     if (!isNaN(goalLbs) && goalLbs > 0 && !data.calorieGoal) {
-      const nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', data.trainingDays)
-      patch({ calorieGoal: String(nut.calories), proteinGoal: String(nut.proteinG) })
+      const nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', data.weightLossRateLbsPerWeek)
+      patch({
+        calorieGoal: String(nut.calories), proteinGoal: String(nut.proteinG),
+        carbsGoal: String(nut.carbsG), fatGoal: String(nut.fatG),
+      })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const calories = parseInt(data.calorieGoal) || 2200
   const protein  = parseInt(data.proteinGoal) || 160
+  const carbs    = parseInt(data.carbsGoal)   || 220
+  const fat      = parseInt(data.fatGoal)     || 70
+
+  // Moving the rate recomputes all four from scratch — the rate is the one
+  // input driving everything on this screen; a manual tweak to any single
+  // field sticks until the rate itself is touched again.
+  function handleRateChange(v: string | number) {
+    const rate = Number(v)
+    patch({ weightLossRateLbsPerWeek: rate })
+    const goalLbs = parseFloat(data.goalWeightLbs)
+    if (!isNaN(goalLbs) && goalLbs > 0) {
+      const nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', rate)
+      patch({
+        calorieGoal: String(nut.calories), proteinGoal: String(nut.proteinG),
+        carbsGoal: String(nut.carbsG), fatGoal: String(nut.fatG),
+      })
+    }
+  }
 
   return (
     <StepShell dir={dir}>
       <div className="ob-question">
         <h1 className="ob-q-title">Your Nutrition<br/>Targets</h1>
-        <p className="ob-q-sub">Calculated from your goal and activity level. Adjust anytime.</p>
+        <p className="ob-q-sub">Pick a pace, then adjust anything below — it's all editable right here.</p>
       </div>
+
+      <div className="ob-rate-picker">
+        <WheelPicker
+          direction="horizontal"
+          values={WEIGHT_LOSS_RATE_VALUES}
+          value={data.weightLossRateLbsPerWeek}
+          onChange={handleRateChange}
+          itemHeight={64}
+          visibleCount={5}
+        />
+        <p className="ob-rate-desc">{rateDescription(data.weightLossRateLbsPerWeek)}</p>
+      </div>
+
       <div className="ob-nutrition-stack">
         <NumberStepper
           label="Daily calories"
@@ -678,6 +698,20 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
           unit="g"
           min={50} max={400} step={5}
         />
+        <NumberStepper
+          label="Daily carbs"
+          value={carbs}
+          onChange={v => patch({ carbsGoal: String(v) })}
+          unit="g"
+          min={0} max={600} step={5}
+        />
+        <NumberStepper
+          label="Daily fat"
+          value={fat}
+          onChange={v => patch({ fatGoal: String(v) })}
+          unit="g"
+          min={0} max={250} step={5}
+        />
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={() => {
@@ -685,6 +719,8 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
           ;(document.activeElement as HTMLElement | null)?.blur()
           if (!data.calorieGoal) patch({ calorieGoal: String(calories) })
           if (!data.proteinGoal) patch({ proteinGoal: String(protein) })
+          if (!data.carbsGoal) patch({ carbsGoal: String(carbs) })
+          if (!data.fatGoal) patch({ fatGoal: String(fat) })
           // Small delay so React can process the blur-triggered state update
           setTimeout(onNext, 0)
         }}>Continue</button>
@@ -694,156 +730,7 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
   )
 }
 
-// ─── Step 10: Connect Sources ─────────────────────────────────────────────────
-
-function StepConnectSources({ onNext, dir }: StepProps) {
-  const platform   = getPlatform()
-  const isNativeApp =
-    typeof window !== 'undefined' &&
-    (window as unknown as Record<string, unknown>).__jeevanNativeApp === true
-
-  return (
-    <StepShell dir={dir}>
-      <div className="ob-question">
-        <h1 className="ob-q-title">Connect Your<br/>Health Data</h1>
-        <p className="ob-q-sub">
-          Everything from Apple Health — weight, steps, sleep, heart rate, and
-          more — shows up automatically. Any device synced to Apple Health,
-          like an Apple Watch or a smart scale, is included with no extra setup.
-        </p>
-      </div>
-
-      <div className="ob-source-list">
-        {/* ── iPhone Health — platform-aware, always relevant ── */}
-        {isNativeApp ? (
-          <div className="ob-source-row ob-source-row--native">
-            <span className="ob-source-icon">❤️</span>
-            <div className="ob-source-info">
-              <span className="ob-source-name">iPhone Health</span>
-              <span className="ob-source-desc">You'll be asked to connect Apple Health right after setup.</span>
-            </div>
-            <span className="ob-source-badge ob-source-badge--native">After setup</span>
-          </div>
-        ) : platform === 'ios' ? (
-          <div className="ob-source-row ob-source-row--native">
-            <span className="ob-source-icon">❤️</span>
-            <div className="ob-source-info">
-              <span className="ob-source-name">iPhone Health</span>
-              <span className="ob-source-desc">
-                Download the <strong>Jeevan</strong> iPhone app to connect Apple Health directly.
-                {' '}<span className="ob-source-note">Direct sync, no file export needed.</span>
-              </span>
-            </div>
-            <span className="ob-source-badge ob-source-badge--native">iPhone app</span>
-          </div>
-        ) : (
-          <div className="ob-source-row ob-source-row--native">
-            <span className="ob-source-icon">❤️</span>
-            <div className="ob-source-info">
-              <span className="ob-source-name">iPhone Health</span>
-              <span className="ob-source-desc">
-                Available in the Jeevan iPhone app.
-                {' '}<span className="ob-source-note">Open this app on your iPhone for direct HealthKit sync.</span>
-              </span>
-            </div>
-            <span className="ob-source-badge ob-source-badge--native">iPhone app</span>
-          </div>
-        )}
-      </div>
-
-      <p className="ob-connect-footnote">
-        Advanced import (Apple Health export.xml) is available after setup in Settings → Import Data.
-      </p>
-
-      <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
-      </div>
-    </StepShell>
-  )
-}
-
-// ─── Step 5: Avatar ───────────────────────────────────────────────────────────
-
-function StepAvatar({ data, patch, onNext, dir }: StepProps) {
-  const displayName = data.name.trim() || 'You'
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [showAvatarPicker, setShowAvatarPicker] = useState(!data.photoDataUrl && !data.avatarId)
-  const [showPhotoMenu,    setShowPhotoMenu]    = useState(false)
-
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      patch({ photoDataUrl: ev.target?.result as string, avatarId: undefined })
-      setShowAvatarPicker(false)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  function handleAvatarSelect(id: string | undefined) {
-    patch({ avatarId: id, photoDataUrl: id ? undefined : data.photoDataUrl })
-    if (id) setShowAvatarPicker(false)
-  }
-
-  const hasPicture = Boolean(data.photoDataUrl || data.avatarId)
-
-  return (
-    <StepShell dir={dir}>
-      <div className="ob-question">
-        <h1 className="ob-q-title">Pick Your<br/>Avatar</h1>
-        <p className="ob-q-sub">Choose an animal, or upload your own photo.</p>
-      </div>
-      <div className="ob-input-zone ob-input-zone--avatar">
-        <div className="ob-avatar-preview">
-          <div style={{ position: 'relative' }}>
-            <AvatarDisplay name={displayName} avatarId={data.avatarId} photoDataUrl={data.photoDataUrl} size="lg" />
-            {hasPicture && (
-              <button
-                type="button"
-                className="profile-edit-avatar-x"
-                onClick={() => setShowPhotoMenu(true)}
-                aria-label="Change photo"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          <span className="ob-avatar-preview-name">{displayName}</span>
-        </div>
-
-        <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
-
-        {!hasPicture && (
-          <button type="button" className="ob-photo-btn" onClick={() => fileRef.current?.click()}>
-            <Camera size={15} /> Upload a Photo
-          </button>
-        )}
-
-        {showPhotoMenu && (
-          <div className="profile-photo-menu">
-            <button onClick={() => { patch({ photoDataUrl: undefined, avatarId: undefined }); setShowAvatarPicker(true); setShowPhotoMenu(false) }}>
-              Choose an avatar
-            </button>
-            <button onClick={() => { fileRef.current?.click(); setShowPhotoMenu(false) }}>
-              Upload a different photo
-            </button>
-            <button className="profile-photo-menu-cancel" onClick={() => setShowPhotoMenu(false)}>Cancel</button>
-          </div>
-        )}
-
-        {showAvatarPicker && <AvatarPicker selectedId={data.avatarId} onSelect={handleAvatarSelect} />}
-      </div>
-      <div className="ob-footer">
-        <button className="ob-cta ob-cta--full" onClick={onNext}>
-          {hasPicture ? 'Continue' : 'Skip for now'}
-        </button>
-      </div>
-    </StepShell>
-  )
-}
-
-// ─── Step 12: Review ──────────────────────────────────────────────────────────
+// ─── Step 9: Review ───────────────────────────────────────────────────────────
 
 function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number) => void }) {
   const goalLabels = PRIMARY_GOALS.filter(g => data.primaryGoals.includes(g.id)).map(g => g.label)
@@ -887,29 +774,16 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
           </div>
           {[
             ['Objective', goalLabels.length > 0 ? goalLabels.join(', ') : '—'],
-            ['Training',  `${data.trainingDays} days/week`],
             ['Calories',  data.calorieGoal ? `${data.calorieGoal} cal/day` : '—'],
             ['Protein',   data.proteinGoal ? `${data.proteinGoal} g/day` : '—'],
+            ['Carbs',     data.carbsGoal ? `${data.carbsGoal} g/day` : '—'],
+            ['Fat',       data.fatGoal ? `${data.fatGoal} g/day` : '—'],
           ].map(([k, v]) => (
             <div key={k} className="ob-review-row">
               <span className="ob-review-key">{k}</span>
               <span className="ob-review-val">{v}</span>
             </div>
           ))}
-        </div>
-
-        {/* Avatar */}
-        <div className="ob-review-card">
-          <div className="ob-review-card-header">
-            <span className="ob-review-card-title">Avatar</span>
-            <button className="ob-review-edit-btn" onClick={() => goTo(11)}>Edit</button>
-          </div>
-          <div className="ob-review-row">
-            <span className="ob-review-key">Avatar</span>
-            <span className="ob-review-val">
-              <AvatarDisplay name={data.name.trim() || 'You'} avatarId={data.avatarId} photoDataUrl={data.photoDataUrl} size="sm" />
-            </span>
-          </div>
         </div>
       </div>
 
@@ -956,8 +830,12 @@ function AuthLoadingScreen() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 // Steps: 0=welcome/auth, 1=name, 2=identity, 3=height, 4=current-weight, 5=goal-weight,
-//        6=activity, 7=primary-goal, 8=training, 9=nutrition, 10=connect, 11=avatar, 12=review, 13=finish
-const CONTENT_STEPS = 11  // steps 1–11 shown in progress bar (review and finish are outside)
+//        6=activity, 7=primary-goal, 8=nutrition, 9=review, 10=finish
+// Training-days, Connect-Sources, and Avatar steps were cut entirely —
+// training days duplicated the activity-level question, Connect Sources
+// was a dead end on web (HealthKit sync is native-app-only), and avatar
+// is already available from Profile → Edit without needing a wizard page.
+const CONTENT_STEPS = 8  // steps 1–8 shown in progress bar (review and finish are outside)
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -975,8 +853,9 @@ export default function OnboardingPage() {
   const [data, setData] = useState<OBData>({
     name: '', dob: '', sex: '', heightFt: '5', heightIn: '10',
     currentWeightLbs: '', goalWeightLbs: '', activityLevel: '',
-    avatarId: undefined, primaryGoals: [], calorieGoal: '', proteinGoal: '',
-    trainingDays: 4,
+    avatarId: undefined, primaryGoals: [],
+    calorieGoal: '', proteinGoal: '', carbsGoal: '', fatGoal: '',
+    weightLossRateLbsPerWeek: 0.5,
   })
 
   function patch(u: Partial<OBData>) { setData(prev => ({ ...prev, ...u })) }
@@ -1096,7 +975,12 @@ export default function OnboardingPage() {
         dob:             data.dob         || undefined,
         sex:             data.sex         || undefined,
         activityLevel:   data.activityLevel || undefined,
-        avatarId:        data.avatarId,
+        // Same fallback as photoDataUrl above — avatar is no longer part of
+        // this wizard's own UI (set from Profile → Edit instead), so this
+        // only ever changes via prefillFromProfile's own load; this is the
+        // belt-and-suspenders guard against clobbering an existing avatar
+        // if that prefill hasn't resolved yet for any reason.
+        avatarId:        data.avatarId ?? existing?.avatarId,
         heightCm,
         startDate:       isEdit ? (existing?.startDate ?? today) : today,
         startWeightKg:   data.currentWeightLbs
@@ -1110,14 +994,18 @@ export default function OnboardingPage() {
 
       const calGoal = parseInt(data.calorieGoal)
       const protGoal = parseInt(data.proteinGoal)
+      const carbsGoalN = parseInt(data.carbsGoal)
+      const fatGoalN = parseInt(data.fatGoal)
       const goalLbs = parseFloat(data.goalWeightLbs)
 
       let nut = { calories: 2300, proteinG: 160, fatG: 70, carbsG: 220, waterMl: 3785 }
       if (!isNaN(goalLbs) && goalLbs > 0) {
-        nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', data.trainingDays)
+        nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', data.weightLossRateLbsPerWeek)
       }
       if (!isNaN(calGoal) && calGoal > 0) nut.calories = calGoal
       if (!isNaN(protGoal) && protGoal > 0) nut.proteinG = protGoal
+      if (!isNaN(carbsGoalN) && carbsGoalN > 0) nut.carbsG = carbsGoalN
+      if (!isNaN(fatGoalN) && fatGoalN > 0) nut.fatG = fatGoalN
 
       await setSetting('nutrition-goals', { ...nut, macroFirstMode: false })
       await setSetting('nutrition.targets', {
@@ -1127,7 +1015,6 @@ export default function OnboardingPage() {
       await setSetting('onboarding.completed', true)
       await setSetting(ONBOARDING_DRAFT_KEY, null)
       await setSetting('onboarding.goals', data.primaryGoals)
-      await setSetting('training.daysPerWeek', data.trainingDays)
 
       const dest = isEdit ? '/profile' : (data.importAfterSetup ? '/import/apple-health' : '/')
       navigate(dest, { replace: true })
@@ -1140,10 +1027,10 @@ export default function OnboardingPage() {
 
   if (syncingProfile) return <div className="ob-page"><AuthLoadingScreen /></div>
 
-  const showHeader  = step >= 1 && step <= 12
-  const progressPct = step >= 1 && step <= 11
+  const showHeader  = step >= 1 && step <= 9
+  const progressPct = step >= 1 && step <= 8
     ? Math.round(((step - 1) / CONTENT_STEPS) * 100)
-    : step > 11 ? 100 : 0
+    : step > 8 ? 100 : 0
   const sp: StepProps = { data, patch, onNext: () => go(step + 1), dir }
 
   return (
@@ -1175,14 +1062,11 @@ export default function OnboardingPage() {
       {step === 5  && <StepGoalWeight    key={5}  {...sp} />}
       {step === 6  && <StepActivity      key={6}  {...sp} />}
       {step === 7  && <StepPrimaryGoal   key={7}  {...sp} />}
-      {step === 8  && <StepTraining      key={8}  {...sp} />}
-      {step === 9  && <StepNutrition     key={9}  {...sp} />}
-      {step === 10 && <StepConnectSources key={10} {...sp} />}
-      {step === 11 && <StepAvatar        key={11} {...sp} />}
-      {step === 12 && (
-        <StepReview key={12} {...sp} onNext={() => go(13)} goTo={go} />
+      {step === 8  && <StepNutrition     key={8}  {...sp} />}
+      {step === 9 && (
+        <StepReview key={9} {...sp} onNext={() => go(10)} goTo={go} />
       )}
-      {step === 13 && (
+      {step === 10 && (
         <ScreenFinish
           name={data.name.trim()}
           loading={loading}

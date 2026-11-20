@@ -1,0 +1,49 @@
+.fde-modal { max-width: 440px; }
+
+.fde-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 20px calc(20px + var(--safe-bottom, 0px));
+}
+
+.fde-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+}
+
+.fde-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.fde-input-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.fde-input-wrap input {
+  width: 80px;
+  text-align: right;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.fde-input-wrap span {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}

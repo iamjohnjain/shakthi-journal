@@ -22,7 +22,7 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse at 60% 0%, rgba(166,107,245,0.16) 0%, transparent 65%),
-              radial-gradient(ellipse at 20% 100%, rgba(166,107,245,0.10) 0%, transparent 50%);
+              radial-gradient(ellipse at 20% 100%, rgba(251,122,60,0.10) 0%, transparent 50%);
   pointer-events: none;
 }
 
