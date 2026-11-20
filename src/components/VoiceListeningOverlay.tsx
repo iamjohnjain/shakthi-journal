@@ -21,11 +21,23 @@ export default function VoiceListeningOverlay({ stream, phase, onStop }: {
     const AudioCtxCtor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!AudioCtxCtor) return
 
-    const audioCtx = new AudioCtxCtor()
-    const source = audioCtx.createMediaStreamSource(stream)
-    const analyser = audioCtx.createAnalyser()
-    analyser.fftSize = 256
-    source.connect(analyser)
+    // This whole effect only drives the orb's visual pulse — nothing else
+    // depends on it. A locked/suspended AudioContext (iOS autoplay-policy
+    // quirks, or any WebKit-specific restriction) must never be allowed to
+    // throw uncaught here and take the recording UI down with it; recording
+    // itself (useVoiceDictation) doesn't touch any of this.
+    let audioCtx: AudioContext
+    let source: MediaStreamAudioSourceNode
+    let analyser: AnalyserNode
+    try {
+      audioCtx = new AudioCtxCtor()
+      source = audioCtx.createMediaStreamSource(stream)
+      analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      source.connect(analyser)
+    } catch {
+      return
+    }
     const data = new Uint8Array(analyser.frequencyBinCount)
     let raf = 0
 

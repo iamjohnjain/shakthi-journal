@@ -16,6 +16,13 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Jeevan uses your camera so you can snap a photo of a meal, receipt, or barcode and get an instant nutrition estimate.</string>
 
+	<!-- Microphone — required for voice dictation (the mic button in chat,
+	     nutrition logging, and workout templates). Same hard-crash rule as
+	     the camera above: without this key, getUserMedia({audio:true})
+	     kills the app outright instead of prompting. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Jeevan uses your microphone so you can dictate meals, workouts, and messages to your coach instead of typing them.</string>
+
 	<!-- HealthKit read — required, or App Store will reject the binary -->
 	<key>NSHealthShareUsageDescription</key>
 	<string>Jeevan reads your health data from Apple Health to sync it to your personal dashboard. Your data is only uploaded to your own account and is never shared with anyone.</string>

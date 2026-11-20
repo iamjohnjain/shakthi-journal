@@ -60,7 +60,24 @@ export function useVoiceDictation(onResult: (text: string) => void) {
     const mimeType = pickSupportedAudioMimeType()
     mimeRef.current = mimeType || 'audio/webm'
     chunksRef.current = []
-    const recorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream)
+    // isTypeSupported() has already been caught lying once in this app (the
+    // Check-Ins video recorder) — the constructor itself can still throw
+    // (NotSupportedError) even when isTypeSupported claimed otherwise, so
+    // this can never be allowed to be an uncaught exception that takes the
+    // whole app down. Fall back to the no-mimeType constructor, and if even
+    // that throws, release the mic and bail out quietly like a denied
+    // permission rather than crashing.
+    let recorder: MediaRecorder
+    try {
+      recorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream)
+    } catch {
+      try {
+        recorder = new MediaRecorder(mediaStream)
+      } catch {
+        mediaStream.getTracks().forEach(t => t.stop())
+        return
+      }
+    }
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
       mediaStream.getTracks().forEach(t => t.stop())

@@ -168,6 +168,18 @@ final class AuthManager {
             return
         }
 
+        // Trust the cached session immediately, before touching the network.
+        // ContentView gates its entire UI on `authState != .loading`, so
+        // waiting on a refresh round-trip here means a black loading screen
+        // on every single cold launch even though a perfectly usable session
+        // is already sitting in the Keychain. Flip to signedIn right away —
+        // the WebView loads and the user is in the app — then refresh the
+        // token in the background. The web app's own Supabase client also
+        // refreshes independently once it's running (see WebAppView's
+        // injected-session comment), so a slightly stale access token here
+        // is never a dead end even before this background refresh lands.
+        authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
+
         do {
             let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
             persist(session)
@@ -183,9 +195,8 @@ final class AuthManager {
             KeychainHelper.clearSession()
             authState = .signedOut
         } catch {
-            // Transient network/server error — preserve the stale session so the user
-            // isn't forced offline by a momentary connectivity blip.
-            authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
+            // Transient network/server error — already running on the cached
+            // session set above, so there's nothing further to do.
         }
     }
 
