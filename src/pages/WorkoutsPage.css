@@ -203,11 +203,16 @@
 .workouts-first-empty-secondary:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ─── Log Modal ───────────────────────────────────────────────── */
+/* z-index must clear the floating bottom nav (also z-index: 100 —
+   with a tie, later DOM order wins, and BottomNav renders after the
+   page content, so it was painting over the bottom of this sheet,
+   covering anything scrolled near the bottom — e.g. an expanded
+   WheelPicker for weight/reps). */
 .log-modal-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.65);
   display: flex; align-items: flex-end; justify-content: center;
-  z-index: 100;
+  z-index: 600;
 }
 @media (min-width: 540px) {
   .log-modal-overlay { align-items: center; }
@@ -887,10 +892,11 @@
 .tmpl-ex-name { font-weight: 600; color: var(--text-primary); min-width: 160px; }
 .tmpl-ex-sets { font-size: 12px; color: var(--text-tertiary); }
 
-/* Template modal */
+/* Template modal — same z-index fix as .log-modal-overlay above (was tied
+   with the floating bottom nav's z-index: 100). */
 .tmpl-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.65);
-  display: flex; align-items: flex-end; justify-content: center; z-index: 100;
+  display: flex; align-items: flex-end; justify-content: center; z-index: 600;
 }
 @media (min-width: 540px) { .tmpl-modal-overlay { align-items: center; } }
 .tmpl-modal {
@@ -1285,6 +1291,16 @@
 }
 .wc-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
 .wc-icon-btn--del:hover { border-color: var(--red); color: var(--red); }
+
+.wc-icon-btn--timer-active {
+  width: auto;
+  padding: 0 10px;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 
 .wk-flat-add-row { display: flex; gap: 8px; margin-top: 4px; }
 .add-break-btn {

@@ -10,6 +10,7 @@ export default function WeeklyWrapBanner({ onOpen, onDismiss }: {
       className="wwb-banner"
       role="button"
       tabIndex={0}
+      data-no-press-glow
       onClick={onOpen}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onOpen() }}
     >

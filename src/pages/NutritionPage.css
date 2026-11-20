@@ -353,8 +353,24 @@
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 8px;
 }
+.meal-section-title-wrap { display: flex; align-items: center; gap: 8px; }
 .meal-section-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0; }
 .meal-cal-total { font-size: 12px; color: var(--text-tertiary); }
+
+/* Same gradient-ring badge technique as the week-streak icon chip — one
+   consistent accent per meal section instead of plain text headers. */
+.meal-section-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
 
 .meal-entries { display: flex; flex-direction: column; gap: 4px; }
 .food-entry {
@@ -439,11 +455,14 @@
 }
 
 /* ─── Add Modal ───────────────────────────────────────────────── */
+/* Same z-index fix as WorkoutsPage.css's .log-modal-overlay — was tied
+   with the floating bottom nav's own z-index: 100, so the nav (later in
+   DOM order) painted over the bottom of this sheet. */
 .add-modal-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.65);
   display: flex; align-items: flex-end; justify-content: center;
-  z-index: 100;
+  z-index: 600;
 }
 @media (min-width: 540px) { .add-modal-overlay { align-items: center; } }
 

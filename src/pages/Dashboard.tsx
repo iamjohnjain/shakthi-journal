@@ -189,7 +189,7 @@ function FirstDayCard({ profile, nutritionGoals, fmtWeight }: {
   const stats: { label: string; value: string; color: string }[] = []
   if (profile.startWeightKg) stats.push({ label: 'Current weight', value: fmtWeight(profile.startWeightKg), color: 'var(--teal)' })
   if (profile.goalWeightKg)  stats.push({ label: 'Goal weight',    value: fmtWeight(profile.goalWeightKg),  color: 'var(--green)' })
-  if (calories)       stats.push({ label: 'Daily calories', value: `${calories} kcal`,       color: 'var(--accent)' })
+  if (calories)       stats.push({ label: 'Daily calories', value: `${calories} cal`,       color: 'var(--accent)' })
   if (protein)        stats.push({ label: 'Protein goal',   value: `${protein}g`,            color: 'var(--purple)' })
 
   if (stats.length === 0) return null

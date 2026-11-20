@@ -8,6 +8,7 @@ import {
 import { saveWorkout, getLastExercisePerformance, EXERCISE_LIBRARY, WORKOUT_TYPES } from '../db/workoutStore'
 import { getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise } from '../db/trainingStore'
 import type { WorkoutSession, WorkoutExerciseEntry, ExerciseSet } from '../db'
+import { useRestTimer } from '../hooks/useRestTimer'
 import type { ProfileData } from '../db/profileStore'
 import { parseWorkoutDescription, analyzeWorkoutPhoto } from '../lib/aiWorkoutParser'
 import type { ParsedExercise } from '../lib/aiWorkoutParser'
@@ -16,7 +17,7 @@ import LiveCamera from '../components/LiveCamera'
 import WorkoutCelebration from '../components/WorkoutCelebration'
 import VoiceListeningOverlay from '../components/VoiceListeningOverlay'
 import { useVoiceDictation } from '../hooks/useVoiceDictation'
-import { localDateStr } from '../data/config'
+import { localDateStr, formatFullDate } from '../data/config'
 import './ActiveWorkout.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,39 +71,6 @@ function useElapsedTimer(paused = false): number {
     return () => clearInterval(t)
   }, [paused])
   return elapsed
-}
-
-function useRestTimer(onDone: () => void) {
-  const [restSecs, setRestSecs] = useState<number | null>(null)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
-
-  function start(secs = 90) {
-    if (timerRef.current) clearInterval(timerRef.current)
-    setRestSecs(secs)
-    timerRef.current = setInterval(() => {
-      setRestSecs(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(timerRef.current!)
-          timerRef.current = null
-          onDone()
-          return null
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }
-
-  function stop() {
-    if (timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = null
-    setRestSecs(null)
-  }
-
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
-
-  return { restSecs, start, stop }
 }
 
 function formatTime(s: number): string {
@@ -362,7 +330,7 @@ function ExerciseBlock({
           <span className="aw-exercise-name">{ex.name}</span>
           {last && (
             <span className="aw-exercise-last">
-              Last: {last.weight} lbs × {last.reps} — {last.date}
+              Last: {last.weight} lbs × {last.reps} — {formatFullDate(last.date)}
             </span>
           )}
         </div>
@@ -386,8 +354,8 @@ function ExerciseBlock({
         />
       ))}
 
-      <button className="aw-add-set-btn" onClick={addSet}>
-        <Plus size={12} /> Add set
+      <button className="aw-add-set-btn" onClick={addSet} data-no-press-glow>
+        <Plus size={12} /> Add Set
       </button>
     </div>
   )
@@ -521,6 +489,33 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
   const { restSecs, start: startRest, stop: stopRest } = useRestTimer(
     () => { /* timer done — could vibrate or beep */ }
   )
+
+  // A template's own sets often carry weight 0 (never filled in, or just
+  // stale) — unlike manually adding an exercise (which already calls
+  // getLastExercisePerformance to suggest a weight), applying a template
+  // left every set's weight blank with no suggestion at all. This backfills
+  // the same lookup per exercise, once, right after the session is seeded
+  // from the template — only replacing weights that are actually 0, so a
+  // template that *does* specify a real weight keeps it.
+  useEffect(() => {
+    if (!initial) return
+    let cancelled = false
+    Promise.all(initial.exercises.filter(e => !e.isBreak).map(e => getLastExercisePerformance(e.name)))
+      .then(perfs => {
+        if (cancelled) return
+        setExercises(prev => prev.map((ex, i) => {
+          const perf = perfs[i]
+          if (!perf) return ex
+          return {
+            ...ex,
+            sets: ex.sets.map(s => s.weightLbs > 0 ? s : { ...s, weightLbs: perf.weight }),
+            lastPerf: { weight: perf.weight, reps: perf.reps, date: perf.date.slice(0, 10) },
+          }
+        }))
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleSetDone(exIdx: number, setIdx: number) {
     const ex  = exercises[exIdx]

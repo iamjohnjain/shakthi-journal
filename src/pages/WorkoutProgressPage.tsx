@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Search, TrendingUp, Award, Camera } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Search, TrendingUp, Award, Camera, Info, X, Dumbbell } from 'lucide-react'
 import { getExerciseHistory, getExerciseLibrary } from '../db/trainingStore'
 import type { ExerciseHistory } from '../db/trainingStore'
-import { getAllTimePRs } from '../db/workoutStore'
+import { getAllTimePRDetails } from '../db/workoutStore'
+import type { ExercisePRDetails } from '../db/workoutStore'
+import { formatFullDate } from '../data/config'
 import SubNav from '../components/WorkoutsSubNav'
 import CheckInsSection from './ProgressCheckIns'
 import './WorkoutProgressPage.css'
@@ -50,7 +52,7 @@ function HistoryCard({ history }: { history: ExerciseHistory }) {
             const pct = history.allTimePR > 0 ? (s.bestE1RM / history.allTimePR * 100) : 0
             return (
               <div key={i} className="wpr-session-row">
-                <span className="wpr-session-date">{s.date}</span>
+                <span className="wpr-session-date">{formatFullDate(s.date)}</span>
                 <MiniBar pct={pct} color={i === 0 ? 'var(--green)' : 'var(--accent)'} />
                 <span className="wpr-session-e1rm">
                   {s.bestE1RM > 0 ? `${s.bestE1RM}lb` : '—'}
@@ -77,15 +79,26 @@ function PrTrackingSection() {
   const [allNames,  setAllNames]  = useState<string[]>([])
   const [searched,  setSearched]  = useState(false)
   // Default view: every lifted exercise's best e1RM (a real recorded value
-  // when the set itself was flagged a PR, Epley-estimated otherwise —
-  // getAllTimePRs() already prefers the former), heaviest first — "the
-  // number one priority is seeing my 1-rep max whenever I see this tab",
-  // not an empty search prompt.
-  const [allPRs, setAllPRs] = useState<{ name: string; e1rm: number }[] | null>(null)
+  // when the set itself was flagged a PR, Epley-estimated otherwise) AND
+  // the heaviest weight actually lifted regardless of reps — two different
+  // "best," heaviest-e1RM first — "the number one priority is seeing my
+  // 1-rep max whenever I see this tab", not an empty search prompt.
+  const [allPRs, setAllPRs] = useState<(ExercisePRDetails & { name: string })[] | null>(null)
+  const [showE1rmInfo, setShowE1rmInfo] = useState(false)
+  const infoRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showE1rmInfo) return
+    function handleClick(e: MouseEvent) {
+      if (infoRef.current && !infoRef.current.contains(e.target as Node)) setShowE1rmInfo(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showE1rmInfo])
 
   const loadAllPRs = useCallback(async () => {
-    const prs = await getAllTimePRs()
-    setAllPRs(Array.from(prs.entries()).map(([name, e1rm]) => ({ name, e1rm })).sort((a, b) => b.e1rm - a.e1rm))
+    const prs = await getAllTimePRDetails()
+    setAllPRs(Array.from(prs.entries()).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.bestE1RM - a.bestE1RM))
   }, [])
 
   useEffect(() => {
@@ -155,7 +168,21 @@ function PrTrackingSection() {
 
       {!searched && !loading && (
         <div className="wpr-all-list">
-          <div className="wpr-all-list-header">All Workouts</div>
+          <div className="wpr-all-list-header-row" ref={infoRef}>
+            <div className="wpr-all-list-header">All Workouts</div>
+            <button className="wpr-e1rm-info-btn" onClick={() => setShowE1rmInfo(v => !v)} aria-label="What's the difference?">
+              <Info size={13} />
+            </button>
+            {showE1rmInfo && (
+              <div className="wpr-e1rm-info-popover">
+                <button className="wpr-e1rm-info-close" onClick={() => setShowE1rmInfo(false)} aria-label="Close">
+                  <X size={13} />
+                </button>
+                <p><strong>Heaviest lift</strong> is literally the most weight you've put on the bar for this exercise, whatever the rep count was.</p>
+                <p><strong>e1RM</strong> (estimated 1-rep max) is a formula-based projection of what you could lift once at full effort, calculated from a higher-rep set — it's an estimate, not something you actually did, so it can read higher than your heaviest real lift.</p>
+              </div>
+            )}
+          </div>
           {allPRs === null ? (
             <div className="wpr-loading">Loading…</div>
           ) : allPRs.length === 0 ? (
@@ -164,12 +191,18 @@ function PrTrackingSection() {
               <p>Log a workout to start tracking your 1-rep max estimates here.</p>
             </div>
           ) : (
-            allPRs.map(({ name, e1rm }) => (
+            allPRs.map(({ name, bestE1RM, heaviestWeightLbs }) => (
               <button key={name} className="wpr-all-list-row" onClick={() => handleSelect(name)}>
                 <span className="wpr-all-list-name">{name}</span>
-                <span className="wpr-all-list-e1rm">
-                  <Award size={13} className="wpr-pr-icon" />
-                  {e1rm > 0 ? `${e1rm} lb e1RM` : '—'}
+                <span className="wpr-all-list-stats">
+                  <span className="wpr-all-list-heaviest">
+                    <Dumbbell size={12} className="wpr-pr-icon" />
+                    {heaviestWeightLbs > 0 ? `${heaviestWeightLbs} lb` : '—'}
+                  </span>
+                  <span className="wpr-all-list-e1rm">
+                    <Award size={13} className="wpr-pr-icon" />
+                    {bestE1RM > 0 ? `${bestE1RM} lb e1RM` : '—'}
+                  </span>
                 </span>
               </button>
             ))

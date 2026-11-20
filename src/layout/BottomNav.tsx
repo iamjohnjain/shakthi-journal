@@ -37,7 +37,7 @@ export default function BottomNav() {
           end={tab.end}
           className={({ isActive }) => `bottom-tab ${isActive ? 'active' : ''}`}
         >
-          <tab.icon size={22} className="bottom-tab-icon" />
+          <tab.icon size={20} className="bottom-tab-icon" />
           <span className="bottom-tab-label">{tab.label}</span>
         </NavLink>
       ))}

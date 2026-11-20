@@ -37,7 +37,15 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
     if (!refreshing) return
     function onNativeSync() { setRefreshing(false); setPull(0) }
     window.addEventListener('native-health-sync-complete', onNativeSync)
-    return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
+    // Safety net: the native sync sheet can be dismissed/cancelled by the
+    // user before it ever completes (or fails outright), and neither path
+    // fires the completion event — without this, the spinner would stay
+    // "Syncing…" indefinitely with no way to clear itself.
+    const timeout = setTimeout(() => { setRefreshing(false); setPull(0) }, 12_000)
+    return () => {
+      window.removeEventListener('native-health-sync-complete', onNativeSync)
+      clearTimeout(timeout)
+    }
   }, [refreshing])
 
   function onTouchStart(e: ReactTouchEvent) {
@@ -102,7 +110,8 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
           <svg className={`ptr-ring ${refreshing ? 'ptr-ring--spinning' : ''}`} viewBox="0 0 36 36">
             <defs>
               <linearGradient id="ptr-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#A66BF5" />
+                <stop offset="0%" stopColor="#FB8A4C" />
+                <stop offset="55%" stopColor="#A66BF5" />
                 <stop offset="100%" stopColor="#5B7FFF" />
               </linearGradient>
             </defs>

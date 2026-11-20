@@ -5,7 +5,7 @@ import LiveCamera from '../components/LiveCamera'
 import PhotoLightbox from '../components/PhotoLightbox'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import { compressImageUnderBytes } from '../lib/imageUtils'
-import { savePhoto, getPhotos, getPoseLabels, updatePhoto } from '../db/progressPhotoStore'
+import { savePhoto, getPhotos, getPoseLabels, updatePhoto, deletePhoto } from '../db/progressPhotoStore'
 import type { ProgressPhoto, ProgressPhotoPose } from '../db'
 import { getLatestSnapshots } from '../db/healthStore'
 import { localDateStr, kgToLbs, lbsToKg, formatFullDate } from '../data/config'
@@ -523,6 +523,12 @@ export default function CheckInsSection() {
     void buildLightboxState(updated).then(setLightbox)
   }
 
+  async function handleLightboxDelete(photoId: string) {
+    await deletePhoto(photoId)
+    setLightbox(null)
+    await refreshComparePhotos()
+  }
+
   async function handleStagedBlob(blob: Blob) {
     const dataUrl = await compressImageUnderBytes(blob, 1_500_000, 1600)
     setStaged(cur => [...cur, { localId: genLocalId(), dataUrl, pose: null, customLabel: '', customInputOpen: false, saving: false }])
@@ -693,13 +699,13 @@ export default function CheckInsSection() {
               )}
               <div className="pci-compare-grid">
                 <div className="pci-compare-col">
-                  <div className="pci-compare-col-label">{dateA || 'Pick a date'}</div>
+                  <div className="pci-compare-col-label">{dateA ? formatFullDate(dateA) : 'Pick a date'}</div>
                   {photosA.length > 0 ? photosA.map(p => (
                     <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
                 </div>
                 <div className="pci-compare-col">
-                  <div className="pci-compare-col-label">{dateB || 'Pick a date'}</div>
+                  <div className="pci-compare-col-label">{dateB ? formatFullDate(dateB) : 'Pick a date'}</div>
                   {photosB.length > 0 ? photosB.map(p => (
                     <img key={p.id} src={p.photoDataUrl} alt="" className="pci-compare-img" onClick={() => openLightbox(p)} />
                   )) : <div className="pci-compare-empty">No photo for this date/pose.</div>}
@@ -713,7 +719,7 @@ export default function CheckInsSection() {
               ) : comparePhotos.map(p => (
                 <div key={p.id} className="pci-grid-item" onClick={() => openLightbox(p)}>
                   <img src={p.photoDataUrl} alt="" />
-                  <span>{p.date}</span>
+                  <span>{formatFullDate(p.date)}</span>
                 </div>
               ))}
             </div>
@@ -743,6 +749,9 @@ export default function CheckInsSection() {
           editWeightLbs={lightbox.weightLbs}
           onSave={lightbox.photoId
             ? changes => handleLightboxSave(lightbox.photoId!, changes)
+            : undefined}
+          onDelete={lightbox.photoId
+            ? () => handleLightboxDelete(lightbox.photoId!)
             : undefined}
         />
       )}

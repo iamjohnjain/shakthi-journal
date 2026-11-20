@@ -22,7 +22,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg-primary);
+  background: var(--bg-elevated);
 }
 
 .aw-header-left {
@@ -361,7 +361,7 @@
   display: flex;
   gap: 10px;
   padding: 12px 16px 12px;
-  background: var(--bg-primary);
+  background: var(--bg-elevated);
   border-top: 1px solid var(--border-subtle);
   position: sticky;
   bottom: 0;
@@ -375,7 +375,11 @@
   justify-content: center;
   gap: 6px;
   height: 48px;
-  background: var(--bg-card);
+  /* --bg-card is a near-transparent 5%-opacity wash — fine floating over a
+     solid card, but this button sits in the sticky footer directly above
+     the scrolling exercise list, where that little opacity read as visibly
+     see-through. A solid elevated surface actually separates it. */
+  background: var(--bg-elevated);
   border: 1.5px solid var(--border);
   border-radius: var(--r-full);
   font-size: 14px;

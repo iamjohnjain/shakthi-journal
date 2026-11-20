@@ -35,6 +35,45 @@ export async function getAllTimePRs(): Promise<Map<string, number>> {
   return prs
 }
 
+export interface ExercisePRDetails {
+  bestE1RM: number
+  /** The actual weight × reps that produced `bestE1RM` — the estimate's
+      real basis, for showing "estimated from this set" rather than just a
+      bare formula output. Null if there's no non-warmup set on record. */
+  bestE1RMSet: { weightLbs: number; reps: number } | null
+  /** The single heaviest weight ever lifted for this exercise, regardless
+      of rep count — a genuinely different question from e1RM (a low-rep
+      near-max single can out-weigh a higher-rep set with a bigger e1RM). */
+  heaviestWeightLbs: number
+}
+
+/** Same scan as `getAllTimePRs`, but keeps the actual set behind the e1RM
+    and separately tracks the heaviest weight ever lifted regardless of
+    reps — "what I actually did" alongside "what the formula estimates,"
+    for the Progress page's detailed PR view. */
+export async function getAllTimePRDetails(): Promise<Map<string, ExercisePRDetails>> {
+  const db = await getDB()
+  const all = await db.getAll('workouts')
+  const details = new Map<string, ExercisePRDetails>()
+  for (const w of all) {
+    for (const ex of w.exercises) {
+      const workingSets = ex.sets.filter(s => !s.isWarmup && s.weightLbs > 0 && s.reps > 0)
+      if (workingSets.length === 0) continue
+      const existing = details.get(ex.name) ?? { bestE1RM: 0, bestE1RMSet: null, heaviestWeightLbs: 0 }
+      for (const s of workingSets) {
+        const e1rm = s.e1rm ?? estimateOneRM(s.weightLbs, s.reps)
+        if (e1rm > existing.bestE1RM) {
+          existing.bestE1RM = e1rm
+          existing.bestE1RMSet = { weightLbs: s.weightLbs, reps: s.reps }
+        }
+        if (s.weightLbs > existing.heaviestWeightLbs) existing.heaviestWeightLbs = s.weightLbs
+      }
+      details.set(ex.name, existing)
+    }
+  }
+  return details
+}
+
 /** Annotate sets with e1rm and isPR relative to existing all-time PRs. */
 export async function annotateExercises(exercises: WorkoutExerciseEntry[]): Promise<WorkoutExerciseEntry[]> {
   const prs = await getAllTimePRs()

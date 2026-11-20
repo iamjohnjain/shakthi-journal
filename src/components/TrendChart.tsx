@@ -16,6 +16,12 @@ interface Props {
   data: ChartPoint[]
   period: ChartPeriod
   color?: string
+  /** Draws the line (and current-point dot) in the app's brand gradient
+      instead of a flat color — opt-in, since most TrendChart usages pass
+      their own distinct metric color and shouldn't all turn into the same
+      rainbow line. The area-fill wash underneath still uses `color` (a
+      flat gradient-opacity fade reads oddly at this small a scale). */
+  gradient?: boolean
   unit?: string
   formatValue?: (v: number) => string
   goalValue?: number
@@ -41,7 +47,7 @@ function smoothPath(points: { x: number; y: number }[]): string {
 }
 
 export default function TrendChart({
-  data, period, color = 'var(--accent)', unit = '', formatValue, goalValue, height = 120,
+  data, period, color = 'var(--accent)', gradient = false, unit = '', formatValue, goalValue, height = 120,
 }: Props) {
   const containerRef = useRef<SVGSVGElement>(null)
   const [animated, setAnimated] = useState(false)
@@ -126,6 +132,13 @@ export default function TrendChart({
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
+          {gradient && (
+            <linearGradient id="trend-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FB8A4C" />
+              <stop offset="50%" stopColor="#A66BF5" />
+              <stop offset="100%" stopColor="#5B7FFF" />
+            </linearGradient>
+          )}
           <clipPath id="trend-clip">
             <rect x="0" y="0" width={animated ? w : 0} height={h} style={{ transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
           </clipPath>
@@ -149,7 +162,7 @@ export default function TrendChart({
         <path
           d={linePath}
           fill="none"
-          stroke={color}
+          stroke={gradient ? 'url(#trend-line-gradient)' : color}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -162,7 +175,7 @@ export default function TrendChart({
             cx={pts[pts.length - 1].x}
             cy={pts[pts.length - 1].y}
             r="4"
-            fill={color}
+            fill={gradient ? 'url(#trend-line-gradient)' : color}
             opacity={animated ? 1 : 0}
             style={{ transition: 'opacity 0.4s ease 0.7s' }}
           />

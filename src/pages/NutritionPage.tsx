@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, Trash2, X, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
-  Sparkles, Mic, Loader2, Camera, Zap, Copy,
+  Sparkles, Mic, Loader2, Camera, Zap, Copy, Coffee, Sun, Moon, Apple,
 } from 'lucide-react'
 import {
   parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, refineOneItem, isAiMealParsingAvailable,
@@ -45,6 +45,19 @@ function currentMealPeriod(): string | null {
 
 function offsetDateStr(dateStr: string, deltaDays: number): string {
   return addLocalDays(dateStr, deltaDays)
+}
+
+/** Keyed by the stable meal `id` (not the customizable display label) — a
+    renamed meal slot still gets the right icon. `Utensils` covers any
+    numbered/custom slot with no preset mapping. */
+const MEAL_ICONS: Record<string, typeof Coffee> = {
+  breakfast: Coffee,
+  lunch: Sun,
+  dinner: Moon,
+  snack: Apple,
+}
+function mealIcon(id: string) {
+  return MEAL_ICONS[id] ?? Utensils
 }
 
 /** Guesses which meal slot to open into: morning → breakfast, midday → lunch,
@@ -290,7 +303,7 @@ function MealReviewCard({ item, onUpdate, onRemove, onRefine }: {
           <label>Calories</label>
           <div className="field-with-unit">
             {numField(item.calories, n => onUpdate({ calories: n }))}
-            <span>kcal</span>
+            <span>cal</span>
           </div>
         </div>
         <div className="custom-field">
@@ -756,7 +769,7 @@ function QuickLogTab({ onLogged }: {
             <input autoFocus type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
               onChange={e => setCalories(e.target.value.replace(/[^0-9]/g, ''))}
               onFocus={e => e.target.select()} />
-            <span>kcal</span>
+            <span>cal</span>
           </div>
         </div>
         <div className="custom-field">
@@ -848,7 +861,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     setTab('custom')
   }
 
-  // If the user never explicitly picked a meal tab, a small (<300 kcal) total
+  // If the user never explicitly picked a meal tab, a small (<300 cal) total
   // is assumed to be a snack rather than whatever the time-of-day guess was —
   // a banana at noon isn't "lunch." Respects an explicit tap on any meal tab.
   function resolveMealId(totalCalories: number): string {
@@ -1004,7 +1017,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={calories} placeholder="0"
                       onChange={e => setCalories(e.target.value.replace(/[^0-9]/g, ''))}
                       onFocus={e => { e.target.select(); setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350) }} />
-                    <span>kcal</span>
+                    <span>cal</span>
                   </div>
                 </div>
                 <div className="custom-field">
@@ -1269,10 +1282,17 @@ export default function NutritionPage() {
       <div className="nutrition-summary">
         <div className="calorie-ring-wrap">
           <svg className="calorie-ring" viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="cal-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FB8A4C" />
+                <stop offset="50%" stopColor="#A66BF5" />
+                <stop offset="100%" stopColor="#5B7FFF" />
+              </linearGradient>
+            </defs>
             <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-tertiary)" strokeWidth="10" />
             <circle
               cx="50" cy="50" r="42" fill="none"
-              stroke={calPct >= 100 ? 'var(--green)' : 'var(--accent)'}
+              stroke={calPct >= 100 ? 'var(--green)' : 'url(#cal-ring-gradient)'}
               strokeWidth="10"
               strokeDasharray={`${calPct * 2.639} 263.9`}
               strokeLinecap="round"
@@ -1281,14 +1301,14 @@ export default function NutritionPage() {
           </svg>
           <div className="calorie-ring-text">
             <div className="calorie-ring-value">{Math.round(totals.calories)}</div>
-            <div className="calorie-ring-label">/ {goals.calories} kcal</div>
+            <div className="calorie-ring-label">/ {goals.calories} cal</div>
           </div>
         </div>
 
         <div className="macro-bars">
-          <MacroBar label="Protein"      value={totals.proteinG} goal={goals.proteinG} color="var(--accent)" />
-          <MacroBar label="Carbohydrates" value={totals.carbsG}   goal={goals.carbsG}   color="var(--yellow)" />
-          <MacroBar label="Fat"          value={totals.fatG}     goal={goals.fatG}     color="var(--accent)" />
+          <MacroBar label="Protein"      value={totals.proteinG} goal={goals.proteinG} color="var(--gradient-brand)" />
+          <MacroBar label="Carbohydrates" value={totals.carbsG}   goal={goals.carbsG}   color="var(--gradient-brand)" />
+          <MacroBar label="Fat"          value={totals.fatG}     goal={goals.fatG}     color="var(--gradient-brand)" />
         </div>
       </div>
 
@@ -1300,6 +1320,7 @@ export default function NutritionPage() {
             data={calorieHistory}
             period="7d"
             color="var(--accent)"
+            gradient
             unit=" cal"
             formatValue={v => Math.round(v).toLocaleString()}
             goalValue={goals.calories}
@@ -1362,11 +1383,15 @@ export default function NutritionPage() {
         const mealLabel   = activeMealLabels[i] ?? id
         const mealCal     = mealEntries.reduce((n, e) => n + e.calories, 0)
         const isCurrentMealTime = isToday && mealLabel.toLowerCase() === currentMealTime
+        const MealIcon = mealIcon(id)
         return (
           <section key={id} className="meal-section">
             <div className="meal-section-header">
-              <h2 className="meal-section-title">{mealLabel}</h2>
-              {mealCal > 0 && <span className="meal-cal-total">{mealCal} kcal</span>}
+              <div className="meal-section-title-wrap">
+                <span className="meal-section-icon"><MealIcon size={13} /></span>
+                <h2 className="meal-section-title">{mealLabel}</h2>
+              </div>
+              {mealCal > 0 && <span className="meal-cal-total">{mealCal} cal</span>}
             </div>
             {mealEntries.length > 0 ? (
               <div className="meal-entries">
@@ -1394,7 +1419,7 @@ export default function NutritionPage() {
         <section className="meal-section">
           <div className="meal-section-header">
             <h2 className="meal-section-title">Other</h2>
-            <span className="meal-cal-total">{ungrouped.reduce((n, e) => n + e.calories, 0)} kcal</span>
+            <span className="meal-cal-total">{ungrouped.reduce((n, e) => n + e.calories, 0)} cal</span>
           </div>
           <div className="meal-entries">
             {ungrouped.map(e => (

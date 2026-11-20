@@ -27,6 +27,11 @@ export class GroqCallError extends Error {}
 const MAX_ATTEMPTS = 4
 const RETRY_DELAYS_MS = [700, 2000, 4000]
 const MAX_PARSED_DELAY_MS = 8000
+// A hung request (no response, no throw) wasn't retried at all before this —
+// only an outright network error or a non-ok status triggered the retry
+// loop above. This forces a hang to fail fast enough to actually get a
+// retry, instead of sitting until some outer platform-level timeout.
+const FETCH_TIMEOUT_MS = 20_000
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -111,14 +116,21 @@ export async function callGroqChat(opts: {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let res: Response
     try {
-      res = await fetch(GROQ_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${opts.apiKey}`,
-        },
-        body,
-      })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+      try {
+        res = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${opts.apiKey}`,
+          },
+          body,
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timeoutId)
+      }
     } catch (e) {
       lastError = new GroqCallError(`network error calling Groq: ${e}`)
       if (attempt < MAX_ATTEMPTS - 1) { await sleep(RETRY_DELAYS_MS[attempt]); continue }

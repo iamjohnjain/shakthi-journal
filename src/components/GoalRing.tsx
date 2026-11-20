@@ -360,7 +360,8 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                     the Start/Share buttons, instead of a different flat hue
                     per metric (blue for weight, green for steps, etc.). */}
                 <linearGradient id="gr-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#A66BF5" />
+                  <stop offset="0%" stopColor="#FB8A4C" />
+                  <stop offset="50%" stopColor="#A66BF5" />
                   <stop offset="100%" stopColor="#5B7FFF" />
                 </linearGradient>
               </defs>

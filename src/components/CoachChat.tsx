@@ -20,10 +20,10 @@ const UPLOAD_ACCEPT = 'image/*,.pdf,application/pdf,.docx,application/vnd.openxm
 const MAX_UPLOAD_BYTES = 15_000_000
 
 const STARTER_PROMPTS = [
-  'Suggest a workout for today',
-  'Help me set a goal',
-  'What should I eat today?',
-  "How's my progress?",
+  'Suggest a Workout for Today',
+  'Help Me Set a Goal',
+  'What Should I Eat Today?',
+  "How's My Progress?",
 ]
 
 /** Short, human label for a tool-result chip — the raw tool name/JSON isn't
@@ -42,13 +42,13 @@ function toolResultLabel(message: CoachChatMessage): string | null {
   if (parsed.ok === false) return parsed.reason ?? "Couldn't do that."
 
   switch (name) {
-    case 'log_workout': return 'Logged workout'
-    case 'log_meal': return 'Logged meal'
-    case 'create_template': return 'Saved template'
-    case 'update_nutrition_goals': return 'Updated nutrition goals'
-    case 'update_goals': return 'Updated goals'
-    case 'navigate_to': return 'Opened that screen'
-    default: return 'Looked that up'
+    case 'log_workout': return 'Logged Workout'
+    case 'log_meal': return 'Logged Meal'
+    case 'create_template': return 'Saved Template'
+    case 'update_nutrition_goals': return 'Updated Nutrition Goals'
+    case 'update_goals': return 'Updated Goals'
+    case 'navigate_to': return 'Opened That Screen'
+    default: return 'Looked That Up'
   }
 }
 
@@ -249,7 +249,7 @@ export default function CoachChat() {
                   </ul>
                   {m.proposedWorkoutActedAs ? (
                     <div className="coach-proposal-done">
-                      <Check size={12} /> {m.proposedWorkoutActedAs === 'template' ? 'Saved as template' : 'Logged for today'}
+                      <Check size={12} /> {m.proposedWorkoutActedAs === 'template' ? 'Saved as Template' : 'Logged for Today'}
                     </div>
                   ) : (
                     <div className="coach-proposal-actions">
@@ -275,7 +275,7 @@ export default function CoachChat() {
                   onClick={() => navigate(`/workouts?date=${m.workoutReference!.date}`)}
                 >
                   <ExternalLink size={12} />
-                  {m.workoutReference.label || 'View workout'} — {formatFullDate(m.workoutReference.date)}
+                  {m.workoutReference.label || 'View Workout'} — {formatFullDate(m.workoutReference.date)}
                 </button>
               )}
             </div>

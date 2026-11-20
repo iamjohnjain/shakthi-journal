@@ -8,8 +8,9 @@ import {
   ChevronLeft, ChevronRight, Copy, Clipboard,
   LayoutTemplate, Check, X, AlertTriangle, Play,
   GripVertical, Coffee, CalendarDays,
-  Pencil, Sparkles,
+  Pencil, Sparkles, Timer,
 } from 'lucide-react'
+import { useRestTimer, formatRestTime } from '../hooks/useRestTimer'
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
@@ -415,6 +416,14 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
     return estimateOneRM(s.weightLbs, s.reps) > (prMap.get(ex.name) ?? 0)
   }))
 
+  // A rest timer outside the live "Start" session — for logging sets
+  // directly or from a template without starting a timed session. Only
+  // offered once something's actually been entered here (not on a totally
+  // empty card), same persisted timer `ActiveWorkout` uses, so starting it
+  // from either place behaves the same and survives a reload.
+  const hasLoggedSets = exercises.some(ex => ex.sets.length > 0)
+  const { restSecs, start: startRest, stop: stopRest } = useRestTimer(() => {})
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -479,13 +488,22 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
                 {w.durationMin}min{w.rpe ? ` · RPE ${w.rpe}` : ''}
                 {cals ? (
                   <span className={`wc-cal wc-cal--${w.caloriesConfidence ?? 'medium'}`}>
-                    <Flame size={11} />{cals} kcal{w.caloriesConfidence === 'low' ? ' est.' : ''}
+                    <Flame size={11} />{cals} cal{w.caloriesConfidence === 'low' ? ' est.' : ''}
                   </span>
                 ) : null}
                 {hasPR && <span className="workout-pr-badge">🏆 PR</span>}
               </div>
             </div>
             <div className="wk-flat-header-actions">
+              {hasLoggedSets && (
+                restSecs != null ? (
+                  <button className="wc-icon-btn wc-icon-btn--timer-active" onClick={stopRest} title="Stop rest timer">
+                    {formatRestTime(restSecs)}
+                  </button>
+                ) : (
+                  <button className="wc-icon-btn" onClick={() => startRest(90)} title="Start rest timer"><Timer size={14} /></button>
+                )
+              )}
               <button className="wc-icon-btn" onClick={onCopy} title="Copy to another day"><Copy size={14} /></button>
               <button className="wc-icon-btn" onClick={() => setShowSaveAsTmpl(v => !v)} title="Save as template"><LayoutTemplate size={14} /></button>
               <button className="wc-icon-btn wc-icon-btn--del" onClick={() => setConfirmDelete(true)} title="Delete"><Trash2 size={14} /></button>
@@ -564,7 +582,7 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
               {w.durationMin}min{w.rpe ? ` · RPE ${w.rpe}` : ''}
               {cals ? (
                 <span className={`wc-cal wc-cal--${w.caloriesConfidence ?? 'medium'}`}>
-                  <Flame size={11} />{cals} kcal{w.caloriesConfidence === 'low' ? ' est.' : ''}
+                  <Flame size={11} />{cals} cal{w.caloriesConfidence === 'low' ? ' est.' : ''}
                 </span>
               ) : null}
             </div>
@@ -586,7 +604,7 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
             ))}
             {cals && (
               <div className="wc-calories-row">
-                <Flame size={13} /><span>{cals} kcal · {w.caloriesSource ?? 'Estimated'}</span>
+                <Flame size={13} /><span>{cals} cal · {w.caloriesSource ?? 'Estimated'}</span>
                 {w.caloriesConfidence && (
                   <span className={`wc-cal-badge wc-cal-badge--${w.caloriesConfidence}`}>
                     {w.caloriesConfidence.toUpperCase()}

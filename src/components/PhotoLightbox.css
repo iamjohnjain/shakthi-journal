@@ -31,11 +31,17 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.lightbox-caption-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .lightbox-edit-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 10px;
   padding: 6px 12px;
   border-radius: var(--r-full, 999px);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -46,6 +52,32 @@
   cursor: pointer;
 }
 .lightbox-edit-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.lightbox-edit-btn--delete { border-color: rgba(242, 84, 91, 0.4); color: #F2545B; }
+.lightbox-edit-btn--delete:hover { background: rgba(242, 84, 91, 0.14); }
+
+.lightbox-delete-confirm-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  margin: 0 0 4px;
+}
+
+.lightbox-edit-delete {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #F2545B;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lightbox-edit-delete:disabled { opacity: 0.5; cursor: default; }
 
 .lightbox-edit {
   margin-top: 18px;

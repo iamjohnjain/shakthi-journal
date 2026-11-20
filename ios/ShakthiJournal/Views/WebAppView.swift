@@ -204,15 +204,27 @@ struct WebAppView: UIViewRepresentable {
 
         // MARK: Native → Web injection
 
-        /// Called after a successful HealthKit sync. Encodes the metrics to JSON
-        /// and injects them directly into the web app's IndexedDB via evaluateJavaScript.
-        /// This bridges the native sync to the web dashboard without a Supabase round-trip.
+        /// Called after a successful HealthKit sync — even one that found zero
+        /// new records, which is the normal steady state once a user is caught
+        /// up (see `SyncEngine.markSuccess`, which now posts this
+        /// unconditionally). Encodes any metrics to JSON and injects them
+        /// directly into the web app's IndexedDB via evaluateJavaScript, then
+        /// always tells the web layer a sync attempt completed — the
+        /// "last synced" chip and the pull-to-refresh spinner both depend on
+        /// hearing this regardless of whether there was anything new to write.
         @objc private func handleNativeSyncComplete(_ note: Notification) {
-            guard
-                let metrics = note.userInfo?["metrics"] as? [HealthMetric],
-                !metrics.isEmpty,
-                let wv = webView
-            else { return }
+            guard let wv = webView else { return }
+            let metrics = (note.userInfo?["metrics"] as? [HealthMetric]) ?? []
+
+            guard !metrics.isEmpty else {
+                // Nothing to write — just tell the web side a sync happened.
+                DispatchQueue.main.async {
+                    wv.evaluateJavaScript(
+                        "window.dispatchEvent(new CustomEvent('native-health-sync-complete', { detail: { count: 0 } }));"
+                    )
+                }
+                return
+            }
 
             guard
                 let json = try? JSONEncoder().encode(metrics),
@@ -221,16 +233,27 @@ struct WebAppView: UIViewRepresentable {
 
             // Build the injection script. Embedding the JSON directly (not as a string)
             // means no escaping is needed — JSON is a valid JS literal.
+            //
+            // The DB name here MUST match the web app's live database
+            // ('jeevan', src/db/index.ts DB_NAME) — 'shakthi-journal' is kept
+            // around only as a one-time legacy migration source for installs
+            // that pre-date the rebrand (src/db/index.ts OLD_DB_NAME) and is
+            // never read by the running app. Opening it here was silently
+            // creating/writing to an orphaned database on every install that
+            // never had the old app — the injection appeared to work (no
+            // visible error) but never actually reached the real database, so
+            // the HealthKit sync could "succeed" natively while the web app
+            // never saw any of it.
             let script = """
             (function() {
               try {
                 var metrics = \(jsonString);
-                var req = indexedDB.open('shakthi-journal');
+                var req = indexedDB.open('jeevan');
                 req.onsuccess = function(e) {
                   var db = e.target.result;
                   if (!db.objectStoreNames.contains('health_metrics')) {
                     db.close();
-                    console.warn('[ShakthiJournal] health_metrics store not found — app may not be initialized');
+                    console.warn('[Jeevan] health_metrics store not found — app may not be initialized');
                     return;
                   }
                   var tx = db.transaction(['health_metrics', 'sync_history'], 'readwrite');
@@ -257,14 +280,14 @@ struct WebAppView: UIViewRepresentable {
                     }));
                   };
                   tx.onerror = function(err) {
-                    console.error('[ShakthiJournal] IDB write error:', err.target.error);
+                    console.error('[Jeevan] IDB write error:', err.target.error);
                   };
                 };
                 req.onerror = function(err) {
-                  console.error('[ShakthiJournal] IDB open error:', err.target.error);
+                  console.error('[Jeevan] IDB open error:', err.target.error);
                 };
               } catch(err) {
-                console.error('[ShakthiJournal] inject error:', err);
+                console.error('[Jeevan] inject error:', err);
               }
             })();
             """
@@ -272,7 +295,7 @@ struct WebAppView: UIViewRepresentable {
             DispatchQueue.main.async {
                 wv.evaluateJavaScript(script) { _, error in
                     if let error = error {
-                        print("[ShakthiJournal] evaluateJavaScript error:", error)
+                        print("[Jeevan] evaluateJavaScript error:", error)
                     }
                 }
             }

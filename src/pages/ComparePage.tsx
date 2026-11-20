@@ -57,7 +57,7 @@ function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): Me
   { id: 'hips',       label: 'Hips',            group: 'Body',      unit: mUnit,      higherIsBetter: false, color: 'var(--pink)',  format: v => v.toFixed(1),                   get: s => s.hipsCm != null ? toM(s.hipsCm) : undefined },
   // Activity
   { id: 'steps',      label: 'Steps',           group: 'Activity',  unit: '',         higherIsBetter: true,  color: 'var(--green)', format: v => Math.round(v).toLocaleString(), get: s => s.steps },
-  { id: 'activeKcal', label: 'Active Calories', group: 'Activity',  unit: 'kcal',     higherIsBetter: true,  color: 'var(--accent)',format: v => Math.round(v).toLocaleString(), get: s => s.activeCalories },
+  { id: 'activeKcal', label: 'Active Calories', group: 'Activity',  unit: 'cal',     higherIsBetter: true,  color: 'var(--accent)',format: v => Math.round(v).toLocaleString(), get: s => s.activeCalories },
   // Recovery
   { id: 'sleep',      label: 'Sleep',           group: 'Recovery',  unit: 'h',        higherIsBetter: true,  color: 'var(--purple)',format: v => v.toFixed(1),                   get: s => s.sleepHours },
   { id: 'hrv',        label: 'HRV',             group: 'Recovery',  unit: 'ms',       higherIsBetter: true,  color: 'var(--teal)',  format: v => Math.round(v).toString(),       get: s => s.hrv },
@@ -66,7 +66,7 @@ function buildMetrics(heightM: number, proteinGoalG = 200, isMetric = false): Me
   { id: 'workouts',   label: 'Workouts',        group: 'Training',  unit: 'sessions', higherIsBetter: true,  color: 'var(--pink)', format: v => Math.round(v).toString(),       get: s => s._workoutCount },
   // Nutrition
   { id: 'protein',    label: 'Protein',         group: 'Nutrition', unit: `/ ${proteinGoalG}g`, higherIsBetter: true, color: 'var(--accent)', format: v => Math.round(v).toString(), get: s => s.proteinG },
-  { id: 'caloriesIn', label: 'Calories Eaten',  group: 'Nutrition', unit: 'kcal',     higherIsBetter: false, color: 'var(--yellow)',format: v => Math.round(v).toLocaleString(), get: s => s.caloriesIn },
+  { id: 'caloriesIn', label: 'Calories Eaten',  group: 'Nutrition', unit: 'cal',     higherIsBetter: false, color: 'var(--yellow)',format: v => Math.round(v).toLocaleString(), get: s => s.caloriesIn },
   { id: 'water',      label: 'Water',           group: 'Nutrition', unit: 'oz',       higherIsBetter: true,  color: 'var(--teal)', format: v => Math.round(v).toString(),       get: s => s.waterMl ? +(s.waterMl / 29.574).toFixed(0) : undefined },
 ]}
 

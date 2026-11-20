@@ -36,8 +36,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 8px 0;
+    gap: 2px;
+    padding: 6px 0;
     min-height: 44px;         /* Apple HIG minimum tap target */
     color: var(--text-tertiary);
     transition: color 0.15s ease;
@@ -74,7 +74,7 @@
   }
 
   .bottom-tab-label {
-    font-size: 0.64rem;
+    font-size: 0.6rem;
     font-weight: 500;
     letter-spacing: 0.15px;
     line-height: 1;

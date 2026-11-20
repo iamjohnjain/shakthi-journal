@@ -325,17 +325,17 @@ extension Color {
     }
 
     /// The app's single flat accent — used anywhere a gradient doesn't fit
-    /// (inline text links, small icon tints). Mirrors the web app's --accent.
-    static let brandAccent = Color(hex: "#A66BF5")
+    /// (inline text links, small icon tints). Mirrors the web app's --orange.
+    static let brandAccent = Color(hex: "#FB7A3C")
 }
 
 // MARK: - Brand gradient
 
-/// Mirrors the web app's --gradient-brand (purple → blue), used for
+/// Mirrors the web app's --gradient-brand (orange → purple → blue), used for
 /// primary buttons and other large fills across the native screens.
 extension LinearGradient {
     static let brand = LinearGradient(
-        colors: [Color(hex: "#A66BF5"), Color(hex: "#5B7FFF")],
+        colors: [Color(hex: "#FB8A4C"), Color(hex: "#A66BF5"), Color(hex: "#5B7FFF")],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

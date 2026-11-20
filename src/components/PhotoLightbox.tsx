@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Pencil, Check } from 'lucide-react'
+import { X, Pencil, Check, Trash2 } from 'lucide-react'
 import './PhotoLightbox.css'
 
 interface EditValues {
@@ -13,10 +13,12 @@ interface EditValues {
     date, and the closest known weight reading for that date) so a saved
     check-in photo carries its own context when blown up, not just pixels.
 
-    `onSave` opts into an inline edit form (date + weight) — only meaningful
-    for an already-saved photo, so callers viewing a not-yet-saved staged
-    photo simply omit it and get the plain read-only viewer. */
-export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, editDate, editWeightLbs, onSave }: {
+    `onSave` opts into an inline edit form (date + weight) and `onDelete`
+    opts into a delete affordance (with an inline confirm step) — both only
+    meaningful for an already-saved photo, so a caller viewing a not-yet-
+    saved staged photo simply omits them and gets the plain read-only
+    viewer. */
+export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, editDate, editWeightLbs, onSave, onDelete }: {
   photoDataUrl: string
   caption?: string
   meta?: string
@@ -24,13 +26,16 @@ export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, ed
   editDate?: string
   editWeightLbs?: number | null
   onSave?: (changes: { date: string; weightLbs: number | null }) => Promise<void> | void
+  onDelete?: () => Promise<void> | void
 }) {
   const [editing, setEditing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [values, setValues] = useState<EditValues>({
     date: editDate ?? '',
     weightLbs: editWeightLbs != null ? String(editWeightLbs) : '',
   })
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   function openEdit() {
     setValues({ date: editDate ?? '', weightLbs: editWeightLbs != null ? String(editWeightLbs) : '' })
@@ -46,6 +51,19 @@ export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, ed
       setEditing(false)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return
+    setDeleting(true)
+    try {
+      await onDelete()
+      // Caller is expected to close the lightbox once the photo's gone —
+      // no local state to reset to since this component won't still be
+      // mounted after that.
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -84,14 +102,33 @@ export default function PhotoLightbox({ photoDataUrl, caption, meta, onClose, ed
             </button>
           </div>
         </div>
-      ) : (caption || meta || onSave) && (
+      ) : confirmingDelete ? (
+        <div className="lightbox-edit" onClick={e => e.stopPropagation()}>
+          <p className="lightbox-delete-confirm-text">Delete this photo? This can't be undone.</p>
+          <div className="lightbox-edit-actions">
+            <button className="lightbox-edit-cancel" onClick={() => setConfirmingDelete(false)} disabled={deleting}>Cancel</button>
+            <button className="lightbox-edit-delete" onClick={() => void handleDelete()} disabled={deleting}>
+              {deleting ? 'Deleting…' : <><Trash2 size={14} /> Delete</>}
+            </button>
+          </div>
+        </div>
+      ) : (caption || meta || onSave || onDelete) && (
         <div className="lightbox-caption" onClick={e => e.stopPropagation()}>
           {caption && <div className="lightbox-caption-title">{caption}</div>}
           {meta && <div className="lightbox-caption-meta">{meta}</div>}
-          {onSave && (
-            <button className="lightbox-edit-btn" onClick={openEdit}>
-              <Pencil size={12} /> Edit date / weight
-            </button>
+          {(onSave || onDelete) && (
+            <div className="lightbox-caption-actions">
+              {onSave && (
+                <button className="lightbox-edit-btn" onClick={openEdit}>
+                  <Pencil size={12} /> Edit date / weight
+                </button>
+              )}
+              {onDelete && (
+                <button className="lightbox-edit-btn lightbox-edit-btn--delete" onClick={() => setConfirmingDelete(true)}>
+                  <Trash2 size={12} /> Delete
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

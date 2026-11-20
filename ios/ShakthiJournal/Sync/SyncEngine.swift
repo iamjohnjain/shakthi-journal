@@ -153,14 +153,16 @@ final class SyncEngine {
         }
         SyncStateStore.save(syncState)
         activity = .idle
-        // Notify WebAppView.Coordinator to inject metrics into the WebView's IndexedDB.
-        if !metrics.isEmpty {
-            NotificationCenter.default.post(
-                name: .jeevanNativeSyncComplete,
-                object: nil,
-                userInfo: ["metrics": metrics]
-            )
-        }
+        // Notify WebAppView.Coordinator — always, even with zero new metrics.
+        // A sync that finds nothing new (the normal steady state once a user
+        // is already caught up) is still a real, successful sync; the web
+        // side's "last synced" chip needs to hear about it too, not just the
+        // runs that happen to carry new records to inject into IndexedDB.
+        NotificationCenter.default.post(
+            name: .jeevanNativeSyncComplete,
+            object: nil,
+            userInfo: ["metrics": metrics]
+        )
     }
 
     /// Builds one diagnostic entry per type using the most recent mapped metric for that type.

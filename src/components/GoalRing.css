@@ -29,7 +29,8 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg,
-    rgba(166, 107, 245, var(--goal-glow-op, 0.1)) 0%,
+    rgba(251, 138, 76, var(--goal-glow-op, 0.1)) 0%,
+    rgba(166, 107, 245, var(--goal-glow-op, 0.1)) 50%,
     rgba(91, 127, 255, var(--goal-glow-op, 0.1)) 100%);
   pointer-events: none;
   z-index: 0;

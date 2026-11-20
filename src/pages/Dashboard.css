@@ -646,7 +646,8 @@
 
 .ai-insight-card {
   background: linear-gradient(135deg,
-    rgba(166, 107, 245, 0.08) 0%,
+    rgba(251, 138, 76, 0.08) 0%,
+    rgba(166, 107, 245, 0.08) 55%,
     rgba(91, 127, 255, 0.06) 100%);
   border: 1px solid rgba(166, 107, 245, 0.18);
   border-radius: var(--r-xl);

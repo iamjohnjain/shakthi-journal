@@ -668,7 +668,7 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
           label="Daily calories"
           value={calories}
           onChange={v => patch({ calorieGoal: String(v) })}
-          unit="kcal"
+          unit="cal"
           min={1000} max={6000} step={50}
         />
         <NumberStepper
@@ -888,7 +888,7 @@ function StepReview({ data, onNext, dir, goTo }: StepProps & { goTo: (s: number)
           {[
             ['Objective', goalLabels.length > 0 ? goalLabels.join(', ') : '—'],
             ['Training',  `${data.trainingDays} days/week`],
-            ['Calories',  data.calorieGoal ? `${data.calorieGoal} kcal/day` : '—'],
+            ['Calories',  data.calorieGoal ? `${data.calorieGoal} cal/day` : '—'],
             ['Protein',   data.proteinGoal ? `${data.proteinGoal} g/day` : '—'],
           ].map(([k, v]) => (
             <div key={k} className="ob-review-row">

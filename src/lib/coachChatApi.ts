@@ -59,23 +59,41 @@ export async function sendToCoach(messages: CoachChatMessage[]): Promise<CoachRe
     ...(m.imageDataUrl ? { imageDataUrl: m.imageDataUrl } : {}),
   }))
 
-  try {
-    const { data, error } = await supabase.functions.invoke<{
-      content: string | null
-      tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>
-    }>('chat-coach', { body: { messages: wire, tools: COACH_TOOLS } })
+  type InvokeResult = {
+    content: string | null
+    tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>
+  }
 
-    if (error || !data) return SOFT_FAILURE
-
-    return {
-      content: data.content ?? null,
-      toolCalls: data.tool_calls?.map(tc => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: tc.function.arguments,
-      })),
+  async function invokeOnce(): Promise<InvokeResult | null> {
+    try {
+      const { data, error } = await supabase!.functions.invoke<InvokeResult>(
+        'chat-coach', { body: { messages: wire, tools: COACH_TOOLS } }
+      )
+      return error || !data ? null : data
+    } catch {
+      return null
     }
-  } catch {
-    return SOFT_FAILURE
+  }
+
+  // This outer hop (browser → edge function) had zero retry of its own —
+  // any transient blip here (a cold start, a brief network hiccup) skipped
+  // straight to the soft-failure message on the very first try, even though
+  // groqChat.ts's retry logic inside the function never got a chance to run
+  // for a failure at this layer. One light retry catches exactly that case
+  // without adding much latency to a genuine failure.
+  const data = await invokeOnce() ?? await (async () => {
+    await new Promise(resolve => setTimeout(resolve, 800))
+    return invokeOnce()
+  })()
+
+  if (!data) return SOFT_FAILURE
+
+  return {
+    content: data.content ?? null,
+    toolCalls: data.tool_calls?.map(tc => ({
+      id: tc.id,
+      name: tc.function.name,
+      arguments: tc.function.arguments,
+    })),
   }
 }

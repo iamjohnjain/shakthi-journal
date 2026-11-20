@@ -47,7 +47,12 @@
   to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
-@media (max-width: 640px) {
+/* Matches BottomNav's own breakpoint (Layout.css/BottomNav.css both use
+   900px) — this used to be 640px, a narrower cutoff than the nav's, so a
+   device between 641-900px wide got the floating nav with no clearance
+   offset here, letting this banner sit at the un-adjusted `bottom: 24px`
+   right on top of it. */
+@media (max-width: 900px) {
   .wwb-banner {
     /* Clear the floating glass nav (its own 10px lift gap) with room to spare */
     bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 24px);
