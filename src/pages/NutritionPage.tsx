@@ -26,9 +26,20 @@ import TrendChart from '../components/TrendChart'
 import WheelPicker from '../components/WheelPicker'
 import LiveCamera from '../components/LiveCamera'
 import VoiceListeningOverlay from '../components/VoiceListeningOverlay'
-import { localDateStr, addLocalDays } from '../data/config'
+import { localDateStr, addLocalDays, kgToLbs, lbsToKg } from '../data/config'
+import { getProfile, saveProfile } from '../db/profileStore'
+import { calcNutrition } from '../lib/nutritionMath'
+import type { NutritionGoals } from '../db'
+import { AnimatePresence } from 'motion/react'
+import AnimatedOverlay from '../components/motion/AnimatedOverlay'
+import AnimatedSheet from '../components/motion/AnimatedSheet'
 // logStore removed — water logging retired
 import './NutritionPage.css'
+
+function daysBetween(a: string, b: string): number {
+  const msPerDay = 86400000
+  return Math.round((new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / msPerDay)
+}
 
 function todayStr() { return localDateStr() }
 
@@ -1145,12 +1156,186 @@ function CopyMealSheet({ entry, mealIds, mealLabels, onCopy, onClose }: {
   )
 }
 
+// ─── Goal edit: tap the calorie ring / macro bars to adjust goals directly ───
+
+function macroCaloriesFrom(p: number, c: number, f: number) {
+  return Math.round(p * 4 + c * 4 + f * 9)
+}
+
+function GoalEditModal({ goals, onSave, onClose }: {
+  goals: NutritionGoals
+  onSave: (updates: Partial<NutritionGoals>) => void
+  onClose: () => void
+}) {
+  const [mode, setMode] = useState<'manual' | 'rate'>('manual')
+
+  // Manual mode: direct calorie/macro editing. lastEdited tracks whether the
+  // most recent change came from a macro field (which always recomputes
+  // calories from the three) or from calories itself (which instead shows
+  // a "points remaining" readout — the gamified budget the user asked for —
+  // rather than silently rewriting the macros for them.
+  const [calories, setCalories] = useState(String(goals.calories))
+  const [protein,  setProtein]  = useState(String(goals.proteinG))
+  const [carbs,    setCarbs]    = useState(String(goals.carbsG))
+  const [fat,      setFat]      = useState(String(goals.fatG))
+  const [lastEdited, setLastEdited] = useState<'calories' | 'macro'>('macro')
+
+  function onMacroChange(setter: (v: string) => void, raw: string) {
+    const clean = raw.replace(/[^0-9]/g, '')
+    setter(clean)
+    setLastEdited('macro')
+  }
+  const p = Number(protein) || 0
+  const c = Number(carbs) || 0
+  const f = Number(fat) || 0
+  const macroCals = macroCaloriesFrom(p, c, f)
+
+  useEffect(() => {
+    if (lastEdited === 'macro') setCalories(String(macroCals))
+  }, [lastEdited, macroCals])
+
+  const calNum = Number(calories) || 0
+  const remainingPoints = lastEdited === 'calories' ? calNum - macroCals : 0
+
+  // Rate mode: weight-loss goal + target date, reusing the same
+  // rate→calorie formula as onboarding/GoalRing.
+  const [currentWeight, setCurrentWeight] = useState('')
+  const [goalWeight,    setGoalWeight]    = useState('')
+  const [targetDate,    setTargetDate]    = useState('')
+  const [activityLevel, setActivityLevel] = useState('moderate')
+  const [profileLoaded, setProfileLoaded] = useState(false)
+
+  useEffect(() => {
+    getProfile().then(profile => {
+      if (profile?.startWeightKg) setCurrentWeight(String(Math.round(kgToLbs(profile.startWeightKg))))
+      if (profile?.goalWeightKg)  setGoalWeight(String(Math.round(kgToLbs(profile.goalWeightKg))))
+      if (profile?.goalDate)      setTargetDate(profile.goalDate)
+      if (profile?.activityLevel) setActivityLevel(profile.activityLevel)
+      setProfileLoaded(true)
+    })
+  }, [])
+
+  const curLbs  = Number(currentWeight) || 0
+  const goalLbs = Number(goalWeight) || 0
+  const today = localDateStr()
+  const daysRemaining = targetDate ? daysBetween(today, targetDate) : 0
+  const rateLbsPerWeek = daysRemaining > 0 ? Math.max(0, (curLbs - goalLbs) / daysRemaining * 7) : 0
+  const ratePreview = (profileLoaded && goalLbs > 0 && daysRemaining > 0)
+    ? calcNutrition(goalLbs, activityLevel, rateLbsPerWeek)
+    : null
+
+  async function saveRateGoal() {
+    if (!ratePreview) return
+    const profile = await getProfile()
+    if (profile && goalWeight && targetDate) {
+      await saveProfile({ ...profile, goalWeightKg: lbsToKg(goalLbs), goalDate: targetDate })
+    }
+    onSave({ calories: ratePreview.calories, proteinG: ratePreview.proteinG, carbsG: ratePreview.carbsG, fatG: ratePreview.fatG })
+  }
+
+  function saveManual() {
+    onSave({ calories: calNum, proteinG: p, carbsG: c, fatG: f })
+  }
+
+  return createPortal(
+    <AnimatePresence>
+      <AnimatedOverlay className="add-modal-overlay" onClick={onClose}>
+        <AnimatedSheet className="add-modal goal-edit-modal" onClick={e => e.stopPropagation()}>
+          <div className="add-modal-header">
+            <div className="add-modal-grabber" />
+            <h2>Edit Nutrition Goals</h2>
+            <button className="add-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          </div>
+
+          <div className="add-modal-tabs">
+            <button className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>Set Macros</button>
+            <button className={mode === 'rate' ? 'active' : ''} onClick={() => setMode('rate')}>Weight-Loss Rate</button>
+          </div>
+
+          <div className="add-modal-body goal-edit-body">
+            {mode === 'manual' ? (
+              <>
+                <div className="goal-edit-points">
+                  <span className="goal-edit-points-label">Calorie Budget</span>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={calories}
+                    onChange={e => { setCalories(e.target.value.replace(/[^0-9]/g, '')); setLastEdited('calories') }}
+                    onFocus={e => e.target.select()} />
+                </div>
+
+                {lastEdited === 'calories' && (
+                  <div className={`goal-edit-remaining ${remainingPoints < 0 ? 'goal-edit-remaining--over' : ''}`}>
+                    {remainingPoints >= 0
+                      ? <>🎯 {remainingPoints} points left to spend — up to {Math.floor(remainingPoints / 4)}g protein, {Math.floor(remainingPoints / 4)}g carbs, or {Math.floor(remainingPoints / 9)}g fat</>
+                      : <>⚠️ {Math.abs(remainingPoints)} points over budget — trim a macro below</>}
+                  </div>
+                )}
+
+                <div className="goal-edit-macro-grid">
+                  <div className="goal-edit-macro-field">
+                    <label>Protein (g)</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={protein}
+                      onChange={e => onMacroChange(setProtein, e.target.value)} onFocus={e => e.target.select()} />
+                  </div>
+                  <div className="goal-edit-macro-field">
+                    <label>Carbs (g)</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbs}
+                      onChange={e => onMacroChange(setCarbs, e.target.value)} onFocus={e => e.target.select()} />
+                  </div>
+                  <div className="goal-edit-macro-field">
+                    <label>Fat (g)</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={fat}
+                      onChange={e => onMacroChange(setFat, e.target.value)} onFocus={e => e.target.select()} />
+                  </div>
+                </div>
+
+                <button className="add-modal-save" onClick={saveManual}>Save Goals</button>
+              </>
+            ) : (
+              <>
+                <div className="goal-edit-macro-grid">
+                  <div className="goal-edit-macro-field">
+                    <label>Current Weight (lbs)</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={currentWeight}
+                      onChange={e => setCurrentWeight(e.target.value.replace(/[^0-9]/g, ''))} onFocus={e => e.target.select()} />
+                  </div>
+                  <div className="goal-edit-macro-field">
+                    <label>Goal Weight (lbs)</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={goalWeight}
+                      onChange={e => setGoalWeight(e.target.value.replace(/[^0-9]/g, ''))} onFocus={e => e.target.select()} />
+                  </div>
+                </div>
+                <div className="goal-edit-macro-field goal-edit-date-field">
+                  <label>Target Date</label>
+                  <input type="date" value={targetDate} min={today} onChange={e => setTargetDate(e.target.value)} />
+                </div>
+
+                {ratePreview && (
+                  <div className="goal-edit-rate-preview">
+                    <div className="goal-edit-rate-line">~{rateLbsPerWeek.toFixed(1)} lbs/week</div>
+                    <div className="goal-edit-rate-macros">
+                      {ratePreview.calories} cal · {ratePreview.proteinG}g protein · {ratePreview.carbsG}g carbs · {ratePreview.fatG}g fat
+                    </div>
+                  </div>
+                )}
+
+                <button className="add-modal-save" disabled={!ratePreview} onClick={saveRateGoal}>Save Goal</button>
+              </>
+            )}
+          </div>
+        </AnimatedSheet>
+      </AnimatedOverlay>
+    </AnimatePresence>,
+    document.body
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NutritionPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { mealIds, activeMealLabels, goals, loaded } = useNutritionSettings()
+  const { mealIds, activeMealLabels, goals, loaded, updateGoals } = useNutritionSettings()
+  const [showGoalModal, setShowGoalModal] = useState(false)
   const [entries,       setEntries]      = useState<NutritionEntry[]>([])
   const [totals,        setTotals]       = useState({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, entryCount: 0 })
   // "Snap Meal" dashboard quick action links here with ?quick=photo — jump
@@ -1280,8 +1465,10 @@ export default function NutritionPage() {
 
       <WeekStreakBar dates={thisWeekDates} logged={weekLogged} today={realToday} viewDate={viewDate} onSelectDate={setViewDate} streak={streak} />
 
-      {/* Summary ring + macro bars */}
-      <div className="nutrition-summary">
+      {/* Summary ring + macro bars — tap to edit goals directly */}
+      <div className="nutrition-summary" role="button" tabIndex={0}
+        onClick={() => setShowGoalModal(true)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowGoalModal(true) }}>
         <div className="calorie-ring-wrap">
           <svg className="calorie-ring" viewBox="0 0 100 100">
             <defs>
@@ -1442,6 +1629,13 @@ export default function NutritionPage() {
           mealLabels={activeMealLabels}
           onCopy={targetId => handleCopy(copyingEntry, targetId)}
           onClose={() => setCopyingEntry(null)} />
+      )}
+
+      {showGoalModal && (
+        <GoalEditModal
+          goals={goals}
+          onSave={updates => { updateGoals(updates); setShowGoalModal(false) }}
+          onClose={() => setShowGoalModal(false)} />
       )}
     </div>
   )
