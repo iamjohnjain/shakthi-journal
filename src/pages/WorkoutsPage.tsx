@@ -974,6 +974,14 @@ export default function WorkoutsPage() {
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')
   const dateLabel = formatDate(selectedDateObj)
   const shortDateLabel = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  // The big header title used to repeat itself when viewing a non-today
+  // date: large text showed "Nov 19" while the subtitle right under it
+  // said "Thursday, November 19" — the same date stated twice. Now the
+  // big text carries the one piece of information the subtitle doesn't
+  // (which day of the week it is), and the subtitle just gives the full
+  // date without repeating that.
+  const weekdayLabel = selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
+  const monthDayLabel = selectedDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
   const isToday = selectedDate === todayStr()
   const canGoForward = selectedDate < todayStr()
   const markedWorkoutDates = new Set(workoutDateTypes.keys())
@@ -1007,14 +1015,11 @@ export default function WorkoutsPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <button className="page-title-datepicker" onClick={() => setShowDatePicker(true)}>
-                  <h1 className="page-title">{isToday ? 'Today' : shortDateLabel}</h1>
+                  <h1 className="page-title">{isToday ? 'Today' : weekdayLabel}</h1>
                   <CalendarDays size={18} className="page-title-cal-icon" />
                 </button>
-                {!isToday && (
-                  <button className="jump-today-btn" onClick={() => setSelectedDate(todayStr())}>Today</button>
-                )}
               </div>
-              <p className="page-subtitle">{dateLabel}</p>
+              <p className="page-subtitle">{isToday ? dateLabel : monthDayLabel}</p>
               {streak >= 2 && (
                 <div className="wk-streak-chip" title="Consecutive days with a logged session">
                   <Flame size={13} /> {streak} Day Streak
@@ -1022,9 +1027,20 @@ export default function WorkoutsPage() {
               )}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
-                <Play size={15} /> Start
-              </button>
+              {isToday ? (
+                <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
+                  <Play size={15} /> Start
+                </button>
+              ) : (
+                // "Start" only ever makes sense for the day you're actually
+                // training, right now — showing it on a past/future date
+                // (alongside a separate, easy-to-miss little "Today" chip
+                // up by the title) was the confusing part. This slot just
+                // becomes the one obvious way back to today instead.
+                <button className="start-workout-btn" onClick={() => setSelectedDate(todayStr())}>
+                  <CalendarDays size={15} /> Today
+                </button>
+              )}
               <button className="log-workout-btn" onClick={() => setShowTemplatePicker(true)}>
                 <LayoutTemplate size={15} /> Template
               </button>

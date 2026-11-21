@@ -732,7 +732,16 @@
   border-radius: 10px; padding: 7px 4px; width: 100%;
   cursor: pointer; transition: background .12s, border-color .12s;
 }
-.week-cal-day:hover { background: var(--bg-tertiary); }
+/* `background-color`, not the `background` shorthand — the shorthand
+   resets `background-image`/`-clip`/`-origin` too, which is exactly what
+   the gradient-ring rule below needs to stay intact. On mobile WebKit a
+   tap can leave a lingering `:hover` state on the tapped element (a known
+   quirk — hover applies on tap-release and doesn't clear until something
+   else is tapped), so tapping a date directly was hitting this rule and
+   silently wiping its ring, while navigating via the arrow buttons never
+   hovers the date tile itself and so never ran into it — exactly the
+   "ring shows via arrows but not direct taps" behavior reported. */
+.week-cal-day:hover { background-color: var(--bg-tertiary); }
 .week-cal-day:focus-visible { outline: none; }
 /* Rainbow gradient-ring border, same technique used everywhere else in the
    app for an active/selected state — replaces a flat orange border, and
