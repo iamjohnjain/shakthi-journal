@@ -70,6 +70,19 @@
   margin-bottom: 14px;
 }
 
+.pci-history {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pci-history-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
 .pci-stage {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);

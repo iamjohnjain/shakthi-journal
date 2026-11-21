@@ -112,9 +112,17 @@ const VIDEO_MIME_CANDIDATES = [
   'video/webm',
 ]
 
+/** `MediaRecorder.isTypeSupported` only promises this engine can RECORD a
+    container/codec — not that its own `<video>` element can play it back.
+    That record/playback mismatch is exactly what produced a silently-black
+    review screen (the blob recorded fine, but `loadedmetadata` never fired
+    because the browser couldn't decode its own recording). Requiring both
+    checks avoids picking a codec that falls into that gap in the first
+    place, rather than only catching it after the fact via onError. */
 function pickSupportedMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return undefined
-  return VIDEO_MIME_CANDIDATES.find(t => MediaRecorder.isTypeSupported(t))
+  const probe = document.createElement('video')
+  return VIDEO_MIME_CANDIDATES.find(t => MediaRecorder.isTypeSupported(t) && probe.canPlayType(t) !== '')
 }
 
 const MIN_RECORDING_MS = 400
@@ -388,6 +396,15 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
             className="vfc-video"
             onLoadedMetadata={e => fixDurationThenSeekToStart(e.currentTarget)}
             onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
+            // A blob MediaRecorder could successfully RECORD isn't always one
+            // the same browser engine can actually PLAY BACK — a known
+            // record/playback codec mismatch. When that happens,
+            // `loadedmetadata` never fires at all, so the existing duration-
+            // fix/black-frame-probe logic (which only runs *after* that
+            // event) never gets a chance to catch it — the video just sits
+            // there solid black with no error shown. This routes that
+            // silent decode failure to the same retry screen instead.
+            onError={() => setReviewFailed(true)}
           />
           <div className="vfc-scrub-controls">
             {savedCount > 0 && <div className="vfc-saved-count">{savedCount} frame{savedCount === 1 ? '' : 's'} saved</div>}
@@ -503,9 +520,9 @@ export default function CheckInsSection() {
     setComparePhotos(all)
   }, [filterPose, filterCustomLabel])
 
-  useEffect(() => {
-    if (mode === 'compare') void refreshComparePhotos()
-  }, [mode, refreshComparePhotos])
+  // Loaded regardless of which tab is active — Capture now shows a full
+  // history list too, not just Compare's grid, so both need this.
+  useEffect(() => { void refreshComparePhotos() }, [refreshComparePhotos])
 
   // Days-between + weight delta between the two selected dates, when both
   // are set — factual framing only ("+2.3 lbs" / "no change"), nothing
@@ -713,6 +730,20 @@ export default function CheckInsSection() {
               </div>
             </div>
           ))}
+
+          {comparePhotos.length > 0 && (
+            <div className="pci-history">
+              <div className="pci-history-title">Your Check-Ins</div>
+              <div className="pci-grid">
+                {comparePhotos.map(p => (
+                  <div key={p.id} className="pci-grid-item" onClick={() => void openGridLightbox(p, comparePhotos)}>
+                    <img src={p.photoDataUrl} alt="" />
+                    <span>{formatFullDate(p.date)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

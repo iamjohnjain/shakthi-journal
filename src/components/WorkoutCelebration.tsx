@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
-import { Download, Share2, Check } from 'lucide-react'
+import { Download, Share2, Check, X } from 'lucide-react'
 import type { WorkoutSession } from '../db'
 import Confetti from './Confetti'
 import './WorkoutCelebration.css'
@@ -82,6 +82,10 @@ export default function WorkoutCelebration({ session, onDone }: Props) {
   return createPortal(
     <div className="wc-overlay">
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
+
+      <button className="wc-close" onClick={onDone} aria-label="Close">
+        <X size={18} />
+      </button>
 
       <div className="wc-sheet">
         <div className="wc-card" ref={cardRef}>

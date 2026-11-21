@@ -10,6 +10,23 @@
   animation: fadeIn 0.2s ease;
 }
 
+/* This screen deliberately has no backdrop-click-to-dismiss (unlike every
+   other modal in the app) since closing it is also what commits the
+   save — but it still needs SOME obvious, immediate way out for anyone
+   who just wants to leave without downloading/sharing first. */
+.wc-close {
+  position: absolute;
+  top: calc(16px + var(--safe-top, 0px));
+  right: 16px;
+  z-index: 1;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

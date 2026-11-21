@@ -19,6 +19,17 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  /* A swipe that starts on this page's own chrome (the header, or any
+     padding outside the thread) could otherwise still trigger the
+     browser's native rubber-band page scroll, dragging the whole header +
+     input box out of view along with it even though `overflow: hidden`
+     is set here — that hides an internal scrollbar, it doesn't stop a
+     touch gesture from being interpreted as a page-level scroll/bounce
+     attempt in the first place. `touch-action: none` tells the browser
+     this element itself never pans; `.coach-chat-thread` below keeps its
+     own `pan-y` so scrolling the actual message list still works exactly
+     as before. */
+  touch-action: none;
   padding: var(--page-padding);
   padding-bottom: 0;
   max-width: 760px;

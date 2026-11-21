@@ -37,7 +37,7 @@ const MODEL_URL = '/models/muscles.glb'
     for provenance) to the app's 10 tracked VisualRegions. A node mapped to
     `null` has no corresponding entry in muscleMap.ts's data model — it's
     rendered in the neutral tone for anatomical completeness (so the body
-    doesn't have gaps at the neck/hands/feet/adductors) but isn't clickable,
+    doesn't have gaps at the neck/hands/feet) but isn't clickable,
     since there's no training status to show for it. This is the ONLY place
     that associates mesh node names with regions — all status values still
     come from useMuscleLoad.ts via the `regions` prop. */
@@ -51,12 +51,19 @@ const NODE_REGION: Record<string, VisualRegion | null> = {
   triceps_lateral: 'triceps', triceps_long: 'triceps', triceps_medial: 'triceps',
   rectus_abdominis: 'core', obliques: 'core', transverse_abdominis: 'core', hip_flexors: 'core',
   vastus_group: 'quads', rectus_femoris: 'quads',
+  // Adductors (inner thigh) folded into quads rather than left unmapped —
+  // anatomically they sit on the anterior/medial thigh and load alongside
+  // the quads in squat-pattern movements (already how EXERCISE_MUSCLE_MAP
+  // classifies squats/lunges), unlike hamstrings' posterior hip-extension
+  // pattern. Previously `null` here meant this mesh was permanently gray
+  // regardless of training data, with no way to ever light up.
+  adductors: 'quads',
   medial_hamstrings: 'hamstrings', lateral_hamstrings: 'hamstrings',
   glute_max: 'glutes', glute_med: 'glutes',
   gastrocnemius: 'calves', soleus: 'calves', tibialis_anterior: 'calves', fibularis: 'calves',
   // Present in the mesh but not tracked by the workout data model — neutral,
   // not selectable.
-  adductors: null, hip_rotators: null, neck_flexors: null, neck_extensors: null,
+  hip_rotators: null, neck_flexors: null, neck_extensors: null,
   hand_muscles: null, foot_muscles: null, breathing: null,
   // Non-muscle context shapes (head/skull, bones, tendons, see-through
   // hand/foot skin) — always neutral, never selectable.

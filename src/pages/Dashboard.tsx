@@ -271,11 +271,16 @@ interface SectionCtx {
       default instead of assuming everyone has a smart scale or wearable. */
   ownedDevices: DeviceId[] | null
   isMetric: boolean
+  /** Confirmed non-mock (`healthStore.getLatestBodyFatRecord` already
+      excludes `dataMode: 'mock'`) — used to gate the Body section so mock
+      data can't make it look like a real smart-scale is connected when
+      one isn't. */
+  latestBodyFat: ReturnType<typeof useDashboardData>['latestBodyFat']
 }
 
 function BodySection({ ctx }: { ctx: SectionCtx }) {
   const navigate = useNavigate()
-  const { today, yesterday, inNative, menuFor, ownedDevices, isMetric } = ctx
+  const { today, yesterday, inNative, menuFor, ownedDevices, isMetric, latestBodyFat } = ctx
   const weightUnit    = isMetric ? 'kg' : 'lbs'
   const bodyFatDelta  = today.bodyFatPct != null && yesterday.bodyFatPct != null
     ? delta(today.bodyFatPct, yesterday.bodyFatPct) : null
@@ -288,8 +293,14 @@ function BodySection({ ctx }: { ctx: SectionCtx }) {
   // Weight itself isn't shown here at all — it already has its own goal
   // card on the dashboard, so repeating it in this section is redundant.
   const hasScale = owns(ownedDevices, 'renpho')
-  const hasBodyData = today.bodyFatPct != null || today.muscleMassKg != null
-  if (!hasBodyData && !hasScale) return null
+  // Checking `latestBodyFat` (confirmed non-mock, see healthStore.ts's
+  // getLatestBodyFatRecord) instead of `today.bodyFatPct != null` — the
+  // raw snapshot falls back to mock data whenever mock mode is on or no
+  // real data exists, so a presence-only check let mock body-fat/muscle-
+  // mass numbers render here looking exactly like a real connected scale,
+  // for anyone who's never actually owned one.
+  const hasRealBodyData = latestBodyFat != null
+  if (!hasRealBodyData && !hasScale) return null
 
   return (
     <Section title="Body" accent="var(--purple)" menuProps={menuFor('body')}>
@@ -442,6 +453,7 @@ export default function Dashboard() {
     menuFor,
     ownedDevices,
     isMetric,
+    latestBodyFat,
   }
 
   // Build ordered list of visible reorderable sections — the hide/reorder

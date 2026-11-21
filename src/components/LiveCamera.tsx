@@ -58,6 +58,17 @@ export default function LiveCamera({ onCapture, onClose }: {
     canvas.height = video.videoHeight
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+    // Match the mirrored preview — the front camera's live view is flipped
+    // (see .live-camera-video--mirrored) so it behaves like a real mirror
+    // while posing, but canvas drawImage() always draws the raw, unflipped
+    // decoded frame regardless of CSS transforms on the <video> element.
+    // Flipping the saved photo the same way keeps it consistent with what
+    // was actually seen on screen, instead of the photo coming out
+    // reversed from the live preview.
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0)
+      ctx.scale(-1, 1)
+    }
     ctx.drawImage(video, 0, 0)
     canvas.toBlob(blob => { if (blob) onCapture(blob) }, 'image/jpeg', 0.88)
   }
@@ -107,7 +118,7 @@ export default function LiveCamera({ onCapture, onClose }: {
         playsInline
         muted
         onLoadedMetadata={() => setReady(true)}
-        className="live-camera-video"
+        className={`live-camera-video ${facingMode === 'user' ? 'live-camera-video--mirrored' : ''}`}
       />
       {!ready && (
         <div className="live-camera-loading"><Loader2 size={22} className="live-camera-spin" /></div>

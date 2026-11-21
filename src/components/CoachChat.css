@@ -28,6 +28,10 @@
   overflow-y: auto;
   padding: 4px 2px 12px;
   -webkit-overflow-scrolling: touch;
+  /* Explicitly re-allow vertical panning here — the ancestor .ai-page sets
+     touch-action: none to stop a stray swipe from rubber-banding the
+     whole page, which would otherwise also block scrolling in here. */
+  touch-action: pan-y;
 }
 
 .coach-chat-empty {

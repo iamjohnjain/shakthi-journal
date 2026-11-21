@@ -48,6 +48,10 @@ import './WorkoutsPage.css'
 
 function todayStr() { return localDateStr() }
 
+// Rest-timer duration choices — short compound-lift rests up through a
+// longer break, rather than always silently starting a fixed 90s.
+const REST_TIMER_PRESETS = [30, 60, 90, 120, 180, 300]
+
 const DOW_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const EQUIPMENT_OPTS = [
@@ -431,6 +435,7 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   // from either place behaves the same and survives a reload.
   const hasLoggedSets = exercises.some(ex => ex.sets.length > 0)
   const { restSecs, start: startRest, stop: stopRest } = useRestTimer(() => {})
+  const [showTimerPicker, setShowTimerPicker] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -509,7 +514,18 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
                     {formatRestTime(restSecs)}
                   </button>
                 ) : (
-                  <button className="wc-icon-btn" onClick={() => startRest(90)} title="Start rest timer"><Timer size={14} /></button>
+                  <div className="wc-timer-picker-wrap">
+                    <button className="wc-icon-btn" onClick={() => setShowTimerPicker(v => !v)} title="Start rest timer"><Timer size={14} /></button>
+                    {showTimerPicker && (
+                      <div className="wc-timer-picker" onClick={e => e.stopPropagation()}>
+                        {REST_TIMER_PRESETS.map(secs => (
+                          <button key={secs} className="wc-timer-preset" onClick={() => { startRest(secs); setShowTimerPicker(false) }}>
+                            {formatRestTime(secs)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )
               )}
               <button className="wc-icon-btn" onClick={onCopy} title="Copy to another day"><Copy size={14} /></button>

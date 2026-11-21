@@ -579,7 +579,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
         <div className="aw-exercises">
           {exercises.length === 0 ? (
             <div className="aw-empty">
-              <p>Tap "Add exercise" to start tracking sets in real time.</p>
+              <p>Tap "Add Exercise" to start tracking sets in real time.</p>
             </div>
           ) : (
             exercises.map((ex, i) => (
@@ -599,7 +599,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
         {/* ── Footer actions ── */}
         <div className="aw-footer">
           <button className="aw-add-ex-btn" onClick={() => setShowPicker(true)}>
-            <Plus size={15} /> Add exercise
+            <Plus size={15} /> Add Exercise
           </button>
           <button
             className="aw-finish-btn"

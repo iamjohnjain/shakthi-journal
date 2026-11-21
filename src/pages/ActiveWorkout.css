@@ -18,7 +18,11 @@
   z-index: 700;
   display: flex;
   flex-direction: column;
-  background: var(--bg-elevated);
+  /* The same ambient gradient every other page sits on, not a flat solid
+     fill — this screen is still a core part of the app, not a separate
+     "modal" that should look visually disconnected from everything else. */
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   animation: fadeIn 0.2s ease both;
 }
 
@@ -415,14 +419,15 @@
 .aw-finish-btn {
   flex: 1;
   height: 48px;
-  background: var(--green);
+  background: var(--gradient-brand);
   border: none;
   border-radius: var(--r-full);
   font-size: 15px;
   font-weight: 700;
-  color: #000;
+  color: #fff;
   cursor: pointer;
   transition: opacity 0.12s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .aw-finish-btn:hover:not(:disabled) { opacity: 0.88; }
@@ -433,7 +438,15 @@
 .aw-picker-overlay {
   position: fixed;
   inset: 0;
-  z-index: 400;
+  /* Above .aw-overlay's 700 — ActiveWorkout itself now portals straight to
+     document.body (so its full-screen overlay works reliably, same fix
+     applied earlier this session), which means this picker — always
+     portaled to body too — became a same-stacking-context SIBLING of that
+     700 overlay instead of a descendant inside it. At 400 it was rendering
+     invisibly behind the now-portaled ActiveWorkout screen: "Add Exercise"
+     looked like it did nothing because the picker was there, just hidden
+     under an opaque higher layer. */
+  z-index: 750;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   display: flex;
