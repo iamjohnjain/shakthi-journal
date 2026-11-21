@@ -150,6 +150,15 @@ button {
   outline: none;
   background: none;
   -webkit-tap-highlight-color: transparent;
+  /* A default fallback only — any component with its own border-radius
+     overrides this via normal cascade order. Exists purely so the press-
+     glow below (a box-shadow, which always follows its own element's
+     border-radius) has SOME rounding to follow on the many plain
+     text-style buttons across the app that set no radius of their own —
+     without this, those rendered as a harsh, sharp-cornered rectangle
+     hugging the text the instant they're pressed, instead of a soft
+     rounded highlight like every other button gets. */
+  border-radius: 6px;
 }
 
 /* ─── Press glow (haptic-style feedback) ──────────────────────────────────

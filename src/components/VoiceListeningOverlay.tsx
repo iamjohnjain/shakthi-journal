@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Mic, Square } from 'lucide-react'
+import { Mic } from 'lucide-react'
 import './VoiceListeningOverlay.css'
 
 /** Full-screen "listening" takeover while `useVoiceDictation` is recording/
@@ -70,8 +70,6 @@ export default function VoiceListeningOverlay({ stream, phase, onStop }: {
     // is sitting on top of. Stop it right at this boundary.
     <div className="voice-overlay" onClick={e => e.stopPropagation()}>
       <div className="voice-orb-wrap">
-        <div className="voice-orb-ring voice-orb-ring--1" />
-        <div className="voice-orb-ring voice-orb-ring--2" />
         <div className="voice-orb" ref={orbRef}>
           <Mic size={26} />
         </div>
@@ -79,7 +77,7 @@ export default function VoiceListeningOverlay({ stream, phase, onStop }: {
       <p className="voice-overlay-label">{phase === 'recording' ? 'Listening…' : 'Transcribing…'}</p>
       {phase === 'recording' && (
         <button className="voice-stop-btn" onClick={onStop} aria-label="Stop and use this">
-          <Square size={14} /> Done
+          Done
         </button>
       )}
     </div>,

@@ -102,7 +102,10 @@
    of a flat dashed accent border — a logged day's solid fill already reads
    as "done," so the ring only applies when today hasn't been logged yet. */
 .week-streak-dot--today:not(.week-streak-dot--logged) {
-  border: 1.5px solid var(--accent);
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .week-streak-dot--future { opacity: 0.4; }
@@ -126,16 +129,20 @@
 }
 
 /* The wrapper has no background of its own, so a negative-z-index
-   pseudo-element on it paints behind the dot rather than on top of it —
-   a plain flat-color border reads as a ring peeking out from behind the
-   dot's edges, with no clipping trick needed since it's a solid color. */
+   pseudo-element on it paints behind the dot rather than on top of it,
+   peeking out as a ring around the dot's edges. Same gradient-ring
+   technique as everywhere else, with the fill matching the bar's own
+   background so the ring reads as a border, not a solid disc. */
 .week-streak-dot-wrap--viewed::before {
   content: '';
   position: absolute;
   inset: -4px;
   z-index: -1;
   border-radius: 50%;
-  border: 1.5px solid var(--accent);
+  border: 1.5px solid transparent;
+  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   pointer-events: none;
 }
 
@@ -520,7 +527,12 @@
   margin-bottom: -1px; white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
 }
-.add-modal-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.add-modal-tabs button.active {
+  color: var(--text-primary);
+  border-width: 0 0 2px 0;
+  border-style: solid;
+  border-image: var(--gradient-brand-wide) 1;
+}
 
 .add-modal-body { overflow-y: auto; padding: 16px 20px; flex: 1; }
 
@@ -635,8 +647,9 @@
 
 .ai-estimate-btn {
   display: flex; align-items: center; justify-content: center; gap: 7px;
-  background: var(--accent); color: #fff; border: none;
+  background: var(--gradient-brand); color: #fff; border: none;
   border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .ai-estimate-btn:disabled { opacity: .5; cursor: default; }
 
@@ -719,7 +732,7 @@
 }
 
 .ai-photo-btn {
-  background: var(--accent);
+  background: var(--gradient-brand);
 }
 
 .ai-confidence--barcode { color: var(--teal); background: var(--teal-dim); }

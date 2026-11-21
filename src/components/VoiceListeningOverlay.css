@@ -6,38 +6,27 @@
   gap: 22px;
 }
 
+/* One clean orb with a soft ambient glow that breathes with the mic's own
+   input level — the previous version layered two extra hard-edged
+   gradient-ring outlines around it, which read as busy/cluttered rather
+   than a single calm focal point. */
 .voice-orb-wrap {
   position: relative;
   width: 160px; height: 160px;
   display: flex; align-items: center; justify-content: center;
 }
 
-.voice-orb-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1.5px solid transparent;
-  background-image: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,0)), var(--gradient-brand);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  opacity: 0.5;
-}
-.voice-orb-ring--1 { inset: 10px; animation: voice-ring-breathe 2.8s ease-in-out infinite; }
-.voice-orb-ring--2 { inset: 0; animation: voice-ring-breathe 2.8s ease-in-out infinite 0.6s; }
-
-@keyframes voice-ring-breathe {
-  0%, 100% { transform: scale(0.94); opacity: 0.25; }
-  50% { transform: scale(1.04); opacity: 0.55; }
-}
-
 .voice-orb {
   --level: 0;
-  width: 88px; height: 88px;
+  width: 92px; height: 92px;
   border-radius: 50%;
   background: var(--gradient-brand);
   display: flex; align-items: center; justify-content: center;
   color: #fff;
-  transform: scale(calc(1 + var(--level) * 0.35));
-  box-shadow: 0 0 calc(18px + var(--level) * 46px) rgba(166, 107, 245, calc(0.35 + var(--level) * 0.5));
+  transform: scale(calc(1 + var(--level) * 0.3));
+  box-shadow:
+    0 0 0 14px rgba(166, 107, 245, calc(0.06 + var(--level) * 0.08)),
+    0 0 calc(24px + var(--level) * 50px) rgba(166, 107, 245, calc(0.3 + var(--level) * 0.45));
   transition: transform 70ms linear, box-shadow 70ms linear;
 }
 

@@ -13,6 +13,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .cmp-preset {
@@ -34,9 +35,11 @@
 .cmp-preset:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .cmp-preset--active {
-  background: var(--purple-dim);
-  border-color: rgba(166,107,245,0.45);
-  color: var(--accent);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
 }
 
 .cmp-preset--star {
@@ -441,6 +444,11 @@
 @media (max-width: 768px) {
   .compare-page { padding: var(--page-padding-mobile) var(--page-padding-mobile) 100px; gap: 16px; }
   .cmp-cards-grid { grid-template-columns: 1fr; }
-  .cmp-date-row { flex-wrap: wrap; }
-  .cmp-date-group { min-width: 140px; }
+  /* Stacked, not side-by-side — native `type="date"` inputs on mobile
+     WebKit enforce their own minimum rendered width regardless of the
+     CSS width/flex-basis set here, so two of them sharing one narrow row
+     could render wider than their actual column and visually overlap
+     each other's text. Full-width, one per line, has no such ceiling. */
+  .cmp-date-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .cmp-date-group { min-width: 0; width: 100%; }
 }

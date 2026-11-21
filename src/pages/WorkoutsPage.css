@@ -375,9 +375,22 @@
   padding: 2px; margin-left: 2px;
 }
 .set-remove:hover { color: var(--red); }
+/* A real small pill, not bare text with zero padding/border-radius — the
+   latter made the global press-glow ring (box-shadow following this
+   element's own box exactly) render as a tight, sharp-cornered rectangle
+   hugging the text, instead of a soft rounded highlight like every other
+   button in the app gets. */
 .add-set-btn {
-  background: none; border: none; color: var(--accent);
-  font-size: 12px; cursor: pointer; padding: 2px 0; text-align: left;
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 5px 12px;
 }
 
 /* Footer */
