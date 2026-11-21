@@ -1346,6 +1346,15 @@
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  /* Grows from the timer button that opened it — same entrance pattern as
+     ActiveWorkout's workout-type menu (.aw-type-menu), not an instant pop. */
+  transform-origin: top right;
+  animation: wc-timer-picker-in 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes wc-timer-picker-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .wc-timer-preset {

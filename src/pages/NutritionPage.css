@@ -374,6 +374,25 @@
   background: var(--bg-secondary); border: 1px solid var(--border);
   border-radius: 10px; padding: 10px 14px;
   cursor: pointer; transition: background .12s;
+  /* Same stagger-entrance pattern as Dashboard's metric cards — rows
+     settling in one after another instead of all popping in at once
+     reads as considered, not just "list rendered." Capped at 8 items
+     worth of delay so a long meal list doesn't keep animating for ages. */
+  animation: food-entry-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.food-entry:nth-child(n+9) { animation-delay: 240ms; }
+.food-entry:nth-child(1) { animation-delay: 0ms; }
+.food-entry:nth-child(2) { animation-delay: 30ms; }
+.food-entry:nth-child(3) { animation-delay: 60ms; }
+.food-entry:nth-child(4) { animation-delay: 90ms; }
+.food-entry:nth-child(5) { animation-delay: 120ms; }
+.food-entry:nth-child(6) { animation-delay: 150ms; }
+.food-entry:nth-child(7) { animation-delay: 180ms; }
+.food-entry:nth-child(8) { animation-delay: 210ms; }
+
+@keyframes food-entry-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .food-entry:hover { background: var(--bg-card-hover); }
 .food-entry-info { flex: 1; min-width: 0; }

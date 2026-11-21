@@ -204,7 +204,7 @@ button, [role="button"] {
 }
 button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 /* Three stacked solid-color rings (one per brand hue) instead of one flat
    `--accent` ring — box-shadow can't render an actual gradient, but three
