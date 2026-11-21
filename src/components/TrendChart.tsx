@@ -148,14 +148,15 @@ export default function TrendChart({
                 <stop offset="50%" stopColor="#A66BF5" stopOpacity="0.14" />
                 <stop offset="100%" stopColor="#5B7FFF" stopOpacity="0.05" />
               </linearGradient>
-              {/* Radial, not linear, for the current-point dot — at an 8px
-                  diameter a left-to-right linear gradient has no room to
-                  blend and just reads as two flat color halves stacked on
-                  each other. A radial sweep reads as one small glowing
-                  rainbow orb instead. */}
+              {/* Radial, not linear, for the dot markers — at this diameter a
+                  left-to-right linear gradient has no room to blend and
+                  just reads as two flat color halves stacked on each other.
+                  A radial sweep with more, closer stops reads as one small
+                  glowing rainbow orb instead of a hard split. */}
               <radialGradient id="trend-dot-gradient" cx="35%" cy="35%" r="75%">
                 <stop offset="0%" stopColor="#FB8A4C" />
-                <stop offset="55%" stopColor="#A66BF5" />
+                <stop offset="35%" stopColor="#E4849C" />
+                <stop offset="65%" stopColor="#A66BF5" />
                 <stop offset="100%" stopColor="#5B7FFF" />
               </radialGradient>
             </>
@@ -168,7 +169,9 @@ export default function TrendChart({
         {/* Target line — rainbow-stroked to match the line/dot above it when
             gradient is on, labeled on the LEFT so it reads immediately
             instead of being squeezed against the current-point dot on the
-            right. */}
+            right, with its own rainbow dot marking the target value at the
+            line's right end (same marker style as the current-value dot,
+            just hollow, so the two read as related but distinct). */}
         {goalY != null && goalY > 0 && goalY < h - padBottom && (
           <>
             <line
@@ -177,7 +180,13 @@ export default function TrendChart({
               strokeWidth="1" strokeDasharray="4 4" opacity="0.6"
             />
             <text x={padX + 2} y={goalY - 4} textAnchor="start" fontSize="9"
-              fill={gradient ? '#A66BF5' : 'var(--accent)'} opacity="0.85">Target</text>
+              fill={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'} opacity="0.95">Target</text>
+            <circle
+              cx={w - padX} cy={goalY} r="3.5"
+              fill="none"
+              stroke={gradient ? 'url(#trend-dot-gradient)' : 'var(--accent)'}
+              strokeWidth="1.5"
+            />
           </>
         )}
 
@@ -200,7 +209,7 @@ export default function TrendChart({
           <circle
             cx={pts[pts.length - 1].x}
             cy={pts[pts.length - 1].y}
-            r="4"
+            r="5"
             fill={gradient ? 'url(#trend-dot-gradient)' : color}
             opacity={animated ? 1 : 0}
             style={{ transition: 'opacity 0.4s ease 0.7s' }}

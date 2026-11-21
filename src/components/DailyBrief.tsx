@@ -38,6 +38,7 @@ function InsightCard({ insight }: { insight: HealthInsight }) {
     <div className={`insight-card ${severityClass(insight.severity)}`}>
       <button
         className="insight-header"
+        data-no-press-glow
         onClick={() => setExpanded(e => !e)}
         aria-expanded={expanded}
       >

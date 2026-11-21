@@ -54,14 +54,30 @@
   width: 100%;
   padding: 12px 14px;
   background: none;
-  border: none;
+  border: 1.5px solid transparent;
+  border-radius: inherit;
   cursor: pointer;
   text-align: left;
   color: var(--text-primary);
   transition: background 0.12s;
 }
-.insight-header:hover  { background: rgba(255,255,255,0.03); }
-.insight-header:active { background: rgba(255,255,255,0.06); }
+/* Bespoke gradient-ring press state (data-no-press-glow opts this out of
+   the global mask-based ring) — this card's background is a known, flat
+   var(--bg-card), so the background-clip double-layer technique (used
+   everywhere else for a real gradient ring) can repaint it precisely
+   instead of guessing. */
+.insight-header:active {
+  /* var(--bg-card) is a deliberately translucent 5%-opacity wash, not an
+     opaque fill — using it here let the outer rainbow layer bleed through
+     the "inner" layer and flood the whole button instead of staying a
+     thin ring (the exact failure mode this technique has always had on
+     this app's translucent card surfaces). var(--bg-elevated) is solid
+     and close enough to this card's actual rendered tone. */
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.insight-header:hover { background: rgba(255,255,255,0.03); }
 
 .insight-emoji  { font-size: 16px; flex-shrink: 0; line-height: 1; }
 .insight-title  { flex: 1; font-size: 13px; font-weight: 500; line-height: 1.4; }
