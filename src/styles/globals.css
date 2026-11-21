@@ -162,30 +162,33 @@ button {
 }
 
 /* ─── Press glow (haptic-style feedback) ──────────────────────────────────
-   A thin solid-color ring appears the instant a button is pressed and
-   holds for as long as the finger/pointer stays down — CSS :active
-   already tracks exactly that window natively, so no JS press/release
-   bookkeeping is needed. Scoped to buttons and explicit [role="button"]
-   elements only (never bare divs/empty space).
+   One thin rainbow ring appears the instant a button is pressed and holds
+   for as long as the finger/pointer stays down — CSS :active already
+   tracks exactly that window natively, so no JS press/release bookkeeping
+   is needed. Scoped to buttons and explicit [role="button"] elements only
+   (never bare divs/empty space).
 
-   Technique: the element's own `box-shadow`, not a pseudo-element. Two
-   earlier techniques were tried and both had real bugs: `mask-composite:
-   exclude` left a WebKit-only antialiasing seam at the ring's corners
-   (confirmed via a WebKit-engine test — Chromium rendered it fine, which
-   is why it looked OK at first); a double-background-clip pseudo-element
-   relied on its "inner" layer being opaque enough to hide the gradient
-   underneath, but this app's card surfaces (--bg-card etc.) are
-   deliberately translucent washes, not opaque fills — so instead of a
-   thin ring, any sufficiently large or `overflow: hidden` surface (the
-   Weight Goal / Daily Steps cards) showed the gradient flooding the
-   entire card. `box-shadow` has neither problem: it's exempt from the
-   element's own `overflow: hidden` (a long-established, reliable part of
-   the spec — confirmed via the same WebKit test), it never paints over
-   the element's own text/icon content (a box-shadow sits outside the
-   border, it doesn't overlay the inside), and it follows border-radius
-   natively with no corner artifacts in any engine. The one trade-off is
-   that `box-shadow` can't be a multi-stop gradient — it's a single solid
-   color (`--accent`, the brand gradient's own leading hue).
+   Explicitly matches the aesthetic of the gradient-ring borders used
+   elsewhere (WorkoutsSubNav's active tab, week-cal-day--today/selected):
+   a single continuous --gradient-brand-wide sweep, not a stack of flat
+   rings — a box-shadow stack was tried first (three escalating attempts)
+   but box-shadow can only ever be a solid color, so it always read as
+   distinct colored bands up close no matter how many rings or how much
+   blur were added.
+
+   Technique: a `::after` pseudo-element sized slightly larger than the
+   button (`inset: -1.5px`), filled with the gradient, then masked with
+   `mask-composite: exclude` against a same-shape `content-box` copy of
+   itself — the two shapes cancel out everywhere except the 1.5px band
+   between them, leaving just a thin ring. This needs the button to be a
+   positioning root for its own `::after` (`position: relative` below) —
+   low-risk globally: any button that itself needs `position: fixed` (a
+   FAB, a sticky header button) sets that via its own class selector,
+   which already outranks this bare-element-selector rule's specificity,
+   so those buttons are unaffected. A documented trade-off of this exact
+   masking technique is a faint WebKit-only antialiasing seam at the
+   ring's corners — accepted in exchange for an actual single-sweep
+   gradient instead of visibly separate bands.
 
    `:not([data-no-press-glow])` is reserved for a button with its own
    bespoke pressed state (e.g. a drag handle) that this would visually
@@ -197,7 +200,8 @@ button {
    native UI, which cancels the browser's own :active state and reads as
    the glow "flickering and stopping" before the finger actually lifts. */
 button, [role="button"] {
-  transition: transform 0.08s ease, box-shadow 0.15s ease;
+  position: relative;
+  transition: transform 0.08s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -206,25 +210,19 @@ button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active {
   transform: scale(0.97);
 }
-/* Six stacked rings sampling --gradient-brand at even steps, each with a
-   touch of blur so adjacent rings bleed into each other instead of
-   meeting at a hard edge — box-shadow can't render an actual gradient,
-   and even a finer-grained stack of *sharp* rings still reads as
-   separate concentric bands up close (each one is still a flat color
-   with a crisp boundary). A little blur on each ring's edge is what
-   actually sells "one continuous rainbow sweep" instead of "a few
-   visible rings," matching the gradient-ring borders used elsewhere (tab
-   navs, card highlights) without needing every button to opt into the
-   background-clip double-layer trick those use. */
-button:not(:disabled):not([data-no-press-glow]):active,
-[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active {
-  box-shadow:
-    0 0 1px 1px #FB8A4C,
-    0 0 1px 2px #DC7F8A,
-    0 0 1px 3px #BD74C7,
-    0 0 1px 4px #9E6DF6,
-    0 0 1px 5px #7C76FB,
-    0 0 1px 6px #5B7FFF;
+button:not(:disabled):not([data-no-press-glow]):active::after,
+[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--gradient-brand-wide);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 a {

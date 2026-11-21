@@ -1430,7 +1430,6 @@ export default function NutritionPage() {
   if (!loaded) return null
 
   const calPct  = Math.min(100, Math.round(totals.calories / goals.calories * 100))
-  const protPct = Math.min(100, Math.round(totals.proteinG / goals.proteinG * 100))
 
   // Group entries by mealId (match on mealType)
   const grouped = Object.fromEntries(mealIds.map(id => [id, entries.filter(e => e.mealType === id)]))
@@ -1518,18 +1517,6 @@ export default function NutritionPage() {
         </div>
       )}
 
-      {/* Just the plain remaining-protein number — no food-suggestion tip
-          text anymore, per feedback that it crowded the screen and read
-          as clutter rather than useful. */}
-      {entries.length > 0 && protPct < 100 && (() => {
-        const remaining = Math.max(0, goals.proteinG - Math.round(totals.proteinG))
-        return (
-          <div className="protein-callout">
-            <span>🥩 {remaining}g protein remaining</span>
-          </div>
-        )
-      })()}
-
       {/* First-time empty state */}
       {loaded && hasEverLogged === false && (
         <div className="nutrition-first-empty">
@@ -1576,8 +1563,11 @@ export default function NutritionPage() {
                     onCopy={() => setCopyingEntry(e)}
                     onDelete={() => handleDelete(e.id)} />
                 ))}
-                <button className="meal-add-more-btn" onClick={() => openAdd(id)}>
-                  <Plus size={13} /> Add Another Item
+                <button
+                  className={`meal-add-more-btn ${isCurrentMealTime ? 'meal-add-more-btn--current' : ''}`}
+                  onClick={() => openAdd(id)}
+                >
+                  <Plus size={13} /> Add Item
                 </button>
               </div>
             ) : (
