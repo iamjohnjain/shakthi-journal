@@ -162,33 +162,32 @@ button {
 }
 
 /* ─── Press glow (haptic-style feedback) ──────────────────────────────────
-   One thin rainbow ring appears the instant a button is pressed and holds
-   for as long as the finger/pointer stays down — CSS :active already
-   tracks exactly that window natively, so no JS press/release bookkeeping
-   is needed. Scoped to buttons and explicit [role="button"] elements only
-   (never bare divs/empty space).
+   A thin solid-color ring appears the instant a button is pressed and
+   holds for as long as the finger/pointer stays down — CSS :active
+   already tracks exactly that window natively, so no JS press/release
+   bookkeeping is needed. Scoped to buttons and explicit [role="button"]
+   elements only (never bare divs/empty space).
 
-   Explicitly matches the aesthetic of the gradient-ring borders used
-   elsewhere (WorkoutsSubNav's active tab, week-cal-day--today/selected):
-   a single continuous --gradient-brand-wide sweep, not a stack of flat
-   rings — a box-shadow stack was tried first (three escalating attempts)
-   but box-shadow can only ever be a solid color, so it always read as
-   distinct colored bands up close no matter how many rings or how much
-   blur were added.
-
-   Technique: a `::after` pseudo-element sized slightly larger than the
-   button (`inset: -1.5px`), filled with the gradient, then masked with
-   `mask-composite: exclude` against a same-shape `content-box` copy of
-   itself — the two shapes cancel out everywhere except the 1.5px band
-   between them, leaving just a thin ring. This needs the button to be a
-   positioning root for its own `::after` (`position: relative` below) —
-   low-risk globally: any button that itself needs `position: fixed` (a
-   FAB, a sticky header button) sets that via its own class selector,
-   which already outranks this bare-element-selector rule's specificity,
-   so those buttons are unaffected. A documented trade-off of this exact
-   masking technique is a faint WebKit-only antialiasing seam at the
-   ring's corners — accepted in exchange for an actual single-sweep
-   gradient instead of visibly separate bands.
+   A `::after` with `mask-composite: exclude` (a true single-sweep
+   gradient ring, matching the aesthic of WorkoutsSubNav's active tab)
+   was tried and measurably confirmed buggy, independent of this app's
+   own CSS: an isolated test page with nothing but that rule reproducibly
+   rendered the ring on only 2 of its 4 sides at this thinness (1.5-2px)
+   — not a logic error, a sub-pixel rasterization fault in the mask
+   compositing itself. The background-clip double-layer technique used
+   everywhere else in this app for a real gradient ring (week-streak-dot,
+   week-cal-day, WorkoutsSubNav) IS reliable, but only because each of
+   those knows its own exact surrounding fill color to paint over —
+   something a truly global rule, applied to any button regardless of
+   what it sits on, has no way to know without either guessing wrong
+   (visible color mismatch flash) or painting over the button's own
+   real background/content. Box-shadow has neither failure mode — it's
+   exempt from `overflow: hidden`, never paints over the button's own
+   text/icon, and follows border-radius natively — at the cost of being
+   a single flat color rather than a gradient sweep. Specific elements
+   that DO know their own background (meal tabs, day-streak dots, etc.)
+   get the real gradient-ring treatment via their own component CSS
+   instead of relying on this global fallback.
 
    `:not([data-no-press-glow])` is reserved for a button with its own
    bespoke pressed state (e.g. a drag handle) that this would visually
@@ -200,8 +199,7 @@ button {
    native UI, which cancels the browser's own :active state and reads as
    the glow "flickering and stopping" before the finger actually lifts. */
 button, [role="button"] {
-  position: relative;
-  transition: transform 0.08s ease;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -210,19 +208,9 @@ button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active {
   transform: scale(0.97);
 }
-button:not(:disabled):not([data-no-press-glow]):active::after,
-[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active::after {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  padding: 1.5px;
-  border-radius: inherit;
-  background: var(--gradient-brand-wide);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
+button:not(:disabled):not([data-no-press-glow]):active,
+[role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active {
+  box-shadow: 0 0 0 1.5px var(--accent);
 }
 
 a {

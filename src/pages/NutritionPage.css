@@ -149,9 +149,15 @@
 /* The day button's hit-area spans both the letter and the dot, but the
    press-glow ring should hug just the circle, not the whole tall rectangle —
    so this button opts out of the global ring (data-no-press-glow) and gets
-   its own, scoped to the dot's actual shape. */
-.week-streak-day:active .week-streak-dot {
-  box-shadow: 0 0 0 3px var(--accent);
+   its own, scoped to the dot's actual shape. Same background-clip gradient-
+   ring technique as the dot's own --today/viewed states just above, instead
+   of a flat single-color box-shadow — so pressing any day reads as the same
+   rainbow sweep as everywhere else, not a plain accent-colored ring. */
+.week-streak-day:active .week-streak-dot:not(.week-streak-dot--logged) {
+  border-color: transparent;
+  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .week-streak-divider { width: 1px; align-self: stretch; background: var(--border); }
@@ -213,6 +219,16 @@
 .calorie-ring-value { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1; }
 .calorie-ring-label { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; }
 
+/* A one-shot glow the instant the ring hits 100% — never a color swap (no
+   green "done" state), just a brief rainbow-tinted pulse on the ring's own
+   gradient before settling back to its normal resting look. */
+.calorie-ring-wrap--glow .calorie-ring { animation: ring-glow-pulse 1.1s ease-out; }
+@keyframes ring-glow-pulse {
+  0%   { filter: drop-shadow(0 0 0 rgba(166, 107, 245, 0)); }
+  30%  { filter: drop-shadow(0 0 10px rgba(166, 107, 245, 0.85)); }
+  100% { filter: drop-shadow(0 0 0 rgba(166, 107, 245, 0)); }
+}
+
 .macro-bars { flex: 1; display: flex; flex-direction: column; gap: 10px; }
 
 .macro-bar {}
@@ -223,6 +239,15 @@
 .macro-bar-track  { height: 5px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
 .macro-bar-fill   { height: 100%; border-radius: 3px; transition: width .3s ease; }
 .macro-bar-remaining { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Same one-shot glow as the calorie ring, scoped to just this bar's track
+   so reaching one macro's goal doesn't visually affect the others. */
+.macro-bar--glow .macro-bar-track { animation: macro-glow-pulse 1.1s ease-out; }
+@keyframes macro-glow-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(166, 107, 245, 0); }
+  30%  { box-shadow: 0 0 8px 2px rgba(166, 107, 245, 0.75); }
+  100% { box-shadow: 0 0 0 0 rgba(166, 107, 245, 0); }
+}
 
 /* ─── Protein callout ─────────────────────────────────────────── */
 .protein-callout {

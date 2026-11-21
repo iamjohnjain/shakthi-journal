@@ -134,12 +134,34 @@ function WeekStreakBar({ dates, logged, today, streak, viewDate, onSelectDate }:
   )
 }
 
+/** Briefly flags "just reached 100%" the instant a ring/bar crosses into
+    fully-filled, so the UI can play a one-shot glow pulse and then settle
+    back to its normal rainbow look — never swapping to a different color
+    (e.g. green) to mean "done," just a momentary highlight of the same
+    gradient it already uses. */
+function useGlowOnFill(pct: number): boolean {
+  const [glowing, setGlowing] = useState(false)
+  const prevFilled = useRef(pct >= 100)
+  useEffect(() => {
+    const filled = pct >= 100
+    if (filled && !prevFilled.current) {
+      setGlowing(true)
+      const t = setTimeout(() => setGlowing(false), 1100)
+      prevFilled.current = filled
+      return () => clearTimeout(t)
+    }
+    prevFilled.current = filled
+  }, [pct])
+  return glowing
+}
+
 function MacroBar({ label, value, goal, color }: { label: string; value: number; goal: number; color: string }) {
+  const pct = goal > 0 ? Math.min(100, Math.round(value / goal * 100)) : 0
+  const glowing = useGlowOnFill(pct)
   if (goal <= 0) return null
-  const pct = Math.min(100, Math.round(value / goal * 100))
   const remaining = Math.max(0, goal - value)
   return (
-    <div className="macro-bar">
+    <div className={`macro-bar ${glowing ? 'macro-bar--glow' : ''}`}>
       <div className="macro-bar-header">
         <span className="macro-bar-label">{label}</span>
         <span className="macro-bar-value">{Math.round(value)}<span className="macro-bar-goal">/{goal}</span></span>
@@ -1427,9 +1449,10 @@ export default function NutritionPage() {
     setShowModal(true)
   }
 
-  if (!loaded) return null
+  const calPct = goals.calories > 0 ? Math.min(100, Math.round(totals.calories / goals.calories * 100)) : 0
+  const calRingGlowing = useGlowOnFill(calPct)
 
-  const calPct  = Math.min(100, Math.round(totals.calories / goals.calories * 100))
+  if (!loaded) return null
 
   // Group entries by mealId (match on mealType)
   const grouped = Object.fromEntries(mealIds.map(id => [id, entries.filter(e => e.mealType === id)]))
@@ -1468,7 +1491,7 @@ export default function NutritionPage() {
       <div className="nutrition-summary" role="button" tabIndex={0}
         onClick={() => setShowGoalModal(true)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowGoalModal(true) }}>
-        <div className="calorie-ring-wrap">
+        <div className={`calorie-ring-wrap ${calRingGlowing ? 'calorie-ring-wrap--glow' : ''}`}>
           <svg className="calorie-ring" viewBox="0 0 100 100">
             <defs>
               <linearGradient id="cal-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1480,7 +1503,7 @@ export default function NutritionPage() {
             <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-tertiary)" strokeWidth="10" />
             <circle
               cx="50" cy="50" r="42" fill="none"
-              stroke={calPct >= 100 ? 'var(--green)' : 'url(#cal-ring-gradient)'}
+              stroke="url(#cal-ring-gradient)"
               strokeWidth="10"
               strokeDasharray={`${calPct * 2.639} 263.9`}
               strokeLinecap="round"
