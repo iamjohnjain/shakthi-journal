@@ -35,6 +35,8 @@ Scope: training, nutrition, recovery, sleep, body composition, general wellness 
 
 Actions: call the matching tool instead of describing what you'd do — log_workout/log_meal/create_template/update_nutrition_goals/update_goals for direct asks, propose_workout for any concrete session (below), navigate_to to send them to a screen. Call get_health_context before anything depending on real history/trends/goals ("how's my progress", "what should I train today", a calorie target) — sparse or missing data is completely normal for newer accounts, never an error to apologize for.
 
+Logging food: when the user lists several distinct foods in one message, log_meal's \`items\` array takes one entry per food — never merge them into a single combined item. When they don't say what meal or time something was for, use CURRENT_LOCAL_TIME (given below) to pick mealType: roughly 5-11am → breakfast, 11am-4pm → lunch, 4-9pm → dinner, anything else → snack. Within that, let the food itself override the time-based default toward 'snack' when it clearly reads as a low-calorie item, drink, or snack (e.g. a protein shake, a piece of fruit, a handful of nuts, a soda) regardless of what time it is — but a full/large single entry (a real meal's worth of food) still goes to whichever meal bucket matches the current time, not 'snack'.
+
 Workouts: get_health_context's workouts.muscleStatus is the real signal for what to train next — one of 'none' (zero sets this week), 'under' (under 50% of that muscle's own weekly target), 'onTarget' (50-150%), or 'over' (over 150%), per region, with the actual setsThisWeek/weeklyTarget numbers. When suggesting a workout or template with no specific exercises requested, prioritize regions at 'none' or 'under' over ones already 'onTarget' or 'over' — this is real per-muscle volume data, not a guess from what was merely touched recently, so trust it over muscleGroupsTrainedLast7Days' coarser trained/not-trained list. For any concrete session (specific exercises with sets/reps), call propose_workout — never type the plan into your reply as text, and never write the word "propose_workout" or any JSON yourself; call the function and keep your own reply to a one-line intro. If they push back on a proposal, call propose_workout again with a revised plan that actually addresses what they said. When they ask what they did on a specific day or recently (e.g. "what did I hit Monday", "what was my last workout"), call reference_workout with that date so they get a tap-through link to the actual logged entry alongside your answer — don't overuse it, just when pointing at one real logged day.
 
 Dates: every date get_health_context gives you comes with its correct day-of-week already worked out (a dateFormatted field, or the top-level today field) — always use that instead of computing a weekday yourself from a bare date; that computation has been wrong before (calling a date the wrong day of the week) and there's no reason to redo it when the real answer is already given to you. In your own replies, always write dates as "Month Day, Year" (e.g. "November 16, 2026"), never "11/16" or similar — it's the one format that can't be misread.
@@ -55,6 +57,7 @@ interface ChatRequestBody {
     imageDataUrl?: string
   }>
   tools?: GroqToolDef[]
+  clientTime?: string
 }
 
 function softFallback(text: string, origin: string | null): Response {
@@ -91,8 +94,16 @@ Deno.serve(async (req: Request) => {
   // Translate the client's camelCase storage shape into Groq's wire format,
   // and prepend the fixed system prompt — always server-controlled, never
   // client-supplied, so it can't be overridden by a crafted request.
+  // The client's own Date, not the server's — this edge function runs
+  // wherever Supabase schedules it, which has no relationship to the
+  // user's timezone, so "now" must come from the browser that actually
+  // knows what time it is for this person.
+  const systemPrompt = body.clientTime
+    ? `${SYSTEM_PROMPT}\n\nCURRENT_LOCAL_TIME: ${body.clientTime}`
+    : SYSTEM_PROMPT
+
   const messages: GroqMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...clientMessages.map((m): GroqMessage => ({
       role: m.role,
       content: m.content,

@@ -66,8 +66,12 @@ export async function sendToCoach(messages: CoachChatMessage[]): Promise<CoachRe
 
   async function invokeOnce(): Promise<InvokeResult | null> {
     try {
+      const clientTime = new Date().toLocaleString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: 'numeric', minute: '2-digit',
+      })
       const { data, error } = await supabase!.functions.invoke<InvokeResult>(
-        'chat-coach', { body: { messages: wire, tools: COACH_TOOLS } }
+        'chat-coach', { body: { messages: wire, tools: COACH_TOOLS, clientTime } }
       )
       return error || !data ? null : data
     } catch {
