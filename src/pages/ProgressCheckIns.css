@@ -209,7 +209,7 @@
   display: block;
   margin: 0 auto 18px;
   padding: 5px 16px;
-  color: var(--red);
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

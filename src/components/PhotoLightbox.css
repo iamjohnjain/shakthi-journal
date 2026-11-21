@@ -5,6 +5,14 @@
   padding: calc(14px + var(--safe-top, 0px)) 14px calc(14px + var(--safe-bottom, 0px));
   box-sizing: border-box;
 }
+
+/* Compare mode: the whole point is seeing two photos' detail side by
+   side, so claim as much of the screen as possible for them instead of
+   the single-photo view's more generous breathing room. */
+.lightbox-overlay--split {
+  padding-left: 4px;
+  padding-right: 4px;
+}
 .lightbox-close {
   position: absolute; top: calc(14px + var(--safe-top, 0px)); right: 14px; z-index: 10;
   width: 38px; height: 38px; border-radius: 50%;
@@ -32,6 +40,12 @@
   gap: 10px;
 }
 
+/* A thin 2px seam instead of a 10px gap — in compare mode every pixel
+   should go to the photos, not the space between them. */
+.lightbox-stage--split {
+  gap: 2px;
+}
+
 .lightbox-pane {
   position: relative;
   display: flex;
@@ -50,16 +64,21 @@
   overflow: hidden;
 }
 
+/* A hairline ring, not the single-photo view's 2px frame — in compare
+   mode the border was eating into exactly the space the two images need
+   to actually compare detail against each other. Still enough to show
+   which pane is selected/tappable, just not a chunk of wasted margin. */
 .lightbox-pane--split {
   flex: 1 1 0;
-  max-width: 48%;
+  max-width: calc(50% - 1px);
+  border-width: 1px;
+  border-radius: 8px;
 }
 
-/* A brighter/thicker version of the same ring — still the gradient, not a
-   flat color — so the selected pane in Compare mode is still obviously
-   "rainbow", just a touch more prominent. */
+/* Still the gradient, just a touch more visible than the 1px default so
+   the selected pane in Compare mode is obviously the active one. */
 .lightbox-pane--selected {
-  border-width: 3px;
+  border-width: 2px;
 }
 
 .lightbox-pane-viewport {
@@ -67,7 +86,10 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  touch-action: pan-x;
+  /* Fully captured in JS now — pinch-zoom, horizontal date-swipe, and the
+     existing vertical same-day swipe all need to see every touch event
+     themselves rather than letting the browser handle any axis natively. */
+  touch-action: none;
 }
 
 /* Three stacked slots (prev / current / next) in one flex column, each
@@ -93,6 +115,20 @@
 
 .lightbox-peek-img {
   opacity: 0.55;
+}
+
+/* Clips an over-zoomed/panned image to its own slot instead of letting it
+   spill over the prev/next peek slots above and below. */
+.lightbox-peek-slot--current {
+  overflow: hidden;
+}
+
+.lightbox-zoom-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .lightbox-peek-count {

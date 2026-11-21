@@ -552,6 +552,25 @@ export default function CheckInsSection() {
     setLightboxSession({ primary: entries, primaryIndex: Math.max(0, index), secondaryIndex: 0 })
   }
 
+  /** Horizontal swipe in the single-photo viewer — moves to the adjacent
+      check-in DATE (a whole new `primary` list), not just the next index
+      within the current one. `comparePhotos` is already newest-first
+      (getPhotos()'s own sort), so "next" steps deeper into history
+      (older) and "prev" steps back toward the most recent — only wired up
+      for the grid/history viewer, never Compare's side-by-side session. */
+  async function handleSwipeDate(direction: 'prev' | 'next') {
+    const currentDate = lightboxSession?.primary[0]?.date
+    if (!currentDate) return
+    const uniqueDates = Array.from(new Set(comparePhotos.map(p => p.date)))
+    const idx = uniqueDates.indexOf(currentDate)
+    if (idx === -1) return
+    const targetIdx = direction === 'next' ? idx + 1 : idx - 1
+    if (targetIdx < 0 || targetIdx >= uniqueDates.length) return
+    const sameDate = comparePhotos.filter(p => p.date === uniqueDates[targetIdx])
+    const entries = await Promise.all(sameDate.map(buildLightboxEntry))
+    setLightboxSession({ primary: entries, primaryIndex: 0, secondaryIndex: 0 })
+  }
+
   /** Opens the Compare-mode side-by-side session — `aList`/`bList` are each
       one date's full photo set (already pose-filtered); each pane pages
       through its own list independently, they don't move together. */
@@ -842,6 +861,7 @@ export default function CheckInsSection() {
           onSave={handleLightboxSave}
           onDelete={handleLightboxDelete}
           onSavePhoto={handleLightboxSavePhoto}
+          onSwipeDate={lightboxSession.secondary ? undefined : d => void handleSwipeDate(d)}
         />
       )}
       {stagedLightbox && (
