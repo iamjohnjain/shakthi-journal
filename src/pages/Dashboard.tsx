@@ -1,4 +1,5 @@
 import { useState, useEffect, memo } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, PersonStanding } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
@@ -167,9 +168,11 @@ function QuickActions() {
         </span>
         <span className="quick-action-label" aria-hidden="true">Check-In</span>
       </button>
-      {showWeightModal && (
-        <QuickWeightModal onClose={() => setShowWeightModal(false)} onSaved={() => {}} />
-      )}
+      <AnimatePresence>
+        {showWeightModal && (
+          <QuickWeightModal onClose={() => setShowWeightModal(false)} onSaved={() => {}} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

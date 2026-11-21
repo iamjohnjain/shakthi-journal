@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence } from 'motion/react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ChevronDown, ChevronUp, Trash2, Dumbbell,
@@ -848,13 +849,15 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
         </div>
       </div>
 
-      {editTarget && (
-        <TemplateModal
-          existing={editTarget}
-          onClose={() => setEditTarget(null)}
-          onSaved={() => { setEditTarget(null); load() }}
-        />
-      )}
+      <AnimatePresence>
+        {editTarget && (
+          <TemplateModal
+            existing={editTarget}
+            onClose={() => setEditTarget(null)}
+            onSaved={() => { setEditTarget(null); load() }}
+          />
+        )}
+      </AnimatePresence>
     </div>,
     document.body
   )
@@ -1125,17 +1128,19 @@ export default function WorkoutsPage() {
             />
           )}
 
-          {showCreateTemplate && (
-            <TemplateModal
-              onClose={() => setShowCreateTemplate(false)}
-              onSaved={() => { setShowCreateTemplate(false); setShowTemplatePicker(true) }}
-              onUseOnce={data => {
-                setShowCreateTemplate(false)
-                setActiveWorkoutInitial({ title: data.name, exercises: data.exercises })
-                setShowActiveWorkout(true)
-              }}
-            />
-          )}
+          <AnimatePresence>
+            {showCreateTemplate && (
+              <TemplateModal
+                onClose={() => setShowCreateTemplate(false)}
+                onSaved={() => { setShowCreateTemplate(false); setShowTemplatePicker(true) }}
+                onUseOnce={data => {
+                  setShowCreateTemplate(false)
+                  setActiveWorkoutInitial({ title: data.name, exercises: data.exercises })
+                  setShowActiveWorkout(true)
+                }}
+              />
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>

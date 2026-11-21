@@ -8,6 +8,8 @@ import { EXERCISE_LIBRARY } from '../db/workoutStore'
 import { getAllExerciseNames, capitalizeExerciseName, rememberCustomExercise } from '../db/trainingStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
+import AnimatedOverlay from './motion/AnimatedOverlay'
+import AnimatedSheet from './motion/AnimatedSheet'
 import '../pages/WorkoutsPage.css'
 
 const ALL_EXERCISE_NAMES = EXERCISE_LIBRARY.map(e => e.name)
@@ -119,8 +121,8 @@ export default function TemplateModal({ existing, onClose, onSaved, onUseOnce }:
   const hasNamedExercise = exercises.some(ex => ex.name.trim())
 
   return createPortal(
-    <div className="tmpl-modal-overlay" onClick={onClose}>
-      <div className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+    <AnimatedOverlay className="tmpl-modal-overlay" onClick={onClose}>
+      <AnimatedSheet className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="tmpl-modal-header" {...swipe.handlers}>
           <div className="modal-grabber" />
           <h2>{existing ? 'Edit Template' : 'New Template'}</h2>
@@ -201,8 +203,8 @@ export default function TemplateModal({ existing, onClose, onSaved, onUseOnce }:
             </button>
           )}
         </div>
-      </div>
-    </div>,
+      </AnimatedSheet>
+    </AnimatedOverlay>,
     document.body
   )
 }

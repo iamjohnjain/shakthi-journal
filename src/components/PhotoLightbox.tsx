@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { motion } from 'motion/react'
 import { X, Pencil, Check, Trash2, Download, Crop } from 'lucide-react'
 import { useVerticalPeekSwipe } from '../hooks/useVerticalPeekSwipe'
 import PhotoCropEditor from './PhotoCropEditor'
@@ -68,7 +69,22 @@ function LightboxPane({ photos, initialIndex, pane, selectable, selected, onSele
             {prev && <img src={prev.photoDataUrl} alt="" className="lightbox-img lightbox-peek-img" />}
           </div>
           <div className="lightbox-peek-slot lightbox-peek-slot--current">
-            {current ? <img src={current.photoDataUrl} alt="" className="lightbox-img" /> : <div className="lightbox-pane-empty">No photo</div>}
+            {current ? (
+              <motion.img
+                src={current.photoDataUrl}
+                alt=""
+                className="lightbox-img"
+                // Matches the layoutId the grid thumbnail this photo came
+                // from used (ProgressCheckIns.tsx) — when they match, Motion
+                // morphs the thumbnail's actual screen position/size into
+                // this full-screen one instead of a plain fade/cut. Falls
+                // back to a harmless normal mount for any photo not opened
+                // from a layoutId'd thumbnail (e.g. a not-yet-saved staged
+                // photo with no photoId, or a photo reached via swipe
+                // rather than a fresh tap on its own grid tile).
+                layoutId={current.photoId ? `ckin-photo-${current.photoId}` : undefined}
+              />
+            ) : <div className="lightbox-pane-empty">No photo</div>}
           </div>
           <div className="lightbox-peek-slot">
             {next && <img src={next.photoDataUrl} alt="" className="lightbox-img lightbox-peek-img" />}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence } from 'motion/react'
 import { ChevronLeft, ChevronRight, X, CheckCircle2, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, localDateStr } from '../data/config'
@@ -657,9 +658,11 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
         document.body
       )}
 
-      {showWeightLog && (
-        <QuickWeightModal onClose={() => setShowWeightLog(false)} onSaved={() => {}} />
-      )}
+      <AnimatePresence>
+        {showWeightLog && (
+          <QuickWeightModal onClose={() => setShowWeightLog(false)} onSaved={() => {}} />
+        )}
+      </AnimatePresence>
     </>
   )
 }

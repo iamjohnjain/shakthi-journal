@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { motion } from 'motion/react'
 import { Camera, Video, Upload, X, Check, SwitchCamera } from 'lucide-react'
 import LiveCamera from '../components/LiveCamera'
 import PhotoLightbox, { type LightboxEntry } from '../components/PhotoLightbox'
@@ -737,7 +738,7 @@ export default function CheckInsSection() {
               <div className="pci-grid">
                 {comparePhotos.map(p => (
                   <div key={p.id} className="pci-grid-item" onClick={() => void openGridLightbox(p, comparePhotos)}>
-                    <img src={p.photoDataUrl} alt="" />
+                    <motion.img src={p.photoDataUrl} alt="" layoutId={`ckin-photo-${p.id}`} />
                     <span>{formatFullDate(p.date)}</span>
                   </div>
                 ))}
@@ -810,7 +811,7 @@ export default function CheckInsSection() {
                 <div className="pci-empty">No check-ins yet{filterPose !== 'all' ? ' for this pose' : ''}.</div>
               ) : comparePhotos.map(p => (
                 <div key={p.id} className="pci-grid-item" onClick={() => void openGridLightbox(p, comparePhotos)}>
-                  <img src={p.photoDataUrl} alt="" />
+                  <motion.img src={p.photoDataUrl} alt="" layoutId={`ckin-photo-${p.id}`} />
                   <span>{formatFullDate(p.date)}</span>
                 </div>
               ))}

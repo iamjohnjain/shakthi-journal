@@ -7,6 +7,8 @@ import { useUnits } from '../hooks/useUnits'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr } from '../data/config'
+import AnimatedOverlay from './motion/AnimatedOverlay'
+import AnimatedSheet from './motion/AnimatedSheet'
 import './QuickWeightModal.css'
 
 function todayStr() { return localDateStr() }
@@ -61,8 +63,8 @@ export default function QuickWeightModal({ onClose, onSaved }: {
   }
 
   return createPortal(
-    <div className="qw-overlay" onClick={onClose}>
-      <div className="qw-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
+    <AnimatedOverlay className="qw-overlay" onClick={onClose}>
+      <AnimatedSheet className="qw-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="qw-header" {...swipe.handlers}>
           <div className="modal-grabber" />
           <h2>Log Weight</h2>
@@ -92,8 +94,8 @@ export default function QuickWeightModal({ onClose, onSaved }: {
             Log more details (sleep, mood, workout…)
           </button>
         </div>
-      </div>
-    </div>,
+      </AnimatedSheet>
+    </AnimatedOverlay>,
     document.body
   )
 }

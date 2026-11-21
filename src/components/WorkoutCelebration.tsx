@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence } from 'motion/react'
 import { toPng } from 'html-to-image'
 import { Download, Share2, Check, X } from 'lucide-react'
 import type { WorkoutSession } from '../db'
 import Confetti from './Confetti'
+import AnimatedOverlay from './motion/AnimatedOverlay'
+import AnimatedSheet from './motion/AnimatedSheet'
 import './WorkoutCelebration.css'
 
 function formatDuration(min: number): string {
@@ -31,7 +34,16 @@ export default function WorkoutCelebration({ session, onDone }: Props) {
   const [showConfetti, setShowConfetti] = useState(true)
   const [sharing, setSharing] = useState(false)
   const [saved, setSaved] = useState(false)
+  // Local mount state, not an immediate onDone() — this is the single
+  // biggest "reward" moment in the whole app, so it deserves a real exit
+  // animation (the card/overlay animating away) instead of just vanishing
+  // the instant Done is tapped. AnimatePresence plays AnimatedOverlay/
+  // AnimatedSheet's `exit` transitions once `visible` flips false, then
+  // its `onExitComplete` fires the real `onDone` the parent gave us.
+  const [visible, setVisible] = useState(true)
   const cardRef = useRef<HTMLDivElement>(null)
+
+  function handleDone() { setVisible(false) }
 
   const sets = session.exercises.flatMap(e => e.sets.filter(s => !s.isWarmup))
   const totalSets = sets.length
@@ -80,14 +92,16 @@ export default function WorkoutCelebration({ session, onDone }: Props) {
   }
 
   return createPortal(
-    <div className="wc-overlay">
+    <AnimatePresence onExitComplete={onDone}>
+      {visible && (
+    <AnimatedOverlay className="wc-overlay">
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
 
-      <button className="wc-close" onClick={onDone} aria-label="Close">
+      <button className="wc-close" onClick={handleDone} aria-label="Close">
         <X size={18} />
       </button>
 
-      <div className="wc-sheet">
+      <AnimatedSheet className="wc-sheet">
         <div className="wc-card" ref={cardRef}>
           <div className="wc-card-header">
             <span className="wc-card-title">{session.title}</span>
@@ -135,9 +149,11 @@ export default function WorkoutCelebration({ session, onDone }: Props) {
           </button>
         </div>
 
-        <button className="wc-done-btn" onClick={onDone}>Done</button>
-      </div>
-    </div>,
+        <button className="wc-done-btn" onClick={handleDone}>Done</button>
+      </AnimatedSheet>
+    </AnimatedOverlay>
+      )}
+    </AnimatePresence>,
     document.body
   )
 }
