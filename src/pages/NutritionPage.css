@@ -388,10 +388,18 @@
 .meal-section { margin-bottom: 20px; }
 .meal-section-header {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 .meal-section-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0; }
 .meal-cal-total { font-size: 12px; color: var(--text-tertiary); }
+
+/* Per-meal protein/carbs/fat, right under the title+calorie row — same
+   quick-glance breakdown the overall day summary gets, just scoped to
+   this one meal instead of making someone open each entry to add it up. */
+.meal-section-macros {
+  display: flex; gap: 10px; margin-bottom: 8px;
+  font-size: 11px; color: var(--text-tertiary);
+}
 
 .meal-entries { display: flex; flex-direction: column; gap: 4px; }
 .food-entry {

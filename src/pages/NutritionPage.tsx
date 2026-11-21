@@ -1571,6 +1571,9 @@ export default function NutritionPage() {
         const mealEntries = grouped[id] ?? []
         const mealLabel   = activeMealLabels[i] ?? id
         const mealCal     = mealEntries.reduce((n, e) => n + e.calories, 0)
+        const mealProtein = mealEntries.reduce((n, e) => n + e.proteinG, 0)
+        const mealCarbs   = mealEntries.reduce((n, e) => n + (e.carbsG ?? 0), 0)
+        const mealFat     = mealEntries.reduce((n, e) => n + (e.fatG ?? 0), 0)
         const isCurrentMealTime = isToday && mealLabel.toLowerCase() === currentMealTime
         return (
           <section key={id} className="meal-section">
@@ -1578,6 +1581,13 @@ export default function NutritionPage() {
               <h2 className="meal-section-title">{mealLabel}</h2>
               {mealCal > 0 && <span className="meal-cal-total">{mealCal} cal</span>}
             </div>
+            {mealCal > 0 && (
+              <div className="meal-section-macros">
+                <span>{Math.round(mealProtein)}g protein</span>
+                <span>{Math.round(mealCarbs)}g carbs</span>
+                <span>{Math.round(mealFat)}g fat</span>
+              </div>
+            )}
             {mealEntries.length > 0 ? (
               <div className="meal-entries">
                 {mealEntries.map(e => (

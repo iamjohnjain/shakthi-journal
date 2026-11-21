@@ -40,7 +40,7 @@ import type { ProfileData } from '../db/profileStore'
 import type { WorkoutSession, ExerciseSet, WorkoutExerciseEntry } from '../db'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
-import { localDateStr, addLocalDays, formatDate } from '../data/config'
+import { localDateStr, addLocalDays } from '../data/config'
 import { getISOWeek, getWeekDates } from '../lib/weekUtils'
 import DatePickerCalendar from '../components/DatePickerCalendar'
 import WorkoutsSubNav from '../components/WorkoutsSubNav'
@@ -972,7 +972,6 @@ export default function WorkoutsPage() {
   }
 
   const selectedDateObj = new Date(selectedDate + 'T12:00:00')
-  const dateLabel = formatDate(selectedDateObj)
   const shortDateLabel = selectedDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   // The big header title used to repeat itself when viewing a non-today
   // date: large text showed "Nov 19" while the subtitle right under it
@@ -1011,22 +1010,22 @@ export default function WorkoutsPage() {
         />
       ) : (
         <>
-          <header className="page-header" style={{ marginTop: '8px' }}>
-            <div>
+          <header className="page-header wk-today-header" style={{ marginTop: '8px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <button className="page-title-datepicker" onClick={() => setShowDatePicker(true)}>
                   <h1 className="page-title">{isToday ? 'Today' : weekdayLabel}</h1>
                   <CalendarDays size={18} className="page-title-cal-icon" />
                 </button>
               </div>
-              <p className="page-subtitle">{isToday ? dateLabel : monthDayLabel}</p>
+              <p className="page-subtitle">{monthDayLabel}</p>
               {streak >= 2 && (
                 <div className="wk-streak-chip" title="Consecutive days with a logged session">
                   <Flame size={13} /> {streak} Day Streak
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               {isToday ? (
                 <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
                   <Play size={15} /> Start

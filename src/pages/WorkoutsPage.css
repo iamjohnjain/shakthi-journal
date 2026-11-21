@@ -12,8 +12,15 @@
   margin-bottom: 20px;
   gap: 12px;
 }
-.page-title   { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: var(--text-primary); }
-.page-subtitle{ font-size: 13px; color: var(--text-tertiary); margin: 0; }
+/* globals.css's bare .page-title/.page-subtitle (28px title, 6px-margin
+   subtitle) win over these by load order, which is also what made the
+   header wrap to two rows on a long weekday name like "Wednesday" — not
+   enough room was left for the Today/Template buttons on the same line.
+   Scoped descendant selectors here outrank the bare global ones by
+   specificity regardless of load order, so this header can run a bit
+   tighter without touching every other page's title size. */
+.wk-today-header .page-title { font-size: 22px; letter-spacing: -0.3px; }
+.wk-today-header .page-subtitle { margin-top: 2px; white-space: nowrap; }
 
 /* Same gradient-ring treatment as Nutrition's week-streak icon chip — one
    consistent "streak" look across the app instead of a purple-and-orange

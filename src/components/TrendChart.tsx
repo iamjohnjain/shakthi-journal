@@ -77,7 +77,11 @@ export default function TrendChart({
   const w = Math.max(width, 100)
   const h = height
 
-  const values = filtered.map(p => p.value)
+  // The target line needs to fall inside the plotted range to ever be
+  // visible at all — folding goalValue into the min/max means a target
+  // well above or below the actual logged values still shows up (clamped
+  // near the top/bottom edge) instead of silently not rendering.
+  const values = goalValue != null ? [...filtered.map(p => p.value), goalValue] : filtered.map(p => p.value)
   const minV   = Math.min(...values)
   const maxV   = Math.max(...values)
   const range  = maxV - minV || 1
@@ -115,9 +119,18 @@ export default function TrendChart({
     <div className="trend-chart-wrap">
       <div className="trend-chart-header">
         <span className="trend-chart-value">{latest}{unit}</span>
-        <span className={`trend-chart-delta ${change < 0 ? 'down' : change > 0 ? 'up' : ''}`}>
-          {change > 0 ? '+' : ''}{fmt(change)}{unit}
-        </span>
+        {/* A chart with its own goalValue (a target line, drawn below) already
+            gives the more useful comparison — "today vs target" — so the
+            day-over-day delta here is skipped for those: with sparse
+            history (e.g. only today actually logged, every other day 0),
+            the delta against a mostly-zero week just re-states today's
+            value with a minus sign, which reads as a confusing duplicate
+            rather than a real trend. */}
+        {goalValue == null && (
+          <span className={`trend-chart-delta ${change < 0 ? 'down' : change > 0 ? 'up' : ''}`}>
+            {change > 0 ? '+' : ''}{fmt(change)}{unit}
+          </span>
+        )}
       </div>
 
       <svg
@@ -172,14 +185,14 @@ export default function TrendChart({
             right, with its own rainbow dot marking the target value at the
             line's right end (same marker style as the current-value dot,
             just hollow, so the two read as related but distinct). */}
-        {goalY != null && goalY > 0 && goalY < h - padBottom && (
+        {goalY != null && (
           <>
             <line
               x1={padX} y1={goalY} x2={w - padX} y2={goalY}
               stroke={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'}
               strokeWidth="1" strokeDasharray="4 4" opacity="0.6"
             />
-            <text x={padX + 2} y={goalY - 4} textAnchor="start" fontSize="9"
+            <text x={padX + 2} y={Math.max(9, goalY - 4)} textAnchor="start" fontSize="9"
               fill={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'} opacity="0.95">Target</text>
             <circle
               cx={w - padX} cy={goalY} r="3.5"
