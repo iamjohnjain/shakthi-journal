@@ -858,6 +858,21 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
     return mealId
   }
 
+  // Mirrors patchDraftItem's rule: a quantity-NUMBER change scales all four
+  // macros proportionally from whatever's currently entered, so edits made
+  // from a unit change or a direct macro edit become the new baseline for
+  // the next quantity change instead of being overwritten by it.
+  function handleQtyNumChange(newNum: number) {
+    if (qtyNum > 0 && newNum > 0 && newNum !== qtyNum) {
+      const scale = newNum / qtyNum
+      setCalories(c => c ? String(Math.max(0, Math.round(Number(c) * scale))) : c)
+      setProtein(p => p ? String(Math.max(0, Math.round(Number(p) * scale))) : p)
+      setCarbs(c => c ? String(Math.max(0, Math.round(Number(c) * scale))) : c)
+      setFat(f => f ? String(Math.max(0, Math.round(Number(f) * scale))) : f)
+    }
+    setQtyNum(newNum)
+  }
+
   async function handleSave() {
     if (!food || !calories || !protein) return
     setSaving(true)
@@ -1039,7 +1054,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
               </div>
               <div className="custom-field custom-field--full">
                 <label>Quantity</label>
-                <QuantityPicker num={qtyNum} unit={qtyUnit} onNumChange={setQtyNum} onUnitChange={setQtyUnit} />
+                <QuantityPicker num={qtyNum} unit={qtyUnit} onNumChange={handleQtyNumChange} onUnitChange={setQtyUnit} />
               </div>
             </div>
           )}
@@ -1316,24 +1331,14 @@ export default function NutritionPage() {
         </div>
       )}
 
-      {/* Smart nutrition callout — only when there's something logged, and
-          only when there's an actually concrete suggestion to make; past a
-          certain remaining amount there's no specific food that closes the
-          gap, and restating the number the macro bar above already shows
-          isn't worth a second callout. */}
+      {/* Just the plain remaining-protein number — no food-suggestion tip
+          text anymore, per feedback that it crowded the screen and read
+          as clutter rather than useful. */}
       {entries.length > 0 && protPct < 100 && (() => {
         const remaining = Math.max(0, goals.proteinG - Math.round(totals.proteinG))
-        const suggestion = remaining <= 31
-          ? `${remaining}g remaining — one chicken breast gets you there`
-          : remaining <= 53
-          ? `${remaining}g remaining — one chicken breast + a protein shake`
-          : remaining <= 80
-          ? `${remaining}g remaining — a solid meal with protein will close the gap`
-          : null
-        if (!suggestion) return null
         return (
           <div className="protein-callout">
-            <span>🥩 {suggestion}</span>
+            <span>🥩 {remaining}g protein remaining</span>
           </div>
         )
       })()}
@@ -1384,6 +1389,9 @@ export default function NutritionPage() {
                     onCopy={() => setCopyingEntry(e)}
                     onDelete={() => handleDelete(e.id)} />
                 ))}
+                <button className="meal-add-more-btn" onClick={() => openAdd(id)}>
+                  <Plus size={13} /> Add Another Item
+                </button>
               </div>
             ) : (
               <button

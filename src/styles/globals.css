@@ -206,24 +206,25 @@ button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active {
   transform: scale(0.97);
 }
-/* Five stacked rings sampling --gradient-brand at even steps (not just its
-   3 named stops) instead of one flat `--accent` ring — box-shadow can't
-   render an actual gradient, but a three-ring version of this (one ring
-   per named stop) read as "two distinct blocks of color" rather than a
-   smooth rainbow, since each jump between rings was a large, visually
-   abrupt hue change. Sampling 5 points along the same gradient instead of
-   3 makes each step between rings small enough to read as one continuous
-   sweep, matching the gradient-ring borders used elsewhere (tab navs,
-   card highlights) without needing every button to opt into the
+/* Six stacked rings sampling --gradient-brand at even steps, each with a
+   touch of blur so adjacent rings bleed into each other instead of
+   meeting at a hard edge — box-shadow can't render an actual gradient,
+   and even a finer-grained stack of *sharp* rings still reads as
+   separate concentric bands up close (each one is still a flat color
+   with a crisp boundary). A little blur on each ring's edge is what
+   actually sells "one continuous rainbow sweep" instead of "a few
+   visible rings," matching the gradient-ring borders used elsewhere (tab
+   navs, card highlights) without needing every button to opt into the
    background-clip double-layer trick those use. */
 button:not(:disabled):not([data-no-press-glow]):active,
 [role="button"]:not([aria-disabled="true"]):not([data-no-press-glow]):active {
   box-shadow:
-    0 0 0 1px #FB8A4C,
-    0 0 0 2px #D17BA1,
-    0 0 0 3px #A66BF5,
-    0 0 0 4px #8175FA,
-    0 0 0 5px #5B7FFF;
+    0 0 1px 1px #FB8A4C,
+    0 0 1px 2px #DC7F8A,
+    0 0 1px 3px #BD74C7,
+    0 0 1px 4px #9E6DF6,
+    0 0 1px 5px #7C76FB,
+    0 0 1px 6px #5B7FFF;
 }
 
 a {
