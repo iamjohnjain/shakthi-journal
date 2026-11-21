@@ -408,7 +408,15 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
   const [tmplSaved, setTmplSaved] = useState(false)
   const cals  = w.overrideCalories ?? w.estimatedCalories
   const subtype = w.cardioSubtype
-  const typeLabel = w.type === 'cardio' && subtype
+  // handleMarkRest saves a plain cardio session titled "Rest Day" — not a
+  // real cardio workout, so it shouldn't wear a "Cardio" badge. A simple
+  // purple "Rest" tag is the whole point of marking the day, and repeating
+  // that same information as a title line right under it ("Rest Day") was
+  // just restating the tag in different words.
+  const isRestDay = w.type === 'cardio' && w.title === 'Rest Day'
+  const typeLabel = isRestDay
+    ? 'Rest'
+    : w.type === 'cardio' && subtype
     ? CARDIO_SUBTYPES.find(s => s.id === subtype)?.label ?? subtype
     : (WORKOUT_TYPES.find(t => t.id === w.type)?.label ?? w.type)
   const hasPR = exercises.some(ex => ex.sets.some(s => {
@@ -576,16 +584,18 @@ function WorkoutCard({ w, prMap, exerciseNames, onDelete, onCopy }: {
       <div className={`workout-card ${hasPR ? 'workout-card--pr' : ''}`}>
         <div className="workout-card-top" onClick={() => setOpen(o => !o)}>
           <div className="workout-card-left">
-            <span className={`workout-type-pill workout-type-pill--${w.type}`}>{typeLabel}</span>
-            <div className="workout-card-title">{w.title}</div>
-            <div className="workout-card-meta">
-              {w.durationMin}min{w.rpe ? ` · RPE ${w.rpe}` : ''}
-              {cals ? (
-                <span className={`wc-cal wc-cal--${w.caloriesConfidence ?? 'medium'}`}>
-                  <Flame size={11} />{cals} cal{w.caloriesConfidence === 'low' ? ' est.' : ''}
-                </span>
-              ) : null}
-            </div>
+            <span className={`workout-type-pill workout-type-pill--${isRestDay ? 'rest' : w.type}`}>{typeLabel}</span>
+            {!isRestDay && <div className="workout-card-title">{w.title}</div>}
+            {!isRestDay && (
+              <div className="workout-card-meta">
+                {w.durationMin}min{w.rpe ? ` · RPE ${w.rpe}` : ''}
+                {cals ? (
+                  <span className={`wc-cal wc-cal--${w.caloriesConfidence ?? 'medium'}`}>
+                    <Flame size={11} />{cals} cal{w.caloriesConfidence === 'low' ? ' est.' : ''}
+                  </span>
+                ) : null}
+              </div>
+            )}
           </div>
           <div className="workout-card-toggle">{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
         </div>

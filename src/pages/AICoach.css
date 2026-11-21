@@ -6,7 +6,17 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  /* `flex: 1`, not `height: 100%` — this is a flex ITEM inside
+     .page-transition's column flex container (Layout.css), and a
+     percentage height on a flex item in a column container doesn't
+     reliably resolve to "fill the available space" the way it would on a
+     normal block child; it fell back to shrink-to-content sizing, which
+     only looked fine when there were enough messages to fill the screen
+     anyway. With few/no messages (e.g. right after clearing chat
+     history), the page visibly stopped partway down, leaving a dead
+     black gap below the input box. `flex: 1` uses flexbox's own grow
+     algorithm instead, which doesn't have that ambiguity. */
+  flex: 1;
   min-height: 0;
   overflow: hidden;
   padding: var(--page-padding);

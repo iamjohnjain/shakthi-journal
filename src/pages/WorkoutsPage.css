@@ -734,8 +734,16 @@
 }
 .week-cal-day:hover { background: var(--bg-tertiary); }
 .week-cal-day:focus-visible { outline: none; }
-.week-cal-day--today { border-color: var(--accent) !important; }
-.week-cal-day--selected { background: var(--purple-dim); border-color: var(--accent); }
+/* Rainbow gradient-ring border, same technique used everywhere else in the
+   app for an active/selected state — replaces a flat orange border, and
+   (for --selected) a flat purple fill that didn't match anything else. */
+.week-cal-day--today,
+.week-cal-day--selected {
+  border: 1.5px solid transparent !important;
+  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
 .week-cal-dow  { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; }
 .week-cal-date { font-size: 14px; font-weight: 700; color: var(--text-primary); }
 .week-cal-dot  { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
@@ -889,6 +897,7 @@
 /* ─── Type pill colors ────────────────────────────────────────── */
 .workout-type-pill--lifting { background: var(--purple-dim); color: var(--purple); }
 .workout-type-pill--cardio  { background: var(--green-dim); color: var(--green); }
+.workout-type-pill--rest    { background: var(--purple-dim); color: var(--purple); }
 
 /* ─── Templates page ──────────────────────────────────────────── */
 .templates-page { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
