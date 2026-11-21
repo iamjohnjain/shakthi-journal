@@ -130,18 +130,28 @@ export const COACH_TOOLS: GroqToolDef[] = [
     type: 'function',
     function: {
       name: 'log_meal',
-      description: "Log a food/drink entry to today's nutrition.",
+      description: "Log one or more food/drink entries to today's nutrition. When the user lists several distinct foods in one message (e.g. separated by commas or \"and\"), pass each as its own entry in `items` — never combine them into a single merged entry with summed values.",
       parameters: {
         type: 'object',
         properties: {
           mealType: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'] },
-          food: { type: 'string' },
-          calories: { type: 'number' },
-          proteinG: { type: 'number' },
-          carbsG: { type: 'number' },
-          fatG: { type: 'number' },
+          items: {
+            type: 'array',
+            description: 'One entry per distinct food/drink item.',
+            items: {
+              type: 'object',
+              properties: {
+                food: { type: 'string' },
+                calories: { type: 'number' },
+                proteinG: { type: 'number' },
+                carbsG: { type: 'number' },
+                fatG: { type: 'number' },
+              },
+              required: ['food', 'calories', 'proteinG'],
+            },
+          },
         },
-        required: ['mealType', 'food', 'calories', 'proteinG'],
+        required: ['mealType', 'items'],
       },
     },
   },
@@ -286,16 +296,26 @@ async function execReferenceWorkout() {
 }
 
 async function execLogMeal(args: ToolArgs) {
-  const entry = await addNutritionEntry({
-    date: localDateStr(),
-    mealType: String(args.mealType ?? 'snack'),
-    food: String(args.food ?? 'Food'),
-    calories: Number(args.calories ?? 0),
-    proteinG: Number(args.proteinG ?? 0),
-    carbsG: typeof args.carbsG === 'number' ? args.carbsG : undefined,
-    fatG: typeof args.fatG === 'number' ? args.fatG : undefined,
-  })
-  return { ok: true, id: entry.id, food: entry.food }
+  const date = localDateStr()
+  const mealType = String(args.mealType ?? 'snack')
+  // Back-compat: older/malformed tool calls might still send a single flat
+  // item instead of `items` — treat that as a one-item list rather than
+  // dropping the log.
+  const rawItems = Array.isArray(args.items) && args.items.length > 0
+    ? args.items
+    : [{ food: args.food, calories: args.calories, proteinG: args.proteinG, carbsG: args.carbsG, fatG: args.fatG }]
+
+  const entries = await Promise.all(rawItems.map((item: ToolArgs) => addNutritionEntry({
+    date,
+    mealType,
+    food: String(item.food ?? 'Food'),
+    calories: Number(item.calories ?? 0),
+    proteinG: Number(item.proteinG ?? 0),
+    carbsG: typeof item.carbsG === 'number' ? item.carbsG : undefined,
+    fatG: typeof item.fatG === 'number' ? item.fatG : undefined,
+  })))
+
+  return { ok: true, items: entries.map(e => ({ id: e.id, food: e.food })) }
 }
 
 async function execCreateTemplate(args: ToolArgs) {
