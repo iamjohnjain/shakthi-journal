@@ -116,10 +116,14 @@ function LightboxPane({ photos, initialIndex, pane, selectable, selected, onSele
     if (g.mode === 'undecided') {
       const dx = e.touches[0].clientX - g.startX
       const dy = e.touches[0].clientY - g.startY
-      if (onSwipeDate && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-        g.mode = 'horizontal'
-      } else if (Math.abs(dy) > 10) {
-        g.mode = 'vertical'
+      // Wait for *some* real movement on either axis, then just go with
+      // whichever moved more at that moment — checking dx's own threshold
+      // independently of dy (the old logic) meant dy would often cross its
+      // threshold first on a real finger's slightly-diagonal swipe, before
+      // dx ever got a chance to be compared at all, so horizontal almost
+      // never won even on swipes clearly meant to be horizontal.
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        g.mode = onSwipeDate && Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
       }
     }
     if (g.mode === 'horizontal') {

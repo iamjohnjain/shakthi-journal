@@ -26,6 +26,15 @@
     padding-left: max(var(--safe-left), 8px);
     padding-right: max(var(--safe-right), 8px);
     z-index: 100;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  /* Slide it out of the way instead of overlapping the on-screen keyboard
+     — see useKeyboardLikelyOpen() in BottomNav.tsx. */
+  .bottom-nav--keyboard-open {
+    transform: translateY(calc(100% + var(--safe-bottom) + 10px));
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* ─── Regular tab ──────────────────────────────────────── */

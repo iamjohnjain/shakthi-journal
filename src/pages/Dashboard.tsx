@@ -2,7 +2,7 @@ import { useState, useEffect, memo } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { TrendingDown, TrendingUp, Minus, Plus, Scale, ChevronLeft, ChevronRight, Target, Camera, PersonStanding } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { kgToLbs, getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
+import { getGreeting, formatDate, localDateStr, addLocalDays } from '../data/config'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useDashboardCards, REORDERABLE_IDS } from '../hooks/useDashboardCards'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
@@ -274,64 +274,6 @@ interface SectionCtx {
       default instead of assuming everyone has a smart scale or wearable. */
   ownedDevices: DeviceId[] | null
   isMetric: boolean
-  /** Confirmed non-mock (`healthStore.getLatestBodyFatRecord` already
-      excludes `dataMode: 'mock'`) — used to gate the Body section so mock
-      data can't make it look like a real smart-scale is connected when
-      one isn't. */
-  latestBodyFat: ReturnType<typeof useDashboardData>['latestBodyFat']
-}
-
-function BodySection({ ctx }: { ctx: SectionCtx }) {
-  const navigate = useNavigate()
-  const { today, yesterday, inNative, menuFor, ownedDevices, isMetric, latestBodyFat } = ctx
-  const weightUnit    = isMetric ? 'kg' : 'lbs'
-  const bodyFatDelta  = today.bodyFatPct != null && yesterday.bodyFatPct != null
-    ? delta(today.bodyFatPct, yesterday.bodyFatPct) : null
-  const muscleDisp    = today.muscleMassKg != null     ? (isMetric ? today.muscleMassKg     : kgToLbs(today.muscleMassKg))     : undefined
-  const prevMuscleDisp= yesterday.muscleMassKg != null ? (isMetric ? yesterday.muscleMassKg : kgToLbs(yesterday.muscleMassKg)) : undefined
-  const muscleDelta   = muscleDisp != null && prevMuscleDisp != null ? delta(muscleDisp, prevMuscleDisp) : null
-  // Body fat / muscle mass only ever come from a smart scale — prompting
-  // "Import Apple Health" for someone who never said they own one just
-  // clutters the dashboard with a card that can't do anything for them.
-  // Weight itself isn't shown here at all — it already has its own goal
-  // card on the dashboard, so repeating it in this section is redundant.
-  const hasScale = owns(ownedDevices, 'renpho')
-  // Checking `latestBodyFat` (confirmed non-mock, see healthStore.ts's
-  // getLatestBodyFatRecord) instead of `today.bodyFatPct != null` — the
-  // raw snapshot falls back to mock data whenever mock mode is on or no
-  // real data exists, so a presence-only check let mock body-fat/muscle-
-  // mass numbers render here looking exactly like a real connected scale,
-  // for anyone who's never actually owned one.
-  const hasRealBodyData = latestBodyFat != null
-  if (!hasRealBodyData && !hasScale) return null
-
-  return (
-    <Section title="Body" accent="var(--purple)" menuProps={menuFor('body')}>
-      <MetricCard
-        label="Body Fat"
-        value={today.bodyFatPct}
-        unit="%"
-        trend={bodyFatDelta != null ? (bodyFatDelta < 0 ? 'down' : 'up') : undefined}
-        trendLabel={bodyFatDelta != null ? `${Math.abs(bodyFatDelta)}%` : undefined}
-        trendPositive={false}
-        empty={today.bodyFatPct == null}
-        emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-        onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-      />
-      <MetricCard
-        label="Muscle Mass"
-        value={muscleDisp}
-        unit={weightUnit}
-        sub={today.muscleMassKg != null ? (isMetric ? `${kgToLbs(today.muscleMassKg)} lbs` : `${today.muscleMassKg} kg`) : undefined}
-        trend={muscleDelta != null ? (muscleDelta >= 0 ? 'up' : 'down') : undefined}
-        trendLabel={muscleDelta != null ? `${Math.abs(muscleDelta)} ${weightUnit}` : undefined}
-        trendPositive={true}
-        empty={today.muscleMassKg == null}
-        emptyPrompt={inNative ? 'Sync Apple Health' : 'Import Apple Health'}
-        onEmptyClick={inNative ? openNativeHealthSync : () => navigate('/import/apple-health')}
-      />
-    </Section>
-  )
 }
 
 
@@ -383,7 +325,6 @@ function VitalsSection({ ctx }: { ctx: SectionCtx }) {
 
 // Map section IDs to their render components
 const SECTION_RENDERERS: Record<string, React.ComponentType<{ ctx: SectionCtx }>> = {
-  body:   BodySection,
   vitals: VitalsSection,
 }
 
@@ -456,7 +397,6 @@ export default function Dashboard() {
     menuFor,
     ownedDevices,
     isMetric,
-    latestBodyFat,
   }
 
   // Build ordered list of visible reorderable sections — the hide/reorder

@@ -144,10 +144,15 @@
 
 /* ── Pose chips (shared capture/compare) ─────────────────────────── */
 
+/* `contents` — not a flex box of its own — so these chips become direct
+   flex-wrap peers of whatever real container wraps them (the "All" chip
+   in Compare mode, "Custom…" in Capture's tagging row), instead of being
+   one single wide flex-item that wraps internally while its sibling
+   chip(s) get shoved onto their own separate line. That's exactly why
+   "All" used to end up alone on its own row, not evenly distributed with
+   the rest. */
 .pci-pose-chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: contents;
 }
 .pci-chip {
   background: var(--bg-elevated);
@@ -171,8 +176,12 @@
 
 /* ── Compare ──────────────────────────────────────────────────────── */
 
-.pci-compare > .pci-pose-chips { margin-bottom: 6px; }
-.pci-chip--all { margin-bottom: 16px; }
+.pci-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
 
 .pci-date-row {
   display: flex;
@@ -183,6 +192,10 @@
 .pci-date-btn {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;

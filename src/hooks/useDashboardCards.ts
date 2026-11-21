@@ -17,14 +17,20 @@ export interface CardConfig {
 export const CARD_REGISTRY: CardConfig[] = [
   { id: 'goal-ring',     label: 'Main Goal Ring',       group: 'Overview',  description: 'Animated progress ring toward weight and daily steps',    defaultVisible: true  },
   { id: 'quick-actions', label: 'Quick Actions',        group: 'Overview',  description: 'Log Weight, Log Workout, Log Meals buttons',              defaultVisible: true  },
-  { id: 'body',          label: 'Body Composition',     group: 'Health',    description: 'Body fat % and muscle mass cards',                        defaultVisible: true  },
   { id: 'vitals',        label: 'Vitals',               group: 'Health',    description: 'HRV and resting heart rate cards',                        defaultVisible: true  },
   { id: 'coach-notes',   label: 'Coach Notes',          group: 'Insights',  description: 'Rule-based daily recommendations (no AI)',                defaultVisible: true  },
   { id: 'import-status', label: 'Import Status Banner', group: 'Data',      description: 'Shows when data was last imported',                       defaultVisible: true  },
 ]
 
-// Sections that appear in the reorderable area below the fixed header
-export const REORDERABLE_IDS = ['body', 'vitals']
+// Sections that appear in the reorderable area below the fixed header.
+// 'body' (body fat %/muscle mass, only ever sourced from a RENPHO-style
+// smart scale via Apple Health) was removed — even on a real device with a
+// real RENPHO already synced, the underlying Apple Health import wasn't
+// reliably surfacing a value, so the card was effectively broken more
+// often than not. Revisit once that import path is actually debugged
+// rather than shipping a card that's broken for most people most of the
+// time.
+export const REORDERABLE_IDS = ['vitals']
 const DEFAULT_ORDER = REORDERABLE_IDS
 
 const VISIBILITY_KEY = 'dashboard-cards'

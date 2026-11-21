@@ -19,10 +19,21 @@
   background: rgba(255,255,255,0.14); border: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
+/* `cover`, not `contain` — every pane/slot here is a tall, fairly narrow
+   box (full stage height), and most check-in photos are a more moderate
+   portrait ratio than that. `contain` was fitting to the narrower
+   dimension and centering the photo in a sea of black bars above/below —
+   "zoomed out," per feedback, and especially bad during the vertical
+   swipe, where a glimpse of a heavily-letterboxed neighbor slot read as a
+   broken/cut-off image rather than a normal carousel peek. `cover` always
+   fills the box completely (cropping a little off the sides/edges
+   instead), which is the right trade for a photo-review feature like
+   this one — missing a sliver of background is far less of a problem
+   than half the screen being dead black space. */
 .lightbox-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 /* The stage takes all the space the caption/action rows below it don't

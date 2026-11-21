@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
-import { Camera, Video, Upload, X, Check, SwitchCamera } from 'lucide-react'
+import { Camera, Video, Upload, X, Check, SwitchCamera, Calendar } from 'lucide-react'
 import LiveCamera from '../components/LiveCamera'
 import PhotoLightbox, { type LightboxEntry } from '../components/PhotoLightbox'
 import DatePickerCalendar from '../components/DatePickerCalendar'
@@ -769,28 +769,30 @@ export default function CheckInsSection() {
 
       {mode === 'compare' && (
         <div className="pci-compare">
-          <PoseChips
-            selected={filterPose}
-            extraLabels={compareCustomLabels}
-            onSelect={(pose, label) => {
-              setFilterPose(pose)
-              setFilterCustomLabel(pose === 'custom' ? label : undefined)
-            }}
-          />
-          <button
-            className={`pci-chip pci-chip--all ${filterPose === 'all' ? 'pci-chip--active' : ''}`}
-            onClick={() => { setFilterPose('all'); setFilterCustomLabel(undefined) }}
-          >
-            All
-          </button>
+          <div className="pci-chip-row">
+            <PoseChips
+              selected={filterPose}
+              extraLabels={compareCustomLabels}
+              onSelect={(pose, label) => {
+                setFilterPose(pose)
+                setFilterCustomLabel(pose === 'custom' ? label : undefined)
+              }}
+            />
+            <button
+              className={`pci-chip pci-chip--all ${filterPose === 'all' ? 'pci-chip--active' : ''}`}
+              onClick={() => { setFilterPose('all'); setFilterCustomLabel(undefined) }}
+            >
+              All
+            </button>
+          </div>
 
           <div className="pci-date-row">
             <button className="pci-date-btn" onClick={() => setPickingDate('A')}>
-              {dateA ? formatFullDate(dateA) : 'Pick A Date'}
+              <Calendar size={14} /> {dateA ? formatFullDate(dateA) : 'Date'}
             </button>
             <span className="pci-date-vs">vs</span>
             <button className="pci-date-btn" onClick={() => setPickingDate('B')}>
-              {dateB ? formatFullDate(dateB) : 'Pick A Date'}
+              <Calendar size={14} /> {dateB ? formatFullDate(dateB) : 'Date'}
             </button>
           </div>
           {(dateA || dateB) && (
