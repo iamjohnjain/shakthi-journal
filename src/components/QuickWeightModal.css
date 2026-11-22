@@ -51,8 +51,7 @@
 }
 .qw-save:disabled { opacity: .5; cursor: default; }
 
-.qw-more-link {
-  background: none; border: none; color: var(--text-tertiary);
-  font-size: 13px; text-decoration: underline; cursor: pointer;
-  align-self: center; padding: 4px;
+.qw-wheels {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
 }
+.qw-wheels-dot { font-size: 20px; font-weight: 700; color: var(--text-tertiary); }

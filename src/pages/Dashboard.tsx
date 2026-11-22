@@ -7,7 +7,6 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { useDashboardCards, REORDERABLE_IDS } from '../hooks/useDashboardCards'
 import { useNutritionSettings } from '../hooks/useNutritionSettings'
 import { useUnits } from '../hooks/useUnits'
-import { useHealthInsights } from '../hooks/useHealthInsights'
 import { useApp } from '../context/AppContext'
 import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
@@ -16,7 +15,6 @@ import type { DeviceId } from '../db/deviceStore'
 import { getImportedDates } from '../db/healthStore'
 import { getAllLogDates } from '../db/logStore'
 import GoalRing from '../components/GoalRing'
-import { DailyBrief } from '../components/DailyBrief'
 import { CardMenu } from '../components/CardMenu'
 import QuickWeightModal from '../components/QuickWeightModal'
 import FirstDayEditModal from '../components/FirstDayEditModal'
@@ -335,8 +333,7 @@ export default function Dashboard() {
   const { mockMode } = useApp()
   const [viewDate, setViewDate] = useState(todayDateStr)
   const { today, yesterday, dataSource, isToday, latestWeight, latestBodyFat, latestSleep, loading: dataLoading } = useDashboardData(viewDate)
-  const { insights, loading: insightsLoading } = useHealthInsights(mockMode)
-  const loading = dataLoading || insightsLoading
+  const loading = dataLoading
   const { isVisible, hide, moveUp, moveDown, pinToTop, sectionOrder } = useDashboardCards()
   const { goals: nutritionGoals, updateGoals: updateNutritionGoals } = useNutritionSettings()
   const units = useUnits()
@@ -371,7 +368,6 @@ export default function Dashboard() {
     })
   }, [showDatePicker])
 
-  const isMock    = dataSource === 'mock' && mockMode
   const isEmpty   = dataSource === 'mock' && !mockMode
   const inNative  = isInsideNativeApp()
 
@@ -494,11 +490,6 @@ export default function Dashboard() {
         if (!SectionComponent) return null
         return <SectionComponent key={id} ctx={sectionCtx} />
       })}
-
-      {/* ── Daily Insights (below the fold — deeper analysis) — today only, these are prescriptive ── */}
-      {isToday && !isMock && (
-        <DailyBrief insights={insights} loading={insightsLoading} />
-      )}
 
       {/* ── Hidden sections notice — today only; a past date always shows
              everything regardless of this setting, so the notice would be

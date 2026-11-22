@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
 import { X, Check } from 'lucide-react'
 import { getLog, saveLog } from '../db/logStore'
 import { useUnits } from '../hooks/useUnits'
@@ -9,6 +8,7 @@ import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { localDateStr } from '../data/config'
 import AnimatedOverlay from './motion/AnimatedOverlay'
 import AnimatedSheet from './motion/AnimatedSheet'
+import WheelPicker from './WheelPicker'
 import './QuickWeightModal.css'
 
 function todayStr() { return localDateStr() }
@@ -27,7 +27,6 @@ export default function QuickWeightModal({ onClose, onSaved }: {
   onClose: () => void
   onSaved: () => void
 }) {
-  const navigate = useNavigate()
   const units = useUnits()
   const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
@@ -45,6 +44,21 @@ export default function QuickWeightModal({ onClose, onSaved }: {
       setLoaded(true)
     })
   }, [units.weight])
+
+  // Whole-number and tenths wheels mirror whatever's in the text field, and
+  // vice versa — tap-to-type and scroll-to-select both just edit the same
+  // `value` string, so neither is a separate "mode" to switch between.
+  const wholeRange = units.weight === 'kg'
+    ? Array.from({ length: 171 }, (_, i) => 30 + i)   // 30–200 kg
+    : Array.from({ length: 375 }, (_, i) => 66 + i)   // 66–440 lbs
+  const tenthsRange = Array.from({ length: 10 }, (_, i) => i)
+  const parsed = parseFloat(value) || 0
+  const wholePart = Math.floor(parsed)
+  const tenthPart = Math.round((parsed - wholePart) * 10) % 10
+
+  function setFromWheel(whole: number, tenth: number) {
+    setValue(`${whole}.${tenth}`)
+  }
 
   async function handleSave() {
     const num = parseFloat(value)
@@ -86,12 +100,22 @@ export default function QuickWeightModal({ onClose, onSaved }: {
             <span className="qw-unit">{units.weight}</span>
           </div>
 
+          <div className="qw-wheels">
+            <WheelPicker
+              values={wholeRange}
+              value={wholePart || wholeRange[0]}
+              onChange={v => setFromWheel(Number(v), tenthPart)}
+            />
+            <span className="qw-wheels-dot">.</span>
+            <WheelPicker
+              values={tenthsRange}
+              value={tenthPart}
+              onChange={v => setFromWheel(wholePart, Number(v))}
+            />
+          </div>
+
           <button className="qw-save" onClick={handleSave} disabled={!value || saving}>
             {saving ? 'Saving…' : <><Check size={16} /> Save</>}
-          </button>
-
-          <button className="qw-more-link" onClick={() => { onClose(); navigate('/log') }}>
-            Log more details (sleep, mood, workout…)
           </button>
         </div>
       </AnimatedSheet>

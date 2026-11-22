@@ -154,12 +154,33 @@ final class HealthKitManager {
         )
         let sleepTypeIds: Set<String> = ["sleepHours"]
 
+        // Steps and active calories are summed per calendar day (sumPerDay below),
+        // and that sum only covers whatever samples THIS query happened to return —
+        // it doesn't add to a previously-stored total. With a bare `since` lower
+        // bound, every sync after the first one on a given day only fetches the
+        // samples recorded since the last sync (a few minutes' worth), summed that
+        // partial slice, and overwrote the day's real total with it — so the
+        // stored step count kept getting smaller/staler instead of growing toward
+        // the real daily total, exactly contradicting the actual Health app. At
+        // least a 2-day lookback (today + yesterday, to cover timezone boundaries)
+        // guarantees every sync re-sums the FULL day's worth of samples, same
+        // "never narrower than the overall window" rule as composition/sleep above.
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: end) ?? end
+        let cumulativeStart: Date? = startDate.map { min($0, twoDaysAgo) }
+        let cumulativePredicate = HKQuery.predicateForSamples(
+            withStart: cumulativeStart,
+            end: end,
+            options: .strictStartDate
+        )
+        let cumulativeTypeIds: Set<String> = ["steps", "activeCalories"]
+
         var samplesDict: [HKSampleType: [HKSample]] = [:]
         var typeResults: [TypeFetchResult] = []
 
         for desc in Self.typeDescriptors {
             let predicate = compositionTypeIds.contains(desc.typeId) ? compositionPredicate
                           : sleepTypeIds.contains(desc.typeId)      ? sleepPredicate
+                          : cumulativeTypeIds.contains(desc.typeId) ? cumulativePredicate
                           : sincePredicate
             do {
                 let samples = try await querySamples(type: desc.hkType, predicate: predicate)
