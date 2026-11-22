@@ -1,0 +1,80 @@
+/* Shared weight-goal editor — used by both the Nutrition "Weight-Loss Rate"
+   tab and the Home page's Weight Goal card, so this one layout/behavior is
+   the only one that exists instead of two screens drifting apart. */
+
+.wge { display: flex; flex-direction: column; gap: 14px; }
+
+/* Current Weight / Goal Weight / Target Date — one row, always, scrolling
+   horizontally rather than wrapping if a narrow screen can't fit all three
+   comfortably at once. */
+.wge-row {
+  display: flex; gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.wge-field {
+  flex: 1 0 auto; min-width: 104px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.wge-field label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); white-space: nowrap; }
+
+.wge-input-wrap {
+  display: flex; align-items: baseline; gap: 4px;
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 10px;
+  padding: 9px 10px; box-sizing: border-box;
+}
+.wge-input-wrap input {
+  width: 100%; min-width: 0;
+  background: none; border: none; color: var(--text-primary);
+  font-size: 15px; font-weight: 700;
+}
+.wge-unit { font-size: 11px; color: var(--text-tertiary); font-weight: 600; white-space: nowrap; }
+
+.wge-date-btn {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 10px;
+  padding: 9px 10px; color: var(--text-primary); font-size: 14px; font-weight: 700;
+  text-align: left; cursor: pointer; white-space: nowrap;
+}
+
+.wge-rate-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.wge-rate-row label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.wge-rate-wrap { width: 140px; justify-content: flex-end; }
+.wge-rate-wrap input { text-align: right; }
+
+/* Plain background with just a border ring — the rate/breakdown numbers
+   were previously drawn with the full gradient-ring background-clip
+   treatment, which read as too bright/attention-grabbing for numbers that
+   are informational, not a primary action. The Save button below keeps
+   the bright gradient fill — that's the one thing on this screen that
+   should pop. */
+.wge-breakdown {
+  font-size: 12px; color: var(--text-secondary);
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+}
+
+.wge-preview {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+}
+.wge-preview-cals { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.wge-preview-macros { font-size: 12px; color: var(--text-secondary); }
+
+.wge-actions { display: flex; gap: 8px; }
+.wge-save {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gradient-brand); color: #fff; border: none;
+  border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+}
+.wge-save:disabled { opacity: .5; cursor: default; }
+.wge-cancel {
+  flex: 1;
+  background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border);
+  border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer;
+}

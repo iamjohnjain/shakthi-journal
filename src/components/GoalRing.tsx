@@ -5,14 +5,16 @@ import { ChevronLeft, ChevronRight, X, CheckCircle2, RefreshCw } from 'lucide-re
 import { useNavigate } from 'react-router-dom'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
-import { getProfile, saveProfile } from '../db/profileStore'
-import { getSetting } from '../db'
+import { getProfile } from '../db/profileStore'
+import { getSetting, setSetting } from '../db'
 import { calcNutrition } from '../lib/nutritionMath'
+import { DEFAULT_GOALS } from '../hooks/useNutritionSettings'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
 import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
 import { useLastSynced } from '../hooks/useLastSynced'
 import QuickWeightModal from './QuickWeightModal'
+import WeightGoalEditor from './WeightGoalEditor'
 import './GoalRing.css'
 
 const SLEEP_GOAL_H  = 8       // universally recommended
@@ -196,10 +198,6 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   const [showWeightLog,  setShowWeightLog]  = useState(false)
   const lastSyncedAt = useLastSynced()
   const [editingGoal,    setEditingGoal]    = useState(false)
-  const [editStart,      setEditStart]      = useState('')
-  const [editGoal,       setEditGoal]       = useState('')
-  const [editDate,       setEditDate]       = useState('')
-  const [savingEdit,     setSavingEdit]     = useState(false)
 
   function sourceLabel(sourceId: string): string {
     if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
@@ -291,30 +289,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   })()
 
   function openEditGoal() {
-    setEditStart(startVal != null ? String(startVal) : '')
-    setEditGoal(goalVal != null ? String(goalVal) : '')
-    setEditDate(profile?.goalDate ?? '')
     setEditingGoal(true)
-  }
-
-  async function saveEditGoal() {
-    if (!profile) return
-    setSavingEdit(true)
-    const toKg = (v: string): number | undefined => {
-      if (v === '') return undefined
-      const n = Number(v)
-      return units.weight === 'kg' ? n : +(n / 2.20462).toFixed(2)
-    }
-    await saveProfile({
-      ...profile,
-      name: profile.name || 'Me',
-      startWeightKg: toKg(editStart) ?? profile.startWeightKg,
-      goalWeightKg: toKg(editGoal) ?? profile.goalWeightKg,
-      goalDate: editDate || undefined,
-    })
-    setProfile(await getProfile())
-    setSavingEdit(false)
-    setEditingGoal(false)
   }
 
   const touchStartX = useRef<number>(0)
@@ -583,38 +558,25 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                 </div>
               )}
 
-              {/* ── Inline goal editor — start weight, goal weight, target date ── */}
+              {/* ── Inline goal editor — same shared Current/Goal/Target Date +
+                     pace editor as the Nutrition page's Weight-Loss Rate tab,
+                     so editing a weight goal looks and behaves identically no
+                     matter which screen it's opened from. ── */}
               {goalType === 'weight' && editingGoal && (
-                <div className="goal-ring-edit-form">
-                  <label className="goal-ring-edit-field">
-                    <span>Start weight ({displayUnit})</span>
-                    <input type="number" inputMode="decimal" step="0.1" value={editStart}
-                      onChange={e => setEditStart(e.target.value)} placeholder="—" />
-                  </label>
-                  <label className="goal-ring-edit-field">
-                    <span>Goal weight ({displayUnit})</span>
-                    <input type="number" inputMode="decimal" step="0.1" value={editGoal}
-                      onChange={e => setEditGoal(e.target.value)} placeholder="—" />
-                  </label>
-                  <label className="goal-ring-edit-field">
-                    <span>Target Date</span>
-                    <input type="date" value={editDate} min={localDateStr()}
-                      onChange={e => setEditDate(e.target.value)} />
-                  </label>
-                </div>
+                <WeightGoalEditor
+                  onCancel={() => setEditingGoal(false)}
+                  onSaved={async result => {
+                    const current = await getSetting<NutritionGoals>('nutrition-goals', DEFAULT_GOALS)
+                    await setSetting('nutrition-goals', { ...current, ...result })
+                    setNutritionGoals(prev => ({ ...prev, calories: result.calories, proteinG: result.proteinG }))
+                    setProfile(await getProfile())
+                    setEditingGoal(false)
+                  }}
+                />
               )}
 
               <div className="goal-ring-modal-actions">
-                {goalType === 'weight' && editingGoal ? (
-                  <>
-                    <button className="goal-ring-modal-btn" onClick={() => setEditingGoal(false)} disabled={savingEdit}>
-                      Cancel
-                    </button>
-                    <button className="goal-ring-modal-btn" onClick={saveEditGoal} disabled={savingEdit}>
-                      {savingEdit ? 'Saving…' : 'Save'}
-                    </button>
-                  </>
-                ) : goalType === 'weight' ? (
+                {goalType === 'weight' && editingGoal ? null : goalType === 'weight' ? (
                   <>
                     <button className="goal-ring-modal-btn" onClick={() => setShowWeightLog(true)}>
                       Log Weight

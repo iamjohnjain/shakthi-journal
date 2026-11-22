@@ -26,20 +26,14 @@ import TrendChart from '../components/TrendChart'
 import WheelPicker from '../components/WheelPicker'
 import LiveCamera from '../components/LiveCamera'
 import VoiceListeningOverlay from '../components/VoiceListeningOverlay'
-import { localDateStr, addLocalDays, kgToLbs, lbsToKg } from '../data/config'
-import { getProfile, saveProfile } from '../db/profileStore'
-import { calcNutrition } from '../lib/nutritionMath'
+import { localDateStr, addLocalDays } from '../data/config'
 import type { NutritionGoals } from '../db'
 import { AnimatePresence } from 'motion/react'
 import AnimatedOverlay from '../components/motion/AnimatedOverlay'
 import AnimatedSheet from '../components/motion/AnimatedSheet'
+import WeightGoalEditor from '../components/WeightGoalEditor'
 // logStore removed — water logging retired
 import './NutritionPage.css'
-
-function daysBetween(a: string, b: string): number {
-  const msPerDay = 86400000
-  return Math.round((new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / msPerDay)
-}
 
 function todayStr() { return localDateStr() }
 
@@ -1219,42 +1213,6 @@ function GoalEditModal({ goals, onSave, onClose }: {
   const calNum = Number(calories) || 0
   const remainingPoints = lastEdited === 'calories' ? calNum - macroCals : 0
 
-  // Rate mode: weight-loss goal + target date, reusing the same
-  // rate→calorie formula as onboarding/GoalRing.
-  const [currentWeight, setCurrentWeight] = useState('')
-  const [goalWeight,    setGoalWeight]    = useState('')
-  const [targetDate,    setTargetDate]    = useState('')
-  const [activityLevel, setActivityLevel] = useState('moderate')
-  const [profileLoaded, setProfileLoaded] = useState(false)
-
-  useEffect(() => {
-    getProfile().then(profile => {
-      if (profile?.startWeightKg) setCurrentWeight(String(Math.round(kgToLbs(profile.startWeightKg))))
-      if (profile?.goalWeightKg)  setGoalWeight(String(Math.round(kgToLbs(profile.goalWeightKg))))
-      if (profile?.goalDate)      setTargetDate(profile.goalDate)
-      if (profile?.activityLevel) setActivityLevel(profile.activityLevel)
-      setProfileLoaded(true)
-    })
-  }, [])
-
-  const curLbs  = Number(currentWeight) || 0
-  const goalLbs = Number(goalWeight) || 0
-  const today = localDateStr()
-  const daysRemaining = targetDate ? daysBetween(today, targetDate) : 0
-  const rateLbsPerWeek = daysRemaining > 0 ? Math.max(0, (curLbs - goalLbs) / daysRemaining * 7) : 0
-  const ratePreview = (profileLoaded && goalLbs > 0 && daysRemaining > 0)
-    ? calcNutrition(goalLbs, activityLevel, rateLbsPerWeek)
-    : null
-
-  async function saveRateGoal() {
-    if (!ratePreview) return
-    const profile = await getProfile()
-    if (profile && goalWeight && targetDate) {
-      await saveProfile({ ...profile, goalWeightKg: lbsToKg(goalLbs), goalDate: targetDate })
-    }
-    onSave({ calories: ratePreview.calories, proteinG: ratePreview.proteinG, carbsG: ratePreview.carbsG, fatG: ratePreview.fatG })
-  }
-
   function saveManual() {
     onSave({ calories: calNum, proteinG: p, carbsG: c, fatG: f })
   }
@@ -1313,35 +1271,7 @@ function GoalEditModal({ goals, onSave, onClose }: {
                 <button className="add-modal-save" onClick={saveManual}>Save Goals</button>
               </>
             ) : (
-              <>
-                <div className="goal-edit-macro-grid">
-                  <div className="goal-edit-macro-field">
-                    <label>Current Weight (lbs)</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={currentWeight}
-                      onChange={e => setCurrentWeight(e.target.value.replace(/[^0-9]/g, ''))} onFocus={e => e.target.select()} />
-                  </div>
-                  <div className="goal-edit-macro-field">
-                    <label>Goal Weight (lbs)</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={goalWeight}
-                      onChange={e => setGoalWeight(e.target.value.replace(/[^0-9]/g, ''))} onFocus={e => e.target.select()} />
-                  </div>
-                </div>
-                <div className="goal-edit-macro-field goal-edit-date-field">
-                  <label>Target Date</label>
-                  <input type="date" value={targetDate} min={today} onChange={e => setTargetDate(e.target.value)} />
-                </div>
-
-                {ratePreview && (
-                  <div className="goal-edit-rate-preview">
-                    <div className="goal-edit-rate-line">~{rateLbsPerWeek.toFixed(1)} lbs/week</div>
-                    <div className="goal-edit-rate-macros">
-                      {ratePreview.calories} cal · {ratePreview.proteinG}g protein · {ratePreview.carbsG}g carbs · {ratePreview.fatG}g fat
-                    </div>
-                  </div>
-                )}
-
-                <button className="add-modal-save" disabled={!ratePreview} onClick={saveRateGoal}>Save Goal</button>
-              </>
+              <WeightGoalEditor onSaved={onSave} />
             )}
           </div>
         </AnimatedSheet>

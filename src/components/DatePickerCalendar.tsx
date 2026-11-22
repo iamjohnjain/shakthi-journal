@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
+import { localDateStr } from '../data/config'
 import './DatePickerCalendar.css'
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -18,9 +19,13 @@ function toDateStr(d: Date): string {
  * dot so a glance at the month shows coverage, not just the one day
  * being viewed.
  */
-export default function DatePickerCalendar({ value, markedDates, maxDate, onChange, onClose, dotBackground }: {
+export default function DatePickerCalendar({ value, markedDates, minDate, maxDate, onChange, onClose, dotBackground }: {
   value: string
   markedDates: Set<string>
+  /** Disables any date before this — used for future-only pickers (a
+      weight-loss target date can't be in the past) where `maxDate` is
+      instead set far out to just mean "no real upper bound." */
+  minDate?: string
   maxDate: string
   onChange: (date: string) => void
   onClose: () => void
@@ -46,8 +51,11 @@ export default function DatePickerCalendar({ value, markedDates, maxDate, onChan
     setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + delta, 1))
   }
 
+  const realToday = localDateStr()
+  const todayInRange = realToday >= (minDate ?? realToday) && realToday <= maxDate
+
   function pick(dateStr: string) {
-    if (dateStr > maxDate) return
+    if (dateStr > maxDate || (minDate != null && dateStr < minDate)) return
     onChange(dateStr)
     onClose()
   }
@@ -89,15 +97,15 @@ export default function DatePickerCalendar({ value, markedDates, maxDate, onChan
           <div className="dp-grid">
             {cells.map((cell, i) => {
               if (!cell) return <span key={i} className="dp-cell dp-cell--blank" />
-              const isFuture = cell.dateStr > maxDate
+              const isOutOfRange = cell.dateStr > maxDate || (minDate != null && cell.dateStr < minDate)
               const isSelected = cell.dateStr === value
               const isMarked = markedDates.has(cell.dateStr)
-              const isToday = cell.dateStr === maxDate
+              const isToday = cell.dateStr === realToday
               return (
                 <button
                   key={i}
                   className={`dp-cell ${isSelected ? 'dp-cell--selected' : ''} ${isToday && !isSelected ? 'dp-cell--today' : ''}`}
-                  disabled={isFuture}
+                  disabled={isOutOfRange}
                   onClick={() => pick(cell.dateStr)}
                 >
                   <span className="dp-cell-num">{cell.day}</span>
@@ -112,7 +120,7 @@ export default function DatePickerCalendar({ value, markedDates, maxDate, onChan
             })}
           </div>
 
-          <button className="dp-today-link" onClick={() => pick(maxDate)}>Today</button>
+          {todayInRange && <button className="dp-today-link" onClick={() => pick(realToday)}>Today</button>}
         </div>
       </div>
     </div>,
