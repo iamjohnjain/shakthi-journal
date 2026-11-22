@@ -58,7 +58,18 @@
   line-height: 1.25;
   cursor: pointer;
 }
-.pci-capture-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* Same dashed-to-gradient-ring treatment used everywhere else for this kind
+   of "add/start something" button (Nutrition's .meal-empty, etc.) — white
+   text/icon + a rainbow ring on press/hover, not a flat orange border. */
+.pci-capture-btn:hover,
+.pci-capture-btn:active {
+  border-style: solid;
+  border-color: transparent;
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: var(--text-primary);
+}
 
 .pci-saved-note {
   display: flex;
@@ -165,9 +176,13 @@
   cursor: pointer;
   transition: border-color .12s, color .12s;
 }
-.pci-chip:hover { border-color: var(--accent); color: var(--accent); }
+/* A flat single-color (--accent, i.e. orange) border/text on hover read as
+   an inconsistent "almost selected" state next to the real rainbow-ring
+   active style below — same gradient-ring treatment on hover too, so
+   nothing on this row ever shows a plain orange border. */
+.pci-chip:hover,
 .pci-chip--active {
-  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand-wide);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   border-color: transparent;

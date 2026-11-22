@@ -315,7 +315,12 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
 
   const R = 88
   const C = 2 * Math.PI * R
-  const strokeOffset = C - (pct / 100) * C
+  // A real, logged value at 0% progress reads as "nothing is happening yet,"
+  // not "just getting started" — floor the drawn arc (never the displayed
+  // percentage text) at a small sliver whenever there's an actual value to
+  // show, so the ring itself always looks like progress is underway.
+  const displayPct = hasData ? Math.max(pct, 4) : pct
+  const strokeOffset = C - (displayPct / 100) * C
 
   function prev() { setTypeIdx(i => (i - 1 + GOAL_TYPES.length) % GOAL_TYPES.length) }
   function next() { setTypeIdx(i => (i + 1) % GOAL_TYPES.length) }

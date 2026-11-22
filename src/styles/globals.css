@@ -116,9 +116,24 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
-body {
+/* Painted on <html>, not just <body> — the native iOS wrapper extends the
+   WKWebView under the status bar/Dynamic Island (contentInsetAdjustment
+   .never + ignoresSafeArea(.top), see WebAppView.swift) specifically so the
+   page's own background can reach all the way to the real screen edges
+   instead of the native layer's plain black showing through as a hard
+   cutoff. `background-attachment: fixed` on body (the previous approach)
+   is a known-flaky pairing with iOS's dynamic viewport resize (the
+   Dynamic Island, the virtual keyboard) — the fixed background can fail
+   to repaint into newly-revealed safe-area regions. The app never
+   scrolls at the body level anyway (every page scrolls inside its own
+   nested .page-content div), so there's nothing for `fixed` attachment to
+   actually defend against — painting the gradient on the static root
+   element is both simpler and more reliable. */
+html {
   background: var(--bg-gradient);
-  background-attachment: fixed;
+}
+
+body {
   color: var(--text-primary);
   font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;

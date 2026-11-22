@@ -52,6 +52,7 @@ export default function TrendChart({
   const containerRef = useRef<SVGSVGElement>(null)
   const [animated, setAnimated] = useState(false)
   const [width, setWidth] = useState(320)
+  const [scrubIndex, setScrubIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -115,30 +116,63 @@ export default function TrendChart({
 
   const goalY = goalValue != null ? yScale(goalValue) : null
 
+  // Tap-or-drag day scrubbing — finds the nearest plotted point to the
+  // pointer's x position and shows that day's own value instead of
+  // leaving "what was logged on any day but the last" undiscoverable.
+  function updateScrubFromClientX(clientX: number) {
+    const el = containerRef.current
+    if (!el || filtered.length === 0) return
+    const rect = el.getBoundingClientRect()
+    const relX = ((clientX - rect.left) / rect.width) * w
+    let nearest = 0
+    let nearestDist = Infinity
+    for (let i = 0; i < pts.length; i++) {
+      const dist = Math.abs(pts[i].x - relX)
+      if (dist < nearestDist) { nearestDist = dist; nearest = i }
+    }
+    setScrubIndex(nearest)
+  }
+
+  const scrubPoint = scrubIndex != null ? filtered[scrubIndex] : null
+
   return (
     <div className="trend-chart-wrap">
       <div className="trend-chart-header">
-        <span className="trend-chart-value">{latest}{unit}</span>
-        {/* A chart with its own goalValue (a target line, drawn below) already
-            gives the more useful comparison — "today vs target" — so the
-            day-over-day delta here is skipped for those: with sparse
-            history (e.g. only today actually logged, every other day 0),
-            the delta against a mostly-zero week just re-states today's
-            value with a minus sign, which reads as a confusing duplicate
-            rather than a real trend. */}
-        {goalValue == null && (
-          <span className={`trend-chart-delta ${change < 0 ? 'down' : change > 0 ? 'up' : ''}`}>
-            {change > 0 ? '+' : ''}{fmt(change)}{unit}
-          </span>
+        {scrubPoint ? (
+          <>
+            <span className="trend-chart-value">{fmt(scrubPoint.value)}{unit}</span>
+            <span className="trend-chart-scrub-date">{fmtDateLabel(scrubPoint.date)}</span>
+          </>
+        ) : (
+          <>
+            <span className="trend-chart-value">{latest}{unit}</span>
+            {/* A chart with its own goalValue (a target line, drawn below)
+                already gives the more useful comparison — "today vs
+                target" — so the day-over-day delta here is skipped for
+                those: with sparse history (e.g. only today actually
+                logged, every other day 0), the delta against a mostly-
+                zero week just re-states today's value with a minus sign,
+                which reads as a confusing duplicate rather than a real
+                trend. */}
+            {goalValue == null && (
+              <span className={`trend-chart-delta ${change < 0 ? 'down' : change > 0 ? 'up' : ''}`}>
+                {change > 0 ? '+' : ''}{fmt(change)}{unit}
+              </span>
+            )}
+          </>
         )}
       </div>
 
       <svg
         ref={containerRef}
-        className="trend-svg"
+        className="trend-svg trend-svg--scrubbable"
         viewBox={`0 0 ${w} ${h}`}
-        style={{ height, width: '100%' }}
-        aria-hidden="true"
+        style={{ height, width: '100%', touchAction: 'pan-y' }}
+        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); updateScrubFromClientX(e.clientX) }}
+        onPointerMove={e => { if (e.buttons > 0 || e.pointerType === 'touch') updateScrubFromClientX(e.clientX) }}
+        onPointerUp={() => setScrubIndex(null)}
+        onPointerCancel={() => setScrubIndex(null)}
+        onPointerLeave={() => setScrubIndex(null)}
       >
         <defs>
           <linearGradient id={`trend-grad-${color.replace(/[^a-z]/gi, '')}`} x1="0" x2="0" y1="0" y2="1">
@@ -242,6 +276,22 @@ export default function TrendChart({
             {fmtDateLabel(filtered[i].date)}
           </text>
         ))}
+
+        {/* Scrub guideline + dot — tap or drag anywhere on the chart to see
+            any day's own value, not just the latest. */}
+        {scrubIndex != null && (
+          <>
+            <line
+              x1={pts[scrubIndex].x} y1={padY} x2={pts[scrubIndex].x} y2={h - padBottom}
+              stroke="var(--text-tertiary)" strokeWidth="1" strokeDasharray="2 3" opacity="0.5"
+            />
+            <circle
+              cx={pts[scrubIndex].x} cy={pts[scrubIndex].y} r="5.5"
+              fill={gradient ? 'url(#trend-dot-gradient)' : color}
+              stroke="var(--bg-card)" strokeWidth="2"
+            />
+          </>
+        )}
       </svg>
     </div>
   )

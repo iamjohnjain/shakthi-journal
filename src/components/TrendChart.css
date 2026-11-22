@@ -26,10 +26,17 @@
 .trend-chart-delta.down { color: var(--green); }
 .trend-chart-delta.up   { color: var(--red); }
 
+.trend-chart-scrub-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
 .trend-svg {
   display: block;
   overflow: visible;
 }
+.trend-svg--scrubbable { cursor: pointer; touch-action: pan-y; }
 
 .trend-empty {
   font-size: 13px;

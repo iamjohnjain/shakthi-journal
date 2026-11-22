@@ -674,15 +674,15 @@ export default function CheckInsSection() {
       {mode === 'capture' && (
         <div className="pci-capture">
           <div className="pci-capture-actions">
-            <button className="pci-capture-btn" onClick={() => setShowCamera(true)}>
+            <button className="pci-capture-btn" data-no-press-glow onClick={() => setShowCamera(true)}>
               <Camera size={22} />
               <span>Take Photo</span>
             </button>
-            <button className="pci-capture-btn" onClick={() => setShowRecorder(true)}>
+            <button className="pci-capture-btn" data-no-press-glow onClick={() => setShowRecorder(true)}>
               <Video size={22} />
               <span>Record &amp; Pick Frames</span>
             </button>
-            <button className="pci-capture-btn" onClick={() => uploadInputRef.current?.click()}>
+            <button className="pci-capture-btn" data-no-press-glow onClick={() => uploadInputRef.current?.click()}>
               <Upload size={22} />
               <span>Upload</span>
             </button>
@@ -770,6 +770,16 @@ export default function CheckInsSection() {
       {mode === 'compare' && (
         <div className="pci-compare">
           <div className="pci-chip-row">
+            {/* "All" first — rendered after the pose chips (its logical
+                "reset" position) it was consistently the one left-over chip
+                wrapping onto its own row; first position always lands on
+                row one regardless of how the rest wrap. */}
+            <button
+              className={`pci-chip pci-chip--all ${filterPose === 'all' ? 'pci-chip--active' : ''}`}
+              onClick={() => { setFilterPose('all'); setFilterCustomLabel(undefined) }}
+            >
+              All
+            </button>
             <PoseChips
               selected={filterPose}
               extraLabels={compareCustomLabels}
@@ -778,12 +788,6 @@ export default function CheckInsSection() {
                 setFilterCustomLabel(pose === 'custom' ? label : undefined)
               }}
             />
-            <button
-              className={`pci-chip pci-chip--all ${filterPose === 'all' ? 'pci-chip--active' : ''}`}
-              onClick={() => { setFilterPose('all'); setFilterCustomLabel(undefined) }}
-            >
-              All
-            </button>
           </div>
 
           <div className="pci-date-row">
