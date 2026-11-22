@@ -96,247 +96,128 @@ const PRESET_POSES: { pose: ProgressPhotoPose; label: string }[] = [
   { pose: 'flexed', label: 'Flexed' },
 ]
 
-// Tried in priority order. MP4/H.264 first — Safari/WebKit (this app's
-// actual native iOS wrapper) cannot play WebM back AT ALL, so recording
-// with no explicit mimeType (which picks webm on Chrome, where this
-// happened to "work" in earlier testing) produced a clip the review
-// <video> could never decode: a permanently black frame, a `duration` that
-// never left 0, and scrub/±0.1s controls that had nothing to act on since
-// there was nothing to seek into. This is the actual root cause, not a
-// video-element bug.
-const VIDEO_MIME_CANDIDATES = [
-  'video/mp4;codecs=h264',
-  'video/mp4;codecs=avc1',
-  'video/mp4',
-  'video/webm;codecs=vp9',
-  'video/webm;codecs=vp8',
-  'video/webm',
-]
+const MAX_FRAMES = 60
+const CAPTURE_INTERVAL_MS = 120
 
-/** `MediaRecorder.isTypeSupported` only promises this engine can RECORD a
-    container/codec — not that its own `<video>` element can play it back.
-    That record/playback mismatch is exactly what produced a silently-black
-    review screen (the blob recorded fine, but `loadedmetadata` never fired
-    because the browser couldn't decode its own recording). Requiring both
-    checks avoids picking a codec that falls into that gap in the first
-    place, rather than only catching it after the fact via onError. */
-function pickSupportedMimeType(): string | undefined {
-  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return undefined
-  const probe = document.createElement('video')
-  return VIDEO_MIME_CANDIDATES.find(t => MediaRecorder.isTypeSupported(t) && probe.canPlayType(t) !== '')
-}
+interface CapturedFrame { url: string; blob: Blob }
 
-const MIN_RECORDING_MS = 400
-
-/** Record a short clip, then scrub through it frame-by-frame and capture as
-    many stills as you want — each one handed to `onFrame` immediately, so
-    the caller can tag/save it right away. The raw clip itself is never
-    persisted; only the frames the user explicitly captures are. */
+/** Record-and-pick-a-frame, without ever recording an actual video file.
+    An earlier version used MediaRecorder to capture a real clip, then
+    played that blob back in a <video> to scrub through it — but a blob
+    one browser engine can RECORD isn't always one its own <video> element
+    can PLAY BACK (a real, confirmed codec/container mismatch: Safari/
+    WebKit, this app's actual native iOS wrapper, couldn't decode what it
+    had just recorded, producing a permanently black review screen no
+    matter which container/codec was requested). This sidesteps that
+    entire class of bug by never producing a video file at all: while
+    "recording," it just snapshots the live camera feed to a canvas every
+    ~120ms (the exact same canvas-capture technique the single-photo flow
+    already uses successfully), building up a short filmstrip of real
+    JPEG frames in memory. Reviewing/scrubbing is then just paging through
+    that array of plain images — nothing to decode, nothing that can come
+    back black. */
 function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void; onClose: () => void }) {
   const liveVideoRef = useRef<HTMLVideoElement>(null)
-  const reviewVideoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const recordedMimeRef = useRef<string>('video/webm')
-  const recordingStartedAtRef = useRef(0)
+  const captureIntervalRef = useRef<ReturnType<typeof setInterval>>()
+  const framesRef = useRef<CapturedFrame[]>([])
   const [phase, setPhase] = useState<'recording' | 'reviewing'>('recording')
   const [recording, setRecording] = useState(false)
-  const [clipUrl, setClipUrl] = useState<string | null>(null)
-  const [duration, setDuration] = useState(0)
-  const [currentTime, setCurrentTime] = useState(0)
+  const [frames, setFrames] = useState<CapturedFrame[]>([])
+  const [frameIndex, setFrameIndex] = useState(0)
   const [failed, setFailed] = useState(false)
   const [tooShort, setTooShort] = useState(false)
-  const [reviewFailed, setReviewFailed] = useState(false)
   const [savedCount, setSavedCount] = useState(0)
   // getUserMedia resolves asynchronously — without this, "Start Recording"
   // renders immediately but a tap before the stream actually arrives would
-  // silently no-op (startRecording's `if (!stream) return` guard), with
-  // zero feedback to the user. LiveCamera.tsx already guards its shutter
-  // button the same way.
+  // silently no-op, with zero feedback to the user. LiveCamera.tsx already
+  // guards its shutter button the same way.
   const [cameraReady, setCameraReady] = useState(false)
   // Defaults to front-facing — this is built for a continuous rep-check/
   // pose recording where the user is usually recording themselves, unlike
   // LiveCamera's single-shot photo (which defaults to the back camera).
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user')
 
-  useEffect(() => {
-    let cancelled = false
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setFailed(true)
-      return
-    }
+  function acquireCamera() {
     setCameraReady(false)
-    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
+    return navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
       .then(stream => {
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
         if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
         setCameraReady(true)
+        return stream
       })
-      .catch(() => { if (!cancelled) setFailed(true) })
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setFailed(true)
+      return
+    }
+    acquireCamera().catch(() => { if (!cancelled) setFailed(true) })
     return () => {
       cancelled = true
+      if (captureIntervalRef.current) clearInterval(captureIntervalRef.current)
       streamRef.current?.getTracks().forEach(t => t.stop())
-      if (clipUrl) URL.revokeObjectURL(clipUrl)
+      framesRef.current.forEach(f => URL.revokeObjectURL(f.url))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode])
 
+  function snapshotFrame(): Promise<CapturedFrame | null> {
+    const video = liveVideoRef.current
+    if (!video || !video.videoWidth) return Promise.resolve(null)
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return Promise.resolve(null)
+    ctx.drawImage(video, 0, 0)
+    return new Promise(resolve => {
+      canvas.toBlob(blob => resolve(blob ? { url: URL.createObjectURL(blob), blob } : null), 'image/jpeg', 0.9)
+    })
+  }
+
   function startRecording() {
-    const stream = streamRef.current
-    if (!stream) return
-    chunksRef.current = []
     setTooShort(false)
-    const mimeType = pickSupportedMimeType()
-    recordedMimeRef.current = mimeType || 'video/webm'
-    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-    recorder.onstop = () => {
-      streamRef.current?.getTracks().forEach(t => t.stop())
-      // A near-instant tap-record-tap-stop can produce a clip with no
-      // actual decodable frames — catch it here rather than showing a
-      // silently-black review screen the user can't explain.
-      if (Date.now() - recordingStartedAtRef.current < MIN_RECORDING_MS) {
-        setTooShort(true)
-        return
-      }
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || recordedMimeRef.current })
-      setClipUrl(URL.createObjectURL(blob))
-      setPhase('reviewing')
-    }
-    recordingStartedAtRef.current = Date.now()
-    recorder.start()
-    recorderRef.current = recorder
+    framesRef.current = []
     setRecording(true)
+    captureIntervalRef.current = setInterval(async () => {
+      if (framesRef.current.length >= MAX_FRAMES) { stopRecording(); return }
+      const frame = await snapshotFrame()
+      if (frame) framesRef.current = [...framesRef.current, frame]
+    }, CAPTURE_INTERVAL_MS)
   }
 
   function stopRecording() {
-    recorderRef.current?.stop()
+    if (captureIntervalRef.current) clearInterval(captureIntervalRef.current)
     setRecording(false)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    if (framesRef.current.length === 0) {
+      setTooShort(true)
+      return
+    }
+    setFrames(framesRef.current)
+    setFrameIndex(framesRef.current.length - 1)
+    setPhase('reviewing')
   }
 
   function retryAfterTooShort() {
     setTooShort(false)
     setFailed(false)
-    setCameraReady(false)
-    // Camera track was stopped on the aborted recorder's onstop — re-acquire.
-    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
-      .then(stream => {
-        streamRef.current = stream
-        if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
-        setCameraReady(true)
-      })
-      .catch(() => setFailed(true))
+    acquireCamera().catch(() => setFailed(true))
   }
 
-  function retryAfterReviewFailed() {
-    setReviewFailed(false)
-    setPhase('recording')
-    setCameraReady(false)
-    if (clipUrl) { URL.revokeObjectURL(clipUrl); setClipUrl(null) }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
-      .then(stream => {
-        streamRef.current = stream
-        if (liveVideoRef.current) liveVideoRef.current.srcObject = stream
-        setCameraReady(true)
-      })
-      .catch(() => setFailed(true))
+  function captureCurrentFrame() {
+    const frame = frames[frameIndex]
+    if (!frame) return
+    onFrame(frame.blob)
+    setSavedCount(c => c + 1)
   }
 
-  /** Chromium has a long-standing bug where a MediaRecorder-produced blob
-      reports `duration: Infinity` (and won't paint a real frame) until you
-      seek past the apparent end once — this forces the browser to actually
-      index the file. Without it the review video stays genuinely black
-      (confirmed, not just a styling issue) and the scrub range's `max`
-      becomes Infinity, so dragging it does nothing. Standard documented
-      workaround: seek absurdly far forward, wait for the duration to
-      resolve via `timeupdate`, then seek back near the start. */
-  /** A handful of devices/codec combinations report success (isTypeSupported
-      said yes, the recording "worked") but produce a blob whose video track
-      never actually paints a visible frame — `videoWidth`/`videoHeight` can
-      report a perfectly normal resolution with nothing real behind it, so
-      checking dimensions alone isn't enough (this was the gap that let the
-      black-screen bug through the first fix). This draws the frame the seek
-      landed on to a small offscreen canvas and checks for real, non-black
-      pixel data — the same test a human eye would apply, just automated. */
-  function probeFramePainted(video: HTMLVideoElement): boolean {
-    if (video.videoWidth <= 2 || video.videoHeight <= 2 || video.readyState < video.HAVE_CURRENT_DATA) {
-      return false
-    }
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.min(48, video.videoWidth)
-    canvas.height = Math.min(48, video.videoHeight)
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return true // can't probe — don't fail a frame that might be fine
-    try {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      let sum = 0
-      for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i + 1] + data[i + 2]
-      const avgChannel = sum / (data.length / 4)
-      return avgChannel >= 4 // effectively solid black otherwise
-    } catch {
-      return true // tainted/inaccessible canvas — same reasoning as above
-    }
-  }
-
-  function fixDurationThenSeekToStart(video: HTMLVideoElement) {
-    const finish = () => {
-      setDuration(video.duration)
-      let settled = false
-      const settleProbe = () => {
-        if (settled) return
-        settled = true
-        video.removeEventListener('seeked', onSeeked)
-        if (!probeFramePainted(video)) setReviewFailed(true)
-      }
-      const onSeeked = () => settleProbe()
-      video.addEventListener('seeked', onSeeked)
-      video.currentTime = 0.05
-      // A genuinely broken blob can fail to fire `seeked` at all for this
-      // second seek too — don't hang forever waiting for it, same fallback
-      // reasoning as the timeupdate listener below.
-      setTimeout(settleProbe, 800)
-    }
-    if (video.duration === Infinity || Number.isNaN(video.duration)) {
-      video.currentTime = Number.MAX_SAFE_INTEGER
-      let settled = false
-      const settle = () => {
-        if (settled) return
-        settled = true
-        video.removeEventListener('timeupdate', onTimeUpdate)
-        finish()
-      }
-      // A genuinely degenerate blob can just never fire `timeupdate` at all
-      // after the seek — nothing to resolve into. Without this fallback
-      // that hangs forever: no scrub controls (duration stays broken) and
-      // no error shown either, the exact silent-black-screen failure mode
-      // this whole function exists to avoid.
-      const onTimeUpdate = () => settle()
-      video.addEventListener('timeupdate', onTimeUpdate)
-      setTimeout(settle, 2000)
-    } else {
-      finish()
-    }
-  }
-
-  function captureFrame() {
-    const video = reviewVideoRef.current
-    if (!video || !video.videoWidth) return
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(video, 0, 0)
-    canvas.toBlob(blob => { if (blob) { onFrame(blob); setSavedCount(c => c + 1) } }, 'image/jpeg', 0.9)
-  }
-
-  function seek(delta: number) {
-    const video = reviewVideoRef.current
-    if (!video) return
-    video.currentTime = Math.min(duration, Math.max(0, video.currentTime + delta))
+  function stepFrame(delta: number) {
+    setFrameIndex(i => Math.min(frames.length - 1, Math.max(0, i + delta)))
   }
 
   if (failed) {
@@ -382,48 +263,22 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
             )}
           </div>
         </>
-      ) : reviewFailed ? (
-        <div className="vfc-too-short">
-          <p>That recording didn't come through right — try recording again.</p>
-          <button className="vfc-done-btn" onClick={retryAfterReviewFailed}>Try Again</button>
-        </div>
       ) : (
         <>
-          <video
-            ref={reviewVideoRef}
-            src={clipUrl ?? undefined}
-            playsInline
-            muted
-            className="vfc-video"
-            onLoadedMetadata={e => fixDurationThenSeekToStart(e.currentTarget)}
-            onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
-            // A blob MediaRecorder could successfully RECORD isn't always one
-            // the same browser engine can actually PLAY BACK — a known
-            // record/playback codec mismatch. When that happens,
-            // `loadedmetadata` never fires at all, so the existing duration-
-            // fix/black-frame-probe logic (which only runs *after* that
-            // event) never gets a chance to catch it — the video just sits
-            // there solid black with no error shown. This routes that
-            // silent decode failure to the same retry screen instead.
-            onError={() => setReviewFailed(true)}
-          />
+          <img src={frames[frameIndex]?.url} className="vfc-video" alt="Captured frame" />
           <div className="vfc-scrub-controls">
             {savedCount > 0 && <div className="vfc-saved-count">{savedCount} frame{savedCount === 1 ? '' : 's'} saved</div>}
             <input
               className="vfc-scrub-range"
-              type="range" min={0} max={duration || 0} step={0.03} value={currentTime}
-              onChange={e => {
-                const t = Number(e.target.value)
-                if (reviewVideoRef.current) reviewVideoRef.current.currentTime = t
-                setCurrentTime(t)
-              }}
+              type="range" min={0} max={Math.max(0, frames.length - 1)} step={1} value={frameIndex}
+              onChange={e => setFrameIndex(Number(e.target.value))}
             />
             <div className="vfc-scrub-row">
-              <button onClick={() => seek(-0.1)}>-0.1s</button>
-              <button className="vfc-capture-btn" onClick={captureFrame}>
+              <button onClick={() => stepFrame(-1)}>Prev</button>
+              <button className="vfc-capture-btn" onClick={captureCurrentFrame}>
                 <Camera size={16} /> Save This Frame
               </button>
-              <button onClick={() => seek(0.1)}>+0.1s</button>
+              <button onClick={() => stepFrame(1)}>Next</button>
             </div>
             <button className="vfc-done-btn" onClick={onClose}>Done</button>
           </div>

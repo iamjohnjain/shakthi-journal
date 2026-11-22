@@ -191,12 +191,19 @@
 
 /* ── Compare ──────────────────────────────────────────────────────── */
 
+/* A fixed 3-column grid, not flex-wrap — flex-wrap distributes items by
+   however much horizontal space each one's own text happens to take,
+   which is exactly why "All" (or, after reordering it first, "Flexed")
+   kept ending up alone on a trailing row instead of evenly paired with
+   others. Six items (All + 5 poses) always lands as two clean rows of
+   three regardless of each label's width. */
 .pci-chip-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-bottom: 16px;
 }
+.pci-chip-row .pci-chip { width: 100%; text-align: center; }
 
 .pci-date-row {
   display: flex;

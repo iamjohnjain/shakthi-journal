@@ -141,20 +141,22 @@ export default function WeightGoalEditor({ onSaved, onCancel }: {
             <span className="wge-unit">lbs</span>
           </div>
         </div>
+      </div>
+
+      <div className="wge-row">
+        <div className="wge-field">
+          <label>Pace</label>
+          <div className="wge-input-wrap">
+            <input type="text" inputMode="decimal" value={rate}
+              onChange={e => onRateChange(e.target.value)} onFocus={e => e.target.select()} />
+            <span className="wge-unit">lbs/wk</span>
+          </div>
+        </div>
         <div className="wge-field">
           <label>Target Date</label>
           <button className="wge-date-btn" onClick={() => setShowCalendar(true)}>
             {targetDate ? fmtDate(targetDate) : 'Pick A Date'}
           </button>
-        </div>
-      </div>
-
-      <div className="wge-rate-row">
-        <label>Pace</label>
-        <div className="wge-input-wrap wge-rate-wrap">
-          <input type="text" inputMode="decimal" value={rate}
-            onChange={e => onRateChange(e.target.value)} onFocus={e => e.target.select()} />
-          <span className="wge-unit">lbs/week</span>
         </div>
       </div>
 

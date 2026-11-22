@@ -4,17 +4,14 @@
 
 .wge { display: flex; flex-direction: column; gap: 14px; }
 
-/* Current Weight / Goal Weight / Target Date — one row, always, scrolling
-   horizontally rather than wrapping if a narrow screen can't fit all three
-   comfortably at once. */
+/* Current Weight / Goal Weight on one fixed row, Pace / Target Date on a
+   second — always exactly two equal columns, no horizontal scrolling and
+   nothing that can overflow the screen. */
 .wge-row {
-  display: flex; gap: 10px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 2px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
 }
 .wge-field {
-  flex: 1 0 auto; min-width: 104px;
+  min-width: 0;
   display: flex; flex-direction: column; gap: 6px;
 }
 .wge-field label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); white-space: nowrap; }
@@ -37,13 +34,6 @@
   padding: 9px 10px; color: var(--text-primary); font-size: 14px; font-weight: 700;
   text-align: left; cursor: pointer; white-space: nowrap;
 }
-
-.wge-rate-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-}
-.wge-rate-row label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.wge-rate-wrap { width: 140px; justify-content: flex-end; }
-.wge-rate-wrap input { text-align: right; }
 
 /* Plain background with just a border ring — the rate/breakdown numbers
    were previously drawn with the full gradient-ring background-clip
