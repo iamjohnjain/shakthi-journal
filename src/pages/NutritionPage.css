@@ -606,6 +606,17 @@
   border-style: solid;
   border-image: var(--gradient-brand-wide) 1;
 }
+/* The rainbow underline sliding over to whichever tab is selected is
+   already the selection indicator — a full square press-glow ring on top
+   of that (the global default for any button) read as a redundant,
+   competing shape. Opted out via data-no-press-glow; this is the only
+   feedback a tap gets instead — a quick glow-white flash on the label
+   text itself. */
+.add-modal-tabs button:active {
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+  transition: color .1s ease, text-shadow .1s ease;
+}
 
 .add-modal-body { overflow-y: auto; padding: 16px 20px; flex: 1; }
 
@@ -619,11 +630,13 @@
   display: flex; align-items: center; justify-content: space-between;
   background: var(--bg-tertiary); border-radius: 12px; padding: 12px 14px;
 }
-.goal-edit-points-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.goal-edit-points-label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.goal-edit-locked-hint { font-size: 10.5px; font-weight: 500; color: var(--text-tertiary); }
 .goal-edit-points input {
   width: 100px; text-align: right; font-size: 20px; font-weight: 700;
   background: none; border: none; color: var(--text-primary);
 }
+.goal-edit-points input:disabled { color: var(--text-tertiary); }
 .goal-edit-remaining {
   font-size: 12.5px; font-weight: 600; color: var(--text-primary);
   border-radius: 10px; padding: 10px 12px;

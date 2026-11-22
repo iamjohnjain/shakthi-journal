@@ -26,7 +26,9 @@ import TrendChart from '../components/TrendChart'
 import WheelPicker from '../components/WheelPicker'
 import LiveCamera from '../components/LiveCamera'
 import VoiceListeningOverlay from '../components/VoiceListeningOverlay'
-import { localDateStr, addLocalDays } from '../data/config'
+import { localDateStr, addLocalDays, kgToLbs } from '../data/config'
+import { getProfile } from '../db/profileStore'
+import { impliedRateLbsPerWeek } from '../lib/nutritionMath'
 import type { NutritionGoals } from '../db'
 import { AnimatePresence } from 'motion/react'
 import AnimatedOverlay from '../components/motion/AnimatedOverlay'
@@ -1189,12 +1191,32 @@ function GoalEditModal({ goals, onSave, onClose }: {
   // most recent change came from a macro field (which always recomputes
   // calories from the three) or from calories itself (which instead shows
   // a "points remaining" readout — the gamified budget the user asked for —
-  // rather than silently rewriting the macros for them.
+  // rather than silently rewriting the macros for them. This whole
+  // calories-float behavior only applies when there's no active
+  // Weight-Loss Rate goal — see rateGoalProfile below.
   const [calories, setCalories] = useState(String(goals.calories))
   const [protein,  setProtein]  = useState(String(goals.proteinG))
   const [carbs,    setCarbs]    = useState(String(goals.carbsG))
   const [fat,      setFat]      = useState(String(goals.fatG))
   const [lastEdited, setLastEdited] = useState<'calories' | 'macro'>('macro')
+
+  // Whether a Goal Weight + Target Date are already set (via the
+  // Weight-Loss Rate tab) determines which of the two macro-editing modes
+  // this tab runs in: with an active rate goal, calories are the fixed
+  // budget the rate computed and macros trade against each other to stay
+  // within it; without one, macros are the priority and calories float
+  // to match, with the implied pace explained below instead.
+  const [rateGoalProfile, setRateGoalProfile] = useState<{ goalWeightLbs: number; activityLevel: string } | null | undefined>(undefined)
+  useEffect(() => {
+    getProfile().then(profile => {
+      if (profile?.goalWeightKg != null && profile?.goalDate) {
+        setRateGoalProfile({ goalWeightLbs: kgToLbs(profile.goalWeightKg), activityLevel: profile.activityLevel || 'moderate' })
+      } else {
+        setRateGoalProfile(null)
+      }
+    })
+  }, [])
+  const hasRateGoal = !!rateGoalProfile
 
   function onMacroChange(setter: (v: string) => void, raw: string) {
     const clean = raw.replace(/[^0-9]/g, '')
@@ -1207,11 +1229,51 @@ function GoalEditModal({ goals, onSave, onClose }: {
   const macroCals = macroCaloriesFrom(p, c, f)
 
   useEffect(() => {
-    if (lastEdited === 'macro') setCalories(String(macroCals))
-  }, [lastEdited, macroCals])
+    if (!hasRateGoal && lastEdited === 'macro') setCalories(String(macroCals))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastEdited, macroCals, hasRateGoal])
 
   const calNum = Number(calories) || 0
   const remainingPoints = lastEdited === 'calories' ? calNum - macroCals : 0
+
+  // Rate-priority mode: editing protein/fat redistributes into carbs to
+  // hold the fixed calorie budget; editing carbs redistributes into fat
+  // (carbs can't absorb its own edit). Never touches `calories` itself.
+  function onRateProteinChange(raw: string) {
+    const clean = raw.replace(/[^0-9]/g, '')
+    setProtein(clean)
+    const newP = Number(clean) || 0
+    setCarbs(String(Math.max(0, Math.round((calNum - newP * 4 - f * 9) / 4))))
+  }
+  function onRateFatChange(raw: string) {
+    const clean = raw.replace(/[^0-9]/g, '')
+    setFat(clean)
+    const newF = Number(clean) || 0
+    setCarbs(String(Math.max(0, Math.round((calNum - p * 4 - newF * 9) / 4))))
+  }
+  function onRateCarbsChange(raw: string) {
+    const clean = raw.replace(/[^0-9]/g, '')
+    setCarbs(clean)
+    const newC = Number(clean) || 0
+    setFat(String(Math.max(0, Math.round((calNum - p * 4 - newC * 4) / 9))))
+  }
+
+  // Macro-priority mode only: what weekly pace this calorie number actually
+  // implies, so floating the calories by editing a macro doesn't leave the
+  // number meaning-less — it gets explained back in the same rate terms
+  // the Weight-Loss Rate tab uses, using whatever goal weight is on file
+  // even without a committed target date.
+  const [impliedGoalWeightLbs, setImpliedGoalWeightLbs] = useState<number | null>(null)
+  const [impliedActivityLevel, setImpliedActivityLevel] = useState('moderate')
+  useEffect(() => {
+    getProfile().then(profile => {
+      if (profile?.goalWeightKg != null) setImpliedGoalWeightLbs(kgToLbs(profile.goalWeightKg))
+      if (profile?.activityLevel) setImpliedActivityLevel(profile.activityLevel)
+    })
+  }, [])
+  const impliedRate = (!hasRateGoal && impliedGoalWeightLbs != null && lastEdited === 'macro')
+    ? impliedRateLbsPerWeek(calNum, impliedGoalWeightLbs, impliedActivityLevel)
+    : null
 
   function saveManual() {
     onSave({ calories: calNum, proteinG: p, carbsG: c, fatG: f })
@@ -1228,21 +1290,25 @@ function GoalEditModal({ goals, onSave, onClose }: {
           </div>
 
           <div className="add-modal-tabs">
-            <button className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>Set Macros</button>
-            <button className={mode === 'rate' ? 'active' : ''} onClick={() => setMode('rate')}>Weight-Loss Rate</button>
+            <button data-no-press-glow className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>Set Macros</button>
+            <button data-no-press-glow className={mode === 'rate' ? 'active' : ''} onClick={() => setMode('rate')}>Weight-Loss Rate</button>
           </div>
 
           <div className="add-modal-body goal-edit-body">
             {mode === 'manual' ? (
               <>
                 <div className="goal-edit-points">
-                  <span className="goal-edit-points-label">Calorie Budget</span>
+                  <span className="goal-edit-points-label">
+                    Calorie Budget
+                    {hasRateGoal && <span className="goal-edit-locked-hint">Locked by your Weight-Loss Rate goal</span>}
+                  </span>
                   <input type="text" inputMode="numeric" pattern="[0-9]*" value={calories}
+                    disabled={hasRateGoal}
                     onChange={e => { setCalories(e.target.value.replace(/[^0-9]/g, '')); setLastEdited('calories') }}
                     onFocus={e => e.target.select()} />
                 </div>
 
-                {lastEdited === 'calories' && (
+                {!hasRateGoal && lastEdited === 'calories' && (
                   <div className={`goal-edit-remaining ${remainingPoints < 0 ? 'goal-edit-remaining--over' : ''}`}>
                     {remainingPoints >= 0
                       ? <>🎯 {remainingPoints} points left to spend — up to {Math.floor(remainingPoints / 4)}g protein, {Math.floor(remainingPoints / 4)}g carbs, or {Math.floor(remainingPoints / 9)}g fat</>
@@ -1250,21 +1316,32 @@ function GoalEditModal({ goals, onSave, onClose }: {
                   </div>
                 )}
 
+                {impliedRate != null && (
+                  <div className="goal-edit-remaining">
+                    {impliedRate >= 0
+                      ? <>📉 At this calorie level, you're on pace to lose ~{impliedRate.toFixed(1)} lbs/week</>
+                      : <>📈 At this calorie level, you're on pace to gain ~{Math.abs(impliedRate).toFixed(1)} lbs/week</>}
+                  </div>
+                )}
+
                 <div className="goal-edit-macro-grid">
                   <div className="goal-edit-macro-field">
                     <label>Protein (g)</label>
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={protein}
-                      onChange={e => onMacroChange(setProtein, e.target.value)} onFocus={e => e.target.select()} />
+                      onChange={e => hasRateGoal ? onRateProteinChange(e.target.value) : onMacroChange(setProtein, e.target.value)}
+                      onFocus={e => e.target.select()} />
                   </div>
                   <div className="goal-edit-macro-field">
                     <label>Carbs (g)</label>
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbs}
-                      onChange={e => onMacroChange(setCarbs, e.target.value)} onFocus={e => e.target.select()} />
+                      onChange={e => hasRateGoal ? onRateCarbsChange(e.target.value) : onMacroChange(setCarbs, e.target.value)}
+                      onFocus={e => e.target.select()} />
                   </div>
                   <div className="goal-edit-macro-field">
                     <label>Fat (g)</label>
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={fat}
-                      onChange={e => onMacroChange(setFat, e.target.value)} onFocus={e => e.target.select()} />
+                      onChange={e => hasRateGoal ? onRateFatChange(e.target.value) : onMacroChange(setFat, e.target.value)}
+                      onFocus={e => e.target.select()} />
                   </div>
                 </div>
 

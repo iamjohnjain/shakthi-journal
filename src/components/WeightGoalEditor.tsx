@@ -106,6 +106,41 @@ export default function WeightGoalEditor({ onSaved, onCancel }: {
     ? calcNutrition(goalLbs, activityLevel, rateNum)
     : null
 
+  // The calorie total is the one fixed, non-editable thing this tab
+  // produces — editing a macro here redistributes the OTHER two to keep
+  // that same total, it never changes the total itself (that's what makes
+  // this "rate priority": the calorie budget comes from the pace/date
+  // above, not from the macros). Reseeded whenever the rate inputs
+  // actually change the underlying calorie target; otherwise these are
+  // just directly edited by the handlers below.
+  const [proteinG, setProteinG] = useState(0)
+  const [carbsG,   setCarbsG]   = useState(0)
+  const [fatG,     setFatG]     = useState(0)
+  useEffect(() => {
+    if (preview) {
+      setProteinG(preview.proteinG)
+      setCarbsG(preview.carbsG)
+      setFatG(preview.fatG)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview?.calories, preview?.proteinG, preview?.carbsG, preview?.fatG])
+
+  function onProteinEdit(raw: string) {
+    const p = Number(raw.replace(/[^0-9]/g, '')) || 0
+    setProteinG(p)
+    if (preview) setCarbsG(Math.max(0, Math.round((preview.calories - p * 4 - fatG * 9) / 4)))
+  }
+  function onFatEdit(raw: string) {
+    const f = Number(raw.replace(/[^0-9]/g, '')) || 0
+    setFatG(f)
+    if (preview) setCarbsG(Math.max(0, Math.round((preview.calories - proteinG * 4 - f * 9) / 4)))
+  }
+  function onCarbsEdit(raw: string) {
+    const c = Number(raw.replace(/[^0-9]/g, '')) || 0
+    setCarbsG(c)
+    if (preview) setFatG(Math.max(0, Math.round((preview.calories - proteinG * 4 - c * 4) / 9)))
+  }
+
   async function handleSave() {
     if (!preview) return
     setSaving(true)
@@ -119,7 +154,7 @@ export default function WeightGoalEditor({ onSaved, onCancel }: {
       })
     }
     setSaving(false)
-    onSaved(preview)
+    onSaved({ calories: preview.calories, proteinG, carbsG, fatG })
   }
 
   return (
@@ -169,8 +204,23 @@ export default function WeightGoalEditor({ onSaved, onCancel }: {
       {preview && (
         <div className="wge-preview">
           <div className="wge-preview-cals">{preview.calories} cal/day</div>
+          <div className="wge-preview-hint">Tap a macro to see what it costs from the others</div>
           <div className="wge-preview-macros">
-            {preview.proteinG}g protein · {preview.carbsG}g carbs · {preview.fatG}g fat
+            <label className="wge-macro-field">
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={proteinG}
+                onChange={e => onProteinEdit(e.target.value)} onFocus={e => e.target.select()} />
+              <span>g protein</span>
+            </label>
+            <label className="wge-macro-field">
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbsG}
+                onChange={e => onCarbsEdit(e.target.value)} onFocus={e => e.target.select()} />
+              <span>g carbs</span>
+            </label>
+            <label className="wge-macro-field">
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fatG}
+                onChange={e => onFatEdit(e.target.value)} onFocus={e => e.target.select()} />
+              <span>g fat</span>
+            </label>
           </div>
         </div>
       )}

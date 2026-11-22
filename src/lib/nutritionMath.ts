@@ -27,3 +27,14 @@ export function calcNutrition(goalWeightLbs: number, activityLevel: string, rate
   const carbsG = Math.max(0, Math.round((calories - proteinCal) * 0.7 / 4))
   return { calories, proteinG, fatG, carbsG, waterMl: 3785 }
 }
+
+/** The inverse of calcNutrition's calorie formula — given a calorie number
+    someone arrived at by editing macros directly (not through the rate
+    picker), works out what weekly weight-change pace that number actually
+    implies, so a macro-first edit can still be explained in rate terms
+    instead of leaving the calorie number as a bare, context-free total. */
+export function impliedRateLbsPerWeek(calories: number, goalWeightLbs: number, activityLevel: string): number {
+  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] ?? 14
+  const baseCalories = goalWeightLbs * multiplier
+  return (baseCalories - calories) / CALORIE_DEFICIT_PER_LB_PER_WEEK
+}
