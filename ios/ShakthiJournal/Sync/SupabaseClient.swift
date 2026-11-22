@@ -183,56 +183,19 @@ enum SupabaseClient {
         }
         req.httpBody = try JSONEncoder().encode(rows)
 
-        // ── REQUEST LOG ───────────────────────────────────────────────────────
-        let authValue  = req.value(forHTTPHeaderField: "Authorization") ?? "MISSING"
-        let apikeyValue = req.value(forHTTPHeaderField: "apikey") ?? "MISSING"
-
-        // Show only the first 15 chars of each credential so the full token is never printed
-        let authPreview   = authValue   == "MISSING" ? "⚠️  MISSING" : "\(authValue.prefix(15))…"
-        let apikeyPreview = apikeyValue == "MISSING" ? "⚠️  MISSING" : "\(apikeyValue.prefix(15))…"
-
-        // Decode the encoded body and pretty-print only the first record for inspection
-        var firstRecordPretty = "<encode failed>"
-        if let body = req.httpBody,
-           let arr  = try? JSONSerialization.jsonObject(with: body) as? [[String: Any]],
-           let first = arr.first,
-           let pretty = try? JSONSerialization.data(withJSONObject: first, options: [.prettyPrinted, .sortedKeys]),
-           let str = String(data: pretty, encoding: .utf8) {
-            firstRecordPretty = str
-        }
-
-        print("""
-
-        ┌─ [SupabaseClient] upsertHealthMetrics ─────────────────────────────
-        │ REQUEST
-        │   URL:           \(url.absoluteString)
-        │   Method:        \(req.httpMethod ?? "?")
-        │   Authorization: \(authPreview)
-        │   apikey:        \(apikeyPreview)
-        │   Content-Type:  \(req.value(forHTTPHeaderField: "Content-Type") ?? "MISSING")
-        │   Prefer:        \(req.value(forHTTPHeaderField: "Prefer") ?? "MISSING")
-        │   Total records: \(metrics.count)
-        │   Body — record 1 of \(metrics.count):
-        \(firstRecordPretty.split(separator: "\n").map { "│     \($0)" }.joined(separator: "\n"))
-        │─────────────────────────────────────────────────────────────────────
-        """)
-        // ── END REQUEST LOG ───────────────────────────────────────────────────
-
+        // Previously this logged the full request URL, truncated credential
+        // prefixes, a fully decoded health-data record body, and the raw
+        // response body on every sync — unconditionally, in Release builds
+        // too, so it would land in the device's system console/Console.app
+        // logs for any real user. None of that is appropriate to log at
+        // all: no token material, no health record contents, no response
+        // bodies. Only a non-identifying outcome is logged, and only on
+        // failure — a successful sync is silent.
         let (data, response) = try await URLSession.shared.data(for: req)
-
-        // ── RESPONSE LOG ──────────────────────────────────────────────────────
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let responseBody = String(data: data, encoding: .utf8)
-            .map { $0.isEmpty ? "<empty — expected for return=minimal on success>" : $0 }
-            ?? "<non-UTF8 body>"
-        print("""
-        │ RESPONSE
-        │   Status: \(status)
-        │   Body:   \(responseBody)
-        └─────────────────────────────────────────────────────────────────────
-
-        """)
-        // ── END RESPONSE LOG ──────────────────────────────────────────────────
+        if !(200...299).contains(status) {
+            print("[SupabaseClient] upsertHealthMetrics failed: HTTP \(status)")
+        }
 
         try assertSuccess(response, data: data)
         return metrics.count
