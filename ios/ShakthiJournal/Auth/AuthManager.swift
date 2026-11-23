@@ -153,6 +153,12 @@ final class AuthManager {
         emailConfirmationPending = false
         googleSignInError = nil
         authState = .signedOut
+        // Clear the WebView's persistent session (cookies/localStorage/
+        // IndexedDB/cache) before any new identity's WebAppView instance is
+        // created — otherwise a second account signing in afterward would
+        // load the same shared, persistent WKWebsiteDataStore and inherit
+        // this account's web-side session. See WebSessionBoundary.
+        WebSessionBoundary.clearPrivilegedWebSession()
     }
 
     // MARK: - Private
@@ -194,6 +200,7 @@ final class AuthManager {
             print("[AuthManager] Refresh token rejected (\(code)) — clearing Keychain session")
             KeychainHelper.clearSession()
             authState = .signedOut
+            WebSessionBoundary.clearPrivilegedWebSession()
         } catch {
             // Transient network/server error — already running on the cached
             // session set above, so there's nothing further to do.
@@ -215,6 +222,7 @@ final class AuthManager {
         guard let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey) else {
             KeychainHelper.clearSession()
             authState = .signedOut
+            WebSessionBoundary.clearPrivilegedWebSession()
             throw SupabaseError.sessionExpired
         }
         do {
@@ -231,6 +239,7 @@ final class AuthManager {
             // SyncEngine catches .sessionExpired to show the right UI.
             KeychainHelper.clearSession()
             authState = .signedOut
+            WebSessionBoundary.clearPrivilegedWebSession()
             throw SupabaseError.sessionExpired
         }
     }

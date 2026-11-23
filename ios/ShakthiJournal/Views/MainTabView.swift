@@ -15,6 +15,12 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showHealthSync = false
+    @State private var webBoundaryState: WebBoundaryState = .loading
+    /// Changing this forces SwiftUI to tear down and recreate `WebAppView`
+    /// (and with it, a brand-new `WKWebView`) — used by Retry so a stuck
+    /// load always restarts clean rather than reaching into a WebView that
+    /// may itself be in a bad state.
+    @State private var webViewGeneration = UUID()
 
     var body: some View {
         webContent
@@ -56,18 +62,33 @@ struct MainTabView: View {
            let uid     = auth.userId,
            let email   = auth.userEmail {
 
-            WebAppView(
-                accessToken:  token,
-                refreshToken: refresh,
-                userId:       uid,
-                userEmail:    email,
-                onMessage:    handleWebMessage,
-                pendingPath:  Binding(
-                    get: { deepLink.pendingPath },
-                    set: { deepLink.pendingPath = $0 }
+            ZStack(alignment: .top) {
+                WebAppView(
+                    accessToken:  token,
+                    refreshToken: refresh,
+                    userId:       uid,
+                    userEmail:    email,
+                    onMessage:    handleWebMessage,
+                    pendingPath:  Binding(
+                        get: { deepLink.pendingPath },
+                        set: { deepLink.pendingPath = $0 }
+                    ),
+                    onStateChange: { webBoundaryState = $0 }
                 )
-            )
-            .ignoresSafeArea(edges: .top)
+                .id(webViewGeneration)
+                .ignoresSafeArea(edges: .top)
+
+                if webBoundaryState != .ready {
+                    WebBoundaryOverlay(state: webBoundaryState) {
+                        webViewGeneration = UUID()
+                        webBoundaryState = .loading
+                    }
+                    .ignoresSafeArea()
+                }
+                if webBoundaryState == .blockedNavigation {
+                    BlockedNavigationBanner()
+                }
+            }
 
         } else {
             Color.black

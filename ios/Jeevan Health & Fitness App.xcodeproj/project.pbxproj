@@ -29,7 +29,30 @@
 		A1B2C3D4E5F6A1B2C3D4E545 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E546 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E5A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E5A0 /* Assets.xcassets */; };
+		A1B2C3D4E5F6A1B2C3D4E610 /* TrustedWebOrigin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E600 /* TrustedWebOrigin.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E611 /* WebNavigationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E601 /* WebNavigationPolicy.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E612 /* BridgeMessageValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E602 /* BridgeMessageValidator.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E613 /* DeepLinkValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E603 /* DeepLinkValidator.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E614 /* WebSessionBoundary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E604 /* WebSessionBoundary.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E615 /* WebBoundaryState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E605 /* WebBoundaryState.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E701 /* WebBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E700 /* WebBoundaryTests.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E710 /* TrustedWebOrigin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E600 /* TrustedWebOrigin.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E711 /* WebNavigationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E601 /* WebNavigationPolicy.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E712 /* BridgeMessageValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E602 /* BridgeMessageValidator.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E713 /* DeepLinkValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E603 /* DeepLinkValidator.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E714 /* WebSessionBoundary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E604 /* WebSessionBoundary.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E715 /* WebBoundaryState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E605 /* WebBoundaryState.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1B2C3D4E5F6A1B2C3D4E708 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1B2C3D4E5F6A1B2C3D4E561 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D4E5F6A1B2C3D4E560;
+			remoteInfo = Jeevan;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A1B2C3D4E5F6A1B2C3D4E510 /* Jeevan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Jeevan.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,6 +82,14 @@
 		A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E5A0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E600 /* TrustedWebOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustedWebOrigin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E601 /* WebNavigationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebNavigationPolicy.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E602 /* BridgeMessageValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessageValidator.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E603 /* DeepLinkValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkValidator.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E604 /* WebSessionBoundary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSessionBoundary.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E605 /* WebBoundaryState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebBoundaryState.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E700 /* WebBoundaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebBoundaryTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E702 /* JeevanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JeevanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +102,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D4E5F6A1B2C3D4E704 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F6A1B2C3D4E510 /* Jeevan.app */,
+				A1B2C3D4E5F6A1B2C3D4E702 /* JeevanTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -94,6 +133,7 @@
 				A1B2C3D4E5F6A1B2C3D4E505 /* Models */,
 				A1B2C3D4E5F6A1B2C3D4E506 /* Sync */,
 				A1B2C3D4E5F6A1B2C3D4E507 /* Views */,
+				A1B2C3D4E5F6A1B2C3D4E620 /* WebBoundary */,
 				A1B2C3D4E5F6A1B2C3D4E522 /* Info.plist */,
 				A1B2C3D4E5F6A1B2C3D4E523 /* ShakthiJournal.entitlements */,
 			);
@@ -174,9 +214,31 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F6A1B2C3D4E501 /* ShakthiJournal */,
+				A1B2C3D4E5F6A1B2C3D4E703 /* ShakthiJournalTests */,
 				A1B2C3D4E5F6A1B2C3D4E526 /* Frameworks */,
 				A1B2C3D4E5F6A1B2C3D4E500 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E620 /* WebBoundary */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E600 /* TrustedWebOrigin.swift */,
+				A1B2C3D4E5F6A1B2C3D4E601 /* WebNavigationPolicy.swift */,
+				A1B2C3D4E5F6A1B2C3D4E602 /* BridgeMessageValidator.swift */,
+				A1B2C3D4E5F6A1B2C3D4E603 /* DeepLinkValidator.swift */,
+				A1B2C3D4E5F6A1B2C3D4E604 /* WebSessionBoundary.swift */,
+				A1B2C3D4E5F6A1B2C3D4E605 /* WebBoundaryState.swift */,
+			);
+			path = WebBoundary;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6A1B2C3D4E703 /* ShakthiJournalTests */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A1B2C3D4E700 /* WebBoundaryTests.swift */,
+			);
+			path = ShakthiJournalTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -199,6 +261,24 @@
 			productReference = A1B2C3D4E5F6A1B2C3D4E510 /* Jeevan.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1B2C3D4E5F6A1B2C3D4E707 /* JeevanTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4E5F6A1B2C3D4E70C /* Build configuration list for PBXNativeTarget "JeevanTests" */;
+			buildPhases = (
+				A1B2C3D4E5F6A1B2C3D4E705 /* Sources */,
+				A1B2C3D4E5F6A1B2C3D4E704 /* Frameworks */,
+				A1B2C3D4E5F6A1B2C3D4E706 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1B2C3D4E5F6A1B2C3D4E709 /* PBXTargetDependency */,
+			);
+			name = JeevanTests;
+			productName = JeevanTests;
+			productReference = A1B2C3D4E5F6A1B2C3D4E702 /* JeevanTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -211,6 +291,10 @@
 				TargetAttributes = {
 					A1B2C3D4E5F6A1B2C3D4E560 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					A1B2C3D4E5F6A1B2C3D4E707 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = A1B2C3D4E5F6A1B2C3D4E560;
 					};
 				};
 			};
@@ -228,6 +312,7 @@
 			projectRoot = "";
 			targets = (
 				A1B2C3D4E5F6A1B2C3D4E560 /* Jeevan */,
+				A1B2C3D4E5F6A1B2C3D4E707 /* JeevanTests */,
 			);
 		};
 /* End PBXProject section */
@@ -238,6 +323,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D4E5F6A1B2C3D4E5A1 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4E5F6A1B2C3D4E706 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,10 +359,38 @@
 				A1B2C3D4E5F6A1B2C3D4E544 /* WebAppView.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D4E545 /* MainTabView.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D4E546 /* SettingsView.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E610 /* TrustedWebOrigin.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E611 /* WebNavigationPolicy.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E612 /* BridgeMessageValidator.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E613 /* DeepLinkValidator.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E614 /* WebSessionBoundary.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E615 /* WebBoundaryState.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4E5F6A1B2C3D4E705 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3D4E5F6A1B2C3D4E701 /* WebBoundaryTests.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E710 /* TrustedWebOrigin.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E711 /* WebNavigationPolicy.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E712 /* BridgeMessageValidator.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E713 /* DeepLinkValidator.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E714 /* WebSessionBoundary.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E715 /* WebBoundaryState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1B2C3D4E5F6A1B2C3D4E709 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D4E5F6A1B2C3D4E560 /* Jeevan */;
+			targetProxy = A1B2C3D4E5F6A1B2C3D4E708 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A1B2C3D4E5F6A1B2C3D4E580 /* Debug */ = {
@@ -440,6 +560,42 @@
 			};
 			name = Release;
 		};
+		A1B2C3D4E5F6A1B2C3D4E70A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "jeevan.health.fitness.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jeevan.app/Jeevan";
+			};
+			name = Debug;
+		};
+		A1B2C3D4E5F6A1B2C3D4E70B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "jeevan.health.fitness.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jeevan.app/Jeevan";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -457,6 +613,15 @@
 			buildConfigurations = (
 				A1B2C3D4E5F6A1B2C3D4E582 /* Debug */,
 				A1B2C3D4E5F6A1B2C3D4E583 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D4E5F6A1B2C3D4E70C /* Build configuration list for PBXNativeTarget "JeevanTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4E5F6A1B2C3D4E70A /* Debug */,
+				A1B2C3D4E5F6A1B2C3D4E70B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

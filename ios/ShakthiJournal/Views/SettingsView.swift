@@ -46,7 +46,7 @@ struct SettingsView: View {
                     Section("About") {
                         LabeledRow(label: "App",       icon: "app",         value: "Jeevan")
                         LabeledRow(label: "Version",   icon: "number",       value: "iOS 2.0")
-                        LabeledRow(label: "Platform",  icon: "globe",        value: "jeevan-health-fitness-app.pages.dev")
+                        LabeledRow(label: "Platform",  icon: "globe",        value: TrustedWebOrigin.production.host)
                     }
                 }
                 .scrollContentBackground(.hidden)

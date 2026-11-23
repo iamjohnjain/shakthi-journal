@@ -148,6 +148,16 @@ enum SupabaseClient {
         return SupabaseSession(accessToken: accessToken, refreshToken: refreshToken, user: user)
     }
 
+    /// Verifies an access token with Supabase and returns the user it
+    /// actually belongs to. Used anywhere a token arrives from a less-
+    /// trusted source than a direct sign-in/refresh response (e.g. the
+    /// JS → native bridge's `sessionRefreshed` message) — the caller is
+    /// expected to additionally confirm the returned user id matches
+    /// whoever is currently signed in natively before persisting anything.
+    static func verifiedUser(accessToken: String) async throws -> SupabaseUser {
+        try await fetchUser(accessToken: accessToken)
+    }
+
     private static func fetchUser(accessToken: String) async throws -> SupabaseUser {
         var req = URLRequest(url: authURL("user"))
         req.httpMethod = "GET"

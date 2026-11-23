@@ -1,103 +1,133 @@
 import SwiftUI
 import WebKit
 
-/// Full-screen WKWebView that loads the Shakthi Journal web app.
+/// Full-screen WKWebView that loads the Jeevan web app — hardened to a
+/// single exact trusted origin (`TrustedWebOrigin.production`). See
+/// `docs/IOS_WEB_ORIGIN_ARCHITECTURE.md` for the bundled-vs-remote tradeoff
+/// and `docs/APP_STORE_READINESS.md` (Milestone 1B) for the full threat
+/// model this file implements against.
 ///
-/// Session handoff: the native Keychain session is injected into the WebView's
-/// localStorage before the page scripts run. The Supabase JS client reads
-/// localStorage on init, so the user appears already signed in — no second
-/// login required.
+/// Session handoff: the native Keychain session is injected into the
+/// WebView's localStorage via a document-start script, origin-gated as its
+/// very first executable statement (see `sessionScript()`). The Supabase JS
+/// client reads localStorage on init, so the user appears already signed
+/// in — no second login required.
 ///
-/// After the initial injection the WebView manages its own token refresh.
-/// When the user signs out natively, ContentView destroys this view, which
-/// also destroys the WKWebView and its isolated localStorage.
+/// After the initial injection the WebView manages its own token refresh,
+/// relayed back to native via the `sessionRefreshed` bridge message —
+/// which is now verified against Supabase and the currently-signed-in
+/// native user before anything is persisted (see `BridgeMessageValidator`
+/// and `Coordinator.handleSessionRefreshed`).
 struct WebAppView: UIViewRepresentable {
-
-    static let appURL = URL(string: "https://jeevan-health-fitness-app.pages.dev")!
 
     let accessToken:  String
     let refreshToken: String
     let userId:       String
     let userEmail:    String
-    /// Called on the main thread when the web app posts a message to the native layer.
+    /// Called on the main thread when the web app posts a VALIDATED message
+    /// to the native layer — unknown/malformed/untrusted-origin messages
+    /// never reach this closure at all.
     var onMessage: (([String: Any]) -> Void)?
     /// Set by a deep link (the widget's tap target) — when non-nil, the
-    /// webview navigates here. Cleared immediately once applied.
+    /// webview navigates here. Cleared immediately once applied. Resolved
+    /// through `DeepLinkValidator`, never loaded as a raw string.
     var pendingPath: Binding<String?>?
+    /// Reports loading/offline/error/blocked-navigation state up to the
+    /// SwiftUI parent so it can render the matching native overlay —
+    /// never left as an unexplained blank WebView.
+    var onStateChange: ((WebBoundaryState) -> Void)?
 
-    func makeCoordinator() -> Coordinator { Coordinator(onMessage: onMessage) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onMessage: onMessage, onStateChange: onStateChange, expectedUserId: userId)
+    }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        // Inject the Supabase session into localStorage before any page script runs
         config.userContentController.addUserScript(sessionScript())
         // Register the JS → native message bridge. Web calls:
-        //   window.webkit.messageHandlers.jeevanNative.postMessage({ type: 'openHealthSync' })
+        //   window.webkit.messageHandlers.jeevanNative.postMessage({ type: '...' })
         config.userContentController.add(context.coordinator, name: "jeevanNative")
-        // Allow inline media (web app may use audio/video)
         config.allowsInlineMediaPlayback = true
 
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
-        wv.uiDelegate = context.coordinator  // required for getUserMedia() camera access — see below
-        context.coordinator.webView = wv  // stored weakly so Coordinator can inject metrics later
+        wv.uiDelegate = context.coordinator
+        context.coordinator.webView = wv
         wv.allowsBackForwardNavigationGestures = true
-        // The web app handles safe-area padding entirely via CSS env(safe-area-inset-*).
-        // Setting .never prevents WKWebView from adding its own content insets, which
-        // would double the status-bar spacing on top of the CSS padding-top.
         wv.scrollView.contentInsetAdjustmentBehavior = .never
-        // The web app's own pages scroll inside their own nested div
-        // (.page-content), not the WKWebView's outer scrollView — so this
-        // outer view has nothing legitimate to rubber-band for, and its
-        // default bounce (dragging the whole screen past its real edge
-        // before springing back) just reads as a sloppy, overly-stretchy
-        // scroll feel on top of whatever the page itself is doing.
         wv.scrollView.bounces = false
-        wv.load(URLRequest(url: Self.appURL))
+        wv.load(URLRequest(url: TrustedWebOrigin.productionURL))
         return wv
     }
 
     func updateUIView(_ wv: WKWebView, context: Context) {
-        // The session is baked into the WKUserScript at construction time.
-        // SwiftUI recreates this view (and thus the WKWebView) whenever the
-        // signed-in identity changes — no manual reload needed.
+        // Keep the coordinator's notion of "the currently signed-in native
+        // user" fresh — this is the identity `sessionRefreshed` messages
+        // are checked against before anything is persisted.
+        context.coordinator.expectedUserId = userId
+        context.coordinator.onMessage = onMessage
+        context.coordinator.onStateChange = onStateChange
 
-        // A deep link (the widget tap) arrived — navigate there and consume
-        // it so this doesn't re-fire on the next unrelated re-render.
-        if let path = pendingPath?.wrappedValue,
-           let target = URL(string: path, relativeTo: Self.appURL) {
-            wv.load(URLRequest(url: target.absoluteURL))
+        if let path = pendingPath?.wrappedValue {
+            if let target = DeepLinkValidator.resolve(path) {
+                wv.load(URLRequest(url: target))
+            }
+            // Whether or not it resolved, consume it — an invalid deep link
+            // should not keep re-attempting on every re-render.
             DispatchQueue.main.async {
                 pendingPath?.wrappedValue = nil
             }
         }
     }
 
+    static func dismantleUIView(_ wv: WKWebView, coordinator: Coordinator) {
+        // Prevent a stale privileged bridge handler from surviving past
+        // this view's lifetime (e.g. into whatever replaces it after a
+        // sign-out/identity change).
+        wv.configuration.userContentController.removeAllUserScripts()
+        wv.configuration.userContentController.removeScriptMessageHandler(forName: "jeevanNative")
+        wv.navigationDelegate = nil
+        wv.uiDelegate = nil
+        wv.stopLoading()
+    }
+
+    /// Retries by loading only the trusted root — never whatever the
+    /// WebView's current (possibly blocked/failed) URL happens to be.
+    static func retry(_ wv: WKWebView) {
+        wv.load(URLRequest(url: TrustedWebOrigin.productionURL))
+    }
+
     // MARK: - Session injection
 
     private func sessionScript() -> WKUserScript {
-        // The @supabase/supabase-js v2 client stores its session under this key.
-        // Key format: sb-{projectRef}-auth-token
-        // projectRef is the first component of the Supabase hostname.
         let projectRef = "pvtsskfnbxeohbtwafah"
         let storageKey = "sb-\(projectRef)-auth-token"
-
-        // expires_at is seconds since Unix epoch. We don't persist the exact
-        // issue time, so we assume the token lives for one more hour.
-        // The Supabase JS client will refresh it automatically before expiry.
         let expiresAt = Int(Date().timeIntervalSince1970) + 3600
+        let trustedOrigin = TrustedWebOrigin.productionURL.absoluteString
 
-        // Escape values safe for embedding inside a JS double-quoted string
         let tok     = accessToken .jsStringEscaped
         let refresh = refreshToken.jsStringEscaped
         let uid     = userId      .jsStringEscaped
         let email   = userEmail   .jsStringEscaped
 
+        // A document-start WKUserScript is the pragmatic design here rather
+        // than waiting for didFinish and handing off via an explicit
+        // trusted-page API (the generally-preferred design) — doing the
+        // latter properly needs a web-app-side API to receive the session
+        // and a visible "signing you in…" state coordinated across both
+        // layers, which is real scope beyond this milestone's native-only
+        // trust-boundary work (tracked in
+        // docs/IOS_WEB_ORIGIN_ARCHITECTURE.md). What changes here: the
+        // FIRST executable statement compares `window.location.origin`
+        // against the exact trusted origin and returns immediately on any
+        // mismatch — before the token/user values are even referenced —
+        // so this script is inert on anything but the one trusted page,
+        // regardless of why it ended up injected into that frame.
         let source = """
         (function () {
           try {
-            // Mark the page as running inside the native iOS app.
-            // The web app reads this to hide its own bottom navigation.
+            if (window.location.origin !== "\(trustedOrigin)") { return; }
+
             window.__jeevanNativeApp = true;
 
             var session = {
@@ -111,16 +141,14 @@ struct WebAppView: UIViewRepresentable {
                 "email":              "\(email)",
                 "aud":                "authenticated",
                 "role":               "authenticated",
-                "email_confirmed_at": "2026-01-01T00:00:00Z",
-                "created_at":         "2026-01-01T00:00:00Z",
-                "updated_at":         "2026-01-01T00:00:00Z",
                 "app_metadata":       { "provider": "email", "providers": ["email"] },
                 "user_metadata":      {}
               }
             };
             window.localStorage.setItem('\(storageKey)', JSON.stringify(session));
           } catch (e) {
-            console.warn('[ShakthiJournal] Auth session injection failed:', e);
+            // Never log the session payload — only that injection failed.
+            console.warn('[Jeevan] Auth session injection failed');
           }
         })();
         """
@@ -136,12 +164,31 @@ struct WebAppView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
 
-        let onMessage: (([String: Any]) -> Void)?
-        /// Weak reference so the Coordinator can call evaluateJavaScript after a sync completes.
+        var onMessage: (([String: Any]) -> Void)?
+        var onStateChange: ((WebBoundaryState) -> Void)?
+        /// The native user this WebAppView instance was constructed for —
+        /// `sessionRefreshed` messages are rejected unless they verify to
+        /// this exact id. Updated on every `updateUIView` so it never goes
+        /// stale across a re-render, but a brand-new identity always gets a
+        /// brand-new `WebAppView`/`Coordinator` (SwiftUI recreates the whole
+        /// subtree when `ContentView` switches between `.signedOut` and
+        /// `.signedIn`), so this is defense in depth, not the only gate.
+        var expectedUserId: String
         weak var webView: WKWebView?
 
-        init(onMessage: (([String: Any]) -> Void)?) {
+        /// Incremented on every new top-level navigation attempt. Captured
+        /// by `handleNativeSyncComplete` before the async
+        /// `evaluateJavaScript` call and re-checked immediately before it
+        /// runs — if a navigation started in between, the generation no
+        /// longer matches and the injection is dropped instead of racing
+        /// into whatever page is now loading.
+        private var navigationGeneration = 0
+        private var blockedNavigationWorkItem: DispatchWorkItem?
+
+        init(onMessage: (([String: Any]) -> Void)?, onStateChange: ((WebBoundaryState) -> Void)?, expectedUserId: String) {
             self.onMessage = onMessage
+            self.onStateChange = onStateChange
+            self.expectedUserId = expectedUserId
             super.init()
             NotificationCenter.default.addObserver(
                 self,
@@ -155,35 +202,149 @@ struct WebAppView: UIViewRepresentable {
             NotificationCenter.default.removeObserver(self)
         }
 
-        // MARK: Navigation
+        // MARK: Navigation policy
 
         func webView(
             _ webView: WKWebView,
-            decidePolicyFor action: WKNavigationAction,
+            decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
-            guard
-                action.navigationType == .linkActivated,
-                let url = action.request.url,
-                let host = url.host,
-                host != "jeevan-health-fitness-app.pages.dev"
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.cancel)
+                return
+            }
+            let kind: WebNavigationPolicy.Kind
+            switch navigationAction.navigationType {
+            case .linkActivated:  kind = .linkActivated
+            case .formSubmitted, .formResubmitted: kind = .formSubmitted
+            case .backForward:    kind = .backForward
+            case .reload:         kind = .reload
+            default:              kind = .other
+            }
+
+            switch WebNavigationPolicy.decide(url: url, kind: kind) {
+            case .allow:
+                navigationGeneration += 1
+                decisionHandler(.allow)
+            case .openExternally:
+                UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+            case .block:
+                showBlockedBanner()
+                decisionHandler(.cancel)
+            case .deny:
+                decisionHandler(.cancel)
+            }
+        }
+
+        /// Defense in depth beyond the action-level check — re-validates
+        /// the URL a navigation actually resolved to (after following any
+        /// server-side redirect chain) before WebKit is allowed to start
+        /// rendering the response body.
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationResponse: WKNavigationResponse,
+            decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+        ) {
+            guard navigationResponse.isForMainFrame,
+                  let url = navigationResponse.response.url
             else {
                 decisionHandler(.allow)
                 return
             }
-            // Open external links (e.g. Supabase dashboard, docs) in Safari
-            UIApplication.shared.open(url)
-            decisionHandler(.cancel)
+            if TrustedWebOrigin.matches(url) {
+                decisionHandler(.allow)
+            } else {
+                showBlockedBanner()
+                decisionHandler(.cancel)
+            }
         }
 
-        // MARK: Camera / microphone permission (WKUIDelegate)
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            guard let url = webView.url else { return }
+            if TrustedWebOrigin.matches(url) {
+                onStateChange?(.ready)
+            } else {
+                // Should be unreachable given the checks above — fail
+                // closed anyway: stop loading, strip the bridge, show a
+                // safe error state. Never log the committed URL itself
+                // (it may carry sensitive query parameters).
+                stripPrivilegedAccess(of: webView)
+                onStateChange?(.serverError)
+            }
+        }
 
-        // Without this, getUserMedia() calls from the web app's live camera
-        // view are auto-denied by WKWebView even with NSCameraUsageDescription
-        // set — this delegate method is the second, separate requirement.
-        // The native Info.plist prompt (driven by NSCameraUsageDescription)
-        // still shows to the user on first use; this just tells WKWebView to
-        // forward that OS-level grant through to the page's JS.
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard let url = webView.url, TrustedWebOrigin.matches(url) else { return }
+            onStateChange?(.ready)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            onStateChange?(networkState(for: error))
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            onStateChange?(networkState(for: error))
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            onStateChange?(.processTerminated)
+        }
+
+        private func networkState(for error: Error) -> WebBoundaryState {
+            let nsError = error as NSError
+            guard nsError.domain == NSURLErrorDomain else { return .serverError }
+            switch nsError.code {
+            case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost, NSURLErrorDataNotAllowed:
+                return .offline
+            case NSURLErrorCancelled:
+                // We ourselves cancelled this (a blocked/denied navigation) —
+                // already handled by showBlockedBanner at the decision
+                // point; don't also surface it as a server error.
+                return .ready
+            default:
+                return .serverError
+            }
+        }
+
+        private func showBlockedBanner() {
+            onStateChange?(.blockedNavigation)
+            blockedNavigationWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.onStateChange?(.ready) }
+            blockedNavigationWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+        }
+
+        private func stripPrivilegedAccess(of webView: WKWebView) {
+            webView.stopLoading()
+            webView.configuration.userContentController.removeAllUserScripts()
+            webView.configuration.userContentController.removeScriptMessageHandler(forName: "jeevanNative")
+        }
+
+        // MARK: Popups — never a second privileged WebView
+
+        func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for navigationAction: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            guard let url = navigationAction.request.url else { return nil }
+            switch WebNavigationPolicy.decide(url: url, kind: .other) {
+            case .allow:
+                // Trusted-origin popup target — load it in the existing
+                // privileged view instead of spawning a second one.
+                webView.load(URLRequest(url: url))
+            case .openExternally:
+                UIApplication.shared.open(url)
+            case .block, .deny:
+                showBlockedBanner()
+            }
+            return nil
+        }
+
+        // MARK: Camera / microphone permission
+
         func webView(
             _ webView: WKWebView,
             requestMediaCapturePermissionFor origin: WKSecurityOrigin,
@@ -191,41 +352,103 @@ struct WebAppView: UIViewRepresentable {
             type: WKMediaCaptureType,
             decisionHandler: @escaping (WKPermissionDecision) -> Void
         ) {
-            decisionHandler(.grant)
+            guard frame.isMainFrame, isTrustedSecurityOrigin(origin) else {
+                decisionHandler(.deny)
+                return
+            }
+            // .prompt, not .grant — the user retains control via iOS's own
+            // system permission sheet (driven by NSCameraUsageDescription/
+            // NSMicrophoneUsageDescription); this only tells WKWebView the
+            // request is legitimate enough to forward to that system
+            // prompt at all, for the one trusted origin.
+            decisionHandler(.prompt)
+        }
+
+        private func isTrustedSecurityOrigin(_ origin: WKSecurityOrigin) -> Bool {
+            let port = origin.port != 0 ? origin.port : (origin.protocol == "https" ? 443 : 80)
+            guard let o = TrustedWebOrigin.Origin(scheme: origin.protocol, host: origin.host, port: port) else { return false }
+            if o == TrustedWebOrigin.production { return true }
+            #if DEBUG
+            if let override = TrustedWebOrigin.debugOverride, o == override { return true }
+            #endif
+            return false
         }
 
         // MARK: JS → Native messages
 
-        // Receives messages posted by the web app via:
-        //   window.webkit.messageHandlers.jeevanNative.postMessage({ type: '...' })
         func userContentController(
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard message.name == "jeevanNative",
-                  let body = message.body as? [String: Any] else { return }
-            DispatchQueue.main.async { [weak self] in
-                self?.onMessage?(body)
+            let frame = BridgeMessageValidator.FrameContext(
+                isMainFrame: message.frameInfo.isMainFrame,
+                originScheme: message.frameInfo.securityOrigin.protocol,
+                originHost: message.frameInfo.securityOrigin.host,
+                originPort: message.frameInfo.securityOrigin.port != 0
+                    ? message.frameInfo.securityOrigin.port
+                    : (message.frameInfo.securityOrigin.protocol == "https" ? 443 : 80)
+            )
+            guard let validated = BridgeMessageValidator.validate(
+                handlerName: message.name,
+                frame: frame,
+                body: message.body
+            ) else { return }
+
+            switch validated {
+            case .openHealthSync:
+                DispatchQueue.main.async { [weak self] in
+                    self?.onMessage?(["type": "openHealthSync"])
+                }
+            case .sessionRefreshed(let accessToken, let refreshToken, let userId, let email):
+                handleSessionRefreshed(accessToken: accessToken, refreshToken: refreshToken, userId: userId, email: email)
             }
         }
 
-        // MARK: Native → Web injection
+        /// `sessionRefreshed` is the one bridge message that carries
+        /// credential material, so it gets an extra, async check beyond
+        /// `BridgeMessageValidator`'s schema validation: the access token
+        /// is verified directly with Supabase, and the user id Supabase
+        /// returns for it must equal the user this WebAppView was
+        /// constructed for. A message claiming a different identity is
+        /// dropped — never persisted to Keychain, never forwarded.
+        private func handleSessionRefreshed(accessToken: String, refreshToken: String, userId: String, email: String) {
+            let expected = expectedUserId
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    let verified = try await SupabaseClient.verifiedUser(accessToken: accessToken)
+                    guard verified.id == expected, verified.id == userId else { return }
+                    self.onMessage?([
+                        "type": "sessionRefreshed",
+                        "accessToken": accessToken,
+                        "refreshToken": refreshToken,
+                        "userId": userId,
+                        "email": email,
+                    ])
+                } catch {
+                    // Token didn't verify — say nothing further, never log
+                    // the token or the error body.
+                }
+            }
+        }
 
-        /// Called after a successful HealthKit sync — even one that found zero
-        /// new records, which is the normal steady state once a user is caught
-        /// up (see `SyncEngine.markSuccess`, which now posts this
-        /// unconditionally). Encodes any metrics to JSON and injects them
-        /// directly into the web app's IndexedDB via evaluateJavaScript, then
-        /// always tells the web layer a sync attempt completed — the
-        /// "last synced" chip and the pull-to-refresh spinner both depend on
-        /// hearing this regardless of whether there was anything new to write.
+        // MARK: Native → Web injection (HealthKit sync results)
+
         @objc private func handleNativeSyncComplete(_ note: Notification) {
             guard let wv = webView else { return }
             let metrics = (note.userInfo?["metrics"] as? [HealthMetric]) ?? []
+            let generationAtCapture = navigationGeneration
+
+            func revalidated() -> Bool {
+                guard generationAtCapture == navigationGeneration else { return false }
+                guard let url = wv.url, TrustedWebOrigin.matches(url) else { return false }
+                guard !wv.isLoading else { return false }
+                return true
+            }
 
             guard !metrics.isEmpty else {
-                // Nothing to write — just tell the web side a sync happened.
                 DispatchQueue.main.async {
+                    guard revalidated() else { return }
                     wv.evaluateJavaScript(
                         "window.dispatchEvent(new CustomEvent('native-health-sync-complete', { detail: { count: 0 } }));"
                     )
@@ -238,19 +461,6 @@ struct WebAppView: UIViewRepresentable {
                 let jsonString = String(data: json, encoding: .utf8)
             else { return }
 
-            // Build the injection script. Embedding the JSON directly (not as a string)
-            // means no escaping is needed — JSON is a valid JS literal.
-            //
-            // The DB name here MUST match the web app's live database
-            // ('jeevan', src/db/index.ts DB_NAME) — 'shakthi-journal' is kept
-            // around only as a one-time legacy migration source for installs
-            // that pre-date the rebrand (src/db/index.ts OLD_DB_NAME) and is
-            // never read by the running app. Opening it here was silently
-            // creating/writing to an orphaned database on every install that
-            // never had the old app — the injection appeared to work (no
-            // visible error) but never actually reached the real database, so
-            // the HealthKit sync could "succeed" natively while the web app
-            // never saw any of it.
             let script = """
             (function() {
               try {
@@ -260,7 +470,6 @@ struct WebAppView: UIViewRepresentable {
                   var db = e.target.result;
                   if (!db.objectStoreNames.contains('health_metrics')) {
                     db.close();
-                    console.warn('[Jeevan] health_metrics store not found — app may not be initialized');
                     return;
                   }
                   var tx = db.transaction(['health_metrics', 'sync_history'], 'readwrite');
@@ -286,25 +495,15 @@ struct WebAppView: UIViewRepresentable {
                       detail: { count: metrics.length }
                     }));
                   };
-                  tx.onerror = function(err) {
-                    console.error('[Jeevan] IDB write error:', err.target.error);
-                  };
+                  tx.onerror = function() { db.close(); };
                 };
-                req.onerror = function(err) {
-                  console.error('[Jeevan] IDB open error:', err.target.error);
-                };
-              } catch(err) {
-                console.error('[Jeevan] inject error:', err);
-              }
+              } catch (e) {}
             })();
             """
 
             DispatchQueue.main.async {
-                wv.evaluateJavaScript(script) { _, error in
-                    if let error = error {
-                        print("[Jeevan] evaluateJavaScript error:", error)
-                    }
-                }
+                guard revalidated() else { return }
+                wv.evaluateJavaScript(script)
             }
         }
     }
@@ -313,8 +512,6 @@ struct WebAppView: UIViewRepresentable {
 // MARK: - String helper
 
 private extension String {
-    /// Escapes characters that would break embedding this value inside a
-    /// JavaScript double-quoted string literal.
     var jsStringEscaped: String {
         self
             .replacingOccurrences(of: "\\", with: "\\\\")
