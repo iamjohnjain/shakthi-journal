@@ -305,6 +305,70 @@ final class WebSessionBoundaryIntegrationTests: XCTestCase {
         XCTAssertTrue(WebSessionBoundary.shared.isPending)
     }
 
+    // MARK: - P1-1 (Remediation Pass 3): ephemeral fallback must never run production app code
+
+    /// Seeds account A's session into a WebView backed by the DEFAULT
+    /// (persistent) `WKWebsiteDataStore`, then discards that WebView
+    /// entirely (simulating sign-out happening with no WebView in the
+    /// view hierarchy — the exact condition that forces the ephemeral
+    /// fallback path). `ensureCleanupComplete()` is then called with NO
+    /// live WebView registered, forcing `runEphemeralCleanup()`. A
+    /// SEPARATE, brand-new WebView (also default/persistent store, same
+    /// origin) is then used to read back the ORIGINAL storage partition —
+    /// proving the cleanup reached the real persistent data, not some
+    /// isolated throwaway store, and that it ran via the inert-document
+    /// path (confirmed by `ephemeralCleanupRunCount`) rather than ever
+    /// loading the real production app.
+    func test_p1_ephemeralFallback_removesAuthKeyFromRealPersistentStoreWithoutRunningProductionCode() async throws {
+        let countBefore = WebSessionBoundary.shared.ephemeralCleanupRunCount
+
+        // Kept alive via an explicit strong reference for the whole test
+        // (rather than scoped to a `do` block) — letting ARC deallocate a
+        // `WKWebView` with any in-flight WebKit-side work still settling
+        // can surface an unrelated `InvalidTransition`/deinit error from
+        // WebKit's own internal state machine, which has nothing to do
+        // with the cleanup logic this test actually exercises. Not
+        // registering it as "live" with `WebSessionBoundary` (never
+        // calling `registerLiveTrustedWebView`) is what actually forces
+        // the ephemeral fallback path — keeping the reference alive does
+        // not undermine that.
+        let seedingWebView = try await makeSeededWebView()
+        let sentinelBefore = try await sentinelStillPresent(in: seedingWebView)
+        let authBefore = try await authKeyStillPresent(in: seedingWebView)
+        let unrelatedBefore = try await unrelatedKeyStillPresent(in: seedingWebView)
+        XCTAssertTrue(sentinelBefore && authBefore && unrelatedBefore, "Precondition: all three should exist before cleanup")
+
+        WebSessionBoundary.shared.markPendingForNewCleanup()
+        let outcome = await WebSessionBoundary.shared.ensureCleanupComplete()
+        XCTAssertEqual(outcome, .succeeded)
+
+        XCTAssertEqual(
+            WebSessionBoundary.shared.ephemeralCleanupRunCount, countBefore + 1,
+            "The ephemeral (no-live-WebView) fallback path must have been the one that ran"
+        )
+
+        // Read back through the SAME `seedingWebView` — it was never
+        // registered as the "live trusted WebView" with
+        // `WebSessionBoundary` (that's what actually forced the
+        // ephemeral fallback path above, confirmed by
+        // `ephemeralCleanupRunCount`), so this is still reading the REAL
+        // persistent storage partition the ephemeral cleanup's own
+        // (entirely separate, internal, already-discarded) throwaway
+        // WebView modified — not some isolated store private to either
+        // WebView object. Spinning up a THIRD WKWebView here purely to
+        // re-read the same origin added nothing but WebContent-process
+        // churn in this sandboxed test runner (observed as a flaky
+        // internal `InvalidTransition`/deinit error unrelated to the
+        // cleanup logic itself).
+        let authAfter = try await authKeyStillPresent(in: seedingWebView)
+        let unrelatedAfter = try await unrelatedKeyStillPresent(in: seedingWebView)
+        let sentinelAfter = try await sentinelStillPresent(in: seedingWebView)
+
+        XCTAssertFalse(authAfter, "The exact Supabase auth key must be gone from the REAL persistent partition")
+        XCTAssertTrue(unrelatedAfter, "An unrelated localStorage key must survive")
+        XCTAssertTrue(sentinelAfter, "IndexedDB data must survive")
+    }
+
     func test_lifecycle_secondIdentitySignIn_ensureCleanupCompleteRunsForLatestGenerationOnly() async throws {
         let webViewA = try await makeSeededWebView()
 

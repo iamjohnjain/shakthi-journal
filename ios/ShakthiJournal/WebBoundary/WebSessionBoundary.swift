@@ -6,10 +6,15 @@ import WebKit
 /// LocalStorage key, so this performs the removal via an origin-gated
 /// JavaScript injection instead — either into the still-live privileged
 /// WebView (if one is mounted) or, if none is available, into a throwaway
-/// *unprivileged* WebView created solely for this cleanup (no session
-/// script, no `jeevanNative` bridge handler) that is discarded immediately
-/// afterward. This never falls back to deleting IndexedDB or any other
-/// `WKWebsiteDataStore` data wholesale.
+/// WebView loaded with a completely INERT, static, same-origin HTML
+/// document (no session script, no `jeevanNative` bridge handler, no
+/// `<script>` tag at all — see `runEphemeralCleanup()`) that is discarded
+/// immediately afterward. The fallback never navigates to the real
+/// production URL — doing so would let the real application code run
+/// against the still-present old session before this cleanup had a
+/// chance to remove it (see the Remediation Pass 3 / P1-1 comment on
+/// `runEphemeralCleanup()`). This never falls back to deleting IndexedDB
+/// or any other `WKWebsiteDataStore` data wholesale.
 ///
 /// Every cleanup is bound to a monotonically increasing `generation`.
 /// `AuthManager.terminateSession()` calls `markPendingForNewCleanup()`
@@ -64,6 +69,15 @@ final class WebSessionBoundary {
     private var inFlightCleanup: Task<Bool, Never>?
     private var inFlightGeneration = -1
 
+    /// Observable test hook (not gated behind `#if DEBUG` — reading a
+    /// counter in Release is harmless, and gating it would make it
+    /// unavailable to tests run against a Release-configured target).
+    /// Incremented every time `runEphemeralCleanup()` actually runs, so
+    /// tests can prove the ephemeral fallback path specifically executed
+    /// rather than coalescing with a cleanup that started against an
+    /// already-live WebView (`registerLiveTrustedWebView`'s own kickoff).
+    private(set) var ephemeralCleanupRunCount = 0
+
     private init() {}
 
     /// Called synchronously by `AuthManager.terminateSession()` BEFORE
@@ -95,6 +109,49 @@ final class WebSessionBoundary {
         if liveTrustedWebView === webView {
             liveTrustedWebView = nil
         }
+    }
+
+    /// Silently overwrites the currently-live trusted WebView's auth
+    /// LocalStorage entry with a canonical, rotated session — used by
+    /// `AuthManager.reconcileWebRefreshedSession` (Remediation Pass 3,
+    /// P1-2) after a refresh-token exchange rotates the token, so the
+    /// WebView's own (now-stale) copy doesn't try to use a burned token
+    /// on its next refresh. Re-checks "is there actually a live, trusted
+    /// WebView right now" at WRITE time — not relying on any reference
+    /// captured earlier — and is a raw storage write (not
+    /// `supabase.auth.setSession()`), so it does not fire the web
+    /// client's own `onAuthStateChange` listener and cannot create a
+    /// refresh loop back through the bridge. A no-op if no trusted
+    /// WebView happens to be live right now; the next time one commits,
+    /// its own document-start session script will have already written
+    /// whatever was in Keychain at that time regardless.
+    func resyncCanonicalSessionIfLive(accessToken: String, refreshToken: String, userId: String, email: String) {
+        guard let webView = liveTrustedWebView else { return }
+        let expiresAt = Int(Date().timeIntervalSince1970) + 3600
+        let script = """
+        (function () {
+          try {
+            if (window.location.origin !== "\(TrustedWebOrigin.productionURL.absoluteString)") { return; }
+            var session = {
+              "access_token":  "\(accessToken.jsStringEscaped)",
+              "token_type":    "bearer",
+              "expires_in":    3600,
+              "expires_at":    \(expiresAt),
+              "refresh_token": "\(refreshToken.jsStringEscaped)",
+              "user": {
+                "id":            "\(userId.jsStringEscaped)",
+                "email":         "\(email.jsStringEscaped)",
+                "aud":           "authenticated",
+                "role":          "authenticated",
+                "app_metadata":  { "provider": "email", "providers": ["email"] },
+                "user_metadata": {}
+              }
+            };
+            window.localStorage.setItem('\(Self.authStorageKey)', JSON.stringify(session));
+          } catch (e) {}
+        })();
+        """
+        webView.evaluateJavaScript(script)
     }
 
     /// Awaits the CURRENT generation's cleanup to actually finish — the
@@ -129,11 +186,12 @@ final class WebSessionBoundary {
         if let existing = inFlightCleanup, inFlightGeneration == expectedGeneration {
             return await existing.value
         }
-        let task = Task<Bool, Never> { [weak webView] in
+        let task = Task<Bool, Never> { [weak webView, weak self] in
             if let webView {
                 guard let url = await webView.url, TrustedWebOrigin.matches(url) else { return false }
                 return await Self.injectAndEvaluate(in: webView)
             } else {
+                self?.ephemeralCleanupRunCount += 1
                 return await Self.runEphemeralCleanup()
             }
         }
@@ -152,33 +210,69 @@ final class WebSessionBoundary {
         return result
     }
 
-    /// Spins up a throwaway, unprivileged `WKWebView` — no session-
-    /// injection script, no `jeevanNative` bridge handler registered at
-    /// all — purely to load the trusted origin and run the auth-key
-    /// removal script, then lets it be deallocated. Used only when no
-    /// live privileged WebView is currently mounted (e.g. sign-out
-    /// happened with no WebView in the view hierarchy at all): the
-    /// alternative would be waiting indefinitely for one to appear, which
-    /// could block a later sign-in forever.
+    /// Spins up a throwaway WKWebView and loads a completely INERT, static
+    /// HTML string via `loadHTMLString(_:baseURL:)` with the trusted
+    /// production origin as the base URL — never a real network request
+    /// to Cloudflare, and never any real application JavaScript.
+    ///
+    /// This replaces an earlier, flawed design (Remediation Pass 3, P1-1)
+    /// that called `webView.load(URLRequest(url: TrustedWebOrigin.
+    /// productionURL))` — a REAL navigation to the live production app.
+    /// Since the persistent `WKWebsiteDataStore` can still contain the
+    /// old account's Supabase session at that point (cleanup hasn't run
+    /// yet), the real React app got a genuine window to read that
+    /// session from localStorage, activate the old account, and start its
+    /// sync engine BEFORE this cleanup script ever ran — a real data/
+    /// cross-account exposure race, not a hypothetical one.
+    ///
+    /// `loadHTMLString(_:baseURL:)` sets the loaded document's security
+    /// origin to the given `baseURL` for storage purposes (confirmed by
+    /// `WebSessionBoundaryIntegrationTests`, which use the identical
+    /// technique to seed/verify localStorage and IndexedDB against the
+    /// trusted origin without any network access) — so this inert page
+    /// shares the EXACT SAME storage partition the real app would, while
+    /// executing zero bytes of real application code. Correctness here
+    /// does not depend on Cloudflare being reachable at all.
     private static func runEphemeralCleanup() async -> Bool {
         let webView = WKWebView(frame: .zero)
-        webView.load(URLRequest(url: TrustedWebOrigin.productionURL))
-        let committed = await Self.waitForTrustedCommit(webView, timeoutNanoseconds: 8_000_000_000)
+        webView.loadHTMLString(inertCleanupDocumentHTML, baseURL: TrustedWebOrigin.productionURL)
+        let committed = await Self.waitForInertDocumentReady(webView, timeoutNanoseconds: 3_000_000_000)
+        // Fail closed: if this throwaway page never even reached
+        // `readyState === "complete"`, do not attempt the cleanup script
+        // against it and do not clear `isPending` — the caller reports
+        // `.failed` and the real-WebView/retry path gets another chance.
         guard committed else { return false }
-        return await Self.injectAndEvaluate(in: webView)
+        let result = await Self.injectAndEvaluate(in: webView)
+        // A short grace period before `webView` goes out of scope and is
+        // deallocated — `loadHTMLString`'s internal WKNavigation state
+        // machine needs a brief moment to reach a terminal phase even
+        // though `evaluateJavaScript` has already returned; deallocating
+        // immediately can otherwise surface an unrelated internal WebKit
+        // `InvalidTransition` error with no bearing on whether the
+        // cleanup script itself actually ran (it already has, by this
+        // point — `result` is already captured).
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        return result
     }
 
+    /// A static, same-origin, zero-script HTML document — no `<script>`
+    /// tag at all, so there is no possibility of it executing anything
+    /// beyond the cleanup script this file explicitly injects afterward.
+    private static let inertCleanupDocumentHTML =
+        "<!doctype html><html><head><title>cleanup</title></head><body></body></html>"
+
     /// Bounded poll — this WebView exists only for this one operation, so
-    /// a full navigation-delegate wiring isn't warranted; a short poll on
-    /// `url`/`isLoading` is sufficient and avoids adding another delegate
-    /// surface purely for a throwaway object.
-    private static func waitForTrustedCommit(_ webView: WKWebView, timeoutNanoseconds: UInt64) async -> Bool {
+    /// a full navigation-delegate wiring isn't warranted. `loadHTMLString`
+    /// commits synchronously from WebKit's perspective almost immediately
+    /// (no network round trip), so this poll is a short, bounded safety
+    /// margin, not a real wait for a network load.
+    private static func waitForInertDocumentReady(_ webView: WKWebView, timeoutNanoseconds: UInt64) async -> Bool {
         let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
         while DispatchTime.now().uptimeNanoseconds < deadline {
             if let url = webView.url, TrustedWebOrigin.matches(url), !webView.isLoading {
                 return true
             }
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            try? await Task.sleep(nanoseconds: 50_000_000)
         }
         return false
     }
@@ -244,6 +338,7 @@ final class WebSessionBoundary {
         liveTrustedWebView = nil
         inFlightCleanup = nil
         inFlightGeneration = -1
+        ephemeralCleanupRunCount = 0
     }
     #endif
 
@@ -263,5 +358,15 @@ final class WebSessionBoundary {
             didResume = true
             continuation.resume(returning: value)
         }
+    }
+}
+
+private extension String {
+    var jsStringEscaped: String {
+        self
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
     }
 }
