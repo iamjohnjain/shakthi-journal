@@ -65,30 +65,51 @@ instant changes" as a pure advantage, without the controls below, ships
 a privileged, mutable supply-chain dependency into a reviewed app.
 Before relying on Option B for submission, the following should exist:
 
-**None of these currently exist — confirmed this session, not assumed:**
+**Status of each, precisely scoped to what repository files can and
+cannot confirm — do not read any of these as verified beyond that
+scope:**
 
 - **Immutable, versioned releases** on the Cloudflare Pages side — a
   specific deployment is what the app points at (or can be pinned to),
-  not implicitly "whatever is live right now." **Not in place: a push to
-  `main` auto-deploys with no pinning.**
+  not implicitly "whatever is live right now." **Confirmed from repo
+  deployment documentation only: a push to `main` triggers a Cloudflare
+  Pages deploy.** Whether that deploy is pinned/versioned at the
+  Cloudflare dashboard level is a dashboard setting, not something a
+  repository file can show — **UNKNOWN until inspected directly in the
+  Cloudflare Pages dashboard.**
 - **Protected deploy approvals** — pushes to the production branch/
   project require review, not direct unreviewed pushes by anyone with
-  repo access. **Not in place: confirmed this session that a push to
-  `main` auto-deploys with no approval gate at all.**
+  repo access. **Confirmed from repo deployment documentation only:**
+  pushes to `main` trigger a deploy automatically. Whether GitHub branch
+  protection rules or a Cloudflare-side approval gate additionally sit in
+  front of that is configured outside this repository (GitHub repo
+  settings, Cloudflare Pages project settings) and is **UNKNOWN until
+  inspected directly** — this document does not claim either exists or
+  is absent.
 - **A deployment freeze during App Review** — nothing changes on the
   live origin between submission and approval, so what Apple tested is
-  what ships. **Not in place — no freeze mechanism exists.**
+  what ships. No repository file documents a freeze procedure.
+  **UNKNOWN/not found in-repo** — this is a process the owner would need
+  to confirm or establish outside the codebase, not something this
+  review can rule in or out from files alone.
 - **Account MFA / access control** on the Cloudflare Pages project and
-  the repo that deploys to it — the origin's trustworthiness is only as
-  good as who can push to it. **Not verified from code — requires owner
-  confirmation of the actual Cloudflare/GitHub account security posture.**
-- **CSP / security headers** on the deployed origin. **Confirmed this
-  session: `public/_headers` exists but contains ONLY `Cache-Control`
-  directives for HTML/assets/manifest/icons/models/service-worker — there
-  is no `Content-Security-Policy`, `Strict-Transport-Security`,
-  `Referrer-Policy`, `X-Content-Type-Options`, or `Permissions-Policy`
-  directive anywhere in it. This is a real gap, not a "not yet verified"
-  unknown (see also Milestone 5).**
+  the GitHub repo that deploys to it — the origin's trustworthiness is
+  only as good as who can push to it. **Cannot be verified from
+  repository files at all** — this is account/organization-level security
+  posture on two external platforms (GitHub, Cloudflare), **UNKNOWN until
+  inspected directly** in each platform's own settings; requires owner
+  confirmation.
+- **CSP / security headers** on the deployed origin. **Confirmed from the
+  repository file `public/_headers` itself** (not from a live `curl -I`
+  against the deployed origin, which was not performed): it contains
+  ONLY `Cache-Control` directives for HTML/assets/manifest/icons/models/
+  service-worker — no `Content-Security-Policy`,
+  `Strict-Transport-Security`, `Referrer-Policy`, `X-Content-Type-Options`,
+  or `Permissions-Policy` directive anywhere in it. Cloudflare Pages
+  applies this file close to verbatim, so this is a real, concrete gap in
+  what ships — not a "not yet verified" unknown — though confirming the
+  LIVE response headers match exactly would need a direct check against
+  the deployed origin (see also Milestone 5).**
 - **A rollback plan** — a known, fast, tested way to revert a bad deploy,
   not just the theoretical capability.
 - **Synchronized app/web release governance** — a shared understanding

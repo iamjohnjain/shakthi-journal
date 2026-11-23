@@ -74,12 +74,22 @@ One centralized exact-origin policy (`TrustedWebOrigin.production` =
 `https://jeevan-health-fitness-app.pages.dev`, scheme+host+port, no
 substring matching) gates navigation, popups, session-token injection,
 the JS↔native bridge, HealthKit injection, and camera/microphone grants.
-**47 automated tests pass** on a real simulator (`iPhone Duo`, iOS
-27.2) — 43 pure-policy unit tests (`WebBoundaryTests.swift`, no WebKit
-runtime involved) plus 4 genuine `WKWebView` integration tests
-(`WebSessionBoundaryIntegrationTests.swift`, which load real HTML/JS
-into a real WebView). Native loading/offline/error/blocked-navigation
-states replace the previous "blank WebView on failure" behavior.
+**64 automated tests pass, 0 skipped**, on a real simulator (`iPhone
+Duo`, iOS 27.2), as of this Milestone's Pass 3 remediation — 46
+pure-policy unit tests (`WebBoundaryTests.swift`, no WebKit runtime
+involved), 10 `WebSessionBoundaryIntegrationTests.swift` tests (9 of
+which instantiate a real `WKWebView` loaded with real HTML/JS; one,
+`test_lifecycle_pendingPersistsAcrossGenerations_untilCleanupSucceeds`,
+is a pure generation/pending-flag state check with no WebView at all),
+and 8 `AuthManagerRaceTests.swift` tests (3 pure guard-predicate checks,
+5 exercising the real `reconcileWebRefreshedSession` production code
+against a mocked, non-network `SupabaseSessionExchanging` — see the
+Pass 3 detail section for exactly which is which). (Earlier figures of
+"47" / "4 integration tests" in this document described Pass 2's
+state and are superseded — left in the Pass 1/Pass 2 detail sections
+below as historical record, not current status.) Native loading/
+offline/error/blocked-navigation states replace the previous "blank
+WebView on failure" behavior.
 
 **Why this is marked PARTIAL rather than COMPLETE:** the automated
 suite covers policy logic and the sign-out/cleanup mechanics directly,
@@ -254,7 +264,7 @@ decision points through it.
 | HealthKit → web injection | `evaluateJavaScript` fired unconditionally whenever a sync completed, regardless of what the WebView was currently showing | Navigation-generation token captured at sync-completion time, re-checked (plus current-URL-trusted plus not-loading) immediately before `evaluateJavaScript` runs; any mismatch silently drops the injection | Logic reviewed; genuine navigation-race testing needs real WebKit timing, not covered by this unit suite | 🟡 Logic hardened, race condition not independently reproduced in tests |
 | Camera / microphone | `requestMediaCapturePermissionFor` returned `.grant` unconditionally for any origin/frame | Exact trusted-origin + main-frame check; returns `.prompt` (not `.grant`) for trusted, `.deny` for everything else | Logic is identical in shape to the bridge/navigation checks (same `TrustedWebOrigin.Origin` construction) — not independently unit-tested since it needs `WKSecurityOrigin`, a WebKit type; reviewed by inspection | 🟡 Logic reviewed, not unit-tested |
 | Deep links | `URL(string:relativeTo:)` on a raw path string — an absolute or scheme-relative string would resolve externally, ignoring the base | `DeepLinkValidator.resolve` requires exact allowlist membership, single leading slash, no scheme/host/userinfo, then re-validates the resolved URL against `TrustedWebOrigin` | `test_deepLink_*` (6 tests) | ✅ |
-| Sign-out WebKit session boundary | **Original 1B implementation was itself destructive**: it called `WKWebsiteDataStore.removeData(ofTypes: allWebsiteDataTypes())`, which deletes the app's IndexedDB (including unsynced health data) and all LocalStorage, not just auth state — flagged by independent review and fixed in this session's remediation pass (see Milestone 1B Remediation below) | `WebSessionBoundary` now does an exact-origin, trusted-main-frame cleanup handshake that removes ONLY the `sb-pvtsskfnbxeohbtwafah-auth-token` localStorage key via injected JS — never a `WKWebsiteDataStore`-level wipe. Awaitable, idempotent, with a bounded timeout that never falls back to broader deletion. Native+web sign-out converge on one coordinator (`AuthManager.terminateSession()`). | **4 genuine WKWebView integration tests** (`WebSessionBoundaryIntegrationTests.swift`): sentinel IndexedDB record survives cleanup, exact auth key is removed, cleanup is idempotent, cleanup refuses to run against an untrusted origin | ✅ Fixed and automated-tested this session |
+| Sign-out WebKit session boundary | **Original 1B implementation was itself destructive**: it called `WKWebsiteDataStore.removeData(ofTypes: allWebsiteDataTypes())`, which deletes the app's IndexedDB (including unsynced health data) and all LocalStorage, not just auth state. Pass 2's fix was non-destructive but still had a real gap: its no-live-WebView fallback NAVIGATED TO THE REAL PRODUCTION URL, giving the live production app a genuine window to read the still-present old session before cleanup removed it (P1-1, fixed in Pass 3 — see below) | `WebSessionBoundary` does an exact-origin, trusted-main-frame cleanup handshake that removes ONLY the `sb-pvtsskfnbxeohbtwafah-auth-token` localStorage key via injected JS — never a `WKWebsiteDataStore`-level wipe. The fallback path (no live WebView) now loads a completely INERT, same-origin, zero-script HTML document via `loadHTMLString` — never the real app — eliminating the P1-1 exposure window entirely. Awaitable, idempotent, with a bounded timeout that never falls back to broader deletion. Native+web sign-out converge on one coordinator (`AuthManager.terminateSession()`). | **10 `WebSessionBoundaryIntegrationTests.swift` tests** (9 instantiate a real `WKWebView`): sentinel IndexedDB record and an unrelated LocalStorage key both survive cleanup, exact auth key is removed, cleanup is idempotent, cleanup refuses to run against an untrusted origin (with the committed URL/origin/content asserted before testing refusal), plus lifecycle tests for pending-generation bookkeeping, live-WebView registration/fallback, and — specifically for P1-1 — a test that seeds a session in one WebView, forces the ephemeral (no-live-WebView) path via `ephemeralCleanupRunCount`, then reads the SAME real persistent storage partition back to confirm the auth key is gone while the sentinel/unrelated data survive | ✅ Fixed and automated-tested (Pass 3) |
 | Native loading/error states | None — a failed/blocked/terminated load left a blank WebView with no explanation | `WebBoundaryState` + `WebBoundaryOverlay`/`BlockedNavigationBanner`, wired to `didCommit`/`didFinish`/`didFail`/`didFailProvisionalNavigation`/`webViewWebContentProcessDidTerminate`; Retry always reloads `TrustedWebOrigin.productionURL` only | Visual/behavioral, not unit-tested — see Manual Matrix | 🟡 Implemented, not automated-tested |
 | Settings origin display | Hardcoded a second literal copy of the origin string | Reads `TrustedWebOrigin.production.host` | Covered indirectly by the origin tests (same source of truth) | ✅ |
 
@@ -267,7 +277,7 @@ decision points through it.
 | `npm run build` | ✅ succeeds | — |
 | `npm audit --omit=dev` | ✅ 0 vulnerabilities | — |
 | Unsigned Release `xcodebuild` (generic/platform=iOS, `CODE_SIGNING_ALLOWED=NO`) | ✅ BUILD SUCCEEDED | re-run after remediation; this is Debug-signing-free generic-device verification only — **not** App Store / Apple Distribution signing, which remains unverified (see Milestone 0/6) |
-| **`xcodebuild test` — `JeevanTests` target, simulator `iPhone Duo` (iOS 27.2)** | ✅ **61/61 tests passed**, 0 failures, **0 skipped** | **46 pure-policy unit tests** (`WebBoundaryTests.swift` — plain Swift objects, no WebKit runtime instantiated; of these, 5 are `test_navigation_*` and 10 are `test_bridge_*`) + **9 genuine `WKWebView` integration tests** (`WebSessionBoundaryIntegrationTests.swift` — real `WKWebView` instances loaded with real local HTML/JS via `loadHTMLString`, exercising actual IndexedDB/localStorage, now including lifecycle tests that drive `markPendingForNewCleanup`/`registerLiveTrustedWebView`/`clearLiveTrustedWebView`/`ensureCleanupComplete` rather than only a low-level direct-cleanup call) + **6 `AuthManagerRaceTests`** (pure guard-predicate tests plus two genuine functional tests of `applyWebRefreshedSession`, exercised entirely through `@testable import Jeevan` — no network, no mocking). This distinction matters: the pure-policy tests prove the decision logic is correct in isolation; only the integration tests prove the actual WebKit storage APIs behave as the logic assumes. A setup step that fails to reach a ready state is now a hard `XCTFail`, not a silent `XCTSkip` — this run reports 0 skipped. |
+| **`xcodebuild test` — `JeevanTests` target, simulator `iPhone Duo` (iOS 27.2), normal simulator signing** | ✅ **64/64 tests passed**, 0 failures, **0 skipped** | **46 pure-policy unit tests** (`WebBoundaryTests.swift` — plain Swift objects, no WebKit runtime instantiated; of these, 5 are `test_navigation_*` and 10 are `test_bridge_*`) + **10 `WebSessionBoundaryIntegrationTests.swift` tests** (9 instantiate a real `WKWebView` loaded with real local HTML/JS via `loadHTMLString`, exercising actual IndexedDB/localStorage; 1 — the generation/pending-flag ordering check — is a pure state test with no WebView) + **8 `AuthManagerRaceTests.swift` tests** (3 pure guard-predicate checks on `isCurrentSession`, exercised synchronously with no `await` at all; 5 exercise the REAL `AuthManager.reconcileWebRefreshedSession` production code — including its ordering, identity-pairing, and fail-closed Keychain logic — against a `MockSupabaseSessionExchanger` injected in place of the real, network-backed `LiveSupabaseSessionExchanger`, so no live Supabase network call is ever made). This distinction matters: the pure-policy/predicate tests prove the decision logic is correct in isolation; the integration tests prove the actual WebKit storage APIs behave as the logic assumes; the mocked-network tests prove the real async reconciliation code's ordering and guards without needing (or risking) a live network round trip. A setup step that fails to reach a ready state is a hard `XCTFail`, not a silent `XCTSkip` — this run reports 0 skipped. Run with normal simulator code-signing (not `CODE_SIGNING_ALLOWED=NO`) — Keychain-backed assertions in `AuthManagerRaceTests` require it. |
 
 The native test target did not exist before Milestone 1B's first pass
 (confirmed in Milestone 0's baseline). It was added by direct
@@ -306,33 +316,39 @@ link, submit a real form, etc.). Marked accordingly.
 | Trusted microphone request | `.prompt` (not auto-grant) | Logic reviewed, same code path as camera (type-parameterized) | 🟡 Code review only |
 | Deep-link escape attempt (`//evil.example`, absolute URL, `javascript:`) | Rejected | Unit-tested (3 separate tests) | ✅ Automated |
 | Navigation during HealthKit injection | Generation-token mismatch blocks injection | Logic reviewed; genuine timing race not reproduced (would need a real WKWebView mid-navigation at the exact moment a sync completes) | 🟡 Code review only |
-| Web/native sign-out followed by immediate re-sign-in (second remediation pass) | `MainTabView` no longer waits a fixed 1.5s — it synchronously marks cleanup pending in `AuthManager.terminateSession()` (before `authState` flips), then `MainTabView.runPendingAuthCleanupCheck()` genuinely AWAITS `WebSessionBoundary.ensureCleanupComplete()` (reusing the outgoing WebView if still live, or an ephemeral unprivileged one otherwise) before mounting a new privileged `WebAppView`; a cleanup that fails/times out shows a Retry state rather than mounting anyway | Automated: `WebSessionBoundaryIntegrationTests` now drive the real lifecycle API (`markPendingForNewCleanup`/`registerLiveTrustedWebView`/`clearLiveTrustedWebView`/`ensureCleanupComplete`) including a second-sign-out-supersedes-the-first generation test and an ephemeral-WebView-fallback test; the SwiftUI-level "new WebAppView actually waits for `.ready`" wiring itself is logic-reviewed, not driven through an actual on-screen sign-out → sign-in tap sequence | 🟡 Cleanup/generation mechanics ✅ automated (9 integration tests); the on-screen SwiftUI sequence itself code-review only |
-| Pending refresh followed by sign-out (native-refresh race) | A `sessionRefreshed` verification task in flight when sign-out happens must not repopulate Keychain afterward; `restoreSession()`/`refreshAndGetToken()`'s own completions must do the same | `Coordinator.handleSessionRefreshed` re-checks coordinator liveness, native auth state, user-id match, and session epoch after every `await`; `restoreSession()`/`refreshAndGetToken()` now carry the identical `isCurrentSession(userId:epoch:)` guard after their own network awaits (added this pass — previously ONLY the WebView bridge task had this). `AuthManagerRaceTests` tests the exact guard PREDICATE these methods check (via a `#if DEBUG`-only `setSignedInForTesting` hook, since the real network round trips can't be exercised without hitting production Supabase) and, for `applyWebRefreshedSession` specifically (the synchronous half of the bridge path, needing no network), two genuine end-to-end functional tests. **Honest caveat:** the live network race itself — a real in-flight `refreshSession()`/`verifiedUser()` call resolving after a real sign-out — is NOT reproduced; the predicate tests prove the guard condition is correct, not that the full async method observes it under real network timing | 🟡 Guard predicate + `applyWebRefreshedSession` ✅ automated; live network race itself code-review only |
-| Account switch while a HealthKit sync is in flight (new this pass) | `SyncEngine.sync()` captures `(userId, epoch)` at start and re-checks after HealthKit fetch and after upload/refresh; `MainTabView.autoSync()` tracks its Task and cancels it in `onDisappear`; the completion notification now carries `(userId, epoch)`, and `WebAppView.Coordinator.handleNativeSyncComplete` requires both to match its own expected session (via `isValidSession`) before ever injecting into IndexedDB | Not automated — reproducing a real HealthKit fetch + Supabase upload race deterministically would need a mocked HealthKit/network layer this codebase doesn't have; the guarding logic mirrors the already-tested `isCurrentSession`/epoch pattern exactly but is not independently exercised under a live race | 🟡 Code review only — explicitly NOT claimed as tested |
+| Web/native sign-out followed by immediate re-sign-in (second remediation pass) | `MainTabView` no longer waits a fixed 1.5s — it synchronously marks cleanup pending in `AuthManager.terminateSession()` (before `authState` flips), then `MainTabView.runPendingAuthCleanupCheck()` genuinely AWAITS `WebSessionBoundary.ensureCleanupComplete()` (reusing the outgoing WebView if still live, or an ephemeral unprivileged one otherwise) before mounting a new privileged `WebAppView`; a cleanup that fails/times out shows a Retry state rather than mounting anyway | Automated: `WebSessionBoundaryIntegrationTests` now drive the real lifecycle API (`markPendingForNewCleanup`/`registerLiveTrustedWebView`/`clearLiveTrustedWebView`/`ensureCleanupComplete`) including a second-sign-out-supersedes-the-first generation test and an ephemeral-WebView-fallback test; the SwiftUI-level "new WebAppView actually waits for `.ready`" wiring itself is logic-reviewed, not driven through an actual on-screen sign-out → sign-in tap sequence | 🟡 Cleanup/generation mechanics ✅ automated (10 `WebSessionBoundaryIntegrationTests` tests, 9 using a real `WKWebView`); the on-screen SwiftUI sequence itself code-review only |
+| Pending refresh followed by sign-out / account switch (native-refresh + web-refresh races) | A `sessionRefreshed` reconciliation in flight when sign-out (or a second account signing in) happens must not repopulate Keychain afterward, and must never exchange a refresh token before the access token is verified; `restoreSession()`/`refreshAndGetToken()`'s own completions must behave the same way | **Pass 3 redesign (P1-2):** `WebAppView.Coordinator` no longer does its own access/refresh verification at all — it forwards the bridge's CLAIMED values unverified to `AuthManager.reconcileWebRefreshedSession`, the one authoritative owner (outlives every WebView, unlike the disposable Coordinator). Ordering is enforced in code: the access token is verified FIRST; the refresh token is only exchanged (the point Supabase may rotate/consume it) after that succeeds and the live session still matches. `restoreSession()`/`refreshAndGetToken()` carry the identical `isCurrentSession(userId:epoch:)` guard after their own network awaits, and now also check every Keychain `save()` call's result, failing closed (never presenting a signed-in state atop a partial write). `AuthManagerRaceTests` injects a `MockSupabaseSessionExchanger` to test the REAL `reconcileWebRefreshedSession` method end-to-end with no network: access-validation-failure-never-exchanges, sign-out-during-exchange, account-B-signs-in-during-exchange, unrelated-refresh-token-exchanges-to-a-different-user, and matching-session-persists-canonical-tokens — 5 tests, all exercising production code, not just a predicate. `restoreSession()`/`refreshAndGetToken()` themselves are still tested only via the `isCurrentSession` guard predicate (3 tests, via `setSignedInForTesting`), since mocking their own network calls would require the same injectable-exchanger treatment, applied here only to the bridge-reconciliation path. **Documented residual gap:** if the refresh exchange reaches Supabase (rotating the token) but a DIFFERENT account is live by the time it returns, the rotated token is intentionally discarded rather than overwriting that account's Keychain — avoiding that fully would need per-account Keychain storage, out of scope for this pass. | 🟡 `reconcileWebRefreshedSession` ✅ automated end-to-end (mocked network); `restoreSession()`/`refreshAndGetToken()` guard predicate ✅ automated; their own live network race, and the documented residual gap, remain code-review-only |
+| Account switch while a HealthKit sync is in flight | `SyncEngine.sync()` captures `(userId, epoch)` at start and re-checks after HealthKit fetch and after upload/refresh (also re-checked before retrying an upload with a freshly-refreshed token, Pass 3); `SyncEngine` now owns the sync `Task` itself (`startSync(...)`, Pass 3 — `MainTabView`/`DashboardView` no longer spawn their own untracked `Task {}`), cancelled via a `jeevanSessionWillTerminate` notification `AuthManager.terminateSession()` posts; `SyncState` is now persisted per-user (Pass 3 — previously one global UserDefaults key shared by every account, with a one-time migration of the legacy key to whichever user loads first); the completion notification carries `(userId, epoch)`, and `WebAppView.Coordinator.handleNativeSyncComplete` requires both to match its own expected session before ever injecting into IndexedDB | Not automated — reproducing a real HealthKit fetch + Supabase upload race deterministically would need a mocked HealthKit/network layer, which this codebase does not have for `SyncEngine`/`HealthKitManager` (unlike `AuthManager`, which gained an injectable `SupabaseSessionExchanging` seam in Pass 3 specifically so ITS races could be tested without network — the same treatment was not extended to `SyncEngine`/`HealthKitManager` in this pass); the guarding logic mirrors the already-tested `isCurrentSession`/epoch pattern exactly but is not independently exercised under a live race | 🟡 Code review only — explicitly NOT claimed as tested |
 | Offline launch/retry | `.offline` state (NSURLErrorNotConnectedToInternet et al.), Retry reloads trusted root | Logic reviewed; not run with the simulator's network actually disabled | 🟡 Code review only |
 | Web-content process termination/recovery | `.processTerminated` state shown, Retry available | Logic reviewed; not forced via Simulator's "Simulate Memory Warning"/process-kill tooling | 🟡 Code review only |
 | Blocked-navigation banner timer vs. a later genuine failure (new this pass) | The 3-second auto-dismiss timer on the blocked-navigation banner must not fire AFTER a real offline/serverError/sessionExpired/processTerminated state and silently reset it back to `.ready` | `invalidateBlockedBannerTimer()` is now called from `didFail`, `didFailProvisionalNavigation`, `webViewWebContentProcessDidTerminate`, the `didCommit` serverError branch, and `invalidate()` — not independently unit-tested (the prior bug and its fix are both about WebKit delegate-callback ordering, which this test suite doesn't simulate) | 🟡 Code review only |
 
-**Honest summary:** the parts of this matrix expressible as pure-function
-unit tests (origin matching, navigation-kind decisions, deep-link
-resolution, bridge message schema/frame/origin validation, sessionRefreshed
-access/refresh-token pairing) are automated and passing — 46/46,
-independently re-runnable. The sign-out cleanup mechanics (non-destructive
-IndexedDB preservation, an unrelated localStorage key surviving cleanup,
-exact auth-key removal, idempotency, untrusted-origin refusal, and now the
-real lifecycle API — pending-generation bookkeeping, live-WebView
-registration/fallback) are automated against a genuine `WKWebView` — 9/9
-passing. The `AuthManager` race-guard predicates (restore-then-sign-out,
-account-B-signs-in, late-failure-cannot-sign-out-B) and two genuine
-`applyWebRefreshedSession` functional tests are automated without network
-— 6/6 passing. What's still **not** genuinely driven, and is explicitly
+**Honest summary (updated, Pass 3):** the parts of this matrix expressible
+as pure-function unit tests (origin matching, navigation-kind decisions,
+deep-link resolution, bridge message schema/frame/origin validation,
+sessionRefreshed access/refresh-token pairing) are automated and passing
+— 46/46, independently re-runnable. The sign-out cleanup mechanics
+(non-destructive IndexedDB preservation, an unrelated localStorage key
+surviving cleanup, exact auth-key removal, idempotency, untrusted-origin
+refusal with its committed-state preconditions, the real lifecycle API —
+pending-generation bookkeeping, live-WebView registration/fallback — and,
+new in Pass 3, the ephemeral-fallback-never-runs-production-code proof)
+are automated against the real `WKWebView`/persistent storage stack — 10
+tests, 9 of which instantiate a `WKWebView`, all passing. The `AuthManager`
+race-guard predicates (restore-then-sign-out, account-B-signs-in,
+late-failure-cannot-sign-out-B) — 3 tests — plus, new in Pass 3, 5
+end-to-end tests of the REAL `reconcileWebRefreshedSession` production
+code against a mocked `SupabaseSessionExchanging` (no network) — 8/8
+passing total. What's still **not** genuinely driven, and is explicitly
 NOT claimed as tested: actual popups opening in a live simulator, actual
 media permission prompts, actual redirects from a real server, actual
 backgrounded/killed-process timing, a full interactive sign-out →
 sign-in-as-different-user tap sequence on screen, the live network race
 inside `restoreSession()`/`refreshAndGetToken()` itself (as opposed to the
-guard predicate they use), and a real HealthKit-sync-in-flight account
-switch. Those remain implemented per reviewed logic but not interactively
+guard predicate they use), a real HealthKit-sync-in-flight account
+switch, and the full multi-account IndexedDB isolation problem (P1-3,
+explicitly deferred this pass — see the Pass 3 detail section). Those
+remain implemented per reviewed logic but not interactively
 verified — this would need either a UI-automation pass (XCUITest), a
 mocked network/HealthKit layer, or manual QA on a device, and should
 happen before this milestone is called COMPLETE rather than PARTIAL.
@@ -497,8 +513,11 @@ for this pass: `1810833c381b0e6b340918990744effbd80490ce`.
    also now coalesces concurrent callers onto one in-flight `Task` rather
    than firing a second independent refresh. All Keychain writes for the
    web-bridge refresh path are now centralized in a new
-   `AuthManager.applyWebRefreshedSession(...)` method — `MainTabView` no
-   longer writes Keychain directly at all.
+   `AuthManager.applyWebRefreshedSession(...)` method (renamed and
+   substantially redesigned into `reconcileWebRefreshedSession` in Pass
+   3 — see the Pass 3 section above; `applyWebRefreshedSession` no
+   longer exists under that name) — `MainTabView` no longer writes
+   Keychain directly at all.
 
 3. **`sessionRefreshed`'s refresh token is now bound to its access
    token, not merely paired with it.** The pass-1 design verified the
@@ -596,9 +615,102 @@ database migration, Cloudflare, or other production resource was
 deployed. Nothing was pushed. The pre-existing `docs/BETA_LAUNCH_CHECKLIST.md`
 deletion was left untouched.
 
-**Status: still PARTIAL, not COMPLETE.** All ten items in this pass's
-remediation spec have corresponding code and/or test changes, but the
-live, interactive adversarial matrix pass — real popups, real media
-prompts, a real on-screen multi-identity sign-out/sign-in cycle, a real
-HealthKit-sync-in-flight account switch — has still not happened. Do not
-advance this milestone to COMPLETE until that pass runs.
+**Status at the end of Pass 2: still PARTIAL, not COMPLETE.** A third
+independent review found further implementation defects in Pass 2's own
+design (below) — Pass 2's "all ten items" claim did not hold up for
+P1-1/P1-2/P1-3/P1-4/P2-5 as actually implemented.
+
+---
+
+## Milestone 1B Remediation — Pass 3 (this session)
+
+A third independent review found concrete implementation defects
+surviving Pass 2. Starting commit for this pass:
+`20acc8c3f8707aba55686300b31c278bd6fac02d`. Ending commit: see the final
+handoff below.
+
+### Finding-by-finding closure table
+
+| ID | Finding | Fixed this pass? | Evidence |
+|---|---|---|---|
+| P1-1 | Ephemeral cleanup fallback navigated to the REAL production URL, giving the live app a window to read the old session before cleanup removed it | ✅ Fixed | `runEphemeralCleanup()` now loads a static, same-origin, zero-script HTML string via `loadHTMLString` — never a real navigation, never real app code. `ephemeralCleanupRunCount` added as an observable test hook. `test_p1_ephemeralFallback_removesAuthKeyFromRealPersistentStoreWithoutRunningProductionCode` seeds a session in one WebView, forces the fallback path, and reads the SAME real persistent partition back to prove the auth key is gone while sentinel IndexedDB + an unrelated localStorage key survive |
+| P1-2 | `sessionRefreshed` concurrently verified the access token and exchanged the refresh token in a disposable `WebAppView.Coordinator`, which could be torn down mid-flight after the exchange already reached Supabase | ✅ Fixed (with one documented residual gap) | Reconciliation moved entirely into `AuthManager.reconcileWebRefreshedSession` (outlives every WebView). Access token verified FIRST; refresh token only exchanged after that succeeds and the live session still matches. Keychain `save()` results are now checked, failing closed on partial writes. `refreshTask`/`webRefreshTask` are scoped to `(userId, epoch)` so they never coalesce across sessions. An injectable `SupabaseSessionExchanging` seam (`LiveSupabaseSessionExchanger` / `MockSupabaseSessionExchanger`) makes this genuinely testable without network. **Residual gap, by design, documented in code and here:** if the exchange rotates the token but a DIFFERENT account is live by the time it returns, the rotated token is discarded rather than overwriting that account's Keychain — the original account's session is not resurrected in that specific case. Avoiding that fully needs per-account Keychain storage, out of scope for this pass |
+| P1-3 | The global `jeevan` IndexedDB database (18 stores) is not partitioned by user at all; the merge-preflight check only covers 6 of them | ❌ **Not implemented this pass — explicitly deferred, not silently dropped.** See the dedicated note below | `hasSignificantLocalData`'s existing bug (see item 8 below) was fixed, narrowing but not closing the gap |
+| P1/P2-4 | HealthKit sync wasn't session-bound: untracked `Task`s in `MainTabView`/`DashboardView`, a single global `SyncState` UserDefaults key shared by every account | ✅ Fixed | `SyncEngine.startSync(...)` is now the one entry point; it owns the resulting `Task` (`activeSyncTask`), cancelled via a `jeevanSessionWillTerminate` notification `AuthManager.terminateSession()` posts. `SyncState` is now persisted per-user (`SyncStateStore.load(userId:)`/`save(_:userId:)`) with a one-time migration of the legacy global key to whichever user loads first — never silently to a later, different user. `upload(...)` re-checks the live session after a token refresh, before retrying, so a freshly-refreshed token for account A can never retry a request for an account that's no longer live. **Not automated this pass** — no mocked HealthKit/network layer exists for `SyncEngine`; this is code-reviewed, not tested, exactly as stated in the Manual Adversarial Matrix above |
+| P2-5 | Web sign-out notified native over the bridge BEFORE local in-memory/settings cleanup finished, and had no bounded timeouts | ✅ Fixed | `AuthContext.tsx`'s `signOut()` reordered: `clearQueueForUser`/`supabase.auth.signOut()`/both `setSetting` calls now each race a `withTimeout` (2-3s) so a hung call can't block forever; the native bridge `signOut` postMessage is sent LAST, strictly after `setSession(null)`/`setUser(null)`/`setMode('guest')` have already run. `withTimeout` is unit-tested directly (resolves-before-deadline, rejects-on-timeout via fake timers, propagates-a-rejection-immediately) — the full `signOut()` ordering itself is not end-to-end tested (no `@testing-library/react` in this project to render the provider) |
+
+### P1-3: why this was deferred, not attempted as a partial fix
+
+Implementing real per-user IndexedDB partitioning (a separate database —
+or a separate, consistently-applied key prefix — per signed-in user,
+across all 18 stores, with a defined migration path for the existing
+unscoped `jeevan` database, and updates to every consumer: `syncEngine`,
+every page's data hooks, every store module) is realistically multi-day
+scope on its own, touching nearly every part of the web app's data
+layer. A rushed, partial version of this — e.g. only migrating some
+stores, or only gating some code paths — risks introducing NEW data-loss
+or data-leakage bugs that are worse than the current, at-least-understood
+gap, and the task's own test requirement ("populate each store for
+account A, switch to B, prove B cannot read/upload/modify/delete A's
+records") implies a real design pass, not a quick patch.
+
+What WAS done this pass: the one concrete, narrowly-scoped bug found in
+the existing partial safety check — `hasSignificantLocalData` was
+already fetching `healthMetrics` into `LocalDataSummary` but never
+actually checking it, so a health-only local dataset silently bypassed
+the merge-choice prompt entirely — is fixed, and the check now also
+covers `progress_photos` and a saved `profile` record. This reduces one
+concrete exposure window; it does not partition storage.
+
+**This remains the single largest open item blocking a safe multi-account
+launch.** A follow-up session should treat this as its own dedicated
+scope: design the per-user partitioning scheme (sketch: a
+`jeevan_<userId>` database per signed-in user, with the existing
+unscoped `jeevan` database's data migrated ONLY to the first user who
+signs in after this change ships, mirroring the `SyncStateStore`
+migration pattern already used for `SyncState` in this pass), update
+every store module and consumer, add the close-old-before-opening-new
+sequencing on account switch, and write the cross-account isolation
+tests the task specifies before calling this closed.
+
+### Verification run this pass
+
+`npx vitest run` — **112/112 passed** (108 existing + 4 new `withTimeout`
+tests). `npx tsc --noEmit --pretty false` — clean. `npm run build` —
+succeeds. `npm audit --omit=dev` — 0 vulnerabilities. `xcodebuild test`
+on `iPhone Duo` (iOS 27.2), **normal simulator code-signing** (not
+`CODE_SIGNING_ALLOWED=NO` — required for `AuthManagerRaceTests`'
+Keychain-backed assertions) — **64/64 native tests passing, 0 skipped**.
+Unsigned generic-device Release `xcodebuild` with
+`CODE_SIGNING_ALLOWED=NO` — BUILD SUCCEEDED. `git diff --check` — clean.
+No Edge Function, database migration, Cloudflare, or other production
+resource was deployed. Nothing was pushed. The pre-existing
+`docs/BETA_LAUNCH_CHECKLIST.md` deletion was left untouched.
+
+Two test-infrastructure bugs were found and fixed while getting this
+suite green (documented here since they could otherwise look like
+hidden scope creep): (1) a real race in `AuthManager.init()` — its
+unawaited `restoreSession()` `Task` could run AFTER a test's
+`setSignedInForTesting()` call and silently overwrite it back to
+`.signedOut` the next time the test yielded on any `await`; fixed by
+having `setSignedInForTesting` cancel that task and adding a
+cancellation check at the top of `restoreSession()`. (2) The new P1-1
+ephemeral-fallback test hit WebKit's own internal `InvalidTransition`/
+deinit error when a `WKWebView` was deallocated too soon after a
+`loadHTMLString` navigation; fixed with a short grace-period sleep
+before the ephemeral WebView goes out of scope, and by having the test
+read back through its own already-alive `WKWebView` instead of
+spinning up a third one purely to re-read the same origin.
+
+### Status
+
+**Still PARTIAL, not COMPLETE.** P1-1, P1-2 (with one documented,
+accepted residual gap), P1/P2-4, and P2-5 are fixed and automated-tested
+this pass. **P1-3 (multi-account IndexedDB isolation) is explicitly NOT
+fixed** — deferred with reasoning above, not silently dropped — and
+remains the largest open launch blocker. The live, interactive
+adversarial matrix pass (real popups, real media prompts, a real
+on-screen multi-identity sign-out/sign-in cycle, a real
+HealthKit-sync-in-flight account switch) has still not happened. Do not
+advance this milestone to COMPLETE until P1-3 is actually closed AND
+that live pass runs and is documented.
