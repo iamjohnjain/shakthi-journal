@@ -113,28 +113,58 @@ struct SyncState: Codable {
 // MARK: - Persistence
 
 enum SyncStateStore {
-    private static let currentKey = "shakthiSyncState"
+    /// The old, global (not per-user) key — kept only as a ONE-TIME
+    /// migration source (Remediation Pass 3, P1/P2-4). Multiple accounts
+    /// used on the same device before this pass all shared this single
+    /// key; migrating it to EVERY new user who ever signs in on this
+    /// device would silently hand account A's sync history to account B.
+    /// Instead, it is migrated to whichever user id is live the FIRST
+    /// time `load(userId:)` is ever called after this pass ships, then
+    /// deleted — every subsequent distinct user id starts from a clean,
+    /// per-user state.
+    private static let legacyKey = "shakthiSyncState"
     private static let legacyDateKey = "lastHealthKitSyncAt"
     private static let legacyAuthKey = "healthKitAuthRequested"
+    private static let legacyMigratedFlagKey = "shakthiSyncState.legacyMigrationDone"
 
-    static func load() -> SyncState {
-        // Try current JSON format first
-        if let data = UserDefaults.standard.data(forKey: currentKey),
+    private static func key(for userId: String) -> String { "shakthiSyncState.\(userId)" }
+
+    static func load(userId: String) -> SyncState {
+        if let data = UserDefaults.standard.data(forKey: key(for: userId)),
            let state = try? JSONDecoder().decode(SyncState.self, from: data) {
             return state
         }
-        // Migrate from Phase iOS 1 single-key storage
-        var state = SyncState()
-        if let date = UserDefaults.standard.object(forKey: legacyDateKey) as? Date {
-            state.lastSuccessfulSync = date
-            state.lastAttemptedSync  = date
+
+        // One-time migration of the legacy global key — only runs once,
+        // ever, for whichever user happens to load first after this pass
+        // ships. Every other/later user id gets a fresh, empty state.
+        if !UserDefaults.standard.bool(forKey: legacyMigratedFlagKey) {
+            UserDefaults.standard.set(true, forKey: legacyMigratedFlagKey)
+
+            if let data = UserDefaults.standard.data(forKey: legacyKey),
+               let legacyState = try? JSONDecoder().decode(SyncState.self, from: data) {
+                save(legacyState, userId: userId)
+                UserDefaults.standard.removeObject(forKey: legacyKey)
+                return legacyState
+            }
+            // Even-older (Phase iOS 1) single-key format.
+            var state = SyncState()
+            if let date = UserDefaults.standard.object(forKey: legacyDateKey) as? Date {
+                state.lastSuccessfulSync = date
+                state.lastAttemptedSync  = date
+            }
+            state.healthPermissionRequested = UserDefaults.standard.bool(forKey: legacyAuthKey)
+            if state.lastSuccessfulSync != nil || state.healthPermissionRequested {
+                save(state, userId: userId)
+                return state
+            }
         }
-        state.healthPermissionRequested = UserDefaults.standard.bool(forKey: legacyAuthKey)
-        return state
+
+        return SyncState()
     }
 
-    static func save(_ state: SyncState) {
+    static func save(_ state: SyncState, userId: String) {
         guard let data = try? JSONEncoder().encode(state) else { return }
-        UserDefaults.standard.set(data, forKey: currentKey)
+        UserDefaults.standard.set(data, forKey: key(for: userId))
     }
 }
