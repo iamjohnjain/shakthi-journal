@@ -196,6 +196,13 @@
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
   align-self: center;
+  /* Anchors the always-mounted .goal-ring-sync-btn below, which is taken
+     OUT of normal flow (position: absolute) specifically so it never
+     counts toward this chip's own width — otherwise the chip (an
+     inline-flex box that sizes to its content) reserves room for the
+     button even while it's invisible, and the visible icon+text end up
+     sitting off-center within that wider box. */
+  position: relative;
 }
 
 .goal-ring-sync-icon {
@@ -204,6 +211,11 @@
 }
 
 .goal-ring-sync-btn {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 6px;
   font-size: 10px;
   font-weight: 700;
   color: var(--text-secondary);
@@ -211,7 +223,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-full);
   padding: 2px 8px;
-  margin-left: 2px;
+  white-space: nowrap;
 }
 
 /* ─── Detail Modal ────────────────────────────────────────────────────────── */
