@@ -219,7 +219,10 @@
 .goal-ring-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.72);
+  /* Near-opaque — anything still animating behind this (e.g. a pull-to-
+     refresh sync spinner) must not be visibly perceptible through it while
+     this modal is open. */
+  background: rgba(5, 4, 7, 0.94);
   z-index: 400;
   display: flex;
   align-items: flex-end;
@@ -240,7 +243,6 @@
   background-origin: border-box;
   background-clip: padding-box, border-box;
   border: 1.5px solid transparent;
-  border-bottom: none;
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   width: 100%;
   max-width: 480px;

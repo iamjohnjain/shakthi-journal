@@ -324,9 +324,20 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
     }
   }
 
+  // Opening the detail modal always kicks off a fresh native HealthKit sync
+  // first — the modal itself re-renders live once `native-health-sync-complete`
+  // lands (the Dashboard-level data hook already listens for that and bumps
+  // its tick, which flows back down into this component's props), so
+  // "Current"/"Last Synced" update in place instead of showing whatever was
+  // last synced before the user even opened the card.
+  function openDetail() {
+    if (isInsideNativeApp()) openNativeHealthSync()
+    setShowDetail(true)
+  }
+
   function handleCardClick() {
     if (didSwipe.current) { didSwipe.current = false; return }
-    setShowDetail(true)
+    openDetail()
   }
 
   const R = 88
@@ -348,7 +359,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   return (
     <>
       <div className="goal-ring-card" onClick={handleCardClick} role="button" tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && setShowDetail(true)}
+        onKeyDown={e => e.key === 'Enter' && openDetail()}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{ '--goal-glow-op': GLOW_INTENSITY[goalType] } as React.CSSProperties}>
