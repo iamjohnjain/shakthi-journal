@@ -67,10 +67,21 @@ final class AuthManager {
         return token
     }
 
+    /// Tracked so a (hypothetical) second restore attempt cancels the
+    /// first rather than letting two independent restore round-trips
+    /// race each other.
+    private var restoreTask: Task<Void, Never>?
+
+    /// Coalesces concurrent `refreshAndGetToken()` callers onto one
+    /// in-flight refresh rather than firing a second, independent
+    /// network round-trip — also gives this operation a trackable/
+    /// cancellable handle the way `restoreTask` does for restore.
+    private var refreshTask: Task<String, Error>?
+
     // MARK: - Init
 
     init() {
-        Task { await restoreSession() }
+        restoreTask = Task { await restoreSession() }
     }
 
     // MARK: - Actions
@@ -175,18 +186,29 @@ final class AuthManager {
     }
 
     private func terminateSession() {
+        // Marked PENDING SYNCHRONOUSLY, before authState flips and before
+        // the outgoing WebAppView unmounts — any `MainTabView` instance
+        // created for whatever comes next (SignInView, or immediately a
+        // new sign-in) observes `isPending`/the bumped generation from the
+        // very first moment it exists. This is what makes it impossible
+        // for a stale cleanup to run against a WebView that already has a
+        // new session injected into it: the new WebAppView mounts only
+        // after `ensureCleanupComplete()` resolves for THIS generation.
+        WebSessionBoundary.shared.markPendingForNewCleanup()
+
         KeychainHelper.clearSession()
         emailConfirmationPending = false
         googleSignInError = nil
         authState = .signedOut
         sessionEpoch += 1
-        // Clears ONLY the Supabase auth localStorage key from the WebView —
-        // never IndexedDB/general storage. Awaited in a detached Task since
-        // callers of signOut()/terminateSession() are synchronous; anything
-        // that needs to wait for cleanup to actually finish (gating a new
-        // sign-in's WebView from mounting) reads WebSessionBoundary's own
-        // `isPending` flag instead of awaiting this call directly.
-        Task { await WebSessionBoundary.shared.requestCleanup() }
+
+        // Opportunistically run the cleanup now, while the outgoing
+        // WebView (if any) is still registered as live — reusing an
+        // already-loaded page is strictly better than falling back to a
+        // throwaway one. Callers that need to actually WAIT for cleanup
+        // to finish (gating a new sign-in's WebView) call
+        // `ensureCleanupComplete()` themselves rather than awaiting this.
+        Task { await WebSessionBoundary.shared.ensureCleanupComplete() }
     }
 
     // MARK: - Private
@@ -214,8 +236,28 @@ final class AuthManager {
         // is never a dead end even before this background refresh lands.
         authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
 
+        // Captured AFTER the optimistic signedIn transition above (which
+        // never bumps the epoch itself) — re-checked after the `await`
+        // below so a sign-out, or a second identity signing in, while
+        // this network round-trip was in flight is detected rather than
+        // blindly trusted.
+        let expectedUserId = userId
+        let expectedEpoch = sessionEpoch
+
         do {
             let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+            guard !Task.isCancelled else { return }
+            guard isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else {
+                // Either signed out, or a DIFFERENT account signed in while
+                // this was in flight — account A's late success must never
+                // overwrite account B's live session.
+                return
+            }
+            guard session.user.id == expectedUserId else {
+                // Supabase returned a session for a different user than
+                // the one this refresh was started for — never persist it.
+                return
+            }
             persist(session)
             authState = .signedIn(
                 userId: session.user.id,
@@ -223,8 +265,11 @@ final class AuthManager {
                 accessToken: session.accessToken
             )
         } catch SupabaseError.httpError(let code, _) where code == 400 || code == 401 {
-            // The refresh token is genuinely revoked or invalid — force re-sign-in.
-            // Falling back to the stale access token would also fail, since it's expired.
+            // The refresh token is genuinely revoked or invalid — force
+            // re-sign-in. Only do so if THIS account is still the live
+            // session: a late failure for account A must never sign out
+            // whatever account B is now signed in as.
+            guard isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else { return }
             print("[AuthManager] Refresh token rejected (\(code)) — clearing Keychain session")
             terminateSession()
         } catch {
@@ -245,34 +290,91 @@ final class AuthManager {
     /// Returns the new access token so callers can retry immediately.
     /// Throws `SupabaseError.sessionExpired` if the refresh token is no longer valid.
     func refreshAndGetToken() async throws -> String {
-        guard let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey) else {
-            terminateSession()
+        // Coalesce concurrent callers (e.g. two sync attempts racing a
+        // 401) onto the same in-flight refresh rather than firing a
+        // second independent network round-trip.
+        if let existing = refreshTask {
+            return try await existing.value
+        }
+        guard case .signedIn(let expectedUserId, _, _) = authState else {
             throw SupabaseError.sessionExpired
         }
-        do {
-            let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
-            persist(session)
-            authState = .signedIn(
-                userId: session.user.id,
-                email: session.user.email,
-                accessToken: session.accessToken
-            )
-            return session.accessToken
-        } catch SupabaseError.httpError(let code, _) where code == 400 || code == 401 {
-            // Refresh token is revoked / expired — clear session and force re-sign-in.
-            // SyncEngine catches .sessionExpired to show the right UI.
-            terminateSession()
-            throw SupabaseError.sessionExpired
+        let expectedEpoch = sessionEpoch
+
+        let task = Task<String, Error> { [weak self] in
+            guard let self else { throw SupabaseError.sessionExpired }
+            guard let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey) else {
+                if self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) {
+                    self.terminateSession()
+                }
+                throw SupabaseError.sessionExpired
+            }
+            do {
+                let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+                guard !Task.isCancelled else { throw SupabaseError.sessionExpired }
+                guard self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else {
+                    // A sign-out, or a different account signing in, while
+                    // this refresh was in flight — never persist a late
+                    // success from account A over whatever is live now.
+                    throw SupabaseError.sessionExpired
+                }
+                guard session.user.id == expectedUserId else {
+                    throw SupabaseError.sessionExpired
+                }
+                self.persist(session)
+                self.authState = .signedIn(
+                    userId: session.user.id,
+                    email: session.user.email,
+                    accessToken: session.accessToken
+                )
+                return session.accessToken
+            } catch SupabaseError.httpError(let code, _) where code == 400 || code == 401 {
+                // Refresh token is revoked/expired — clear session and
+                // force re-sign-in, but only if THIS account is still the
+                // live one; a late failure for account A must never sign
+                // out account B. SyncEngine catches .sessionExpired to
+                // show the right UI either way.
+                if self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) {
+                    self.terminateSession()
+                }
+                throw SupabaseError.sessionExpired
+            }
         }
+        refreshTask = task
+        defer { refreshTask = nil }
+        return try await task.value
     }
 
-    /// Updates the in-memory access token when the WebView refreshes it.
-    /// Called by the native JS bridge when Supabase JS posts a TOKEN_REFRESHED event.
-    func updateTokens(accessToken: String) {
-        guard case .signedIn(let userId, let email, _) = authState else { return }
+    /// The ONE place a web-originated `sessionRefreshed` bridge message is
+    /// allowed to reach Keychain. `WebAppView.Coordinator` has already
+    /// verified `accessToken` directly against Supabase and matched the
+    /// returned identity to the user it was constructed for — this is a
+    /// second, independent re-check against the LIVE current session
+    /// right before writing anything, so `MainTabView` never needs (and
+    /// must never attempt) to write credentials to Keychain itself.
+    func applyWebRefreshedSession(accessToken: String, refreshToken: String, userId: String, email: String) {
+        guard case .signedIn(let currentUserId, _, _) = authState, currentUserId == userId else { return }
+        KeychainHelper.save(accessToken,  key: KeychainHelper.accessTokenKey)
+        KeychainHelper.save(refreshToken, key: KeychainHelper.refreshTokenKey)
+        KeychainHelper.save(userId,       key: KeychainHelper.userIdKey)
+        KeychainHelper.save(email,        key: KeychainHelper.userEmailKey)
         authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
     }
 }
+
+#if DEBUG
+extension AuthManager {
+    /// Test-only: sets signed-in state directly, without any network
+    /// round trip — lets deterministic tests exercise the guard logic
+    /// (`isCurrentSession`, `applyWebRefreshedSession`) that
+    /// `restoreSession()`/`refreshAndGetToken()` depend on without
+    /// needing to mock or hit the real Supabase network. Never compiled
+    /// into Release.
+    func setSignedInForTesting(userId: String, email: String, accessToken: String) {
+        authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
+    }
+}
+#endif
 
 /// Anchors the Google sign-in web sheet to the app's key window.
 private final class GooglePresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {

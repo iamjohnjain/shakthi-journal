@@ -5,8 +5,16 @@ import Observation
 
 extension Notification.Name {
     /// Posted on the main thread after a successful HealthKit sync.
-    /// `userInfo["metrics"]` is `[HealthMetric]` — the records that were uploaded.
-    /// WebAppView.Coordinator listens for this and injects the records into IndexedDB.
+    /// `userInfo["metrics"]` is `[HealthMetric]` — the records that were
+    /// uploaded. `userInfo["userId"]`/`userInfo["epoch"]` identify exactly
+    /// which signed-in session this sync ran for — `WebAppView.Coordinator`
+    /// requires both to match its OWN expected (userId, epoch) pair (via
+    /// `isValidSession`), in addition to its usual liveness check, before
+    /// injecting anything into IndexedDB. Without this, a sync started for
+    /// account A that completes after account B has become the active
+    /// session would otherwise inject A's data into B's WebView — this is
+    /// what actually prevents that, not just a generic "is some WebView
+    /// live" check.
     static let jeevanNativeSyncComplete = Notification.Name("Jeevan.NativeSyncComplete")
 }
 
@@ -49,6 +57,14 @@ final class SyncEngine {
     ) async {
         guard !activity.isRunning else { return }
 
+        // Captured at the very start — every await below re-checks this
+        // against AuthManager's LIVE state before touching persisted sync
+        // state or posting the completion notification. A sign-out, or a
+        // second identity signing in, partway through this sync must stop
+        // it from ever uploading-as or injecting-into the wrong account.
+        guard let expectedEpoch = currentEpoch(for: userId, authManager: authManager) else { return }
+        func stillValid() -> Bool { authManager.isCurrentSession(userId: userId, epoch: expectedEpoch) }
+
         // nil means "no lower bound" — on the very first sync (no lastSuccessfulSync
         // yet), pull everything Apple Health has stored, however far back that goes.
         let since: Date? = syncState.lastSuccessfulSync
@@ -61,6 +77,7 @@ final class SyncEngine {
         do {
             activity = .running(detail: "Reading Apple Health…")
             let (metrics, typeResults) = await healthKitManager.fetchSamplesWithStatus(since: since)
+            guard stillValid() else { activity = .idle; return }
 
             // Build and persist category results regardless of whether we have data to upload
             let categoryResults = buildCategoryResults(from: typeResults, metrics: metrics)
@@ -73,7 +90,7 @@ final class SyncEngine {
                 : nil
 
             guard !metrics.isEmpty else {
-                markSuccess(uploadCount: 0, partialWarning: partialWarning)
+                markSuccess(uploadCount: 0, partialWarning: partialWarning, userId: userId, epoch: expectedEpoch)
                 return
             }
 
@@ -83,21 +100,29 @@ final class SyncEngine {
 
             activity = .running(detail: "Uploading \(metrics.count) records…")
             let uploaded = try await upload(metrics, userId: userId, accessToken: accessToken, authManager: authManager)
+            guard stillValid() else { activity = .idle; return }
 
-            markSuccess(uploadCount: uploaded, metrics: metrics, typeResults: typeResults, partialWarning: partialWarning)
+            markSuccess(uploadCount: uploaded, metrics: metrics, typeResults: typeResults, partialWarning: partialWarning, userId: userId, epoch: expectedEpoch)
         } catch SupabaseError.sessionExpired {
+            guard stillValid() else { activity = .idle; return }
             syncState.lastError      = SupabaseError.sessionExpired.localizedDescription
             syncState.needsReauth    = true
             syncState.pendingUploads = 0
             SyncStateStore.save(syncState)
             activity = .idle
         } catch {
+            guard stillValid() else { activity = .idle; return }
             syncState.lastError      = error.localizedDescription
             syncState.needsReauth    = false
             syncState.pendingUploads = 0
             SyncStateStore.save(syncState)
             activity = .idle
         }
+    }
+
+    private func currentEpoch(for userId: String, authManager: AuthManager) -> Int? {
+        let epoch = authManager.sessionEpoch
+        return authManager.isCurrentSession(userId: userId, epoch: epoch) ? epoch : nil
     }
 
     // MARK: - Private
@@ -136,7 +161,9 @@ final class SyncEngine {
         uploadCount: Int,
         metrics: [HealthMetric] = [],
         typeResults: [TypeFetchResult] = [],
-        partialWarning: String? = nil
+        partialWarning: String? = nil,
+        userId: String,
+        epoch: Int
     ) {
         let now = Date()
         syncState.lastSuccessfulSync     = now
@@ -161,7 +188,7 @@ final class SyncEngine {
         NotificationCenter.default.post(
             name: .jeevanNativeSyncComplete,
             object: nil,
-            userInfo: ["metrics": metrics]
+            userInfo: ["metrics": metrics, "userId": userId, "epoch": epoch]
         )
     }
 

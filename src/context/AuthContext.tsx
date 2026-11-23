@@ -25,6 +25,8 @@ export interface LocalDataSummary {
   nutritionEntries: number
   dailyLogs: number
   healthMetrics: number
+  progressPhotos: number
+  hasProfile: boolean
 }
 
 export interface PendingMerge {
@@ -79,17 +81,41 @@ function toAuthUser(u: User): AuthUser {
 
 async function getLocalDataSummary(): Promise<LocalDataSummary> {
   const db = await getDB()
-  const [workouts, nutritionEntries, dailyLogs, healthMetrics] = await Promise.all([
+  const [workouts, nutritionEntries, dailyLogs, healthMetrics, progressPhotos, profile] = await Promise.all([
     db.count('workouts'),
     db.count('nutrition_entries'),
     db.count('daily_logs'),
     db.count('health_metrics'),
+    db.count('progress_photos'),
+    db.get('profile', 'main'),
   ])
-  return { workouts, nutritionEntries, dailyLogs, healthMetrics }
+  return { workouts, nutritionEntries, dailyLogs, healthMetrics, progressPhotos, hasProfile: profile != null }
 }
 
+// NOTE (Milestone 3, launch blocker — see docs/APP_STORE_READINESS.md):
+// this is a best-effort, partial safety check, not real multi-account
+// isolation. It now also catches health-only data, progress photos, and a
+// saved profile (a real bug fixed this session: `healthMetrics` was
+// already being fetched into the summary above but never actually
+// checked here, so a health-only local dataset silently fell through to
+// an unprompted `syncEngine.downloadAll()` in `activateSession` instead
+// of the merge-choice prompt). It still does NOT guarantee isolation
+// between two accounts used on the same device without ever fully
+// signing out between them, and it does not partition IndexedDB by user
+// at all — that is Milestone 3's actual scope. Until that lands, a
+// second identity signing in on a device that still holds a prior
+// identity's retained local data is NOT guaranteed safe from viewing or
+// uploading that data; this check only reduces (does not eliminate) the
+// risk of silently overwriting it.
 function hasSignificantLocalData(summary: LocalDataSummary): boolean {
-  return summary.workouts > 0 || summary.nutritionEntries > 0 || summary.dailyLogs > 0
+  return (
+    summary.workouts > 0 ||
+    summary.nutritionEntries > 0 ||
+    summary.dailyLogs > 0 ||
+    summary.healthMetrics > 0 ||
+    summary.progressPhotos > 0 ||
+    summary.hasProfile
+  )
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -230,28 +256,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    if (user) await clearQueueForUser(user.id)
+    // Every step below is independently failure-tolerant — an IndexedDB
+    // cleanup failure, a Supabase network failure, or a settings-write
+    // failure must never prevent the native bridge notification, the
+    // local auth-state clearing, or any of the other steps from running.
+    // Moving `clearQueueForUser` inside this same protected flow (it used
+    // to run unguarded, BEFORE the try/finally that notified native) was
+    // itself part of the fix: a thrown IndexedDB error there used to abort
+    // the whole function before native ever heard about the sign-out.
+    if (user) {
+      try {
+        await clearQueueForUser(user.id)
+      } catch {
+        // Best-effort — a queue-clearing failure must not block sign-out.
+      }
+    }
+
     try {
       if (supabase) await supabase.auth.signOut()
-    } finally {
-      // Native must hear about this even if the Supabase request itself
-      // failed (offline, server error, etc.) — the user's local session is
-      // ending either way, and native holds its own independent copy of
-      // the auth tokens (Keychain) plus a parallel WebView session that
-      // needs clearing regardless of whether the network call succeeded.
-      const w = window as unknown as Record<string, unknown>
-      const bridge = (w.webkit as {
-        messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } }
-      } | undefined)
-      bridge?.messageHandlers?.jeevanNative?.postMessage({ type: 'signOut' })
-
-      syncEngine.setUser(null)
-      await setSetting('auth.mode', 'guest')
-      await setSetting('syncedUserId', null)
-      setSession(null)
-      setUser(null)
-      setMode('guest')
+    } catch {
+      // Best-effort — native must hear about this even if the Supabase
+      // request itself failed (offline, server error, etc.): the user's
+      // local session is ending either way, and native holds its own
+      // independent copy of the auth tokens (Keychain) plus a parallel
+      // WebView session that needs clearing regardless of whether this
+      // network call succeeded.
     }
+
+    const w = window as unknown as Record<string, unknown>
+    const bridge = (w.webkit as {
+      messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } }
+    } | undefined)
+    try {
+      bridge?.messageHandlers?.jeevanNative?.postMessage({ type: 'signOut' })
+    } catch {
+      // Best-effort — a bridge call failing (e.g. not running inside the
+      // native app at all) must not block the rest of local sign-out.
+    }
+
+    syncEngine.setUser(null)
+
+    try {
+      await setSetting('auth.mode', 'guest')
+    } catch {
+      // Best-effort — a settings-write failure must not skip clearing
+      // the in-memory auth state below.
+    }
+    try {
+      await setSetting('syncedUserId', null)
+    } catch {
+      // Best-effort, same reasoning as above.
+    }
+
+    setSession(null)
+    setUser(null)
+    setMode('guest')
   }, [user])
 
   const continueAsGuest = useCallback(() => {

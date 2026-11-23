@@ -10,6 +10,14 @@ import WebKit
 /// at all — true WKWebView integration tests (the auth-cleanup JS
 /// injection against a live page) live in
 /// WebSessionBoundaryIntegrationTests.swift instead.
+///
+/// `JeevanTests` is a hosted bundle (`TEST_HOST`/`BUNDLE_LOADER` pointing at
+/// the app target) — the `WebBoundary` source files are no longer given a
+/// second, separate build-file membership in this target's own Sources
+/// phase (that used to produce a second, distinct per-module copy of each
+/// type, requiring explicit `Jeevan.`-qualification below to disambiguate).
+/// Everything here now reaches the app's own types exclusively through
+/// `@testable import Jeevan`.
 final class WebBoundaryTests: XCTestCase {
 
     // MARK: - TrustedWebOrigin: allowed
@@ -277,20 +285,37 @@ final class WebBoundaryTests: XCTestCase {
     }
 
     func test_popupDecision_userActivatedExternalLink_opensExternally() {
-        // Explicitly module-qualified: WebAppView.Coordinator.navigationKind
-        // returns Jeevan's own WebNavigationPolicy.Kind (reached via
-        // @testable import), but this test file also compiles its own copy
-        // of WebNavigationPolicy.swift directly into the JeevanTests module
-        // (shared source-file membership with the app target) — an
-        // unqualified `WebNavigationPolicy.decide` here would resolve to
-        // that second, separately-compiled copy instead, which Swift
-        // treats as a genuinely different type despite identical source.
         let kind = WebAppView.Coordinator.navigationKind(for: .linkActivated)
-        XCTAssertEqual(Jeevan.WebNavigationPolicy.decide(url: external, kind: kind), .openExternally)
+        XCTAssertEqual(WebNavigationPolicy.decide(url: external, kind: kind), .openExternally)
     }
 
     func test_popupDecision_scriptOpenedExternalPopup_blocked() {
         let kind = WebAppView.Coordinator.navigationKind(for: .other)
-        XCTAssertEqual(Jeevan.WebNavigationPolicy.decide(url: external, kind: kind), .block)
+        XCTAssertEqual(WebNavigationPolicy.decide(url: external, kind: kind), .block)
+    }
+
+    // MARK: - sessionRefreshed access/refresh token pairing (Remediation #3)
+
+    func test_sessionRefreshed_matchingAccessAndRefreshUser_accepted() {
+        XCTAssertTrue(WebAppView.Coordinator.isPairedSessionValid(
+            accessUser: "user-1", refreshUser: "user-1", claimedUserId: "user-1"
+        ))
+    }
+
+    func test_sessionRefreshed_validAccessTokenPairedWithUnrelatedRefreshToken_rejected() {
+        // The specific attack this guards: a genuinely verified, valid
+        // access token for user-1 arriving paired with a refresh token
+        // that exchanges to a DIFFERENT user (or simply doesn't belong to
+        // user-1) must be rejected outright — checking only the access
+        // token was the gap the prior implementation had.
+        XCTAssertFalse(WebAppView.Coordinator.isPairedSessionValid(
+            accessUser: "user-1", refreshUser: "user-2", claimedUserId: "user-1"
+        ))
+    }
+
+    func test_sessionRefreshed_accessAndRefreshAgreeButDisagreeWithClaimedUserId_rejected() {
+        XCTAssertFalse(WebAppView.Coordinator.isPairedSessionValid(
+            accessUser: "user-1", refreshUser: "user-1", claimedUserId: "user-2"
+        ))
     }
 }

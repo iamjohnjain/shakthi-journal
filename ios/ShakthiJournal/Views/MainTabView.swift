@@ -30,7 +30,19 @@ struct MainTabView: View {
     /// session even if this gate is skipped) — this wait exists so a
     /// cleanup that's already in flight gets a real chance to finish
     /// first, not to block sign-in on it forever.
-    @State private var isAwaitingAuthCleanup = true
+    @State private var authCleanupState: AuthCleanupState = .checking
+    /// Tracked explicitly (not a fire-and-forget `Task {}`) so a sign-out
+    /// — which tears down this entire `MainTabView` per `ContentView`'s
+    /// `switch` over `auth.authState` — can actually cancel an in-flight
+    /// sync rather than letting it keep running (and later upload/inject)
+    /// after the account it was started for is no longer signed in.
+    @State private var autoSyncTask: Task<Void, Never>?
+
+    enum AuthCleanupState: Equatable {
+        case checking
+        case ready
+        case failed
+    }
 
     var body: some View {
         webContent
@@ -38,18 +50,32 @@ struct MainTabView: View {
                 DashboardView()
             }
             .preferredColorScheme(.dark)
-            .task { autoSync() }
-            .task { await waitForPendingAuthCleanup() }
-            .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .active { autoSync() }
+            .task { await runPendingAuthCleanupCheck() }
+            .onChange(of: authCleanupState) { _, newValue in
+                if newValue == .ready { autoSync() }
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active, authCleanupState == .ready { autoSync() }
+            }
+            .onDisappear { autoSyncTask?.cancel() }
     }
 
-    private func waitForPendingAuthCleanup() async {
-        if WebSessionBoundary.shared.isPending {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+    /// Actually AWAITS the current generation's cleanup to finish — never
+    /// a fixed delay. `WebSessionBoundary.ensureCleanupComplete()` either
+    /// returns immediately (`.notNeeded`), or performs the real JS-eval
+    /// round trip (reusing the outgoing WebView if it's still registered,
+    /// or a throwaway unprivileged one otherwise) and waits for it. Only
+    /// `.ready` is allowed to mount a new privileged, authenticated
+    /// `WebAppView` — `.failed` shows a retry affordance instead of
+    /// silently mounting anyway.
+    private func runPendingAuthCleanupCheck() async {
+        authCleanupState = .checking
+        switch await WebSessionBoundary.shared.ensureCleanupComplete() {
+        case .notNeeded, .succeeded:
+            authCleanupState = .ready
+        case .failed:
+            authCleanupState = .failed
         }
-        isAwaitingAuthCleanup = false
     }
 
     // MARK: - Automatic background sync
@@ -68,17 +94,52 @@ struct MainTabView: View {
         if let last = sync.syncState.lastAttemptedSync, Date().timeIntervalSince(last) < 60 {
             return
         }
+        guard autoSyncTask == nil else { return }
 
-        Task { await sync.sync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk) }
+        autoSyncTask = Task {
+            await sync.sync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk)
+            autoSyncTask = nil
+        }
     }
 
     // MARK: - Web content
 
     @ViewBuilder private var webContent: some View {
-        if isAwaitingAuthCleanup {
+        if authCleanupState == .checking {
             Color.black
                 .ignoresSafeArea()
                 .overlay(ProgressView().tint(.white))
+
+        } else if authCleanupState == .failed {
+            // Never silently mounts a privileged WebView when the prior
+            // session's cleanup could not be confirmed complete — shows a
+            // retry affordance instead. Retrying re-runs the SAME
+            // (current) generation's cleanup; it does not skip it.
+            Color.black
+                .ignoresSafeArea()
+                .overlay(
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.white)
+                        Text("Couldn't finish signing out the previous session")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            Task { await runPendingAuthCleanupCheck() }
+                        } label: {
+                            Text("Retry")
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 10)
+                                .background(Color.white.opacity(0.15))
+                                .foregroundStyle(.white)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .padding(32)
+                )
 
         } else if let token   = auth.accessToken,
            let refresh = KeychainHelper.load(key: KeychainHelper.refreshTokenKey),
@@ -151,28 +212,20 @@ struct MainTabView: View {
 
         case "sessionRefreshed":
             // The Supabase JS client in the WebView refreshed its token.
-            // Sync the new tokens to native Keychain so HealthKit sync doesn't
-            // try to use the old, now-revoked refresh token.
-            //
-            // WebAppView.Coordinator already verified this access token
-            // with Supabase and matched its user id against the session it
-            // was constructed for before forwarding it here — this is a
-            // second, independent check against the LIVE current identity
-            // (not just the one captured at construction time), so nothing
-            // ever gets saved to Keychain first and validated after.
+            // `WebAppView.Coordinator` has already exchanged the claimed
+            // refresh token with Supabase directly and verified the
+            // canonical identity it returned — this just forwards those
+            // canonical fields to AuthManager, which is the ONE place
+            // allowed to write Keychain for this path (and does its own
+            // independent live-session re-check before doing so).
+            // MainTabView itself must never write credentials directly.
             guard
                 let at  = message["accessToken"]  as? String,
                 let rt  = message["refreshToken"] as? String,
                 let uid = message["userId"]       as? String,
-                let em  = message["email"]        as? String,
-                auth.userId == uid
+                let em  = message["email"]        as? String
             else { return }
-            KeychainHelper.save(at,  key: KeychainHelper.accessTokenKey)
-            KeychainHelper.save(rt,  key: KeychainHelper.refreshTokenKey)
-            KeychainHelper.save(uid, key: KeychainHelper.userIdKey)
-            KeychainHelper.save(em,  key: KeychainHelper.userEmailKey)
-            auth.updateTokens(accessToken: at)
-            print("[MainTabView] Keychain updated from WebView token refresh")
+            auth.applyWebRefreshedSession(accessToken: at, refreshToken: rt, userId: uid, email: em)
 
         case "signOut":
             // Web-initiated sign-out, relayed over the bridge (posted from

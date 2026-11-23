@@ -255,6 +255,7 @@ struct WebAppView: UIViewRepresentable {
             isActive = false
             sessionRefreshTask?.cancel()
             sessionRefreshTask = nil
+            invalidateBlockedBannerTimer()
             WebSessionBoundary.shared.clearLiveTrustedWebView(webView)
         }
 
@@ -318,6 +319,7 @@ struct WebAppView: UIViewRepresentable {
                 // safe error state. Never log the committed URL itself
                 // (it may carry sensitive query parameters).
                 stripPrivilegedAccess(of: webView)
+                invalidateBlockedBannerTimer()
                 onStateChange?(.serverError)
             }
         }
@@ -328,14 +330,22 @@ struct WebAppView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            // The blocked-navigation banner's own 3-second auto-dismiss
+            // timer (`showBlockedBanner`) must never fire AFTER this and
+            // silently overwrite a genuine failure state back to `.ready`
+            // — cancel it any time a real failure state is about to be
+            // reported, not just when a new blocked navigation starts.
+            invalidateBlockedBannerTimer()
             onStateChange?(networkState(for: error))
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            invalidateBlockedBannerTimer()
             onStateChange?(networkState(for: error))
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            invalidateBlockedBannerTimer()
             onStateChange?(.processTerminated)
         }
 
@@ -379,6 +389,17 @@ struct WebAppView: UIViewRepresentable {
             let work = DispatchWorkItem { [weak self] in self?.onStateChange?(.ready) }
             blockedNavigationWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+        }
+
+        /// Cancels the blocked-navigation banner's pending auto-dismiss
+        /// work item. Must be called any time a genuine failure state
+        /// (offline/serverError/sessionExpired/processTerminated) is about
+        /// to be reported — without this, a blocked navigation's 3-second
+        /// timer firing afterward would silently reset the state back to
+        /// `.ready`, overwriting a real, still-current failure.
+        private func invalidateBlockedBannerTimer() {
+            blockedNavigationWorkItem?.cancel()
+            blockedNavigationWorkItem = nil
         }
 
         private func stripPrivilegedAccess(of webView: WKWebView) {
@@ -478,21 +499,27 @@ struct WebAppView: UIViewRepresentable {
         }
 
         /// `sessionRefreshed` is the one bridge message that carries
-        /// credential material, so it gets an extra, async check beyond
-        /// `BridgeMessageValidator`'s schema validation: the access token
-        /// is verified directly with Supabase, and the user id Supabase
-        /// returns for it must equal the user this WebAppView was
-        /// constructed for. A message claiming a different identity is
-        /// dropped — never persisted to Keychain, never forwarded.
+        /// credential material. The previous implementation verified only
+        /// the access token against Supabase, then persisted whatever
+        /// refresh token happened to arrive paired with it in the same
+        /// postMessage call — nothing actually confirmed that refresh
+        /// token belonged to the same session. This version instead
+        /// EXCHANGES the claimed refresh token with Supabase directly
+        /// (`SupabaseClient.refreshSession`), which only succeeds — and
+        /// only returns a session — for a refresh token Supabase itself
+        /// considers valid, and requires the user id it returns to match
+        /// both the verified access token's user AND the bridge's claimed
+        /// `userId`. Only the CANONICAL tokens/identity that exchange
+        /// returns are ever persisted or forwarded — never the bridge's
+        /// own raw refresh token or claimed email.
         ///
         /// Only one verification can be in flight at a time — a new
         /// `sessionRefreshed` message cancels whatever the previous one was
-        /// still waiting on, and every resumption after the `await` re-
+        /// still waiting on, and every resumption after an `await` re-
         /// checks liveness (`isActive`), the captured (userId, epoch) pair
         /// against the LIVE AuthManager state (`isValidSession`), and that
-        /// Supabase's own answer still agrees with the claimed identity —
-        /// never just trusting that "nothing changed while we were
-        /// waiting."
+        /// every identity involved still agrees — never just trusting that
+        /// "nothing changed while we were waiting."
         private func handleSessionRefreshed(accessToken: String, refreshToken: String, userId: String) {
             sessionRefreshTask?.cancel()
             let expectedUserId = self.expectedUserId
@@ -500,35 +527,119 @@ struct WebAppView: UIViewRepresentable {
             sessionRefreshTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
-                    let verified = try await SupabaseClient.verifiedUser(accessToken: accessToken)
+                    async let accessVerification = SupabaseClient.verifiedUser(accessToken: accessToken)
+                    async let refreshExchange     = SupabaseClient.refreshSession(refreshToken: refreshToken)
+                    let verifiedAccessUser = try await accessVerification
+                    let canonicalSession   = try await refreshExchange
+
                     guard !Task.isCancelled, self.isActive else { return }
-                    guard verified.id == expectedUserId, verified.id == userId else { return }
+                    guard Self.isPairedSessionValid(
+                        accessUser: verifiedAccessUser.id,
+                        refreshUser: canonicalSession.user.id,
+                        claimedUserId: userId
+                    ) else { return }
+                    guard verifiedAccessUser.id == expectedUserId else { return }
                     guard self.isValidSession?(expectedUserId, expectedEpoch) ?? true else { return }
+
+                    // Forward ONLY the canonical, server-returned tokens
+                    // and identity — never the bridge's own raw refresh
+                    // token or claimed email.
                     self.onMessage?([
                         "type": "sessionRefreshed",
-                        "accessToken": accessToken,
-                        "refreshToken": refreshToken,
-                        "userId": userId,
-                        "email": verified.email,
+                        "accessToken": canonicalSession.accessToken,
+                        "refreshToken": canonicalSession.refreshToken,
+                        "userId": canonicalSession.user.id,
+                        "email": canonicalSession.user.email,
                     ])
+
+                    // If the exchange rotated the refresh token (Supabase
+                    // refresh tokens are single-use), the web client's own
+                    // copy is now stale and would fail its OWN next
+                    // refresh attempt. Silently overwrite the WebView's
+                    // localStorage with the canonical session — a raw
+                    // storage write, not a `supabase.auth.setSession()`
+                    // call, so it does NOT fire the web client's own
+                    // `onAuthStateChange`/TOKEN_REFRESHED listener and
+                    // cannot create a refresh loop back through this same
+                    // bridge handler.
+                    if canonicalSession.refreshToken != refreshToken, let webView = self.webView {
+                        Self.silentlyResyncWebStorage(canonicalSession, in: webView)
+                    }
                 } catch {
-                    // Token didn't verify — say nothing further, never log
-                    // the token or the error body.
+                    // Verification or exchange failed — say nothing
+                    // further, never log the token or the error body.
                 }
             }
+        }
+
+        /// Pure, network-free pairing check — exercised directly by unit
+        /// tests without needing to mock Supabase. The specific attack
+        /// this guards: a verified, genuinely-valid access token for user
+        /// A arriving paired with an unrelated refresh token (garbage, or
+        /// one that happens to validate for a DIFFERENT user) must be
+        /// rejected outright rather than only checking the access token.
+        static func isPairedSessionValid(accessUser: String, refreshUser: String, claimedUserId: String) -> Bool {
+            accessUser == refreshUser && accessUser == claimedUserId
+        }
+
+        private static func silentlyResyncWebStorage(_ session: SupabaseSession, in webView: WKWebView) {
+            let projectRef = "pvtsskfnbxeohbtwafah"
+            let storageKey = "sb-\(projectRef)-auth-token"
+            let expiresAt = Int(Date().timeIntervalSince1970) + 3600
+            let script = """
+            (function () {
+              try {
+                if (window.location.origin !== "\(TrustedWebOrigin.productionURL.absoluteString)") { return; }
+                var session = {
+                  "access_token":  "\(session.accessToken.jsStringEscaped)",
+                  "token_type":    "bearer",
+                  "expires_in":    3600,
+                  "expires_at":    \(expiresAt),
+                  "refresh_token": "\(session.refreshToken.jsStringEscaped)",
+                  "user": {
+                    "id":            "\(session.user.id.jsStringEscaped)",
+                    "email":         "\(session.user.email.jsStringEscaped)",
+                    "aud":           "authenticated",
+                    "role":          "authenticated",
+                    "app_metadata":  { "provider": "email", "providers": ["email"] },
+                    "user_metadata": {}
+                  }
+                };
+                window.localStorage.setItem('\(storageKey)', JSON.stringify(session));
+              } catch (e) {}
+            })();
+            """
+            webView.evaluateJavaScript(script)
         }
 
         // MARK: Native → Web injection (HealthKit sync results)
 
         @objc private func handleNativeSyncComplete(_ note: Notification) {
-            guard let wv = webView else { return }
+            guard let wv = webView, isActive else { return }
+            // The sync that completed must actually be FOR this
+            // WebAppView's own session — SyncEngine stamps userId/epoch
+            // onto the notification at the moment the sync itself started
+            // (see SyncEngine.sync), so this rejects a sync that began
+            // under account A but completed after account B became the
+            // active session, rather than silently injecting A's data
+            // into B's WebView.
+            guard
+                let syncUserId = note.userInfo?["userId"] as? String,
+                let syncEpoch  = note.userInfo?["epoch"] as? Int,
+                syncUserId == expectedUserId,
+                syncEpoch == expectedEpoch,
+                isValidSession?(syncUserId, syncEpoch) ?? false
+            else { return }
+
             let metrics = (note.userInfo?["metrics"] as? [HealthMetric]) ?? []
             let generationAtCapture = navigationGeneration
 
             func revalidated() -> Bool {
+                guard isActive else { return false }
                 guard generationAtCapture == navigationGeneration else { return false }
                 guard let url = wv.url, TrustedWebOrigin.matches(url) else { return false }
                 guard !wv.isLoading else { return false }
+                guard isValidSession?(syncUserId, syncEpoch) ?? false else { return false }
                 return true
             }
 
