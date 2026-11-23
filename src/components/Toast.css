@@ -77,8 +77,8 @@
   .toast-stack {
     /* Clear the floating glass nav (its own 10px lift gap) with room to spare */
     bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 24px);
-    left: 16px;
-    right: 16px;
+    left: max(16px, var(--safe-left));
+    right: max(16px, var(--safe-right));
   }
   .toast { max-width: 100%; min-width: unset; }
 }

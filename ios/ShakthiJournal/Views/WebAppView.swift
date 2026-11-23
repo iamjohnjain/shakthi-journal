@@ -483,6 +483,10 @@ struct WebAppView: UIViewRepresentable {
                 DispatchQueue.main.async { [weak self] in
                     self?.onMessage?(["type": "openHealthSync"])
                 }
+            case .silentHealthSync:
+                DispatchQueue.main.async { [weak self] in
+                    self?.onMessage?(["type": "silentHealthSync"])
+                }
             case .sessionRefreshed(let accessToken, let refreshToken, let userId, _):
                 // Forwarded UNVERIFIED — as of Remediation Pass 3 (P1-2),
                 // this Coordinator no longer does its own access-token

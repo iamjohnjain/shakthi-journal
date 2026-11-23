@@ -166,6 +166,24 @@ final class WebBoundaryTests: XCTestCase {
         XCTAssertEqual(result, .openHealthSync)
     }
 
+    func test_bridge_trustedMainFrame_silentHealthSync_accepted() {
+        let result = BridgeMessageValidator.validate(
+            handlerName: "jeevanNative",
+            frame: frame(trusted: true),
+            body: ["type": "silentHealthSync"]
+        )
+        XCTAssertEqual(result, .silentHealthSync)
+    }
+
+    func test_bridge_silentHealthSync_rejected_fromUntrustedFrame() {
+        let result = BridgeMessageValidator.validate(
+            handlerName: "jeevanNative",
+            frame: frame(trusted: false),
+            body: ["type": "silentHealthSync"]
+        )
+        XCTAssertNil(result)
+    }
+
     func test_bridge_trustedSubframe_rejected() {
         let result = BridgeMessageValidator.validate(
             handlerName: "jeevanNative",

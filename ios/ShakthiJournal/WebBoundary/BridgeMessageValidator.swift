@@ -24,6 +24,11 @@ enum BridgeMessageValidator {
 
     enum ValidatedMessage: Equatable {
         case openHealthSync
+        /// Same underlying HealthKit sync as `openHealthSync`, but never
+        /// presents the native sync/dashboard sheet — used when the web
+        /// app just wants fresh data (e.g. opening the Weight Goal card)
+        /// without putting a native screen in front of the user for it.
+        case silentHealthSync
         case sessionRefreshed(accessToken: String, refreshToken: String, userId: String, email: String)
         case signOut
     }
@@ -51,6 +56,9 @@ enum BridgeMessageValidator {
             // No payload fields — any extra keys are simply ignored, not
             // treated as an error, so this stays forward-compatible.
             return .openHealthSync
+
+        case "silentHealthSync":
+            return .silentHealthSync
 
         case "sessionRefreshed":
             guard

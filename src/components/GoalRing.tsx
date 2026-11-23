@@ -11,7 +11,7 @@ import { calcNutrition } from '../lib/nutritionMath'
 import { DEFAULT_GOALS } from '../hooks/useNutritionSettings'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
-import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
+import { isInsideNativeApp, openNativeHealthSync, triggerSilentHealthSync } from '../layout/BottomNav'
 import { useLastSynced } from '../hooks/useLastSynced'
 import QuickWeightModal from './QuickWeightModal'
 import WeightGoalEditor from './WeightGoalEditor'
@@ -321,18 +321,30 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   }
 
   const touchStartX = useRef<number>(0)
+  const touchStartY = useRef<number>(0)
   const didSwipe = useRef<boolean>(false)
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
     didSwipe.current = false
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
     const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    // A horizontal swipe changes which goal type is shown. A VERTICAL
+    // swipe (e.g. a pull-to-refresh gesture, or just an accidental drag)
+    // previously fell through this check entirely — only `dx` was ever
+    // looked at — so the browser's trailing synthetic click still fired
+    // afterward and opened the detail modal (plus triggered a sync) as if
+    // it had been a deliberate tap. Treat any swipe with either axis past
+    // the threshold as "not a tap," regardless of direction.
     if (Math.abs(dx) > 40) {
       didSwipe.current = true
       if (dx < 0) next(); else prev()
+    } else if (Math.abs(dy) > 40) {
+      didSwipe.current = true
     }
   }
 
@@ -341,9 +353,12 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   // lands (the Dashboard-level data hook already listens for that and bumps
   // its tick, which flows back down into this component's props), so
   // "Current"/"Last Synced" update in place instead of showing whatever was
-  // last synced before the user even opened the card.
+  // last synced before the user even opened the card. Uses the SILENT sync
+  // variant deliberately — this fires on every open, so putting a native
+  // sheet in front of the user every single time would be far more
+  // intrusive than the explicit "Sync Now" button's triggerSync() above.
   function openDetail() {
-    if (isInsideNativeApp()) openNativeHealthSync()
+    if (isInsideNativeApp()) triggerSilentHealthSync()
     setShowDetail(true)
   }
 
@@ -666,7 +681,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
 
               {goalType === 'weight' && !editingGoal && latestWeight && (
                 <p className="goal-ring-modal-last-synced">
-                  Last Synced Via Apple Health · {shortDate(latestWeight.date)}
+                  Last Synced · {shortDate(latestWeight.date)}
                 </p>
               )}
               {goalType === 'bodyFat' && latestBodyFat && (

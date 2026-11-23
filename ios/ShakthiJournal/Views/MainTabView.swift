@@ -203,6 +203,18 @@ struct MainTabView: View {
                 Task { await hk.requestAuthorization() }
             }
 
+        case "silentHealthSync":
+            // Unlike "openHealthSync", this never presents any native UI —
+            // no dashboard sheet, no permission prompt. If HealthKit access
+            // hasn't been granted yet there is nothing to silently sync
+            // (prompting the system permission dialog here would not be
+            // "silent" at all), so this is simply a no-op in that case.
+            guard hk.hasRequestedAuth,
+                  let userId = auth.userId,
+                  let token  = auth.accessToken
+            else { return }
+            sync.startSync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk)
+
         case "sessionRefreshed":
             // The Supabase JS client in the WebView refreshed its token.
             // These are the bridge's CLAIMED, UNVERIFIED values —

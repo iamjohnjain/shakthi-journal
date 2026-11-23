@@ -18,6 +18,15 @@ export function openNativeHealthSync() {
   w?.webkit?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
 }
 
+// Same underlying HealthKit sync, but native never presents its sync/
+// dashboard sheet for it — used when a screen just wants fresh data (e.g.
+// opening the Weight Goal card) without putting a native screen in front
+// of the user just to get it.
+export function triggerSilentHealthSync() {
+  const w = window as unknown as { webkit?: { messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } } } }
+  w?.webkit?.messageHandlers?.jeevanNative?.postMessage({ type: 'silentHealthSync' })
+}
+
 // Four core tabs, Today centered — profile is reached via the avatar icon
 // on the Today header instead of its own tab, and Goals isn't in primary
 // nav for now (still reachable at /goals, just not a bottom-nav slot).
