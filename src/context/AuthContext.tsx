@@ -107,6 +107,20 @@ async function getLocalDataSummary(): Promise<LocalDataSummary> {
 // identity's retained local data is NOT guaranteed safe from viewing or
 // uploading that data; this check only reduces (does not eliminate) the
 // risk of silently overwriting it.
+/// Races `op` against a timeout so a hung IndexedDB/network call can never
+/// indefinitely delay sign-out's later, guaranteed stages. Rejection
+/// (timeout OR the operation's own failure) is swallowed by the caller —
+/// this only bounds how long we wait, callers decide tolerance.
+export function withTimeout<T>(op: () => Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms)
+    op().then(
+      v => { clearTimeout(timer); resolve(v) },
+      e => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
+
 function hasSignificantLocalData(summary: LocalDataSummary): boolean {
   return (
     summary.workouts > 0 ||
@@ -256,32 +270,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    // Every step below is independently failure-tolerant — an IndexedDB
-    // cleanup failure, a Supabase network failure, or a settings-write
-    // failure must never prevent the native bridge notification, the
-    // local auth-state clearing, or any of the other steps from running.
-    // Moving `clearQueueForUser` inside this same protected flow (it used
-    // to run unguarded, BEFORE the try/finally that notified native) was
-    // itself part of the fix: a thrown IndexedDB error there used to abort
-    // the whole function before native ever heard about the sign-out.
+    // Ordering fix (Remediation Pass 3, P2-5): the native bridge
+    // notification is now sent LAST, after every local cleanup stage has
+    // either completed or been bounded by a timeout — never before. The
+    // previous ordering sent the native `signOut` message in the MIDDLE
+    // of this function, before the settings writes and before
+    // `setSession`/`setUser`/`setMode` cleared local state; since native
+    // reacts to that message by tearing down the privileged WebView, a
+    // slow local cleanup stage could in principle still be running (or
+    // get cut off) when the WebView/JS context it needs goes away. Every
+    // stage before the final native notification is also now bounded
+    // (3s) so a hung IndexedDB or network call can't indefinitely delay
+    // reaching that guaranteed final stage.
     if (user) {
       try {
-        await clearQueueForUser(user.id)
+        await withTimeout(() => clearQueueForUser(user.id), 3000)
       } catch {
-        // Best-effort — a queue-clearing failure must not block sign-out.
+        // Best-effort/bounded — a queue-clearing failure or hang must not
+        // block the rest of sign-out.
       }
     }
 
     try {
-      if (supabase) await supabase.auth.signOut()
+      const client = supabase
+      if (client) await withTimeout(() => client.auth.signOut(), 3000)
     } catch {
-      // Best-effort — native must hear about this even if the Supabase
-      // request itself failed (offline, server error, etc.): the user's
-      // local session is ending either way, and native holds its own
-      // independent copy of the auth tokens (Keychain) plus a parallel
-      // WebView session that needs clearing regardless of whether this
-      // network call succeeded.
+      // Best-effort/bounded — local sign-out proceeds even if the
+      // Supabase request itself failed or hung (offline, server error,
+      // etc.): the user's local session is ending either way, and native
+      // holds its own independent copy of the auth tokens (Keychain).
     }
+
+    syncEngine.setUser(null)
+
+    try {
+      await withTimeout(() => setSetting('auth.mode', 'guest'), 2000)
+    } catch {
+      // Best-effort/bounded.
+    }
+    try {
+      await withTimeout(() => setSetting('syncedUserId', null), 2000)
+    } catch {
+      // Best-effort/bounded.
+    }
+
+    // Local in-memory state is now fully cleared BEFORE native is told
+    // anything — this is the guaranteed, final stage.
+    setSession(null)
+    setUser(null)
+    setMode('guest')
 
     const w = window as unknown as Record<string, unknown>
     const bridge = (w.webkit as {
@@ -291,26 +328,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bridge?.messageHandlers?.jeevanNative?.postMessage({ type: 'signOut' })
     } catch {
       // Best-effort — a bridge call failing (e.g. not running inside the
-      // native app at all) must not block the rest of local sign-out.
+      // native app at all) is fine; local sign-out has already completed
+      // regardless.
     }
-
-    syncEngine.setUser(null)
-
-    try {
-      await setSetting('auth.mode', 'guest')
-    } catch {
-      // Best-effort — a settings-write failure must not skip clearing
-      // the in-memory auth state below.
-    }
-    try {
-      await setSetting('syncedUserId', null)
-    } catch {
-      // Best-effort, same reasoning as above.
-    }
-
-    setSession(null)
-    setUser(null)
-    setMode('guest')
   }, [user])
 
   const continueAsGuest = useCallback(() => {
