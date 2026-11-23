@@ -3,7 +3,10 @@
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 500;
+  /* Must stay BELOW modal overlays (e.g. GoalRing's .goal-ring-overlay,
+     z-index 400) — this used to outrank them, so it visibly rendered on
+     top of an open modal's own content instead of being covered by it. */
+  z-index: 150;
   display: flex;
   align-items: center;
   gap: 10px;

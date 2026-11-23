@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, type FocusEvent } from 'react'
 import { kgToLbs, lbsToKg, localDateStr } from '../data/config'
 import { calcNutrition } from '../lib/nutritionMath'
 import { getProfile, saveProfile } from '../db/profileStore'
@@ -11,6 +11,38 @@ function daysBetween(a: string, b: string): number {
 
 function fmtDate(d: string): string {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** Replaces the old `onFocus={e => e.target.select()}` pattern everywhere in
+ *  this form. Selecting-all on focus shows iOS's native blue text-selection
+ *  highlight, which read as "cheap"/un-designed — instead, on focus the
+ *  field is cleared (so the very next keystroke just types fresh, no
+ *  backspacing/selecting needed) while its PREVIOUS value is shown as the
+ *  input's `placeholder` — browsers render placeholders in a dim/grayed
+ *  color automatically, so the old value stays visible-but-faded rather
+ *  than vanishing outright. If the user taps away without typing anything,
+ *  the original value is restored on blur rather than being left blank. */
+function useOverwritableField(value: string, setValue: (v: string) => void) {
+  const prevRef = useRef(value)
+  return {
+    value,
+    placeholder: prevRef.current,
+    onFocus(e: FocusEvent<HTMLInputElement>) {
+      prevRef.current = value
+      setValue('')
+      // The iOS keyboard covers the bottom of the screen with no
+      // visualViewport handling in this app (nowhere does) — without this,
+      // a field near the bottom of the sheet (Pace, the macro fields) can
+      // end up hidden behind the keyboard the moment it opens. Same
+      // scrollIntoView-after-a-beat pattern already used on NutritionPage's
+      // inputs for the same reason; the delay lets the keyboard's own
+      // resize/animation start first so the browser computes the right
+      // final scroll position instead of one it immediately invalidates.
+      const el = e.currentTarget
+      setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+    },
+    onBlur() { if (value === '') setValue(prevRef.current) },
+  }
 }
 
 /**
@@ -49,17 +81,34 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
 
   useEffect(() => {
     getProfile().then(profile => {
-      if (liveCurrentWeightLbs != null && liveCurrentWeightLbs > 0) {
-        setCurrentWeight(String(Math.round(liveCurrentWeightLbs)))
-      } else if (profile?.startWeightKg) {
-        setCurrentWeight(String(Math.round(kgToLbs(profile.startWeightKg))))
-      }
-      if (profile?.goalWeightKg)  setGoalWeight(String(Math.round(kgToLbs(profile.goalWeightKg))))
-      if (profile?.goalDate)      setTargetDate(profile.goalDate)
-      else                        setTargetDate(localDateStr(new Date(Date.now() + 1000 * 60 * 60 * 24 * 56))) // 8 weeks out by default
+      const curLbsLoaded = liveCurrentWeightLbs != null && liveCurrentWeightLbs > 0
+        ? Math.round(liveCurrentWeightLbs)
+        : profile?.startWeightKg ? Math.round(kgToLbs(profile.startWeightKg)) : 0
+      if (curLbsLoaded > 0) setCurrentWeight(String(curLbsLoaded))
+
+      const goalLbsLoaded = profile?.goalWeightKg ? Math.round(kgToLbs(profile.goalWeightKg)) : 0
+      if (goalLbsLoaded > 0) setGoalWeight(String(goalLbsLoaded))
+
+      const dateLoaded = profile?.goalDate || localDateStr(new Date(Date.now() + 1000 * 60 * 60 * 24 * 56)) // 8 weeks out by default
+      setTargetDate(dateLoaded)
+
       if (profile?.activityLevel) setActivityLevel(profile.activityLevel)
+
+      // Pace was previously left blank on load no matter what — it only
+      // ever got computed as a SIDE EFFECT of the user editing one of the
+      // other three fields, so a goal that was already fully set up (from
+      // a previous save) opened back up with an empty/0.0 Pace and a
+      // "...about 0.0 lbs a week" breakdown line that didn't match the
+      // real numbers at all. Derive it here too, the same formula the
+      // onXChange handlers already use.
+      if (curLbsLoaded > 0 && goalLbsLoaded > 0 && dateLoaded) {
+        const days = Math.max(1, daysBetween(today, dateLoaded))
+        setRate(Math.max(0, (curLbsLoaded - goalLbsLoaded) / days * 7).toFixed(1))
+      }
+
       setLoaded(true)
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const curLbs = Number(currentWeight) || 0
@@ -153,6 +202,16 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
     if (preview) setFatG(Math.max(0, Math.round((preview.calories - proteinG * 4 - c * 4) / 9)))
   }
 
+  // One `useOverwritableField` per numeric input — see the hook's own doc
+  // comment above for what this replaces (select-all-on-focus's native
+  // highlight) and why.
+  const currentWeightField = useOverwritableField(currentWeight, onCurrentWeightChange)
+  const goalWeightField    = useOverwritableField(goalWeight,    onGoalWeightChange)
+  const rateField           = useOverwritableField(rate,          onRateChange)
+  const proteinField = useOverwritableField(String(proteinG), raw => onProteinEdit(raw))
+  const carbsField   = useOverwritableField(String(carbsG),   raw => onCarbsEdit(raw))
+  const fatField      = useOverwritableField(String(fatG),      raw => onFatEdit(raw))
+
   async function handleSave() {
     if (!preview) return
     setSaving(true)
@@ -175,16 +234,16 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
         <div className="wge-field">
           <label>Current Weight</label>
           <div className="wge-input-wrap">
-            <input type="text" inputMode="numeric" pattern="[0-9]*" value={currentWeight}
-              onChange={e => onCurrentWeightChange(e.target.value)} onFocus={e => e.target.select()} />
+            <input type="text" inputMode="numeric" pattern="[0-9]*"
+              {...currentWeightField} onChange={e => onCurrentWeightChange(e.target.value)} />
             <span className="wge-unit">lbs</span>
           </div>
         </div>
         <div className="wge-field">
           <label>Goal Weight</label>
           <div className="wge-input-wrap">
-            <input type="text" inputMode="numeric" pattern="[0-9]*" value={goalWeight}
-              onChange={e => onGoalWeightChange(e.target.value)} onFocus={e => e.target.select()} />
+            <input type="text" inputMode="numeric" pattern="[0-9]*"
+              {...goalWeightField} onChange={e => onGoalWeightChange(e.target.value)} />
             <span className="wge-unit">lbs</span>
           </div>
         </div>
@@ -194,8 +253,8 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
         <div className="wge-field">
           <label>Pace</label>
           <div className="wge-input-wrap">
-            <input type="text" inputMode="decimal" value={rate}
-              onChange={e => onRateChange(e.target.value)} onFocus={e => e.target.select()} />
+            <input type="text" inputMode="decimal"
+              {...rateField} onChange={e => onRateChange(e.target.value)} />
             <span className="wge-unit">lbs/wk</span>
           </div>
         </div>
@@ -219,18 +278,18 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
           <div className="wge-preview-hint">Tap a macro to see what it costs from the others</div>
           <div className="wge-preview-macros">
             <label className="wge-macro-field">
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={proteinG}
-                onChange={e => onProteinEdit(e.target.value)} onFocus={e => e.target.select()} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
+                {...proteinField} onChange={e => onProteinEdit(e.target.value)} />
               <span>g protein</span>
             </label>
             <label className="wge-macro-field">
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={carbsG}
-                onChange={e => onCarbsEdit(e.target.value)} onFocus={e => e.target.select()} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
+                {...carbsField} onChange={e => onCarbsEdit(e.target.value)} />
               <span>g carbs</span>
             </label>
             <label className="wge-macro-field">
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fatG}
-                onChange={e => onFatEdit(e.target.value)} onFocus={e => e.target.select()} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
+                {...fatField} onChange={e => onFatEdit(e.target.value)} />
               <span>g fat</span>
             </label>
           </div>

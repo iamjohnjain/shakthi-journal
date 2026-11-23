@@ -222,15 +222,27 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   useEffect(() => {
     if (!showDetail) setEditingGoal(false)
   }, [showDetail])
-  // Locks background page scroll while this modal is open — the modal is a
-  // `createPortal` straight to `document.body`, so without this the page
-  // behind it (e.g. the Today/Dashboard page) kept scrolling along with any
-  // touch-drag inside the modal/overlay.
+  // Locks background page scroll while this modal is open. `document.body`
+  // was the wrong lock target — this app's `.app-shell` is `overflow:
+  // hidden; height: 100dvh` and never scrolls at all; `.page-content` (a
+  // DIFFERENT, nested element) is the actual scrolling box. Locking body
+  // did nothing, which is exactly why the page behind the modal could
+  // still visibly scroll/move. Locks `.page-content` itself instead, plus
+  // `touch-action: none` as a second layer — WKWebView can otherwise still
+  // rubber-band/momentum-scroll an `overflow: hidden` element from an
+  // in-flight touch that started before the lock was applied.
   useEffect(() => {
     if (!showDetail) return
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prevOverflow }
+    const scrollEl = document.querySelector<HTMLElement>('.page-content')
+    if (!scrollEl) return
+    const prevOverflow = scrollEl.style.overflow
+    const prevTouchAction = scrollEl.style.touchAction
+    scrollEl.style.overflow = 'hidden'
+    scrollEl.style.touchAction = 'none'
+    return () => {
+      scrollEl.style.overflow = prevOverflow
+      scrollEl.style.touchAction = prevTouchAction
+    }
   }, [showDetail])
 
   const goalType = GOAL_TYPES[typeIdx]
@@ -477,11 +489,22 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
           <div className="goal-ring-sync-chip">
             <RefreshCw size={11} className="goal-ring-sync-icon" />
             <span>{lastSyncedAt ? `Synced ${relativeTime(lastSyncedAt)}` : 'Not synced yet'}</span>
-            {isStaleData && (
-              <button className="goal-ring-sync-btn" onClick={e => { e.stopPropagation(); triggerSync() }}>
-                Sync Now
-              </button>
-            )}
+            {/* Always mounted (never conditionally added/removed) — toggling
+                its presence caused the chip, and the "Tap To See Details"
+                hint below it, to visibly reflow/shift right as a sync this
+                card itself triggers (see openDetail()) completes and
+                isStaleData flips. A layout shift happening on the card
+                sitting right behind the modal overlay read as "the
+                background moving." */}
+            <button
+              className="goal-ring-sync-btn"
+              style={{ visibility: isStaleData ? 'visible' : 'hidden' }}
+              tabIndex={isStaleData ? 0 : -1}
+              aria-hidden={!isStaleData}
+              onClick={e => { e.stopPropagation(); if (isStaleData) triggerSync() }}
+            >
+              Sync Now
+            </button>
           </div>
         )}
 
@@ -499,32 +522,41 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
               </button>
             </div>
             <div className="goal-ring-modal-body">
-              <div className="goal-ring-modal-pct">
-                <span className="goal-ring-modal-pct-num goal-ring-modal-pct-num--gradient">
-                  {Math.round(pct)}%
-                </span>
-                <span className="goal-ring-modal-pct-label">{cfg.desc}</span>
-              </div>
-
-              <div className="goal-ring-modal-rows">
-                {([
-                  ['Current',      hasData ? `${cfg.format(current!)} ${displayUnit}` : '—', undefined],
-                  ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${displayUnit}`   : '— Set in Profile', undefined],
-                  ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${displayUnit}` : '— Set in Profile',   undefined],
-                  ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${displayUnit}` : '—', changeColor],
-                  ['Remaining',    remaining != null ? `${cfg.format(remaining)} ${displayUnit} to go` : '—', undefined],
-                ] as [string, string, string | undefined][]).map(([label, val, color]) => (
-                  <div key={label} className="goal-ring-modal-row">
-                    <span className="goal-ring-modal-row-label">{label}</span>
-                    <span className="goal-ring-modal-row-val" style={color ? { color } : undefined}>{val}</span>
+              {/* Editing a weight goal shows ONLY the editor — the %/rows/
+                  setup-hint above are read-only summaries of the same data
+                  the editor is about to change, and stacking everything at
+                  once was exactly why opening "Edit Goal" previously meant
+                  scrolling to reach the bottom of the form. */}
+              {!(goalType === 'weight' && editingGoal) && (
+                <>
+                  <div className="goal-ring-modal-pct">
+                    <span className="goal-ring-modal-pct-num goal-ring-modal-pct-num--gradient">
+                      {Math.round(pct)}%
+                    </span>
+                    <span className="goal-ring-modal-pct-label">{cfg.desc}</span>
                   </div>
-                ))}
-              </div>
 
-              {!hasProfile && goalType !== 'steps' && goalType !== 'protein' && goalType !== 'sleep' && (
-                <p className="goal-ring-modal-setup-hint">
-                  Set your baseline below to track progress from your starting point.
-                </p>
+                  <div className="goal-ring-modal-rows">
+                    {([
+                      ['Current',      hasData ? `${cfg.format(current!)} ${displayUnit}` : '—', undefined],
+                      ['Start',        hasProfile  ? `${cfg.format(startVal!)} ${displayUnit}`   : '— Set in Profile', undefined],
+                      ['Goal',         goalVal != null ? `${cfg.format(goalVal)} ${displayUnit}` : '— Set in Profile',   undefined],
+                      ['Total change', change != null ? `${change > 0 ? '+' : ''}${cfg.format(Math.abs(change))} ${displayUnit}` : '—', changeColor],
+                      ['Remaining',    remaining != null ? `${cfg.format(remaining)} ${displayUnit} to go` : '—', undefined],
+                    ] as [string, string, string | undefined][]).map(([label, val, color]) => (
+                      <div key={label} className="goal-ring-modal-row">
+                        <span className="goal-ring-modal-row-label">{label}</span>
+                        <span className="goal-ring-modal-row-val" style={color ? { color } : undefined}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {!hasProfile && goalType !== 'steps' && goalType !== 'protein' && goalType !== 'sleep' && (
+                    <p className="goal-ring-modal-setup-hint">
+                      Set your baseline below to track progress from your starting point.
+                    </p>
+                  )}
+                </>
               )}
 
               {goalType === 'bodyFat' && latestBodyFat && (
@@ -632,7 +664,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                 )}
               </div>
 
-              {goalType === 'weight' && latestWeight && (
+              {goalType === 'weight' && !editingGoal && latestWeight && (
                 <p className="goal-ring-modal-last-synced">
                   Last Synced Via Apple Health · {shortDate(latestWeight.date)}
                 </p>

@@ -26,6 +26,21 @@
   background: none; border: none; color: var(--text-primary);
   font-size: 15px; font-weight: 700;
 }
+/* The "overwritable" field pattern (see WeightGoalEditor.tsx's
+   useOverwritableField): on focus the field clears and its previous value
+   shows here instead — same size/weight as the real value so nothing
+   visually jumps, just dimmer, so it still reads as "there" without a
+   native text-selection highlight. */
+.wge-input-wrap input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+  font-weight: 700;
+  opacity: 1;
+}
+.wge-macro-field input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+  font-weight: 700;
+  opacity: 1;
+}
 .wge-unit { font-size: 11px; color: var(--text-tertiary); font-weight: 600; white-space: nowrap; }
 
 .wge-date-btn {
