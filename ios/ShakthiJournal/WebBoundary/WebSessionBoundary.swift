@@ -188,7 +188,7 @@ final class WebSessionBoundary {
         }
         let task = Task<Bool, Never> { [weak webView, weak self] in
             if let webView {
-                guard let url = await webView.url, TrustedWebOrigin.matches(url) else { return false }
+                guard let url = webView.url, TrustedWebOrigin.matches(url) else { return false }
                 return await Self.injectAndEvaluate(in: webView)
             } else {
                 self?.ephemeralCleanupRunCount += 1
