@@ -297,7 +297,7 @@ final class WebBoundaryTests: XCTestCase {
     // MARK: - sessionRefreshed access/refresh token pairing (Remediation #3)
 
     func test_sessionRefreshed_matchingAccessAndRefreshUser_accepted() {
-        XCTAssertTrue(WebAppView.Coordinator.isPairedSessionValid(
+        XCTAssertTrue(AuthManager.isPairedIdentity(
             accessUser: "user-1", refreshUser: "user-1", claimedUserId: "user-1"
         ))
     }
@@ -308,13 +308,13 @@ final class WebBoundaryTests: XCTestCase {
         // that exchanges to a DIFFERENT user (or simply doesn't belong to
         // user-1) must be rejected outright — checking only the access
         // token was the gap the prior implementation had.
-        XCTAssertFalse(WebAppView.Coordinator.isPairedSessionValid(
+        XCTAssertFalse(AuthManager.isPairedIdentity(
             accessUser: "user-1", refreshUser: "user-2", claimedUserId: "user-1"
         ))
     }
 
     func test_sessionRefreshed_accessAndRefreshAgreeButDisagreeWithClaimedUserId_rejected() {
-        XCTAssertFalse(WebAppView.Coordinator.isPairedSessionValid(
+        XCTAssertFalse(AuthManager.isPairedIdentity(
             accessUser: "user-1", refreshUser: "user-1", claimedUserId: "user-2"
         ))
     }

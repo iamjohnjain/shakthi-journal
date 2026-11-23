@@ -13,6 +13,32 @@ struct SupabaseUser {
     let email: String
 }
 
+// MARK: - Injectable session-exchange seam (Remediation Pass 3)
+
+/// Abstracts exactly the two network calls `AuthManager` needs for session
+/// reconciliation (`restoreSession`, `refreshAndGetToken`,
+/// `reconcileWebRefreshedSession`) behind a protocol, so deterministic
+/// tests can inject a mock that never contacts live Supabase instead of
+/// calling `SupabaseClient`'s real, network-backed static functions
+/// directly. Sign-in/sign-up/OAuth are NOT included — they aren't part of
+/// what Remediation Pass 3's race-condition tests exercise.
+protocol SupabaseSessionExchanging {
+    func verifiedUser(accessToken: String) async throws -> SupabaseUser
+    func refreshSession(refreshToken: String) async throws -> SupabaseSession
+}
+
+/// The real implementation — thin pass-through to `SupabaseClient`'s
+/// actual network calls. This is what every non-test `AuthManager`
+/// instance uses.
+struct LiveSupabaseSessionExchanger: SupabaseSessionExchanging {
+    func verifiedUser(accessToken: String) async throws -> SupabaseUser {
+        try await SupabaseClient.verifiedUser(accessToken: accessToken)
+    }
+    func refreshSession(refreshToken: String) async throws -> SupabaseSession {
+        try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+    }
+}
+
 // MARK: - Error type
 
 enum SupabaseError: LocalizedError {

@@ -76,11 +76,33 @@ final class AuthManager {
     /// in-flight refresh rather than firing a second, independent
     /// network round-trip — also gives this operation a trackable/
     /// cancellable handle the way `restoreTask` does for restore.
+    /// Scoped to `refreshTaskScope` (Remediation Pass 3, P1-2) so a
+    /// request for a DIFFERENT (userId, epoch) never coalesces onto a
+    /// stale in-flight task that belongs to a session that is no longer
+    /// live.
     private var refreshTask: Task<String, Error>?
+    private var refreshTaskScope: (userId: String, epoch: Int)?
+
+    /// The single owner of the web-bridge `sessionRefreshed` reconciliation
+    /// (Remediation Pass 3, P1-2) — moved here from `WebAppView.Coordinator`
+    /// specifically because a `WKWebView`/Coordinator is disposable (torn
+    /// down on sign-out, Retry, or a new `WebAppView` instance) and MUST
+    /// NOT be the thing a correctness-critical, possibly-already-consumed
+    /// refresh-token exchange depends on surviving. `AuthManager` outlives
+    /// every WebView. Scoped to `(userId, epoch)` the same way
+    /// `refreshTask` is.
+    private var webRefreshTask: Task<Void, Never>?
+    private var webRefreshTaskScope: (userId: String, epoch: Int)?
+
+    /// Injected so tests can supply a mock that never contacts live
+    /// Supabase (Remediation Pass 3) — defaults to the real network
+    /// implementation for every non-test call site.
+    private let sessionExchanger: SupabaseSessionExchanging
 
     // MARK: - Init
 
-    init() {
+    init(sessionExchanger: SupabaseSessionExchanging = LiveSupabaseSessionExchanger()) {
+        self.sessionExchanger = sessionExchanger
         restoreTask = Task { await restoreSession() }
     }
 
@@ -195,6 +217,17 @@ final class AuthManager {
         // new session injected into it: the new WebAppView mounts only
         // after `ensureCleanupComplete()` resolves for THIS generation.
         WebSessionBoundary.shared.markPendingForNewCleanup()
+        // Lets `SyncEngine` cancel whatever sync Task it currently owns
+        // BEFORE this account's identity/epoch stop being the live
+        // session — see Remediation Pass 3, P1/P2-4.
+        NotificationCenter.default.post(name: .jeevanSessionWillTerminate, object: nil)
+
+        refreshTask?.cancel()
+        refreshTask = nil
+        refreshTaskScope = nil
+        webRefreshTask?.cancel()
+        webRefreshTask = nil
+        webRefreshTaskScope = nil
 
         KeychainHelper.clearSession()
         emailConfirmationPending = false
@@ -214,6 +247,18 @@ final class AuthManager {
     // MARK: - Private
 
     private func restoreSession() async {
+        // Guards against a real race exposed by Remediation Pass 3's own
+        // test suite: `init()` fires this as an unawaited `Task` before
+        // returning, so a caller that constructs an `AuthManager` and
+        // then immediately sets state some OTHER way (tests use the
+        // `#if DEBUG` `setSignedInForTesting` hook; `signIn()`/`signUp()`
+        // are the real-world equivalent, though those are also async and
+        // therefore don't race this the same way) can have this Task's
+        // body run AFTER that, silently overwriting it back to
+        // `.signedOut` the first time this function later yields on an
+        // `await`. `restoreTask?.cancel()` is called by
+        // `setSignedInForTesting` for exactly this reason.
+        guard !Task.isCancelled else { return }
         guard
             let accessToken  = KeychainHelper.load(key: KeychainHelper.accessTokenKey),
             let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey),
@@ -245,7 +290,7 @@ final class AuthManager {
         let expectedEpoch = sessionEpoch
 
         do {
-            let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+            let session = try await sessionExchanger.refreshSession(refreshToken: refreshToken)
             guard !Task.isCancelled else { return }
             guard isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else {
                 // Either signed out, or a DIFFERENT account signed in while
@@ -258,7 +303,14 @@ final class AuthManager {
                 // the one this refresh was started for — never persist it.
                 return
             }
-            persist(session)
+            guard persist(session) else {
+                // Partial Keychain write — never present a signed-in
+                // state on top of possibly-mixed credential storage; fail
+                // closed instead of guessing.
+                guard isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else { return }
+                terminateSession()
+                return
+            }
             authState = .signedIn(
                 userId: session.user.id,
                 email: session.user.email,
@@ -278,11 +330,21 @@ final class AuthManager {
         }
     }
 
-    private func persist(_ session: SupabaseSession) {
-        KeychainHelper.save(session.accessToken,  key: KeychainHelper.accessTokenKey)
-        KeychainHelper.save(session.refreshToken, key: KeychainHelper.refreshTokenKey)
-        KeychainHelper.save(session.user.id,      key: KeychainHelper.userIdKey)
-        KeychainHelper.save(session.user.email,   key: KeychainHelper.userEmailKey)
+    /// Returns whether ALL FOUR Keychain writes succeeded. Each
+    /// `KeychainHelper.save` call independently deletes-then-adds its own
+    /// key, so a failure partway through can leave Keychain in a mixed
+    /// state (some keys already updated, others not) — callers that care
+    /// about presenting a coherent signed-in state (as opposed to
+    /// `persist` call sites that only ever ran this with no real-world
+    /// observed Keychain failures) check this result and fail closed
+    /// rather than trust a partially-written session.
+    @discardableResult
+    private func persist(_ session: SupabaseSession) -> Bool {
+        let a = KeychainHelper.save(session.accessToken,  key: KeychainHelper.accessTokenKey)
+        let b = KeychainHelper.save(session.refreshToken, key: KeychainHelper.refreshTokenKey)
+        let c = KeychainHelper.save(session.user.id,      key: KeychainHelper.userIdKey)
+        let d = KeychainHelper.save(session.user.email,   key: KeychainHelper.userEmailKey)
+        return a && b && c && d
     }
 
     /// Refreshes the Supabase session using the stored refresh token.
@@ -290,16 +352,19 @@ final class AuthManager {
     /// Returns the new access token so callers can retry immediately.
     /// Throws `SupabaseError.sessionExpired` if the refresh token is no longer valid.
     func refreshAndGetToken() async throws -> String {
-        // Coalesce concurrent callers (e.g. two sync attempts racing a
-        // 401) onto the same in-flight refresh rather than firing a
-        // second independent network round-trip.
-        if let existing = refreshTask {
-            return try await existing.value
-        }
         guard case .signedIn(let expectedUserId, _, _) = authState else {
             throw SupabaseError.sessionExpired
         }
         let expectedEpoch = sessionEpoch
+
+        // Coalesce concurrent callers (e.g. two sync attempts racing a
+        // 401) onto the same in-flight refresh — but ONLY if the existing
+        // task is scoped to this EXACT (userId, epoch). A request for a
+        // different session must never be handed a stale task's result.
+        if let existing = refreshTask, let scope = refreshTaskScope,
+           scope.userId == expectedUserId, scope.epoch == expectedEpoch {
+            return try await existing.value
+        }
 
         let task = Task<String, Error> { [weak self] in
             guard let self else { throw SupabaseError.sessionExpired }
@@ -310,7 +375,7 @@ final class AuthManager {
                 throw SupabaseError.sessionExpired
             }
             do {
-                let session = try await SupabaseClient.refreshSession(refreshToken: refreshToken)
+                let session = try await sessionExchanger.refreshSession(refreshToken: refreshToken)
                 guard !Task.isCancelled else { throw SupabaseError.sessionExpired }
                 guard self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else {
                     // A sign-out, or a different account signing in, while
@@ -321,7 +386,14 @@ final class AuthManager {
                 guard session.user.id == expectedUserId else {
                     throw SupabaseError.sessionExpired
                 }
-                self.persist(session)
+                guard self.persist(session) else {
+                    // Partial Keychain write — fail closed rather than
+                    // present a signed-in state atop mixed credentials.
+                    if self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) {
+                        self.terminateSession()
+                    }
+                    throw SupabaseError.sessionExpired
+                }
                 self.authState = .signedIn(
                     userId: session.user.id,
                     email: session.user.email,
@@ -341,24 +413,140 @@ final class AuthManager {
             }
         }
         refreshTask = task
-        defer { refreshTask = nil }
+        refreshTaskScope = (expectedUserId, expectedEpoch)
+        defer {
+            if refreshTaskScope?.userId == expectedUserId, refreshTaskScope?.epoch == expectedEpoch {
+                refreshTask = nil
+                refreshTaskScope = nil
+            }
+        }
         return try await task.value
     }
 
-    /// The ONE place a web-originated `sessionRefreshed` bridge message is
-    /// allowed to reach Keychain. `WebAppView.Coordinator` has already
-    /// verified `accessToken` directly against Supabase and matched the
-    /// returned identity to the user it was constructed for — this is a
-    /// second, independent re-check against the LIVE current session
-    /// right before writing anything, so `MainTabView` never needs (and
-    /// must never attempt) to write credentials to Keychain itself.
-    func applyWebRefreshedSession(accessToken: String, refreshToken: String, userId: String, email: String) {
-        guard case .signedIn(let currentUserId, _, _) = authState, currentUserId == userId else { return }
-        KeychainHelper.save(accessToken,  key: KeychainHelper.accessTokenKey)
-        KeychainHelper.save(refreshToken, key: KeychainHelper.refreshTokenKey)
-        KeychainHelper.save(userId,       key: KeychainHelper.userIdKey)
-        KeychainHelper.save(email,        key: KeychainHelper.userEmailKey)
-        authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
+    /// The ONE authoritative owner of the web-bridge `sessionRefreshed`
+    /// reconciliation (Remediation Pass 3, P1-2 — moved here from
+    /// `WebAppView.Coordinator`, which previously ran its OWN parallel
+    /// access-token-verify + refresh-token-exchange and could be torn
+    /// down mid-flight by a sign-out or a new `WebAppView` instance,
+    /// discarding an exchange that may already have rotated/consumed the
+    /// refresh token at Supabase). `MainTabView` never writes credentials
+    /// itself — it only forwards the bridge's CLAIMED (unverified) values
+    /// here.
+    ///
+    /// Ordering is deliberate: the access token is verified FIRST, and
+    /// the refresh token is only exchanged (which can rotate/consume it
+    /// at Supabase) if that verification succeeds and the claimed
+    /// identity still matches the live session — never exchange a refresh
+    /// token on the strength of an unverified access token alone.
+    ///
+    /// "Pairing" here means the access-token's verified user, the
+    /// refresh-exchange's own returned user, and the bridge's claimed
+    /// `userId` all agreeing — this is identity matching, not a stronger
+    /// cryptographic guarantee that the two tokens were issued together
+    /// as a single unit (Supabase's public API does not expose one).
+    ///
+    /// **Known residual gap, documented rather than silently accepted:**
+    /// if the refresh exchange reaches Supabase (rotating the token) but
+    /// by the time it returns a DIFFERENT account is now the live signed-
+    /// in session, the rotated token is intentionally discarded rather
+    /// than overwriting that other account's Keychain entries. The
+    /// original account's session is not resurrected in that specific
+    /// case — avoiding that entirely would need per-account Keychain
+    /// storage (so a non-live account's rotated token has somewhere safe
+    /// to land), which is out of scope for this pass.
+    func reconcileWebRefreshedSession(claimedAccessToken: String, claimedRefreshToken: String, claimedUserId: String) {
+        guard isCurrentSession(userId: claimedUserId, epoch: sessionEpoch) else { return }
+        let expectedUserId = claimedUserId
+        let expectedEpoch = sessionEpoch
+
+        // Scoped exactly like `refreshTask` — a reconciliation for a
+        // DIFFERENT (userId, epoch) never coalesces onto this one.
+        if let scope = webRefreshTaskScope, scope.userId == expectedUserId, scope.epoch == expectedEpoch,
+           webRefreshTask != nil {
+            return // Already reconciling this exact session; let it finish.
+        }
+        webRefreshTask?.cancel()
+
+        webRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                // Step 1: verify the access token BEFORE touching the
+                // refresh token at all.
+                let verifiedAccessUser = try await self.sessionExchanger.verifiedUser(accessToken: claimedAccessToken)
+                guard !Task.isCancelled else { return }
+                guard self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else { return }
+                guard verifiedAccessUser.id == expectedUserId else { return }
+
+                // Step 2: ONLY NOW exchange the refresh token — this is
+                // the point a single-use Supabase refresh token may be
+                // rotated/consumed, so everything before this point must
+                // already have been validated.
+                let canonicalSession = try await self.sessionExchanger.refreshSession(refreshToken: claimedRefreshToken)
+                guard !Task.isCancelled else { return }
+
+                guard Self.isPairedIdentity(
+                    accessUser: verifiedAccessUser.id,
+                    refreshUser: canonicalSession.user.id,
+                    claimedUserId: claimedUserId
+                ) else { return }
+
+                // Re-checked AGAIN after the exchange — the token may now
+                // be consumed at Supabase regardless of what we do next,
+                // which is exactly why this reconciliation lives in
+                // AuthManager (outlives every WebView) rather than a
+                // disposable Coordinator: this check happening here does
+                // not depend on any WebView still being alive.
+                guard self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) else {
+                    // See the documented residual gap above — the
+                    // canonical (already-exchanged) session is
+                    // intentionally not persisted over a different live
+                    // account.
+                    return
+                }
+
+                guard self.persist(canonicalSession) else {
+                    // Partial Keychain write — fail closed.
+                    if self.isCurrentSession(userId: expectedUserId, epoch: expectedEpoch) {
+                        self.terminateSession()
+                    }
+                    return
+                }
+
+                self.authState = .signedIn(
+                    userId: canonicalSession.user.id,
+                    email: canonicalSession.user.email,
+                    accessToken: canonicalSession.accessToken
+                )
+
+                // If the exchange rotated the refresh token (Supabase's
+                // are single-use), the WebView's own copy is now stale —
+                // silently resync it via whichever WebView is CURRENTLY
+                // registered live (re-checked at write time by
+                // `WebSessionBoundary`, not the WebView this message
+                // originally arrived from, which may no longer exist).
+                if canonicalSession.refreshToken != claimedRefreshToken {
+                    WebSessionBoundary.shared.resyncCanonicalSessionIfLive(
+                        accessToken: canonicalSession.accessToken,
+                        refreshToken: canonicalSession.refreshToken,
+                        userId: canonicalSession.user.id,
+                        email: canonicalSession.user.email
+                    )
+                }
+            } catch {
+                // Verification or exchange failed — say nothing further,
+                // never log the token or the error body. The refresh
+                // token was never exchanged if verification itself
+                // (Step 1) is what failed.
+            }
+        }
+        webRefreshTaskScope = (expectedUserId, expectedEpoch)
+    }
+
+    /// Pure, network-free pairing predicate — exercised directly by unit
+    /// tests without mocking Supabase. See `reconcileWebRefreshedSession`
+    /// for what "pairing" means here.
+    nonisolated static func isPairedIdentity(accessUser: String, refreshUser: String, claimedUserId: String) -> Bool {
+        accessUser == refreshUser && accessUser == claimedUserId
     }
 }
 
@@ -371,6 +559,11 @@ extension AuthManager {
     /// needing to mock or hit the real Supabase network. Never compiled
     /// into Release.
     func setSignedInForTesting(userId: String, email: String, accessToken: String) {
+        // Cancels the `init()`-fired `restoreSession()` Task — without
+        // this, that Task (unawaited, still pending) can run AFTER this
+        // call and silently overwrite it back to `.signedOut` the moment
+        // a test's own code later yields on any `await`.
+        restoreTask?.cancel()
         authState = .signedIn(userId: userId, email: email, accessToken: accessToken)
     }
 }

@@ -31,12 +31,6 @@ struct MainTabView: View {
     /// cleanup that's already in flight gets a real chance to finish
     /// first, not to block sign-in on it forever.
     @State private var authCleanupState: AuthCleanupState = .checking
-    /// Tracked explicitly (not a fire-and-forget `Task {}`) so a sign-out
-    /// — which tears down this entire `MainTabView` per `ContentView`'s
-    /// `switch` over `auth.authState` — can actually cancel an in-flight
-    /// sync rather than letting it keep running (and later upload/inject)
-    /// after the account it was started for is no longer signed in.
-    @State private var autoSyncTask: Task<Void, Never>?
 
     enum AuthCleanupState: Equatable {
         case checking
@@ -57,7 +51,6 @@ struct MainTabView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active, authCleanupState == .ready { autoSync() }
             }
-            .onDisappear { autoSyncTask?.cancel() }
     }
 
     /// Actually AWAITS the current generation's cleanup to finish — never
@@ -94,12 +87,12 @@ struct MainTabView: View {
         if let last = sync.syncState.lastAttemptedSync, Date().timeIntervalSince(last) < 60 {
             return
         }
-        guard autoSyncTask == nil else { return }
 
-        autoSyncTask = Task {
-            await sync.sync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk)
-            autoSyncTask = nil
-        }
+        // SyncEngine itself owns the resulting Task now (Remediation Pass
+        // 3, P1/P2-4) — it's cancelled via the `jeevanSessionWillTerminate`
+        // notification AuthManager posts from `terminateSession()`, not by
+        // this view tracking/cancelling its own.
+        sync.startSync(userId: userId, accessToken: token, authManager: auth, healthKitManager: hk)
     }
 
     // MARK: - Web content
@@ -212,20 +205,22 @@ struct MainTabView: View {
 
         case "sessionRefreshed":
             // The Supabase JS client in the WebView refreshed its token.
-            // `WebAppView.Coordinator` has already exchanged the claimed
-            // refresh token with Supabase directly and verified the
-            // canonical identity it returned — this just forwards those
-            // canonical fields to AuthManager, which is the ONE place
-            // allowed to write Keychain for this path (and does its own
-            // independent live-session re-check before doing so).
-            // MainTabView itself must never write credentials directly.
+            // These are the bridge's CLAIMED, UNVERIFIED values —
+            // `WebAppView.Coordinator` no longer does its own
+            // verification/exchange (Remediation Pass 3, P1-2; see
+            // `AuthManager.reconcileWebRefreshedSession`'s doc comment for
+            // why that moved out of the disposable Coordinator). AuthManager
+            // is the sole authority: it verifies the access token, THEN
+            // exchanges the refresh token, re-validates against the live
+            // session at each step, and is the only place allowed to write
+            // Keychain for this path. MainTabView never writes credentials
+            // directly.
             guard
                 let at  = message["accessToken"]  as? String,
                 let rt  = message["refreshToken"] as? String,
-                let uid = message["userId"]       as? String,
-                let em  = message["email"]        as? String
+                let uid = message["userId"]       as? String
             else { return }
-            auth.applyWebRefreshedSession(accessToken: at, refreshToken: rt, userId: uid, email: em)
+            auth.reconcileWebRefreshedSession(claimedAccessToken: at, claimedRefreshToken: rt, claimedUserId: uid)
 
         case "signOut":
             // Web-initiated sign-out, relayed over the bridge (posted from
