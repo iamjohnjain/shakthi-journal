@@ -29,7 +29,20 @@ function buildStats(review: WeeklyReview): Stat[] {
   } else if (review.stats.avgProteinG !== null && stats.length < 3) {
     stats.push({ val: `${review.stats.avgProteinG}g`, label: 'Avg protein' })
   }
-  return stats.slice(0, 3)
+  if (review.stats.avgCaloriesIn !== null && stats.length < 4) {
+    stats.push({ val: `${Math.round(review.stats.avgCaloriesIn)}`, label: 'Avg cal' })
+  }
+  return stats.slice(0, 4)
+}
+
+interface ConsistencyBar { label: string; pct: number }
+
+function buildConsistency(review: WeeklyReview): ConsistencyBar[] {
+  return [
+    { label: 'Workouts', pct: review.workoutConsistencyPct },
+    { label: 'Nutrition', pct: review.nutritionConsistencyPct },
+    { label: 'Recovery', pct: review.recoveryConsistencyPct },
+  ].filter(b => b.pct > 0)
 }
 
 interface Props {
@@ -43,6 +56,7 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const stats = buildStats(review)
+  const consistency = buildConsistency(review)
   const focus = review.recommendations[0] ?? null
 
   async function captureCard(): Promise<Blob | null> {
@@ -57,7 +71,7 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
     try {
       const blob = await captureCard()
       if (!blob) return
-      const file = new File([blob], 'weekly-wrap.png', { type: 'image/png' })
+      const file = new File([blob], 'Weekly Wrap.png', { type: 'image/png' })
       const nav = navigator as Navigator & { canShare?: (data: { files: File[] }) => boolean }
       if (nav.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Weekly Wrap' })
@@ -77,7 +91,7 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `weekly-wrap-${review.weekStart}.png`
+    a.download = `Weekly Wrap ${review.weekStart}.png`
     a.click()
     URL.revokeObjectURL(url)
     setSaved(true)
@@ -89,7 +103,7 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
       <div className="ww-sheet">
         <div className="ww-card" ref={cardRef}>
           <div className="ww-card-header">
-            <span className="ww-card-title">Weekly Wrap</span>
+            <span className="ww-card-title ww-card-title--gradient">Weekly Wrap</span>
             <span className="ww-card-date">{formatRange(review.weekStart, review.weekEnd)}</span>
           </div>
 
@@ -99,6 +113,20 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
                 <div className="ww-card-stat" key={s.label}>
                   <span className="ww-card-stat-val">{s.val}</span>
                   <span className="ww-card-stat-label">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {consistency.length > 0 && (
+            <div className="ww-card-consistency">
+              {consistency.map(c => (
+                <div className="ww-card-consistency-row" key={c.label}>
+                  <span className="ww-card-consistency-label">{c.label}</span>
+                  <div className="ww-card-consistency-track">
+                    <div className="ww-card-consistency-fill" style={{ width: `${Math.min(100, Math.max(0, c.pct))}%` }} />
+                  </div>
+                  <span className="ww-card-consistency-pct">{Math.round(c.pct)}%</span>
                 </div>
               ))}
             </div>

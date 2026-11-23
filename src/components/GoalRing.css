@@ -234,8 +234,13 @@
 }
 
 .goal-ring-modal {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background-image:
+    linear-gradient(var(--bg-elevated), var(--bg-elevated)),
+    var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  border: 1.5px solid transparent;
+  border-bottom: none;
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   width: 100%;
   max-width: 480px;

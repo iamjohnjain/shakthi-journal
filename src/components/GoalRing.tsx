@@ -222,6 +222,16 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   useEffect(() => {
     if (!showDetail) setEditingGoal(false)
   }, [showDetail])
+  // Locks background page scroll while this modal is open — the modal is a
+  // `createPortal` straight to `document.body`, so without this the page
+  // behind it (e.g. the Today/Dashboard page) kept scrolling along with any
+  // touch-drag inside the modal/overlay.
+  useEffect(() => {
+    if (!showDetail) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prevOverflow }
+  }, [showDetail])
 
   const goalType = GOAL_TYPES[typeIdx]
   const cfg = CONFIGS[goalType]
@@ -241,6 +251,12 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
     ? latestWeight.valueKg
     : undefined
   const current  = (rawCurrent ?? weightFallback) != null ? toDisplay(rawCurrent ?? weightFallback!) : undefined
+  // Always lbs regardless of the display unit setting — WeightGoalEditor's
+  // fields are lbs-only, so this is what seeds its Current Weight field with
+  // the live reading instead of a stale profile snapshot (see its own prop doc).
+  const currentWeightLbsForEditor = (rawCurrent ?? weightFallback) != null
+    ? kgToLbs(rawCurrent ?? weightFallback!)
+    : undefined
   const isStaleWeight = goalType === 'weight' && rawCurrent == null && current != null
   const neverWeighed  = goalType === 'weight' && current == null
   const isStaleData = goalType === 'weight' ? rawCurrent == null : goalType === 'steps' ? current == null : false
@@ -569,6 +585,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                      matter which screen it's opened from. ── */}
               {goalType === 'weight' && editingGoal && (
                 <WeightGoalEditor
+                  liveCurrentWeightLbs={currentWeightLbsForEditor}
                   onCancel={() => setEditingGoal(false)}
                   onSaved={async result => {
                     const current = await getSetting<NutritionGoals>('nutrition-goals', DEFAULT_GOALS)

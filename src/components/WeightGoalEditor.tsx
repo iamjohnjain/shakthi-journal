@@ -21,12 +21,20 @@ function fmtDate(d: string): string {
  * identically no matter which screen it's opened from — previously each
  * had its own separate, drifted implementation of the same idea.
  */
-export default function WeightGoalEditor({ onSaved, onCancel }: {
+export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightLbs }: {
   onSaved: (result: { calories: number; proteinG: number; carbsG: number; fatG: number }) => void
   /** Only rendered when provided — NutritionPage's modal already has its own
       close button, so a second "Cancel" would be redundant there; GoalRing's
       inline edit form needs one since it has no other way back out. */
   onCancel?: () => void
+  /** The caller's own live "current weight" (latest health-sync/manual
+      check-in, already resolved to lbs) — when provided, this seeds Current
+      Weight instead of the profile's `startWeightKg` snapshot, which
+      otherwise goes stale the moment a new weigh-in comes in after the
+      profile was last saved. Pace/calories/macros all derive from Current
+      Weight already, so seeding it live is what makes the whole preview
+      track the user's actual progress instead of a frozen value. */
+  liveCurrentWeightLbs?: number
 }) {
   const [currentWeight, setCurrentWeight] = useState('')
   const [goalWeight,    setGoalWeight]    = useState('')
@@ -41,7 +49,11 @@ export default function WeightGoalEditor({ onSaved, onCancel }: {
 
   useEffect(() => {
     getProfile().then(profile => {
-      if (profile?.startWeightKg) setCurrentWeight(String(Math.round(kgToLbs(profile.startWeightKg))))
+      if (liveCurrentWeightLbs != null && liveCurrentWeightLbs > 0) {
+        setCurrentWeight(String(Math.round(liveCurrentWeightLbs)))
+      } else if (profile?.startWeightKg) {
+        setCurrentWeight(String(Math.round(kgToLbs(profile.startWeightKg))))
+      }
       if (profile?.goalWeightKg)  setGoalWeight(String(Math.round(kgToLbs(profile.goalWeightKg))))
       if (profile?.goalDate)      setTargetDate(profile.goalDate)
       else                        setTargetDate(localDateStr(new Date(Date.now() + 1000 * 60 * 60 * 24 * 56))) // 8 weeks out by default
