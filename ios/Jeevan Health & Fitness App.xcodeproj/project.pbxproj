@@ -42,6 +42,7 @@
 		A1B2C3D4E5F6A1B2C3D4E713 /* DeepLinkValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E603 /* DeepLinkValidator.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E714 /* WebSessionBoundary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E604 /* WebSessionBoundary.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E715 /* WebBoundaryState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E605 /* WebBoundaryState.swift */; };
+		A1B2C3D4E5F6A1B2C3D4E70E /* WebSessionBoundaryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E70D /* WebSessionBoundaryIntegrationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +91,7 @@
 		A1B2C3D4E5F6A1B2C3D4E605 /* WebBoundaryState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebBoundaryState.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E700 /* WebBoundaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebBoundaryTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E702 /* JeevanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JeevanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F6A1B2C3D4E70D /* WebSessionBoundaryIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSessionBoundaryIntegrationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -237,6 +239,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F6A1B2C3D4E700 /* WebBoundaryTests.swift */,
+				A1B2C3D4E5F6A1B2C3D4E70D /* WebSessionBoundaryIntegrationTests.swift */,
 			);
 			path = ShakthiJournalTests;
 			sourceTree = "<group>";
@@ -373,6 +376,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D4E5F6A1B2C3D4E701 /* WebBoundaryTests.swift in Sources */,
+				A1B2C3D4E5F6A1B2C3D4E70E /* WebSessionBoundaryIntegrationTests.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D4E710 /* TrustedWebOrigin.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D4E711 /* WebNavigationPolicy.swift in Sources */,
 				A1B2C3D4E5F6A1B2C3D4E712 /* BridgeMessageValidator.swift in Sources */,

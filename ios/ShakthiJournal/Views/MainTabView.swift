@@ -21,6 +21,16 @@ struct MainTabView: View {
     /// load always restarts clean rather than reaching into a WebView that
     /// may itself be in a bad state.
     @State private var webViewGeneration = UUID()
+    /// True while a prior sign-out's auth cleanup (clearing just the
+    /// Supabase localStorage key, not IndexedDB — see `WebSessionBoundary`)
+    /// might still be pending. Gates mounting a new signed-in `WebAppView`
+    /// with a fresh session's tokens. Bounded, not indefinite: the session
+    /// script always *overwrites* the auth key on mount regardless (so a
+    /// second identity can never actually inherit the first one's stored
+    /// session even if this gate is skipped) — this wait exists so a
+    /// cleanup that's already in flight gets a real chance to finish
+    /// first, not to block sign-in on it forever.
+    @State private var isAwaitingAuthCleanup = true
 
     var body: some View {
         webContent
@@ -29,9 +39,17 @@ struct MainTabView: View {
             }
             .preferredColorScheme(.dark)
             .task { autoSync() }
+            .task { await waitForPendingAuthCleanup() }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active { autoSync() }
             }
+    }
+
+    private func waitForPendingAuthCleanup() async {
+        if WebSessionBoundary.shared.isPending {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+        }
+        isAwaitingAuthCleanup = false
     }
 
     // MARK: - Automatic background sync
@@ -57,10 +75,17 @@ struct MainTabView: View {
     // MARK: - Web content
 
     @ViewBuilder private var webContent: some View {
-        if let token   = auth.accessToken,
+        if isAwaitingAuthCleanup {
+            Color.black
+                .ignoresSafeArea()
+                .overlay(ProgressView().tint(.white))
+
+        } else if let token   = auth.accessToken,
            let refresh = KeychainHelper.load(key: KeychainHelper.refreshTokenKey),
            let uid     = auth.userId,
            let email   = auth.userEmail {
+
+            let epoch = auth.sessionEpoch
 
             ZStack(alignment: .top) {
                 WebAppView(
@@ -68,17 +93,28 @@ struct MainTabView: View {
                     refreshToken: refresh,
                     userId:       uid,
                     userEmail:    email,
+                    sessionEpoch: epoch,
                     onMessage:    handleWebMessage,
                     pendingPath:  Binding(
                         get: { deepLink.pendingPath },
                         set: { deepLink.pendingPath = $0 }
                     ),
-                    onStateChange: { webBoundaryState = $0 }
+                    onStateChange: { webBoundaryState = $0 },
+                    isValidSession: { userId, epoch in auth.isCurrentSession(userId: userId, epoch: epoch) }
                 )
                 .id(webViewGeneration)
                 .ignoresSafeArea(edges: .top)
 
-                if webBoundaryState != .ready {
+                // A blocked navigation only ever shows its own small banner
+                // — the real page underneath is untouched (the navigation
+                // was cancelled before it replaced anything), so it must
+                // never also get the full-screen WebBoundaryOverlay on top
+                // of it. That overlay previously rendered an opaque
+                // Color.black background unconditionally for EVERY non-
+                // .ready state, including .blockedNavigation, even though
+                // its own inner content was correctly an EmptyView for that
+                // case — the background still painted over the whole page.
+                if webBoundaryState.showsFullScreenOverlay {
                     WebBoundaryOverlay(state: webBoundaryState) {
                         webViewGeneration = UUID()
                         webBoundaryState = .loading
@@ -117,11 +153,19 @@ struct MainTabView: View {
             // The Supabase JS client in the WebView refreshed its token.
             // Sync the new tokens to native Keychain so HealthKit sync doesn't
             // try to use the old, now-revoked refresh token.
+            //
+            // WebAppView.Coordinator already verified this access token
+            // with Supabase and matched its user id against the session it
+            // was constructed for before forwarding it here — this is a
+            // second, independent check against the LIVE current identity
+            // (not just the one captured at construction time), so nothing
+            // ever gets saved to Keychain first and validated after.
             guard
                 let at  = message["accessToken"]  as? String,
                 let rt  = message["refreshToken"] as? String,
                 let uid = message["userId"]       as? String,
-                let em  = message["email"]        as? String
+                let em  = message["email"]        as? String,
+                auth.userId == uid
             else { return }
             KeychainHelper.save(at,  key: KeychainHelper.accessTokenKey)
             KeychainHelper.save(rt,  key: KeychainHelper.refreshTokenKey)
@@ -129,6 +173,15 @@ struct MainTabView: View {
             KeychainHelper.save(em,  key: KeychainHelper.userEmailKey)
             auth.updateTokens(accessToken: at)
             print("[MainTabView] Keychain updated from WebView token refresh")
+
+        case "signOut":
+            // Web-initiated sign-out, relayed over the bridge (posted from
+            // AuthContext.tsx's signOut() even if the Supabase request
+            // itself failed). Converges on the same idempotent coordinator
+            // as the native Settings "Sign Out" button — a no-op if native
+            // already ended this session itself, so there's no loop risk
+            // either direction.
+            auth.signOut()
 
         default:
             break

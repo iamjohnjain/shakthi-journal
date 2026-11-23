@@ -24,6 +24,12 @@ struct WebAppView: UIViewRepresentable {
     let refreshToken: String
     let userId:       String
     let userEmail:    String
+    /// The signed-in session generation this WebAppView was constructed
+    /// for (`AuthManager.sessionEpoch`) — captured alongside `userId` by
+    /// any in-flight credential verification so an `await` that resumes
+    /// after the session has already ended (sign-out bumps the epoch)
+    /// can detect it's stale and refuse to write anything.
+    let sessionEpoch: Int
     /// Called on the main thread when the web app posts a VALIDATED message
     /// to the native layer — unknown/malformed/untrusted-origin messages
     /// never reach this closure at all.
@@ -36,9 +42,21 @@ struct WebAppView: UIViewRepresentable {
     /// SwiftUI parent so it can render the matching native overlay —
     /// never left as an unexplained blank WebView.
     var onStateChange: ((WebBoundaryState) -> Void)?
+    /// Re-validates a captured (userId, epoch) pair against the LIVE
+    /// AuthManager state — not just the value this WebAppView happened to
+    /// be constructed with, which can go stale if a sign-out (or a second
+    /// sign-in) happens while a bridge credential-verification `Task` is
+    /// still awaiting a network round-trip.
+    var isValidSession: ((String, Int) -> Bool)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onMessage: onMessage, onStateChange: onStateChange, expectedUserId: userId)
+        Coordinator(
+            onMessage: onMessage,
+            onStateChange: onStateChange,
+            expectedUserId: userId,
+            expectedEpoch: sessionEpoch,
+            isValidSession: isValidSession
+        )
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -67,6 +85,7 @@ struct WebAppView: UIViewRepresentable {
         context.coordinator.expectedUserId = userId
         context.coordinator.onMessage = onMessage
         context.coordinator.onStateChange = onStateChange
+        context.coordinator.isValidSession = isValidSession
 
         if let path = pendingPath?.wrappedValue {
             if let target = DeepLinkValidator.resolve(path) {
@@ -83,7 +102,10 @@ struct WebAppView: UIViewRepresentable {
     static func dismantleUIView(_ wv: WKWebView, coordinator: Coordinator) {
         // Prevent a stale privileged bridge handler from surviving past
         // this view's lifetime (e.g. into whatever replaces it after a
-        // sign-out/identity change).
+        // sign-out/identity change) — and cancel any in-flight credential
+        // verification Task so it can't resolve and write to Keychain
+        // after this WebAppView (and the session it belonged to) is gone.
+        coordinator.invalidate(wv)
         wv.configuration.userContentController.removeAllUserScripts()
         wv.configuration.userContentController.removeScriptMessageHandler(forName: "jeevanNative")
         wv.navigationDelegate = nil
@@ -174,7 +196,19 @@ struct WebAppView: UIViewRepresentable {
         /// subtree when `ContentView` switches between `.signedOut` and
         /// `.signedIn`), so this is defense in depth, not the only gate.
         var expectedUserId: String
+        let expectedEpoch: Int
+        var isValidSession: ((String, Int) -> Bool)?
         weak var webView: WKWebView?
+
+        /// Flipped false in `invalidate()` (called from `dismantleUIView`
+        /// and on sign-out) — every in-flight async callback checks this
+        /// after its `await` before touching Keychain or forwarding
+        /// anything, so a Task that outlives this Coordinator's real
+        /// lifetime (WebKit's completion handlers aren't automatically
+        /// cancelled just because the Swift object they were bound to is
+        /// "supposed to be done") can't resurrect a dead session.
+        private var isActive = true
+        private var sessionRefreshTask: Task<Void, Never>?
 
         /// Incremented on every new top-level navigation attempt. Captured
         /// by `handleNativeSyncComplete` before the async
@@ -185,10 +219,18 @@ struct WebAppView: UIViewRepresentable {
         private var navigationGeneration = 0
         private var blockedNavigationWorkItem: DispatchWorkItem?
 
-        init(onMessage: (([String: Any]) -> Void)?, onStateChange: ((WebBoundaryState) -> Void)?, expectedUserId: String) {
+        init(
+            onMessage: (([String: Any]) -> Void)?,
+            onStateChange: ((WebBoundaryState) -> Void)?,
+            expectedUserId: String,
+            expectedEpoch: Int,
+            isValidSession: ((String, Int) -> Bool)?
+        ) {
             self.onMessage = onMessage
             self.onStateChange = onStateChange
             self.expectedUserId = expectedUserId
+            self.expectedEpoch = expectedEpoch
+            self.isValidSession = isValidSession
             super.init()
             NotificationCenter.default.addObserver(
                 self,
@@ -202,6 +244,20 @@ struct WebAppView: UIViewRepresentable {
             NotificationCenter.default.removeObserver(self)
         }
 
+        /// Called from `dismantleUIView` (this WebAppView is being torn
+        /// down — sign-out, identity change, or SwiftUI recreating the
+        /// view for Retry) and from a validated `signOut` bridge message.
+        /// Cancels any in-flight credential verification so it can never
+        /// resolve into a Keychain write after this point, and unregisters
+        /// this WebView from `WebSessionBoundary` so a later cleanup
+        /// doesn't try to inject into a WebView that's going away.
+        func invalidate(_ webView: WKWebView) {
+            isActive = false
+            sessionRefreshTask?.cancel()
+            sessionRefreshTask = nil
+            WebSessionBoundary.shared.clearLiveTrustedWebView(webView)
+        }
+
         // MARK: Navigation policy
 
         func webView(
@@ -213,16 +269,7 @@ struct WebAppView: UIViewRepresentable {
                 decisionHandler(.cancel)
                 return
             }
-            let kind: WebNavigationPolicy.Kind
-            switch navigationAction.navigationType {
-            case .linkActivated:  kind = .linkActivated
-            case .formSubmitted, .formResubmitted: kind = .formSubmitted
-            case .backForward:    kind = .backForward
-            case .reload:         kind = .reload
-            default:              kind = .other
-            }
-
-            switch WebNavigationPolicy.decide(url: url, kind: kind) {
+            switch WebNavigationPolicy.decide(url: url, kind: Self.navigationKind(for: navigationAction.navigationType)) {
             case .allow:
                 navigationGeneration += 1
                 decisionHandler(.allow)
@@ -264,6 +311,7 @@ struct WebAppView: UIViewRepresentable {
             guard let url = webView.url else { return }
             if TrustedWebOrigin.matches(url) {
                 onStateChange?(.ready)
+                WebSessionBoundary.shared.registerLiveTrustedWebView(webView)
             } else {
                 // Should be unreachable given the checks above — fail
                 // closed anyway: stop loading, strip the bridge, show a
@@ -289,6 +337,24 @@ struct WebAppView: UIViewRepresentable {
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             onStateChange?(.processTerminated)
+        }
+
+        /// Maps WebKit's navigation-type enum to the WebKit-independent
+        /// `WebNavigationPolicy.Kind` — shared by both the main navigation
+        /// decision and the popup decision below. Previously the popup path
+        /// hardcoded `.other` regardless of the real navigation type, which
+        /// meant a user tapping a genuine `target="_blank"` link (WebKit
+        /// reports this as `.linkActivated` same as any other link tap)
+        /// was treated as if it were a script-driven popup — blocked
+        /// in-app instead of correctly opening in Safari.
+        static func navigationKind(for type: WKNavigationType) -> WebNavigationPolicy.Kind {
+            switch type {
+            case .linkActivated:  return .linkActivated
+            case .formSubmitted, .formResubmitted: return .formSubmitted
+            case .backForward:    return .backForward
+            case .reload:         return .reload
+            default:              return .other
+            }
         }
 
         private func networkState(for error: Error) -> WebBoundaryState {
@@ -330,7 +396,7 @@ struct WebAppView: UIViewRepresentable {
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
             guard let url = navigationAction.request.url else { return nil }
-            switch WebNavigationPolicy.decide(url: url, kind: .other) {
+            switch WebNavigationPolicy.decide(url: url, kind: Self.navigationKind(for: navigationAction.navigationType)) {
             case .allow:
                 // Trusted-origin popup target — load it in the existing
                 // privileged view instead of spawning a second one.
@@ -399,8 +465,15 @@ struct WebAppView: UIViewRepresentable {
                 DispatchQueue.main.async { [weak self] in
                     self?.onMessage?(["type": "openHealthSync"])
                 }
-            case .sessionRefreshed(let accessToken, let refreshToken, let userId, let email):
-                handleSessionRefreshed(accessToken: accessToken, refreshToken: refreshToken, userId: userId, email: email)
+            case .sessionRefreshed(let accessToken, let refreshToken, let userId, _):
+                // The bridge-provided `email` is intentionally discarded
+                // here — never trusted. Only the email Supabase itself
+                // returns for the verified access token is ever forwarded.
+                handleSessionRefreshed(accessToken: accessToken, refreshToken: refreshToken, userId: userId)
+            case .signOut:
+                DispatchQueue.main.async { [weak self] in
+                    self?.onMessage?(["type": "signOut"])
+                }
             }
         }
 
@@ -411,19 +484,32 @@ struct WebAppView: UIViewRepresentable {
         /// returns for it must equal the user this WebAppView was
         /// constructed for. A message claiming a different identity is
         /// dropped — never persisted to Keychain, never forwarded.
-        private func handleSessionRefreshed(accessToken: String, refreshToken: String, userId: String, email: String) {
-            let expected = expectedUserId
-            Task { @MainActor [weak self] in
+        ///
+        /// Only one verification can be in flight at a time — a new
+        /// `sessionRefreshed` message cancels whatever the previous one was
+        /// still waiting on, and every resumption after the `await` re-
+        /// checks liveness (`isActive`), the captured (userId, epoch) pair
+        /// against the LIVE AuthManager state (`isValidSession`), and that
+        /// Supabase's own answer still agrees with the claimed identity —
+        /// never just trusting that "nothing changed while we were
+        /// waiting."
+        private func handleSessionRefreshed(accessToken: String, refreshToken: String, userId: String) {
+            sessionRefreshTask?.cancel()
+            let expectedUserId = self.expectedUserId
+            let expectedEpoch  = self.expectedEpoch
+            sessionRefreshTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
                     let verified = try await SupabaseClient.verifiedUser(accessToken: accessToken)
-                    guard verified.id == expected, verified.id == userId else { return }
+                    guard !Task.isCancelled, self.isActive else { return }
+                    guard verified.id == expectedUserId, verified.id == userId else { return }
+                    guard self.isValidSession?(expectedUserId, expectedEpoch) ?? true else { return }
                     self.onMessage?([
                         "type": "sessionRefreshed",
                         "accessToken": accessToken,
                         "refreshToken": refreshToken,
                         "userId": userId,
-                        "email": email,
+                        "email": verified.email,
                     ])
                 } catch {
                     // Token didn't verify — say nothing further, never log
@@ -449,9 +535,12 @@ struct WebAppView: UIViewRepresentable {
             guard !metrics.isEmpty else {
                 DispatchQueue.main.async {
                     guard revalidated() else { return }
-                    wv.evaluateJavaScript(
-                        "window.dispatchEvent(new CustomEvent('native-health-sync-complete', { detail: { count: 0 } }));"
-                    )
+                    wv.evaluateJavaScript("""
+                    (function() {
+                      if (window.location.origin !== "\(TrustedWebOrigin.productionURL.absoluteString)") { return; }
+                      window.dispatchEvent(new CustomEvent('native-health-sync-complete', { detail: { count: 0 } }));
+                    })();
+                    """)
                 }
                 return
             }
@@ -464,6 +553,13 @@ struct WebAppView: UIViewRepresentable {
             let script = """
             (function() {
               try {
+                // Belt-and-suspenders beyond the native-side `revalidated()`
+                // check above: that check and this script's actual
+                // execution inside WebKit are two different points in time
+                // separated by an async hop, and a navigation can begin in
+                // between. If it has, this guard refuses to touch
+                // localStorage/IndexedDB on whatever page is now loading.
+                if (window.location.origin !== "\(TrustedWebOrigin.productionURL.absoluteString)") { return; }
                 var metrics = \(jsonString);
                 var req = indexedDB.open('jeevan');
                 req.onsuccess = function(e) {

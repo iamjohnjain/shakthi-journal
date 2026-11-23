@@ -231,13 +231,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (user) await clearQueueForUser(user.id)
-    if (supabase) await supabase.auth.signOut()
-    syncEngine.setUser(null)
-    await setSetting('auth.mode', 'guest')
-    await setSetting('syncedUserId', null)
-    setSession(null)
-    setUser(null)
-    setMode('guest')
+    try {
+      if (supabase) await supabase.auth.signOut()
+    } finally {
+      // Native must hear about this even if the Supabase request itself
+      // failed (offline, server error, etc.) — the user's local session is
+      // ending either way, and native holds its own independent copy of
+      // the auth tokens (Keychain) plus a parallel WebView session that
+      // needs clearing regardless of whether the network call succeeded.
+      const w = window as unknown as Record<string, unknown>
+      const bridge = (w.webkit as {
+        messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } }
+      } | undefined)
+      bridge?.messageHandlers?.jeevanNative?.postMessage({ type: 'signOut' })
+
+      syncEngine.setUser(null)
+      await setSetting('auth.mode', 'guest')
+      await setSetting('syncedUserId', null)
+      setSession(null)
+      setUser(null)
+      setMode('guest')
+    }
   }, [user])
 
   const continueAsGuest = useCallback(() => {

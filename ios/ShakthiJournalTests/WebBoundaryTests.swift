@@ -1,11 +1,15 @@
 import XCTest
+import WebKit
 @testable import Jeevan
 
 /// Covers the pure, WebKit-independent trust-boundary logic added in
 /// Milestone 1B — TrustedWebOrigin, WebNavigationPolicy, DeepLinkValidator,
-/// and BridgeMessageValidator. Deliberately does not touch WKWebView itself
-/// (that needs a live app + simulator interaction, covered instead by the
-/// manual adversarial matrix in docs/APP_STORE_READINESS.md).
+/// and BridgeMessageValidator, plus the Milestone 1B Remediation additions
+/// (`WebBoundaryState.showsFullScreenOverlay`, popup navigation-type
+/// mapping, the `signOut` bridge message). These instantiate no WKWebView
+/// at all — true WKWebView integration tests (the auth-cleanup JS
+/// injection against a live page) live in
+/// WebSessionBoundaryIntegrationTests.swift instead.
 final class WebBoundaryTests: XCTestCase {
 
     // MARK: - TrustedWebOrigin: allowed
@@ -219,5 +223,74 @@ final class WebBoundaryTests: XCTestCase {
             ]
         )
         XCTAssertEqual(result, .sessionRefreshed(accessToken: "at", refreshToken: "rt", userId: "u1", email: "a@b.com"))
+    }
+
+    func test_bridge_signOut_accepted_fromTrustedMainFrame() {
+        let result = BridgeMessageValidator.validate(
+            handlerName: "jeevanNative",
+            frame: frame(trusted: true),
+            body: ["type": "signOut"]
+        )
+        XCTAssertEqual(result, .signOut)
+    }
+
+    func test_bridge_signOut_rejected_fromUntrustedFrame() {
+        let result = BridgeMessageValidator.validate(
+            handlerName: "jeevanNative",
+            frame: frame(trusted: false),
+            body: ["type": "signOut"]
+        )
+        XCTAssertNil(result)
+    }
+
+    // MARK: - WebBoundaryState.showsFullScreenOverlay (Remediation)
+
+    func test_overlay_readyState_doesNotShowFullScreenOverlay() {
+        XCTAssertFalse(WebBoundaryState.ready.showsFullScreenOverlay)
+    }
+
+    func test_overlay_blockedNavigation_doesNotShowFullScreenOverlay() {
+        // The specific regression this guards: a blocked navigation must
+        // render only its small banner, never the full-screen black
+        // overlay — the real page underneath was never actually replaced.
+        XCTAssertFalse(WebBoundaryState.blockedNavigation.showsFullScreenOverlay)
+    }
+
+    func test_overlay_everyOtherState_showsFullScreenOverlay() {
+        for state: WebBoundaryState in [.loading, .offline, .serverError, .sessionExpired, .processTerminated] {
+            XCTAssertTrue(state.showsFullScreenOverlay, "\(state) should show the full-screen overlay")
+        }
+    }
+
+    // MARK: - Popup navigation-type preservation (Remediation)
+
+    func test_popupNavigationKind_userActivatedLink_mapsToLinkActivated() {
+        // The specific regression this guards: a real target="_blank" tap
+        // (WebKit reports .linkActivated) was previously hardcoded to
+        // `.other` for the popup path, which made a genuine user-clicked
+        // external link get blocked in-app instead of opening in Safari.
+        XCTAssertEqual(WebAppView.Coordinator.navigationKind(for: .linkActivated), .linkActivated)
+    }
+
+    func test_popupNavigationKind_scriptOpened_mapsToOther() {
+        XCTAssertEqual(WebAppView.Coordinator.navigationKind(for: .other), .other)
+    }
+
+    func test_popupDecision_userActivatedExternalLink_opensExternally() {
+        // Explicitly module-qualified: WebAppView.Coordinator.navigationKind
+        // returns Jeevan's own WebNavigationPolicy.Kind (reached via
+        // @testable import), but this test file also compiles its own copy
+        // of WebNavigationPolicy.swift directly into the JeevanTests module
+        // (shared source-file membership with the app target) — an
+        // unqualified `WebNavigationPolicy.decide` here would resolve to
+        // that second, separately-compiled copy instead, which Swift
+        // treats as a genuinely different type despite identical source.
+        let kind = WebAppView.Coordinator.navigationKind(for: .linkActivated)
+        XCTAssertEqual(Jeevan.WebNavigationPolicy.decide(url: external, kind: kind), .openExternally)
+    }
+
+    func test_popupDecision_scriptOpenedExternalPopup_blocked() {
+        let kind = WebAppView.Coordinator.navigationKind(for: .other)
+        XCTAssertEqual(Jeevan.WebNavigationPolicy.decide(url: external, kind: kind), .block)
     }
 }

@@ -24,14 +24,14 @@ decisions) are called out explicitly — Claude cannot perform these.
 | `npm run build` | Succeeds | `dist/` produced, largest chunk 1.14MB (pre-existing code-split warning, not a blocker) |
 | `npm audit --omit=dev` | **0 vulnerabilities** (was 2 high — `react-router`/`react-router-dom` CSRF bypass, GHSA-qwww-vcr4-c8h2) | Fixed this session: bumped `react-router-dom` 7.18.0 → 7.18.6 (patched, within existing `^7.18.0` semver range). Re-ran `npm audit --omit=dev` → `found 0 vulnerabilities`. tsc/vitest/build re-verified green after the bump. |
 | `xcodebuild … CODE_SIGNING_ALLOWED=NO clean build` (unsigned Release, generic iOS) | **BUILD SUCCEEDED** | `/private/tmp/jeevan-appstore-baseline`, reconfirmed after the logging fix below at `/private/tmp/jeevan-appstore-verify1` |
-| Scheme/target list | 1 target (`Jeevan`), 1 scheme (`Jeevan`), Debug/Release configs, **no test target** | `xcodebuild -list` |
+| Scheme/target list | 2 targets (`Jeevan` app, `JeevanTests` unit tests), 1 scheme (`Jeevan`), Debug/Release configs | `xcodebuild -list` — the `JeevanTests` target was added during Milestone 1B and carries 47 passing tests as of this session's remediation pass (see Milestone 1B detail) |
 | Bundle ID / version / build | `jeevan.health.fitness` / `1.0` / `1` | `-showBuildSettings`, `Info.plist` |
 | Device family / orientation | iPhone only (`TARGETED_DEVICE_FAMILY = 1`), portrait only | `-showBuildSettings`, `Info.plist` `UISupportedInterfaceOrientations` |
 | Mac Catalyst | `SUPPORTS_MACCATALYST = NO` | `-showBuildSettings` |
 | Entitlements | `ShakthiJournal.entitlements`: only `com.apple.developer.healthkit = true` | file read |
 | Privacy manifest | **Absent** — no `PrivacyInfo.xcprivacy` anywhere in `ios/` | `find ios -iname "PrivacyInfo.xcprivacy"` → empty |
 | Production web origin | **Resolved.** `https://jeevan-health-fitness-app.pages.dev` is the sole authoritative Release origin per owner confirmation (code, deployment docs, and the rebrand commit all agree). `shakthi-journal.pages.dev` currently serves identical assets but is a legacy parallel deployment and must never be privileged. | Milestone 1B implements this as `TrustedWebOrigin.production`, covered by automated tests. |
-| Local provisioning profiles | Two profiles ARE reproducible at `~/Library/Developer/Xcode/UserData/Provisioning Profiles/` (owner-corrected path — not `~/Library/MobileDevice/...`, which doesn't exist on this machine). **Owner reports** Xcode's UI shows missing-UUID errors for both and `security find-identity` shows zero valid signing identities. **This session's own direct re-check found something different and is recorded here for transparency, not to override the owner's report:** `security find-identity -v -p codesigning` returned **one** valid identity ("Apple Development: johnmundackal11@gmail.com (324DW4RU23)"); `security cms -D -i <profile>` successfully decoded BOTH `.mobileprovision` files with well-formed UUIDs, names, and expiration dates matching their filenames; and an actual `xcodebuild … build` (automatic signing, no `CODE_SIGNING_ALLOWED=NO`) **succeeded** using identity `55A3A55AF634E5A763419D925DE6C5988C8CEE9B` and profile `29b4cc66-...` ("iOS Team Provisioning Profile: jeevan.health.fitness"). This does not necessarily mean signing is actually fine end-to-end — Xcode's own GUI (Signing & Capabilities pane) does additional live validation against the Apple Developer portal that this command-line check cannot reproduce, and a `security cms`-decodable profile can still be rejected by Xcode for reasons outside that command's scope (e.g. a certificate reference inside the profile not matching what's in the keychain, a revoked cert, or portal-side profile invalidation). **Flagging this discrepancy for the owner to reconcile** rather than asserting either account unilaterally. |
+| Local provisioning profiles / signing identity | **One Apple Development identity** ("Apple Development: johnmundackal11@gmail.com (324DW4RU23)") and **two DEVELOPMENT provisioning profiles** exist locally at `~/Library/Developer/Xcode/UserData/Provisioning Profiles/` (owner-corrected path — not `~/Library/MobileDevice/...`, which doesn't exist on this machine) — confirmed via `security find-identity -v -p codesigning` and `security cms -D -i <profile>` (both decode with well-formed UUIDs, names, and expiration dates). An automatic-signing `xcodebuild … build` succeeded using identity `55A3A55AF634E5A763419D925DE6C5988C8CEE9B` and profile `29b4cc66-...` ("iOS Team Provisioning Profile: jeevan.health.fitness"). **This is Apple Development signing only — NOT Apple Distribution / App Store signing.** No Apple Distribution certificate, no App Store distribution profile, and no successful archive-and-validate (`xcodebuild archive` + `-exportArchive`/`altool`/`notarytool` validation) path has been attempted or confirmed in this project. A development-signed build succeeding must not be read as App Store signing readiness — those are different certificate/profile types with different portal-side requirements, and the latter remains entirely unverified. **Owner reports** separately that Xcode's own GUI previously showed missing-UUID errors and zero valid identities — that discrepancy (GUI vs. this session's CLI checks) has not been reconciled and may reflect portal-side state (revocation, membership status) this command-line path cannot see; still **flagged for owner reconciliation**, not resolved. |
 | IndexedDB stores | **18** confirmed by `createObjectStore` calls in `src/db/index.ts` | `health_metrics, sync_history, settings, daily_logs, profile, workouts, nutrition_entries, training_profile, workout_plans, exercise_library, workout_templates, sync_queue, weekly_reviews, monthly_reviews, achievements, coach_memory, coach_chat, progress_photos` |
 | Auth providers | `google: enabled, email: enabled, guest: enabled, apple: disabled` | `src/lib/authProviders.ts` |
 | AI functions `verify_jwt` | **All 7 functions set `verify_jwt = false`** | `supabase/config.toml` — confirmed for `chat-coach`, `analyze-meal-photo`, `parse-workout-text`, `analyze-workout-photo`, `parse-workout-plan`, `parse-meal`, `transcribe-audio` |
@@ -54,18 +54,42 @@ decisions) are called out explicitly — Claude cannot perform these.
 
 The four remaining benign `print` statements (AuthManager ×3 after 1B's additions, HealthKitManager ×1) still run in Release but log no sensitive values. Wrapping them in `#if DEBUG` for pure defense-in-depth remains open. 🔲
 
-### 1B. WKWebView trust-boundary hardening — ✅ COMPLETE
+### 1B. WKWebView trust-boundary hardening — 🟡 PARTIAL (remediation applied this session; needs a live manual matrix pass before being called COMPLETE)
 
-Full threat model, implementation, boundary table, and test results are
-below. Summary: one centralized exact-origin policy
-(`TrustedWebOrigin.production` = `https://jeevan-health-fitness-app.pages.dev`,
-scheme+host+port, no substring matching) now gates navigation, popups,
-session-token injection, the JS↔native bridge, HealthKit injection, and
-camera/microphone grants. 34 new automated tests pass on a real simulator
-(`iPhone Duo`, iOS 27.2). Native loading/offline/error/blocked-navigation
-states replace the previous "blank WebView on failure" behavior. Full
-detail: see the dedicated **Milestone 1B** section below (after Milestone 8)
-and `docs/IOS_WEB_ORIGIN_ARCHITECTURE.md`.
+An earlier pass of this milestone was independently reviewed and judged
+**PARTIAL, not COMPLETE** — it left WebKit sign-out destructive (full
+`WKWebsiteDataStore.removeData(ofTypes: allWebsiteDataTypes())`, capable
+of deleting unsynced health data out of IndexedDB), had no native↔web
+sign-out synchronization, let a stale `sessionRefreshed` verification
+`Task` survive sign-out, hardcoded popup navigation type to `.other`
+regardless of the real `WKNavigationType`, and painted a full-screen
+black overlay over a merely-blocked (not failed) navigation. This
+session's remediation pass fixed all four defect categories — see the
+**Milestone 1B Remediation** section below for the defect-by-defect
+detail, the new non-destructive sign-out design, the idempotent
+sign-out coordinator, the session-epoch/liveness guarding, and the
+popup/overlay fixes.
+
+One centralized exact-origin policy (`TrustedWebOrigin.production` =
+`https://jeevan-health-fitness-app.pages.dev`, scheme+host+port, no
+substring matching) gates navigation, popups, session-token injection,
+the JS↔native bridge, HealthKit injection, and camera/microphone grants.
+**47 automated tests pass** on a real simulator (`iPhone Duo`, iOS
+27.2) — 43 pure-policy unit tests (`WebBoundaryTests.swift`, no WebKit
+runtime involved) plus 4 genuine `WKWebView` integration tests
+(`WebSessionBoundaryIntegrationTests.swift`, which load real HTML/JS
+into a real WebView). Native loading/offline/error/blocked-navigation
+states replace the previous "blank WebView on failure" behavior.
+
+**Why this is marked PARTIAL rather than COMPLETE:** the automated
+suite covers policy logic and the sign-out/cleanup mechanics directly,
+but the full adversarial matrix (real popups, real media permission
+prompts, real redirects from a live server, real backgrounded/killed
+process timing, an actual multi-session sign-out → sign-in cycle driven
+interactively) has not been driven in a running simulator this session
+— see the Manual Adversarial Matrix table below, which is explicit
+about which rows are genuinely driven vs. code-review-only. Do not
+treat this milestone as COMPLETE until that live pass happens.
 
 **Known residual item (intentionally out of this milestone's scope, see
 owner instruction):** `ios/ShakthiJournal/Sync/SupabaseClient.swift`'s
@@ -77,18 +101,30 @@ privacy-hardening item for a future milestone, not redesigned here per
 explicit instruction to keep this milestone narrowly scoped to the
 trust-boundary work.
 
-### 1C. Remote-WebView App Store risk (Guideline 4.2) — ✅ Evaluated
+### 1C. Remote-WebView App Store risk (Guideline 4.2) — 🟡 Evaluated, conditional
 
-**Resolved this session.** `docs/IOS_WEB_ORIGIN_ARCHITECTURE.md` compares
-bundled-assets (Option A) vs. the hardened remote origin (Option B) in
-full. **Recommendation: ship v1 on Option B** — the trust-boundary
-hardening in 1B directly addresses the specific security gaps that would
-otherwise be the strongest argument against shipping remote, and bundling
-is nontrivial (SPA routing inside a bundle needs a custom
+`docs/IOS_WEB_ORIGIN_ARCHITECTURE.md` compares bundled-assets (Option A)
+vs. the hardened remote origin (Option B) in full. **Recommendation:
+Option B (remote), CONDITIONAL on real release protections being in
+place first** — the trust-boundary hardening in 1B addresses the
+client-side security gaps, but a remote, instantly-mutable web origin is
+itself a privileged supply-chain dependency: whoever can push to
+`jeevan-health-fitness-app.pages.dev` can change what the shipped app
+executes without another App Review. That is a compliance risk to be
+mitigated, not simply an advantage to note. Shipping remote without the
+release protections listed in `IOS_WEB_ORIGIN_ARCHITECTURE.md` (immutable
+versioned releases, protected deploy approvals, a deployment freeze
+during App Review, account MFA/access control on the Cloudflare Pages
+project, CSP/security headers, a rollback plan, and synchronized
+app/web release governance) is not recommended. Bundling (Option A) is
+nontrivial (SPA routing inside a bundle needs a custom
 `WKURLSchemeHandler`, not just copying `dist/` into Xcode) — real
-follow-up work, not a pre-submission patch. No architecture change was
-made; this is a recommendation awaiting owner sign-off if a different
-direction is preferred.
+follow-up work either way. No architecture change was made; this is a
+recommendation awaiting owner sign-off, and bundling alone does not by
+itself satisfy Guideline 4.2 — Apple's actual bar is meaningful native
+functionality beyond a wrapped web page (HealthKit sync, native sign-out
+boundary, etc., per Milestone 1B), independent of whether the web
+content ships bundled or remote.
 
 ---
 
@@ -138,7 +174,7 @@ This requires: a decision on whether guest AI ships in v1 at all (program spec r
 | Native Settings "iOS 2.0" text vs. binary 1.0 | 🔲 Not yet located | Needs a grep of `SettingsView.swift`/`PermissionsView.swift` for version strings |
 | Privacy manifest (`PrivacyInfo.xcprivacy`) | 🔲 Does not exist | — |
 | Sign in with Apple vs. Google removal (Guideline 4.8) | 🔲 Undecided | `authProviders.ts`: Google enabled, Apple disabled. **Per program default: ship Option 2 (remove/hide Google from iOS Release, email+guest only) unless the owner confirms Apple Sign-In credentials/config are ready.** No change made yet — this flips user-facing auth UI and needs explicit owner confirmation first. |
-| Signing identity / provisioning profiles | 🔲 Owner action required | No valid local signing identity; profile issue reported by owner not reproducible on this machine (see Milestone 0) |
+| Signing identity / provisioning profiles | 🔲 Owner action required | One Apple Development identity + two DEVELOPMENT profiles exist and build successfully (see Milestone 0) — but **Apple Distribution / App Store signing is completely unverified**: no Distribution certificate, no App Store distribution profile, no successful archive+validate has been attempted. This is the actual blocker for submission, not the development-signing discrepancy. |
 | Export compliance (`ITSAppUsesNonExemptEncryption`) | 🔲 Not yet determined | Needs a dependency-by-dependency pass; initial read suggests only HTTPS (exempt), but not yet confirmed against every third-party SDK |
 
 ---
@@ -218,7 +254,7 @@ decision points through it.
 | HealthKit → web injection | `evaluateJavaScript` fired unconditionally whenever a sync completed, regardless of what the WebView was currently showing | Navigation-generation token captured at sync-completion time, re-checked (plus current-URL-trusted plus not-loading) immediately before `evaluateJavaScript` runs; any mismatch silently drops the injection | Logic reviewed; genuine navigation-race testing needs real WebKit timing, not covered by this unit suite | 🟡 Logic hardened, race condition not independently reproduced in tests |
 | Camera / microphone | `requestMediaCapturePermissionFor` returned `.grant` unconditionally for any origin/frame | Exact trusted-origin + main-frame check; returns `.prompt` (not `.grant`) for trusted, `.deny` for everything else | Logic is identical in shape to the bridge/navigation checks (same `TrustedWebOrigin.Origin` construction) — not independently unit-tested since it needs `WKSecurityOrigin`, a WebKit type; reviewed by inspection | 🟡 Logic reviewed, not unit-tested |
 | Deep links | `URL(string:relativeTo:)` on a raw path string — an absolute or scheme-relative string would resolve externally, ignoring the base | `DeepLinkValidator.resolve` requires exact allowlist membership, single leading slash, no scheme/host/userinfo, then re-validates the resolved URL against `TrustedWebOrigin` | `test_deepLink_*` (6 tests) | ✅ |
-| Sign-out WebKit session boundary | No `WKWebsiteDataStore` clearing anywhere — the shared, persistent default store would carry a signed-out user's cookies/localStorage/IndexedDB into whatever identity signed in next | `WebSessionBoundary.clearPrivilegedWebSession()` called from all 4 places `AuthManager` ends a session (explicit sign-out + 3 forced-logout paths) | Not unit-tested (requires a live `WKWebsiteDataStore`) — see Manual Matrix | 🟡 Implemented, not automated-tested |
+| Sign-out WebKit session boundary | **Original 1B implementation was itself destructive**: it called `WKWebsiteDataStore.removeData(ofTypes: allWebsiteDataTypes())`, which deletes the app's IndexedDB (including unsynced health data) and all LocalStorage, not just auth state — flagged by independent review and fixed in this session's remediation pass (see Milestone 1B Remediation below) | `WebSessionBoundary` now does an exact-origin, trusted-main-frame cleanup handshake that removes ONLY the `sb-pvtsskfnbxeohbtwafah-auth-token` localStorage key via injected JS — never a `WKWebsiteDataStore`-level wipe. Awaitable, idempotent, with a bounded timeout that never falls back to broader deletion. Native+web sign-out converge on one coordinator (`AuthManager.terminateSession()`). | **4 genuine WKWebView integration tests** (`WebSessionBoundaryIntegrationTests.swift`): sentinel IndexedDB record survives cleanup, exact auth key is removed, cleanup is idempotent, cleanup refuses to run against an untrusted origin | ✅ Fixed and automated-tested this session |
 | Native loading/error states | None — a failed/blocked/terminated load left a blank WebView with no explanation | `WebBoundaryState` + `WebBoundaryOverlay`/`BlockedNavigationBanner`, wired to `didCommit`/`didFinish`/`didFail`/`didFailProvisionalNavigation`/`webViewWebContentProcessDidTerminate`; Retry always reloads `TrustedWebOrigin.productionURL` only | Visual/behavioral, not unit-tested — see Manual Matrix | 🟡 Implemented, not automated-tested |
 | Settings origin display | Hardcoded a second literal copy of the origin string | Reads `TrustedWebOrigin.production.host` | Covered indirectly by the origin tests (same source of truth) | ✅ |
 
@@ -226,24 +262,27 @@ decision points through it.
 
 | Command | Result | Evidence |
 |---|---|---|
-| `npx vitest run` | ✅ 108/108 pass | unchanged from Milestone 0, re-verified after all native changes |
+| `npx vitest run` | ✅ 108/108 pass | re-verified after this session's remediation |
 | `npx tsc --noEmit --pretty false` | ✅ clean | — |
 | `npm run build` | ✅ succeeds | — |
 | `npm audit --omit=dev` | ✅ 0 vulnerabilities | — |
-| Unsigned Release `xcodebuild` (generic/platform=iOS) | ✅ BUILD SUCCEEDED | `/private/tmp/jeevan-webview-release` |
-| **`xcodebuild test` — new `JeevanTests` target, simulator `iPhone Duo` (iOS 27.2)** | ✅ **34/34 tests passed**, 0 failures | `/private/tmp/jeevan-tests-run/Logs/Test/Test-Jeevan-*.xcresult`; full pass list includes every allowed/rejected origin case, every navigation-kind case, every deep-link case, and every bridge-validation case specified in the milestone's required test matrix |
+| Unsigned Release `xcodebuild` (generic/platform=iOS, `CODE_SIGNING_ALLOWED=NO`) | ✅ BUILD SUCCEEDED | re-run after remediation; this is Debug-signing-free generic-device verification only — **not** App Store / Apple Distribution signing, which remains unverified (see Milestone 0/6) |
+| **`xcodebuild test` — `JeevanTests` target, simulator `iPhone Duo` (iOS 27.2)** | ✅ **47/47 tests passed**, 0 failures | **43 pure-policy unit tests** (`WebBoundaryTests.swift` — plain Swift objects, no WebKit runtime instantiated) + **4 genuine `WKWebView` integration tests** (`WebSessionBoundaryIntegrationTests.swift` — real `WKWebView` instances loaded with real local HTML/JS via `loadHTMLString`, exercising actual IndexedDB/localStorage). This distinction matters: the 43 pure-policy tests prove the decision logic is correct in isolation; only the 4 integration tests prove the actual WebKit storage APIs behave as the logic assumes. |
 
-The native test target did not exist before this session (confirmed in
-Milestone 0). It was added by direct `project.pbxproj`/`.xcscheme` editing
-(the `xcodeproj` Ruby gem failed to install in this environment — native
-extension build failure against this machine's bundled Ruby/SDK — so this
-was hand-edited, verified with `plutil -lint` after every step, and backed
-up to `/private/tmp/project.pbxproj.backup` / `/private/tmp/Jeevan.xcscheme.backup`
-before starting). `JeevanTests` is a hosted unit-test bundle
-(`TEST_HOST`/`BUNDLE_LOADER` pointing at the app target) sharing the six
-`WebBoundary` source files' build-file membership with the app target —
-no `@testable import` framework-linking complexity needed since both
-targets compile the same source files directly.
+The native test target did not exist before Milestone 1B's first pass
+(confirmed in Milestone 0's baseline). It was added by direct
+`project.pbxproj`/`.xcscheme` editing (the `xcodeproj` Ruby gem failed to
+install in this environment — native extension build failure against
+this machine's bundled Ruby/SDK — so this was hand-edited, verified with
+`plutil -lint` after every step, with backups taken before each editing
+pass). `JeevanTests` is a hosted unit-test bundle (`TEST_HOST`/
+`BUNDLE_LOADER` pointing at the app target) sharing the `WebBoundary`
+source files' build-file membership with the app target directly — no
+`@testable import` framework-linking complexity, though this does mean
+the same source file compiled into two separate module contexts
+produces two distinct per-module types at the Swift type-system level,
+which required one explicit module-qualification (`Jeevan.WebNavigationPolicy.decide(...)`)
+in the newer tests to resolve a cross-module type-identity compile error.
 
 ### Manual adversarial matrix
 
@@ -258,30 +297,34 @@ link, submit a real form, etc.). Marked accordingly.
 | Server 302 to external origin | Blocked, banner shown, original page intact | Unit-tested at the policy level (`test_navigation_nonUserInitiatedCrossOrigin_blocked` with `kind: .other`, which is what a redirect's navigation action arrives as) | ✅ Automated (policy); not run against a real redirecting server |
 | JavaScript `window.location` to external origin | Blocked (arrives as `.other` → `.block`) | Same test as above | ✅ Automated (policy) |
 | Form POST to external origin | Blocked (`.formSubmitted` → `.block`) | Unit-tested | ✅ Automated |
-| `target=_blank` / `window.open` | Trusted → loads in same view; external → opens in Safari; else → blocked | Logic reviewed (reuses `decide`); not run against a live popup | 🟡 Code review only |
+| `target=_blank` / `window.open` | Trusted → loads in same view; external → opens in Safari; else → blocked | **Fixed and unit-tested this session**: the popup handler previously hardcoded `.other` as the navigation kind regardless of the real `WKNavigationType`, which meant a user-activated external link opening as a popup was indistinguishable from a scripted one. Both now route through the same `navigationKind(for:)` mapping as main-frame navigation, preserving the real type. `test_popupNavigationKind_userActivatedLink_mapsToLinkActivated` and others cover the mapping; not run against a live popup in a simulator. | ✅ Automated (policy, including the regression fix); 🟡 live popup still code-review only |
 | Cross-origin iframe bridge attempt | `message.frameInfo.isMainFrame == false` → rejected | Unit-tested (`test_bridge_trustedSubframe_rejected`) | ✅ Automated |
 | Untrusted `getUserMedia` request | `.deny` | Logic reviewed (same origin-construction path as bridge/navigation, which are tested) — `WKSecurityOrigin` itself isn't exercised in XCTest | 🟡 Code review only |
 | Trusted camera request | `.prompt` (not auto-grant) | Logic reviewed | 🟡 Code review only |
 | Trusted microphone request | `.prompt` (not auto-grant) | Logic reviewed, same code path as camera (type-parameterized) | 🟡 Code review only |
 | Deep-link escape attempt (`//evil.example`, absolute URL, `javascript:`) | Rejected | Unit-tested (3 separate tests) | ✅ Automated |
 | Navigation during HealthKit injection | Generation-token mismatch blocks injection | Logic reviewed; genuine timing race not reproduced (would need a real WKWebView mid-navigation at the exact moment a sync completes) | 🟡 Code review only |
-| Web sign-out followed by cold launch | `WebSessionBoundary.clearPrivilegedWebSession()` runs on `signOut()`; next launch has no stale web session | Logic reviewed; not run on a device/simulator across an actual app-kill-and-relaunch cycle | 🟡 Code review only |
-| Native sign-out followed by another identity | Same clearing call, plus `dismantleUIView` strips scripts/handlers from the old `WKWebView` instance when SwiftUI tears it down | Logic reviewed | 🟡 Code review only |
+| Web sign-out followed by cold launch | Non-destructive auth-only cleanup runs via `WebSessionBoundary`; a second sign-in waits (bounded, up to 1.5s) for any pending cleanup via `MainTabView.waitForPendingAuthCleanup()` before mounting a new session | Automated: `WebSessionBoundaryIntegrationTests` confirm the IndexedDB sentinel and exact auth-key removal/idempotency; the pending-flag gate itself is logic-reviewed, not run across an actual app-kill-and-relaunch cycle | 🟡 Cleanup mechanics ✅ automated; full cold-launch cycle code-review only |
+| Native sign-out followed by another identity | `AuthManager.terminateSession()` is the single idempotent coordinator for all sign-out triggers (native button, web bridge, forced logout); `dismantleUIView` cancels the sessionRefreshed verification task and invalidates the coordinator so no stale task can write to Keychain after teardown | Logic reviewed; the epoch/liveness guarding is structurally analogous to the tested cleanup idempotency but the full two-identity sequence itself was not driven interactively | 🟡 Code review only |
+| Pending refresh followed by sign-out | A `sessionRefreshed` verification task in flight when sign-out happens must not repopulate Keychain afterward | `Coordinator.handleSessionRefreshed` re-checks coordinator liveness, native auth state, user-id match, and session epoch after every `await` before writing anything; `invalidate(_:)` cancels the task outright on teardown | 🟡 Code review only — not driven with a real in-flight network race |
 | Offline launch/retry | `.offline` state (NSURLErrorNotConnectedToInternet et al.), Retry reloads trusted root | Logic reviewed; not run with the simulator's network actually disabled | 🟡 Code review only |
 | Web-content process termination/recovery | `.processTerminated` state shown, Retry available | Logic reviewed; not forced via Simulator's "Simulate Memory Warning"/process-kill tooling | 🟡 Code review only |
 
 **Honest summary:** the parts of this matrix expressible as pure-function
 unit tests (origin matching, navigation-kind decisions, deep-link
 resolution, bridge message schema/frame/origin validation) are
-automated and passing — 34/34, independently re-runnable. The parts that
-require live WebKit runtime behavior (actual popups, actual media
-permission prompts, actual redirects from a real server, actual
-backgrounded/killed-process timing) are implemented per the same
-reviewed logic but were not interactively driven in a simulator this
-session — that would need either a UI-automation pass (XCUITest, a
-further scoped addition) or manual QA on a device. Recommended as a
-fast-follow before submission, not a blocker for this milestone's own
-definition of done (which this milestone satisfies).
+automated and passing — 43/43, independently re-runnable. The sign-out
+cleanup mechanics (non-destructive IndexedDB preservation, exact
+auth-key removal, idempotency, untrusted-origin refusal) are now ALSO
+automated against a genuine `WKWebView` — 4/4 passing. What's still
+**not** genuinely driven: actual popups opening in a live simulator,
+actual media permission prompts, actual redirects from a real server,
+actual backgrounded/killed-process timing, and a full interactive
+sign-out → cold-launch → sign-in-as-different-user cycle. Those remain
+implemented per reviewed logic but not interactively verified — this
+would need either a UI-automation pass (XCUITest) or manual QA on a
+device, and should happen before this milestone is called COMPLETE
+rather than PARTIAL.
 
 ### Bundled-assets vs. remote-origin recommendation
 
@@ -299,3 +342,96 @@ same device without ever fully signing out between them, or the broader
 question of whether the web app's own IndexedDB schema is keyed per-user
 at all. That full account-isolation design is explicitly Milestone 3's
 scope and remains open.
+
+---
+
+## Milestone 1B Remediation (this session)
+
+An independent review judged the first 1B pass **PARTIAL, not
+COMPLETE**, citing four defect categories. Starting commit for this
+remediation: `9a53d54f5924c6636e7d4f6052ba70d44c1e97eb`.
+
+1. **Destructive sign-out → non-destructive.** `WebSessionBoundary`
+   previously wiped all WebKit data types via `WKWebsiteDataStore`,
+   capable of deleting unsynced health data from the app's own
+   IndexedDB. Rewritten to an exact-origin, trusted-main-frame JS
+   cleanup handshake that removes only the
+   `sb-pvtsskfnbxeohbtwafah-auth-token` localStorage key. Awaitable,
+   idempotent, bounded-timeout, never falls back to a broader wipe.
+   Per-user IndexedDB isolation remains explicitly Milestone 3 scope.
+
+2. **Sign-out synchronization.** Web-initiated sign-out now posts a
+   validated `{type: "signOut"}` bridge message (accepted only from the
+   trusted main frame + exact canonical origin) even if the Supabase
+   request itself fails (`AuthContext.tsx`'s `signOut()` try/finally).
+   Native and web sign-out both converge on
+   `AuthManager.terminateSession()` — a single idempotent coordinator,
+   so repeated triggers from either direction are safe no-ops. **This is
+   the single session authority**: `AuthManager` owns Keychain state and
+   the signed-in/out transition; the WebView's own Supabase client is
+   downstream of it, not a second authority — a web-side token refresh
+   is verified against `AuthManager`'s live state before anything is
+   persisted, and a web-side sign-out always round-trips through
+   `AuthManager.signOut()` rather than clearing its own state
+   independently.
+
+3. **Post-sign-out refresh resurrection eliminated.** `AuthManager`
+   gained a `sessionEpoch` counter and `isCurrentSession(userId:epoch:)`.
+   `WebAppView.Coordinator` tracks its in-flight `sessionRefreshed`
+   verification task, cancels it on `invalidate(_:)` (called from
+   `dismantleUIView`), and re-checks coordinator liveness + native auth
+   state + user-id match + session epoch after every `await` before
+   writing anything to Keychain. `MainTabView.handleWebMessage`'s
+   `sessionRefreshed` case independently re-verifies `auth.userId == uid`
+   as a second, live check. The bridge-provided email is never trusted —
+   the server-verified identity (`SupabaseClient.verifiedUser`) is what
+   gets forwarded. Full token-free bridge elimination (native as sole
+   refresher, pushing to web) was evaluated and intentionally not
+   implemented this pass — it's a larger redesign than this remediation
+   scope; the credential-in-bridge path was hardened to the owner's
+   stated fallback-acceptable bar instead (server verification, identity
+   + epoch matching, no bridge-provided email trust).
+
+4. **Boundary behavior corrections.** (a) Popups now preserve the real
+   `WKNavigationType` through a shared `navigationKind(for:)` mapping
+   used by both main navigation and the popup handler — previously
+   popups hardcoded `.other`, which could not distinguish a user-clicked
+   external link from a scripted one. (b) `WebBoundaryState.showsFullScreenOverlay`
+   explicitly excludes `.blockedNavigation`, fixing a bug where a merely
+   blocked (not failed) navigation painted an opaque full-screen overlay
+   over an otherwise-intact page. (c) Both HealthKit-injection JS strings
+   now start with an execution-time origin guard
+   (`window.location.origin !== trustedOrigin → return`), so a
+   navigation that begins after the native preflight check can't let the
+   injection execute against a different origin.
+
+5. **Regression coverage.** 4 new tests covering the signOut bridge
+   message, `showsFullScreenOverlay` (including the specific blocked-
+   navigation regression), and popup navigation-kind mapping (including
+   the specific user-activated-link regression) were added to
+   `WebBoundaryTests.swift` (pure policy, no WebKit runtime). A new file,
+   `WebSessionBoundaryIntegrationTests.swift`, adds 4 genuine `WKWebView`
+   integration tests covering: sign-out cleanup never deletes a sentinel
+   IndexedDB record; the exact Supabase auth key is removed; cleanup is
+   idempotent; cleanup refuses to run against an untrusted origin. Total:
+   **47/47 passing** (43 pure-policy + 4 integration). See the Manual
+   Adversarial Matrix above for exactly which scenarios were genuinely
+   WebKit-driven vs. code-review-only — the claim is never stronger than
+   that distinction.
+
+**Verification run this session:** `npx vitest run` (108/108),
+`npx tsc --noEmit --pretty false` (clean), `npm run build` (succeeds),
+`npm audit --omit=dev` (0 vulnerabilities), `xcodebuild test` on
+`iPhone Duo` (iOS 27.2) — 47/47 native tests passing, unsigned generic-
+device Release `xcodebuild` with `CODE_SIGNING_ALLOWED=NO` (BUILD
+SUCCEEDED), `git diff --check` (clean). No Edge Function, database
+migration, Cloudflare, or other production resource was deployed this
+session. The pre-existing `docs/BETA_LAUNCH_CHECKLIST.md` deletion from
+before this remediation pass was left untouched.
+
+**Status: still PARTIAL, not COMPLETE** — the four defect categories
+are fixed and automated-tested, but the live, interactive adversarial
+matrix pass (real popups, real media prompts, a real multi-identity
+sign-out/sign-in cycle on a running simulator) has not happened. Do not
+advance this milestone to COMPLETE until that pass runs, consistent
+with the instruction that drove this remediation.

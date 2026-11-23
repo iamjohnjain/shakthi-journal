@@ -17,6 +17,20 @@ final class AuthManager {
 
     var authState: AuthState = .loading
 
+    /// Bumped every time a signed-in session ends (`signOut()`/forced
+    /// logout). Captured by in-flight bridge-credential verification tasks
+    /// (see `WebAppView.Coordinator`) so an `await` that resumes after the
+    /// session has already ended can detect it belongs to a stale
+    /// generation and refuse to write anything to Keychain.
+    private(set) var sessionEpoch = 0
+
+    /// True if `userId`/`sessionEpoch` still describe the live, current
+    /// session — used by anything holding onto identity captured before an
+    /// `await` to re-validate afterward rather than trusting stale state.
+    func isCurrentSession(userId: String, epoch: Int) -> Bool {
+        isSignedIn && self.userId == userId && sessionEpoch == epoch
+    }
+
     // Sign-in
     var signInError: String?
     var isSigningIn = false
@@ -148,17 +162,31 @@ final class AuthManager {
         session.start()
     }
 
+    /// The single, idempotent sign-out coordinator — every path that ends a
+    /// session (the native Settings button, a web-initiated sign-out
+    /// relayed over the bridge, and the forced-logout paths below) all
+    /// converge here. Safe to call more than once: a no-op once already
+    /// signed out, so a web-bridge `signOut` message arriving after native
+    /// already handled its own sign-out (or vice versa) can't double-clear
+    /// state or re-trigger anything.
     func signOut() {
+        guard case .signedIn = authState else { return }
+        terminateSession()
+    }
+
+    private func terminateSession() {
         KeychainHelper.clearSession()
         emailConfirmationPending = false
         googleSignInError = nil
         authState = .signedOut
-        // Clear the WebView's persistent session (cookies/localStorage/
-        // IndexedDB/cache) before any new identity's WebAppView instance is
-        // created — otherwise a second account signing in afterward would
-        // load the same shared, persistent WKWebsiteDataStore and inherit
-        // this account's web-side session. See WebSessionBoundary.
-        WebSessionBoundary.clearPrivilegedWebSession()
+        sessionEpoch += 1
+        // Clears ONLY the Supabase auth localStorage key from the WebView —
+        // never IndexedDB/general storage. Awaited in a detached Task since
+        // callers of signOut()/terminateSession() are synchronous; anything
+        // that needs to wait for cleanup to actually finish (gating a new
+        // sign-in's WebView from mounting) reads WebSessionBoundary's own
+        // `isPending` flag instead of awaiting this call directly.
+        Task { await WebSessionBoundary.shared.requestCleanup() }
     }
 
     // MARK: - Private
@@ -198,9 +226,7 @@ final class AuthManager {
             // The refresh token is genuinely revoked or invalid — force re-sign-in.
             // Falling back to the stale access token would also fail, since it's expired.
             print("[AuthManager] Refresh token rejected (\(code)) — clearing Keychain session")
-            KeychainHelper.clearSession()
-            authState = .signedOut
-            WebSessionBoundary.clearPrivilegedWebSession()
+            terminateSession()
         } catch {
             // Transient network/server error — already running on the cached
             // session set above, so there's nothing further to do.
@@ -220,9 +246,7 @@ final class AuthManager {
     /// Throws `SupabaseError.sessionExpired` if the refresh token is no longer valid.
     func refreshAndGetToken() async throws -> String {
         guard let refreshToken = KeychainHelper.load(key: KeychainHelper.refreshTokenKey) else {
-            KeychainHelper.clearSession()
-            authState = .signedOut
-            WebSessionBoundary.clearPrivilegedWebSession()
+            terminateSession()
             throw SupabaseError.sessionExpired
         }
         do {
@@ -237,9 +261,7 @@ final class AuthManager {
         } catch SupabaseError.httpError(let code, _) where code == 400 || code == 401 {
             // Refresh token is revoked / expired — clear session and force re-sign-in.
             // SyncEngine catches .sessionExpired to show the right UI.
-            KeychainHelper.clearSession()
-            authState = .signedOut
-            WebSessionBoundary.clearPrivilegedWebSession()
+            terminateSession()
             throw SupabaseError.sessionExpired
         }
     }

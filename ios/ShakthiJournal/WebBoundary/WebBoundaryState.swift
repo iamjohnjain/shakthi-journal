@@ -15,6 +15,21 @@ enum WebBoundaryState: Equatable {
     case blockedNavigation
     case sessionExpired
     case processTerminated
+
+    /// The one flag MainTabView uses to decide whether to render the
+    /// full-screen `WebBoundaryOverlay` at all. `.ready` and
+    /// `.blockedNavigation` are both excluded — a blocked navigation gets
+    /// only its own small banner (`BlockedNavigationBanner`), never a
+    /// full-screen takeover, since the real page underneath was never
+    /// actually replaced. Pulled out as a plain, unit-testable property
+    /// specifically because the prior version of this logic lived only as
+    /// an inline SwiftUI `if` condition that was wrong (it omitted the
+    /// `.blockedNavigation` exclusion, so a blocked navigation still
+    /// painted an opaque black background over the whole page even though
+    /// the overlay's own inner content correctly rendered as empty).
+    var showsFullScreenOverlay: Bool {
+        self != .ready && self != .blockedNavigation
+    }
 }
 
 /// Full-screen takeover for every state except `.ready` and the transient

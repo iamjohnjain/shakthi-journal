@@ -25,6 +25,7 @@ enum BridgeMessageValidator {
     enum ValidatedMessage: Equatable {
         case openHealthSync
         case sessionRefreshed(accessToken: String, refreshToken: String, userId: String, email: String)
+        case signOut
     }
 
     /// Field-length ceiling applied to every string field below — generous
@@ -59,6 +60,9 @@ enum BridgeMessageValidator {
                 let email        = string(dict["email"])
             else { return nil }
             return .sessionRefreshed(accessToken: accessToken, refreshToken: refreshToken, userId: userId, email: email)
+
+        case "signOut":
+            return .signOut
 
         default:
             // Unknown message type — never forwarded to MainTabView.
