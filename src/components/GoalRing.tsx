@@ -247,25 +247,46 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
     // before the lock applied — `overflow`/`touch-action` alone aren't
     // reliably enough to stop it on iOS specifically (the well-known "CSS
     // body-scroll-lock doesn't actually work on iOS Safari/WKWebView"
-    // problem). This is the actually-bulletproof version: a capture-phase,
-    // non-passive `touchmove` listener on `document` that cancels the
-    // browser's own default scroll/rubber-band behavior outright for any
-    // touch whose target isn't inside the modal itself — the modal's own
+    // problem).
+    //
+    // The first version of this only called `preventDefault()`, which
+    // stops the BROWSER's own default scroll behavior but does nothing to
+    // stop the event from continuing to propagate — `PullToRefresh`'s own
+    // `onTouchStart`/`onTouchMove` (React-attached, bubble phase) kept
+    // firing regardless and updating ITS OWN `pull`/`refreshing` state,
+    // which is exactly what was still visibly showing "Release to sync"
+    // behind the dimmed overlay. `stopPropagation()` (on every touch
+    // phase, not just `touchmove`) is what actually stops the event from
+    // ever reaching PullToRefresh's handlers at all. The modal's own
     // internal scrolling (its `overflow-y: auto` body) is explicitly
     // exempted so you can still scroll WITHIN the sheet.
-    function blockBackgroundTouch(e: TouchEvent) {
-      const target = e.target as Node | null
-      if (target && (target as HTMLElement).closest?.('.goal-ring-modal')) return
-      e.preventDefault()
+    function isOutsideModal(e: TouchEvent): boolean {
+      const target = e.target as HTMLElement | null
+      return !target?.closest?.('.goal-ring-modal')
     }
-    document.addEventListener('touchmove', blockBackgroundTouch, { passive: false, capture: true })
+    function blockBackgroundTouchMove(e: TouchEvent) {
+      if (!isOutsideModal(e)) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    function blockBackgroundTouch(e: TouchEvent) {
+      if (!isOutsideModal(e)) return
+      e.stopPropagation()
+    }
+    document.addEventListener('touchmove', blockBackgroundTouchMove, { passive: false, capture: true })
+    document.addEventListener('touchstart', blockBackgroundTouch, { passive: false, capture: true })
+    document.addEventListener('touchend', blockBackgroundTouch, { passive: false, capture: true })
+    document.addEventListener('touchcancel', blockBackgroundTouch, { passive: false, capture: true })
 
     return () => {
       if (scrollEl) {
         scrollEl.style.overflow = prevOverflow ?? ''
         scrollEl.style.touchAction = prevTouchAction ?? ''
       }
-      document.removeEventListener('touchmove', blockBackgroundTouch, { capture: true })
+      document.removeEventListener('touchmove', blockBackgroundTouchMove, { capture: true })
+      document.removeEventListener('touchstart', blockBackgroundTouch, { capture: true })
+      document.removeEventListener('touchend', blockBackgroundTouch, { capture: true })
+      document.removeEventListener('touchcancel', blockBackgroundTouch, { capture: true })
     }
   }, [showDetail])
 
