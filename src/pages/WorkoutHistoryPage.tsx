@@ -264,7 +264,7 @@ export default function WorkoutHistoryPage() {
         const totalSessions = group.dates.reduce((n, d) => n + d.workouts.length, 0)
         return (
           <div key={group.key} className="workout-history-month">
-            <button className="workout-history-month-header" onClick={() => toggleMonth(group.key)}>
+            <button className="workout-history-month-header" data-no-press-glow onClick={() => toggleMonth(group.key)}>
               <span className="workout-history-month-label">{group.label}</span>
               <span className="workout-history-month-count">{totalSessions} session{totalSessions !== 1 ? 's' : ''}</span>
               <ChevronDown
