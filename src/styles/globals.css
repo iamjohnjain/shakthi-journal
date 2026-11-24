@@ -311,26 +311,17 @@ a {
 /* ─── Glass surfaces ──────────────────────────────────────────────────────────
    One consistent glass identity, used for every card/table/row across the
    app instead of the previous mix of flat grays, --bg-card tints, and
-   one-off bordered boxes. The point of "glass" here isn't just blur — it's
-   that AmbientRipple's touch waves and idle shimmer (behind everything,
-   see Layout.tsx) should read as DAMPENED and soft wherever they pass
-   behind one of these, while staying vivid in the open gaps between them.
-   That only works if the surface itself has real body to it, not near-
-   transparent --bg-card alone (0.05 alpha let a bright ripple straight
-   through undampened, which is what read as "the wave is ON the button"
-   rather than behind it). Four layers:
-   1. A real base tint (0.1 alpha, not --bg-card's 0.05) — the actual
-      dampening. backdrop-filter blurs + bends whatever's behind
-      (feDisplacementMap via #glass-bend, index.html) on top of that.
+   one-off bordered boxes. Four layers:
+   1. A real base tint (0.1 alpha, not --bg-card's 0.05) so the surface has
+      actual body to it, not a near-transparent wash. backdrop-filter
+      blurs + bends whatever's behind (feDisplacementMap via #glass-bend,
+      index.html) on top of that.
    2. A thin gradient-ring border running all the way around (not just a
       top highlight) — the same rainbow-ring language already used on the
       Quick Actions buttons, GoalRing's press state, etc., so glass reads
       as this app's one consistent "contained" identity, not a separate
       look.
-   3. A ::before sweep — now subtle (it was the main "glass moves" signal
-      before AmbientRipple existed; now it's a secondary accent, so its
-      opacity is intentionally quiet rather than competing with the real
-      ripple passing behind it).
+   3. A ::before sweep with its own slow, independent color movement.
    4. A 1px top specular highlight for the actual "glass," not "blurred
       panel," read. */
 .glass-surface {

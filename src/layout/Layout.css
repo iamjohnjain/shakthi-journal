@@ -12,10 +12,6 @@
   overflow: hidden;
   background: var(--bg-gradient);
   background-attachment: fixed;
-  /* So AmbientRipple (an absolutely-positioned child, Layout.tsx) sizes
-     and positions itself against this box rather than the nearest OTHER
-     positioned ancestor up the tree. */
-  position: relative;
 }
 
 .page-content {
