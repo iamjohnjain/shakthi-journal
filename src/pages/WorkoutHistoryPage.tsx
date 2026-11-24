@@ -140,8 +140,8 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSession; onC
               <Pencil size={14} /> Edit this workout
             </button>
             {exercises.length > 0 && (
-              <button className="wkh-detail-btn wkh-detail-btn--primary" onClick={() => setSavingTemplate(true)}>
-                <LayoutTemplate size={14} /> Save as template
+              <button className="wkh-detail-btn wkh-detail-btn--primary" data-no-press-glow onClick={() => setSavingTemplate(true)}>
+                <LayoutTemplate size={14} /> Save As Template
               </button>
             )}
           </div>
@@ -149,7 +149,7 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSession; onC
           {savingTemplate && (
             <div className="wkh-detail-tmpl-form">
               {templateSaved ? (
-                <span className="wkh-detail-tmpl-saved"><Check size={14} /> Saved as template!</span>
+                <span className="wkh-detail-tmpl-saved"><Check size={14} /> Saved As Template!</span>
               ) : (
                 <>
                   <input
@@ -158,7 +158,7 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSession; onC
                     placeholder="Template name"
                     autoFocus
                   />
-                  <button className="wkh-detail-btn wkh-detail-btn--primary" onClick={handleSaveTemplate} disabled={!templateName.trim()}>
+                  <button className="wkh-detail-btn wkh-detail-btn--primary" data-no-press-glow onClick={handleSaveTemplate} disabled={!templateName.trim()}>
                     Save
                   </button>
                 </>
