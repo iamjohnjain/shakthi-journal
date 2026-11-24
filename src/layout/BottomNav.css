@@ -3,22 +3,22 @@
 }
 
 @media (max-width: 900px) {
-  /* Floating glass pill, centered rather than spanning the full safe
-     width — collapsed, this is just the single circular Today button;
-     tapping it grows the pill to reveal the 3 destinations beside it.
-     Width is the thing that animates between those two states, so this
-     sizes to its own content (fit-content) instead of stretching
-     left/right like the old always-4-tabs bar did. */
+  /* Floating glass pill — lifted off the edge, not a flat dock, so it reads
+     as a material sitting above the content rather than a bar attached to it. */
   .bottom-nav {
     display: flex;
     align-items: center;
-    justify-content: center;
     position: fixed;
     bottom: calc(var(--safe-bottom) + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: fit-content;
-    max-width: calc(100vw - max(24px, var(--safe-left) + var(--safe-right) + 12px));
+    /* Was a flat 12px on every model — on a device/orientation with a
+       nonzero horizontal safe-area inset (wider rounded corners, a
+       landscape notch/Dynamic Island cutout), the pill's own outer edge
+       sat INSIDE that unsafe region regardless of inset size, instead of
+       actually clearing it, which is what read as "broken" at the
+       bottom corners. max() against the real inset means this clears
+       every iPhone's actual safe area, not an assumed fixed value. */
+    left: max(12px, var(--safe-left));
+    right: max(12px, var(--safe-right));
     height: var(--bottom-nav-height);
     background: rgba(32, 32, 36, 0.68);
     backdrop-filter: blur(32px) saturate(1.9);
@@ -29,85 +29,57 @@
     box-shadow:
       0 10px 28px rgba(0, 0, 0, 0.35),
       inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    padding: 6px;
-    gap: 0;
+    /* The horizontal safe-area clearance is now handled entirely by
+       left/right above — padding here is just visual breathing room
+       inside the pill, not a second safe-area compensation (stacking
+       both would double-count the inset on notched/cutout devices). */
+    padding: 6px 8px;
     z-index: 100;
-    transition: width 0.32s cubic-bezier(0.34, 1.2, 0.4, 1), transform 0.15s ease, opacity 0.15s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
   }
-
-  /* Each pop-out tab animates its own width/opacity/scale from 0 — this,
-     not a JS-measured width, is what makes the pill's own `width:
-     fit-content` grow smoothly instead of snapping straight to its final
-     size the instant `.bottom-nav--expanded` is added. */
-  .bottom-nav .bottom-tab--pop {
-    width: 0;
-    opacity: 0;
-    transform: scale(0.5);
-    padding: 0;
-    pointer-events: none;
-    transition: width 0.28s cubic-bezier(0.34, 1.4, 0.4, 1), opacity 0.2s ease, transform 0.28s cubic-bezier(0.34, 1.4, 0.4, 1);
-  }
-  .bottom-nav--expanded .bottom-tab--pop {
-    width: 52px;
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: auto;
-  }
-  /* Stagger the 3 so they fan out rather than popping in unison. */
-  .bottom-nav--expanded .bottom-tab--pop:nth-of-type(2) { transition-delay: 0.03s; }
-  .bottom-nav--expanded .bottom-tab--pop:nth-of-type(3) { transition-delay: 0.06s; }
-  .bottom-nav--expanded .bottom-tab--pop:nth-of-type(4) { transition-delay: 0.09s; }
 
   /* Slide it out of the way instead of overlapping the on-screen keyboard
      — see useKeyboardLikelyOpen() in BottomNav.tsx. */
   .bottom-nav--keyboard-open {
-    transform: translateX(-50%) translateY(calc(100% + var(--safe-bottom) + 10px));
+    transform: translateY(calc(100% + var(--safe-bottom) + 10px));
     opacity: 0;
     pointer-events: none;
   }
 
-  /* ─── Tabs — icon only, no label, per the redesign ──────────────────── */
+  /* ─── Regular tab ──────────────────────────────────────── */
 
   .bottom-tab {
-    flex-shrink: 0;
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 52px;
-    min-height: 44px; /* Apple HIG minimum tap target */
+    gap: 4px;
+    padding: 8px 0;
+    min-height: 44px;         /* Apple HIG minimum tap target */
     color: var(--text-tertiary);
     transition: color 0.15s ease;
     -webkit-tap-highlight-color: transparent;
     position: relative;
-    background: none;
-    border: none;
-  }
-
-  .bottom-tab--today {
-    color: var(--text-primary);
   }
 
   .bottom-tab.active {
     color: var(--text-primary);
   }
 
-  /* Glass highlight capsule behind the Today button when it's the active
-     route and the pill is collapsed — the same gradient-ring language as
-     everywhere else, rather than a flat fill. Not shown while expanded:
-     with 3 more icons visible, a filled Today capsule read as competing
-     for attention with them instead of quietly being "the one that's
-     always there." */
+  /* Glass highlight capsule behind the selected tab, bordered in the same
+     brand gradient as the Workout "Start" button — a glassy fill rather
+     than a solid gradient so the nav doesn't turn into a loud color block. */
   .bottom-tab.active::before {
     content: '';
     position: absolute;
-    inset: 2px;
+    inset: 2px 4px;
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid transparent;
     background-image: linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)), var(--gradient-brand);
     background-origin: border-box;
     background-clip: padding-box, border-box;
-    border-radius: 18px;
+    border-radius: 16px;
     z-index: -1;
   }
 
@@ -117,5 +89,20 @@
 
   .bottom-tab.active .bottom-tab-icon {
     transform: scale(1.1);
+  }
+
+  .bottom-tab-label {
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.15px;
+    line-height: 1;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bottom-tab.active .bottom-tab-label {
+    font-weight: 700;
   }
 }
