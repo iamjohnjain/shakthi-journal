@@ -264,13 +264,27 @@
   width: 100%;
   max-width: 480px;
   max-height: 88vh;
+  /* This outer shell only clips to its own rounded corners — it does not
+     scroll itself. `.goal-ring-modal-scroll` below is the real scroll
+     container. Safari/WebKit can fail to clip a scrolling element's
+     content to its own border-radius when that same element is also
+     mid-transform-animation (this modal's slideUp) — content near the
+     bottom can render past the rounded corner instead of following its
+     curve, which is exactly what showed up as bitten-into bottom corners.
+     A plain `overflow: hidden` box with no scrolling/animation of its own
+     reliably clips regardless. */
+  overflow: hidden;
+  animation: slideUp 0.26s cubic-bezier(0.4,0,0.2,1);
+}
+
+.goal-ring-modal-scroll {
+  max-height: 88vh;
   overflow-y: auto;
   /* Stops a drag that reaches the top/bottom of THIS element's own scroll
      range from chaining into the page behind it — see the matching note
      on .goal-ring-overlay above for why this is the actual fix for the
      background still being draggable. */
   overscroll-behavior: contain;
-  animation: slideUp 0.26s cubic-bezier(0.4,0,0.2,1);
 }
 
 @keyframes slideUp {

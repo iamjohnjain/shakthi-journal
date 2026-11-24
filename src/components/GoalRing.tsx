@@ -577,6 +577,12 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
           }}
         >
           <div className="goal-ring-modal" onClick={e => e.stopPropagation()}>
+            {/* See WorkoutHistoryPage's matching comment — Safari/WebKit can
+                fail to clip a scrolling, transform-animated element to its
+                own border-radius, which read as this modal's bottom corners
+                getting bitten into. Scrolling now lives on this inner
+                wrapper; the outer shell only clips. */}
+            <div className="goal-ring-modal-scroll">
             <div className="goal-ring-modal-header">
               <span className="goal-ring-modal-title">{cfg.label}</span>
               <button className="goal-ring-modal-close" onClick={() => setShowDetail(false)} aria-label="Close">
@@ -745,6 +751,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                   Last synced: {sourceLabel(latestSleep.sourceId)} · {shortDate(latestSleep.date)}
                 </p>
               )}
+            </div>
             </div>
           </div>
         </div>,

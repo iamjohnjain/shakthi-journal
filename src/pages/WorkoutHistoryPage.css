@@ -28,6 +28,21 @@
   width: 100%;
   max-width: 480px;
   max-height: 85vh;
+  /* This outer shell only CLIPS to its own rounded corners — it does not
+     scroll itself. `.wkh-detail-scroll` below is the real scroll
+     container. Safari/WebKit has a known bug where an element that's
+     simultaneously a scroll container (`overflow: auto`) AND animated via
+     `transform` (this modal's slideUp) can fail to clip its scrolled
+     content to its own border-radius — content near the bottom can render
+     past the rounded corner instead of following its curve, which is
+     exactly what showed up as "Save As Template"'s bottom corners getting
+     bitten into. A plain `overflow: hidden` box with no scrolling and no
+     animation of its own reliably clips regardless. */
+  overflow: hidden;
+}
+
+.wkh-detail-scroll {
+  max-height: 85vh;
   overflow-y: auto;
   touch-action: pan-y;
 }

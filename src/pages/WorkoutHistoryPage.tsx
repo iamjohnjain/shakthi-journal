@@ -85,6 +85,18 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSession; onC
   return createPortal(
     <div className="wkh-detail-overlay" onClick={onClose}>
       <div className="wkh-detail-modal" onClick={e => e.stopPropagation()}>
+        {/* Scrolling lives on this INNER wrapper, not the outer bordered/
+            rounded shell — Safari/WebKit has a long-standing bug where an
+            element that's both `overflow: auto` (a real scroll container)
+            and animated via `transform` (this modal's slideUp) can fail to
+            clip its own scrolled content to its border-radius correctly,
+            which is exactly what read as the bottom corners of
+            "Save As Template" getting bitten into by the modal's curve.
+            The outer shell now only clips (`overflow: hidden`, no
+            scrolling of its own) while this inner div does the actual
+            scrolling — a plain `overflow: hidden` box reliably clips to
+            its radius even when its animated parent doesn't. */}
+        <div className="wkh-detail-scroll">
         <div className="wkh-detail-header">
           <div>
             <h2>{workout.title || workoutTypeLabel(workout)}</h2>
@@ -165,6 +177,7 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSession; onC
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>,
