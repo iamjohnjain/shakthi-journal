@@ -6,6 +6,7 @@
 import {
   EXERCISE_RESPONSE_SCHEMA_INSTRUCTIONS, parseExerciseListContent, corsHeaders, jsonResponse, softFallbackExercises,
 } from '../_shared/workoutParsing.ts'
+import { checkRateLimit } from '../_shared/rateLimit.ts'
 import { callGroq, GroqCallError } from '../_shared/groq.ts'
 
 // Shares the same free-tier vision model lineup/override as analyze-meal-photo.
@@ -31,6 +32,9 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, origin)
+  }
+  if (!checkRateLimit(req)) {
+    return softFallbackExercises("Too many requests right now — wait a moment and try again.", origin)
   }
 
   const apiKey = Deno.env.get('GROQ_API_KEY')

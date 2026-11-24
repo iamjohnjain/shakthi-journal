@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, Copy, Clipboard,
   LayoutTemplate, Check, X, AlertTriangle, Play,
   GripVertical, Coffee, CalendarDays,
-  Pencil, Sparkles, Timer,
+  Pencil, Timer,
 } from 'lucide-react'
 import { useRestTimer, formatRestTime } from '../hooks/useRestTimer'
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -816,7 +816,7 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
           )}
 
           <button className="log-workout-btn" style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }} onClick={onCreateNew}>
-            <Sparkles size={15} /> Create Workout Template
+            <LayoutTemplate size={15} /> Create Workout Template
           </button>
 
           {templates && templates.length > 4 && (

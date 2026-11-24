@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Plus, X, Sparkles, FileText, Camera, Upload, PenLine, Loader2, Check, Mic,
+  Plus, X, LayoutTemplate, FileText, Camera, Upload, PenLine, Loader2, Check, Mic,
 } from 'lucide-react'
 import { saveTemplate } from '../db/templateStore'
 import { EXERCISE_LIBRARY } from '../db/workoutStore'
@@ -220,7 +220,7 @@ export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: 
       <div className="tmpl-modal" onClick={e => e.stopPropagation()} style={swipe.style}>
         <div className="tmpl-modal-header" {...swipe.handlers}>
           <div className="modal-grabber" />
-          <h2><Sparkles size={16} style={{ verticalAlign: -2, marginRight: 6 }} />Create Workout Template</h2>
+          <h2><LayoutTemplate size={16} style={{ verticalAlign: -2, marginRight: 6 }} />Create Workout Template</h2>
           <button className="log-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
 
@@ -264,7 +264,7 @@ export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: 
                   </div>
                   {note && <p className="import-note">{note}</p>}
                   <button className="tmpl-modal-save" onClick={handleParseText} disabled={!text.trim() || status === 'loading'}>
-                    {status === 'loading' ? <><Loader2 size={15} className="ai-spin" /> Reading plan…</> : <><Sparkles size={15} /> Create Template</>}
+                    {status === 'loading' ? <><Loader2 size={15} className="ai-spin" /> Reading plan…</> : <><LayoutTemplate size={15} /> Create Template</>}
                   </button>
                 </div>
               )}

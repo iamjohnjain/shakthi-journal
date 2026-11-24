@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, Trash2, X, UtensilsCrossed, Utensils, Check, ChevronLeft, ChevronRight,
-  Sparkles, Mic, Loader2, Camera, Zap, Copy,
+  Calculator, MessageSquare, Mic, Loader2, Camera, Zap, Copy,
 } from 'lucide-react'
 import {
   parseMealDescription, refineMealDescription, analyzeMealPhoto, refineMealPhoto, refineOneItem, isAiMealParsingAvailable,
@@ -546,7 +546,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
         <button className="ai-estimate-btn" onClick={handleEstimate} disabled={!description.trim() || status === 'loading'}>
           {status === 'loading'
             ? <><Loader2 size={15} className="ai-spin" /> Estimating…</>
-            : <><Sparkles size={15} /> Estimate Nutrition</>}
+            : <><Calculator size={15} /> Estimate Nutrition</>}
         </button>
         {listening && <VoiceListeningOverlay stream={micStream} phase={micPhase} onStop={toggleListening} />}
       </div>
@@ -973,7 +973,7 @@ function EntryModal({ date, mealIds, mealLabels, existing, defaultMealId, onClos
             )}
             {isAiMealParsingAvailable && (
               <button className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>
-                <Sparkles size={13} /> Describe
+                <MessageSquare size={13} /> Describe
               </button>
             )}
             <button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>History Log</button>

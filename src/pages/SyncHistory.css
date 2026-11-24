@@ -139,7 +139,7 @@
 }
 
 .sync-row:hover { background: var(--bg-card-hover); }
-.sync-row--failed { border-left: 3px solid var(--red); }
+.sync-row--failed { background: rgba(255,69,58,0.05); }
 
 .sync-row-main {
   display: flex;

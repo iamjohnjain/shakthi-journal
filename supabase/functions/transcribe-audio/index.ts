@@ -9,6 +9,7 @@
 
 import { corsHeaders, jsonResponse } from '../_shared/http.ts'
 import { transcribeAudio, GroqAudioError } from '../_shared/groqAudio.ts'
+import { checkRateLimit } from '../_shared/rateLimit.ts'
 
 // Override via `supabase secrets set GROQ_WHISPER_MODEL=...` if this
 // default gets retired, same convention as every other model constant here.
@@ -31,6 +32,9 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, origin)
+  }
+  if (!checkRateLimit(req)) {
+    return softFallback("Too many requests right now — wait a moment and try again.", origin)
   }
 
   const apiKey = Deno.env.get('GROQ_API_KEY')

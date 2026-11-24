@@ -87,12 +87,6 @@
   border-radius: 50%;
   background: var(--yellow);
   flex-shrink: 0;
-  animation: pulse-yellow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-yellow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
 }
 
 .mock-mode-banner-text { flex: 1; line-height: 1.4; }

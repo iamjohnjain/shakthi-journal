@@ -6,6 +6,7 @@
 import {
   RESPONSE_SCHEMA_INSTRUCTIONS, parseModelContent, corsHeaders, jsonResponse, softFallback,
 } from '../_shared/mealParsing.ts'
+import { checkRateLimit } from '../_shared/rateLimit.ts'
 import { callGroq, GroqCallError } from '../_shared/groq.ts'
 
 // Vision-capable models are a much shorter, faster-moving list on Groq's free
@@ -39,6 +40,9 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, origin)
+  }
+  if (!checkRateLimit(req)) {
+    return softFallback("Too many requests right now — wait a moment and try again.", origin)
   }
 
   const apiKey = Deno.env.get('GROQ_API_KEY')

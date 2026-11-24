@@ -14,6 +14,7 @@
 // soft fallback text reply on failure, never a dead-end error screen).
 
 import { corsHeaders, jsonResponse } from '../_shared/http.ts'
+import { checkRateLimit } from '../_shared/rateLimit.ts'
 import { callGroqChat, GroqCallError } from '../_shared/groqChat.ts'
 import type { GroqMessage, GroqToolDef, GroqContentPart } from '../_shared/groqChat.ts'
 
@@ -72,6 +73,9 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, origin)
+  }
+  if (!checkRateLimit(req)) {
+    return softFallback("You're sending messages faster than I can keep up — give it a few seconds and try again.", origin)
   }
 
   const apiKey = Deno.env.get('GROQ_API_KEY')

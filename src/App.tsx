@@ -29,11 +29,14 @@ import AuthPage from './pages/AuthPage'
 import MergeDialog from './pages/MergeDialog'
 import OnboardingPage from './pages/OnboardingPage'
 import SyncTestPage from './pages/SyncTestPage'
+import NotFound from './pages/NotFound'
+import ErrorBoundary from './components/ErrorBoundary'
 
 import './styles/globals.css'
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
         <MergeDialog />
@@ -84,9 +87,12 @@ export default function App() {
           <Route path="/athletic-goals" element={<Navigate to="/goals" replace />} />
 
           <Route path="/timeline" element={<Timeline />} />
+
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
       </AuthProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }

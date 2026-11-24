@@ -335,8 +335,6 @@
 
 .cmp-metric-card:hover { background: var(--bg-card-hover); }
 
-.cmp-metric-card--up    { border-left: 2px solid var(--green); }
-.cmp-metric-card--down  { border-left: 2px solid var(--accent); }
 
 /* Top row */
 

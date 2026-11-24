@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
-  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut, Sparkles,
+  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut,
 } from 'lucide-react'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
@@ -567,7 +567,7 @@ export default function Profile() {
               {weeklyWraps.map(w => (
                 <button key={w.id} className="profile-device-row profile-wrap-row" onClick={() => setOpenWrap(w)}>
                   <div className="profile-device-icon-wrap">
-                    <Sparkles size={18} />
+                    <Calendar size={18} />
                   </div>
                   <div className="profile-device-info">
                     <span className="profile-device-name">
