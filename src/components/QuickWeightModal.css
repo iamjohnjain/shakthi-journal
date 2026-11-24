@@ -6,7 +6,13 @@
 @media (min-width: 540px) { .qw-overlay { align-items: center; } }
 
 .qw-modal {
-  background: var(--bg-secondary);
+  /* Same gradient-ring border technique as .add-modal/.tmpl-modal — a flat
+     border here read as inconsistent with every other sheet in the app
+     that already carries it. */
+  background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  border: 1.5px solid transparent;
   border-radius: 20px 20px 0 0;
   width: 100%; max-width: 420px;
   box-sizing: border-box;

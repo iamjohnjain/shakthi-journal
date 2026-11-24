@@ -123,10 +123,10 @@ export default function MuscleHeatmapSection() {
           see useMuscleLoad.ts's statusFor() for the matching thresholds
           (under 10, 10-20 on target, over 20) this legend describes. */}
       <div className="mh-legend">
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--none" /><span className="mh-legend-text">Untrained — 0 Sets</span></span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" /><span className="mh-legend-text">Under-Trained — Under 10 Sets</span></span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" /><span className="mh-legend-text">On Target — 10-20 Sets</span></span>
-        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" /><span className="mh-legend-text">Possibly Overtrained — 20+ Sets</span></span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--none" /><span className="mh-legend-text">Untrained (0 Sets)</span></span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--under" /><span className="mh-legend-text">Under-Trained (Under 10 Sets)</span></span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--on" /><span className="mh-legend-text">On Target (10-20 Sets)</span></span>
+        <span className="mh-legend-item"><i className="mh-dot mh-dot--over" /><span className="mh-legend-text">Possibly Overtrained (20+ Sets)</span></span>
       </div>
 
       {!loading && detail && selectedRegion && createPortal(

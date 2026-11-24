@@ -215,35 +215,6 @@ export default function TrendChart({
           </clipPath>
         </defs>
 
-        {/* Target line — rainbow-stroked to match the line/dot above it when
-            gradient is on, labeled on the LEFT so it reads immediately
-            instead of being squeezed against the current-point dot on the
-            right, with its own rainbow dot marking the target value at the
-            line's right end (same marker style as the current-value dot,
-            just hollow, so the two read as related but distinct). */}
-        {goalY != null && (
-          <>
-            {/* Starts after the "Target" label (not underneath it) so the
-                dashed line reads as its own clearly visible stroke running
-                the full remaining width to the right edge, rather than
-                disappearing under the text and registering as just the
-                dot at the far end. */}
-            <line
-              x1={padX + 34} y1={goalY} x2={w - padX} y2={goalY}
-              stroke={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'}
-              strokeWidth="1.5" strokeDasharray="4 4" opacity="0.85"
-            />
-            <text x={padX + 2} y={Math.max(9, goalY - 4)} textAnchor="start" fontSize="9"
-              fill={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'} opacity="0.95">Target</text>
-            <circle
-              cx={w - padX} cy={goalY} r="3.5"
-              fill="none"
-              stroke={gradient ? 'url(#trend-dot-gradient)' : 'var(--accent)'}
-              strokeWidth="1.5"
-            />
-          </>
-        )}
-
         {/* Area fill */}
         <path d={areaPath} fill={gradient ? 'url(#trend-area-gradient)' : `url(#trend-grad-${color.replace(/[^a-z]/gi, '')})`} clipPath="url(#trend-clip)" />
 
@@ -258,13 +229,47 @@ export default function TrendChart({
           clipPath="url(#trend-clip)"
         />
 
-        {/* Current point dot */}
+        {/* Target line — drawn AFTER the area fill/line (not before), so it
+            stays visible even where the filled area is tall enough to sit
+            right over its y-position — drawn first, it was getting painted
+            over by the area fill whenever the data rose above the target,
+            which is exactly what made it disappear into "just the dot at
+            the end" instead of reading as a line. Rainbow-stroked to match
+            the line above it when gradient is on, labeled on the LEFT so it
+            reads immediately, with a hollow ring (not filled) marking the
+            target value at the line's right end. */}
+        {goalY != null && (
+          <>
+            {/* Starts after the "Target" label (not underneath it) so the
+                dashed line reads as its own clearly visible stroke running
+                the full remaining width to the right edge. */}
+            <line
+              x1={padX + 34} y1={goalY} x2={w - padX} y2={goalY}
+              stroke={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'}
+              strokeWidth="1.5" strokeDasharray="4 4" opacity="0.9"
+            />
+            <text x={padX + 2} y={Math.max(9, goalY - 4)} textAnchor="start" fontSize="9"
+              fill={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'} opacity="0.95">Target</text>
+            <circle
+              cx={w - padX} cy={goalY} r="3.5"
+              fill="none"
+              stroke={gradient ? 'url(#trend-dot-gradient)' : 'var(--accent)'}
+              strokeWidth="1.5"
+            />
+          </>
+        )}
+
+        {/* Current point marker — a hollow ring, not a filled dot, to match
+            the Target marker's own style (and the app's gradient-ring
+            motif generally) instead of a solid blob. */}
         {pts.length > 0 && (
           <circle
             cx={pts[pts.length - 1].x}
             cy={pts[pts.length - 1].y}
             r="5"
-            fill={gradient ? 'url(#trend-dot-gradient)' : color}
+            fill="none"
+            stroke={gradient ? 'url(#trend-dot-gradient)' : color}
+            strokeWidth="2"
             opacity={animated ? 1 : 0}
             style={{ transition: 'opacity 0.4s ease 0.7s' }}
           />

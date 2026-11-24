@@ -196,7 +196,19 @@
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
   align-self: center;
+  font-weight: 500;
 }
+
+/* "Sync Now" — no last-synced timestamp yet, so this reads as a call to
+   action rather than quiet status text. Tapping it is just tapping the
+   card (which already triggers a sync on open), not a separate control. */
+.goal-ring-sync-chip--cta {
+  color: var(--accent);
+  border-color: rgba(251, 122, 60, 0.35);
+  background: var(--orange-dim);
+  font-weight: 700;
+}
+.goal-ring-sync-chip--cta .goal-ring-sync-icon { color: var(--accent); }
 
 .goal-ring-sync-icon {
   color: var(--text-quaternary);
@@ -240,7 +252,15 @@
   background-origin: border-box;
   background-clip: padding-box, border-box;
   border: 1.5px solid transparent;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  /* Rounded on all 4 corners, not just the top — the overlay already lifts
+     this modal clear of the true bottom edge via `padding-bottom:
+     var(--safe-bottom)`, so it floats as a card rather than sitting flush
+     against the screen. Square bottom corners on a FLOATING card sit right
+     where an iPhone's own curved glass corners begin, so the straight edge
+     reads as if the device's curve is slicing the corner off. Matching the
+     top radius on the bottom fixes that regardless of which device's
+     corner curvature it's rendered against. */
+  border-radius: var(--r-xl);
   width: 100%;
   max-width: 480px;
   max-height: 88vh;

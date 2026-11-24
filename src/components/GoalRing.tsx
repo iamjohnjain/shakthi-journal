@@ -101,21 +101,6 @@ function shortDate(dateStr: string): string {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-/** "2h ago" / "Yesterday" / "Mar 4" — close enough for a quiet status line,
-    not trying to be a precise countdown. */
-function relativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'Just Now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'yesterday'
-  if (days < 7) return `${days}d ago`
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 function ringPct(current: number, start: number, goal: number, higher: boolean): number {
   if (start === goal) return 0
   return clamp(higher
@@ -553,9 +538,15 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
         </div>
 
         {(goalType === 'weight' || goalType === 'steps') && (
-          <div className="goal-ring-sync-chip">
+          // "Synced Now" when there's a last-synced timestamp at all — not a
+          // relative time ("2h ago"/"Yesterday"), just the fact that a sync
+          // has happened. "Sync Now" (styled as a call to action, not plain
+          // status text) when there's none yet. Tapping it doesn't need its
+          // own handler — it's part of the card, and opening the card
+          // already triggers a silent sync (see openDetail() above).
+          <div className={`goal-ring-sync-chip ${!lastSyncedAt ? 'goal-ring-sync-chip--cta' : ''}`}>
             <RefreshCw size={11} className="goal-ring-sync-icon" />
-            <span>{lastSyncedAt ? `Synced ${relativeTime(lastSyncedAt)}` : 'Not synced yet'}</span>
+            <span>{lastSyncedAt ? 'Synced Now' : 'Sync Now'}</span>
           </div>
         )}
 

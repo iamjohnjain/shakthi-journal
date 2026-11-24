@@ -12,9 +12,19 @@
 }
 
 .wkh-detail-modal {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background-image:
+    linear-gradient(var(--bg-elevated), var(--bg-elevated)),
+    var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  border: 1.5px solid transparent;
+  /* Rounded on all 4 corners, not just the top — the overlay's
+     `padding-bottom: var(--safe-bottom)` already lifts this modal clear of
+     the true bottom edge, so it floats as a card rather than sitting flush
+     against the screen. Square bottom corners on a floating card sit right
+     where an iPhone's own curved glass corners begin, reading as if the
+     device were slicing the corner off. */
+  border-radius: var(--r-xl);
   width: 100%;
   max-width: 480px;
   max-height: 85vh;
@@ -158,7 +168,14 @@
 }
 
 .wkh-detail-btn--primary {
-  background: var(--gradient-brand);
+  /* -wide (horizontal), not the diagonal 135deg brand gradient — on a wide,
+     short button a diagonal gradient puts almost the whole left edge near
+     one extreme stop color and the whole right edge near the other, which
+     reads as two flat color bands rather than a blend (the same issue
+     already documented/fixed for the gradient-ring border technique
+     elsewhere in this app). Horizontal keeps color tied to x-position only,
+     so it reads as one continuous sweep left-to-right. */
+  background: var(--gradient-brand-wide);
   color: #fff;
   border-color: transparent;
 }
