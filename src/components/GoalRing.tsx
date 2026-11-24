@@ -234,14 +234,38 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   useEffect(() => {
     if (!showDetail) return
     const scrollEl = document.querySelector<HTMLElement>('.page-content')
-    if (!scrollEl) return
-    const prevOverflow = scrollEl.style.overflow
-    const prevTouchAction = scrollEl.style.touchAction
-    scrollEl.style.overflow = 'hidden'
-    scrollEl.style.touchAction = 'none'
+    const prevOverflow = scrollEl?.style.overflow
+    const prevTouchAction = scrollEl?.style.touchAction
+    if (scrollEl) {
+      scrollEl.style.overflow = 'hidden'
+      scrollEl.style.touchAction = 'none'
+    }
+
+    // Belt-and-suspenders beyond the above: WKWebView can still let an
+    // in-flight touch rubber-band/momentum-scroll an `overflow: hidden`
+    // element it already "owns" the gesture for, if that touch started
+    // before the lock applied — `overflow`/`touch-action` alone aren't
+    // reliably enough to stop it on iOS specifically (the well-known "CSS
+    // body-scroll-lock doesn't actually work on iOS Safari/WKWebView"
+    // problem). This is the actually-bulletproof version: a capture-phase,
+    // non-passive `touchmove` listener on `document` that cancels the
+    // browser's own default scroll/rubber-band behavior outright for any
+    // touch whose target isn't inside the modal itself — the modal's own
+    // internal scrolling (its `overflow-y: auto` body) is explicitly
+    // exempted so you can still scroll WITHIN the sheet.
+    function blockBackgroundTouch(e: TouchEvent) {
+      const target = e.target as Node | null
+      if (target && (target as HTMLElement).closest?.('.goal-ring-modal')) return
+      e.preventDefault()
+    }
+    document.addEventListener('touchmove', blockBackgroundTouch, { passive: false, capture: true })
+
     return () => {
-      scrollEl.style.overflow = prevOverflow
-      scrollEl.style.touchAction = prevTouchAction
+      if (scrollEl) {
+        scrollEl.style.overflow = prevOverflow ?? ''
+        scrollEl.style.touchAction = prevTouchAction ?? ''
+      }
+      document.removeEventListener('touchmove', blockBackgroundTouch, { capture: true })
     }
   }, [showDetail])
 
