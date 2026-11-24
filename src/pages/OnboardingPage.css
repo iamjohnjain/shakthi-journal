@@ -7,6 +7,30 @@
   background: var(--bg-gradient);
   color: var(--text-primary);
   overflow-x: hidden;
+  position: relative;
+}
+
+/* A more saturated, immersive wash than the app's default ambient
+   gradient — reference inspiration (a soft, colorful full-bleed gradient
+   behind a clean centered flow) called for something more present than
+   the subtle everyday dashboard background, just in this app's own
+   orange/purple/blue instead of that reference's green/cream. Onboarding
+   is the one place a slightly louder background earns its keep — it's a
+   handful of screens, not something looked at for hours every day. */
+.ob-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(251, 138, 76, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 55% at 85% 15%, rgba(91, 127, 255, 0.26) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(166, 107, 245, 0.22) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.ob-page > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ─── Header ──────────────────────────────────────────────────────────────── */
@@ -121,20 +145,26 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
 }
 
+/* A rounded, softly-filled pill instead of an underline — big confident
+   number, but contained in its own translucent field rather than a bare
+   line, closer to the reference's input style. Gets the same gradient-
+   ring treatment as the primary CTA on focus, so the whole flow reads as
+   one consistent language instead of two different input conventions. */
 .ob-big-input {
-  font-size: clamp(52px, 16vw, 80px);
+  font-size: clamp(40px, 11vw, 56px);
   font-weight: 800;
-  letter-spacing: -3px;
+  letter-spacing: -2px;
   color: var(--text-primary);
-  background: none;
-  border: none;
-  border-bottom: 2px solid var(--border);
-  padding: 0 0 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-full);
+  padding: 16px 28px;
   width: 260px;
   max-width: calc(100vw - 48px);
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
   -moz-appearance: textfield;
 }
 
@@ -143,11 +173,14 @@
 
 .ob-big-input:focus {
   outline: none;
-  border-bottom-color: var(--accent);
+  border-color: transparent;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .ob-big-input::placeholder {
-  color: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.22);
 }
 
 .ob-big-unit {
@@ -155,7 +188,7 @@
   font-weight: 600;
   color: var(--text-tertiary);
   letter-spacing: 0;
-  padding-left: 2px;
+  padding-left: 14px;
 }
 
 /* ─── Height selects ──────────────────────────────────────────────────────── */
@@ -361,10 +394,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 17px 32px;
-  background: var(--gradient-brand);
+  padding: 18px 32px;
+  background: var(--gradient-brand-wide);
   color: #fff;
-  border-radius: 16px;
+  border-radius: var(--r-full);
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;

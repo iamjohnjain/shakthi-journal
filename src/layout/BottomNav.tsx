@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { Dumbbell, LayoutDashboard, Apple, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Dumbbell, LayoutDashboard, Utensils, Star } from 'lucide-react'
 import './BottomNav.css'
 
 // Detect native iOS companion app (used by other features, not navigation suppression).
@@ -27,14 +27,13 @@ export function triggerSilentHealthSync() {
   w?.webkit?.messageHandlers?.jeevanNative?.postMessage({ type: 'silentHealthSync' })
 }
 
-// Four core tabs, Today centered — profile is reached via the avatar icon
-// on the Today header instead of its own tab, and Goals isn't in primary
-// nav for now (still reachable at /goals, just not a bottom-nav slot).
-const TABS = [
+// The 3 destinations reachable from the pop-out — icon only, no label, per
+// the redesign: Today is the one thing always on screen, these three only
+// appear once the user asks for them.
+const DESTINATIONS = [
   { path: '/workouts',  label: 'Workout', icon: Dumbbell },
-  { path: '/',          label: 'Today',   icon: LayoutDashboard, end: true },
-  { path: '/nutrition', label: 'Meals',   icon: Apple },
-  { path: '/ai-coach',  label: 'Coach',   icon: Sparkles },
+  { path: '/nutrition', label: 'Meals',   icon: Utensils },
+  { path: '/ai-coach',  label: 'Coach',   icon: Star },
 ]
 
 /** Whether an on-screen keyboard is likely open — this nav is
@@ -66,20 +65,62 @@ function useKeyboardLikelyOpen(): boolean {
   return open
 }
 
+/** Collapsed to a single circular "Today" button by default — the only
+    thing ever on screen until it's tapped, at which point it pops out
+    into a wider pill revealing the 3 destinations (icon only, no labels)
+    beside it. Picking one navigates there and collapses back; tapping
+    Today again (or the backdrop) collapses without navigating. Tapping
+    Today also always navigates home if not already there, so it's never
+    a dead end even when nothing's expanded. */
 export default function BottomNav() {
   const keyboardOpen = useKeyboardLikelyOpen()
+  const [expanded, setExpanded] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const navRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!expanded) return
+    function onOutside(e: PointerEvent) {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setExpanded(false)
+    }
+    document.addEventListener('pointerdown', onOutside)
+    return () => document.removeEventListener('pointerdown', onOutside)
+  }, [expanded])
+
+  // Collapse whenever the route changes (picking a destination, or
+  // navigating some other way entirely) rather than staying popped open.
+  useEffect(() => { setExpanded(false) }, [location.pathname])
+
+  function onTodayClick() {
+    if (location.pathname !== '/') navigate('/')
+    setExpanded(v => !v)
+  }
+
   return (
-    <nav className={`bottom-nav ${keyboardOpen ? 'bottom-nav--keyboard-open' : ''}`}>
-      {TABS.map(tab => (
-        <NavLink
-          key={tab.path}
-          to={tab.path}
-          end={tab.end}
-          className={({ isActive }) => `bottom-tab ${isActive ? 'active' : ''}`}
+    <nav
+      ref={navRef}
+      className={`bottom-nav ${keyboardOpen ? 'bottom-nav--keyboard-open' : ''} ${expanded ? 'bottom-nav--expanded' : ''}`}
+    >
+      <button
+        className={`bottom-tab bottom-tab--today ${location.pathname === '/' && !expanded ? 'active' : ''}`}
+        onClick={onTodayClick}
+        aria-expanded={expanded}
+        aria-label="Today"
+      >
+        <LayoutDashboard size={20} className="bottom-tab-icon" />
+      </button>
+      {DESTINATIONS.map(d => (
+        <button
+          key={d.path}
+          className="bottom-tab bottom-tab--pop"
+          tabIndex={expanded ? 0 : -1}
+          aria-hidden={!expanded}
+          onClick={() => navigate(d.path)}
+          aria-label={d.label}
         >
-          <tab.icon size={20} className="bottom-tab-icon" />
-          <span className="bottom-tab-label">{tab.label}</span>
-        </NavLink>
+          <d.icon size={20} className="bottom-tab-icon" />
+        </button>
       ))}
     </nav>
   )
