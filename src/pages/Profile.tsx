@@ -229,7 +229,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
           <div className="profile-edit-grid">
             <div className="profile-edit-field">
               <label>Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} />
+              <input value={name} onChange={e => setName(e.target.value.slice(0, 50))} maxLength={50} />
             </div>
             <div className="profile-edit-field">
               {units.height === 'cm' ? (
@@ -281,7 +281,8 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
           </div>
           <div className="profile-edit-field">
             <label>Bio</label>
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} />
+            <textarea value={bio} onChange={e => setBio(e.target.value.slice(0, 280))} rows={3} maxLength={280} />
+            <span className="profile-edit-char-count">{bio.length}/280</span>
           </div>
         </div>
 

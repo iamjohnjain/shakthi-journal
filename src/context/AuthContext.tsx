@@ -238,14 +238,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase not configured')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    // Trim both — autofill/paste commonly adds leading/trailing whitespace
+    // that's invisible in the input but makes sign-in silently fail to
+    // match what was typed at sign-up (which goes through the same trim).
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() })
     if (error) throw error
     // Session change triggers onAuthStateChange → activateSession
   }, [])
 
   const signUpWithEmail = useCallback(async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase not configured')
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { error } = await supabase.auth.signUp({ email: email.trim(), password: password.trim() })
     if (error) throw error
   }, [])
 

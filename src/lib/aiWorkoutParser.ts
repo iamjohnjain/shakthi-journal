@@ -1,4 +1,10 @@
 import { supabase, isSupabaseConfigured } from './supabase'
+import { withTimeout } from '../context/AuthContext'
+
+// See aiMealParser.ts — functions.invoke() has no built-in timeout, so a
+// hung request on a bad connection would leave the caller's loading state
+// stuck forever without this bound.
+const INVOKE_TIMEOUT_MS = 25_000
 
 export interface ParsedSet {
   reps: number
@@ -40,7 +46,10 @@ function softPlanFailure(note: string): WorkoutPlanParseResult {
 async function invoke<T>(fn: string, body: Record<string, unknown>, empty: T): Promise<T> {
   if (!supabase) return empty
   try {
-    const { data, error } = await supabase.functions.invoke<T>(fn, { body })
+    const { data, error } = await withTimeout(
+      () => supabase!.functions.invoke<T>(fn, { body }),
+      INVOKE_TIMEOUT_MS,
+    )
     if (error || !data) return empty
     return data
   } catch {

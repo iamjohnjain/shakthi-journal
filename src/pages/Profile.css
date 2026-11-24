@@ -113,6 +113,11 @@
   color: var(--text-secondary);
   line-height: 1.55;
   max-width: 560px;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .profile-meta-row {
@@ -615,6 +620,11 @@
 }
 .profile-edit-field input:focus,
 .profile-edit-field textarea:focus { border-color: rgba(255,255,255,0.22); }
+.profile-edit-char-count {
+  align-self: flex-end;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
 
 /* The native calendar-picker glyph on date inputs renders flush against
    the input's own edge by default, crowding the rounded corner — give it

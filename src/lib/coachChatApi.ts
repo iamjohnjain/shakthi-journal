@@ -1,6 +1,12 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import type { CoachChatMessage } from '../db'
 import { COACH_TOOLS } from './coachTools'
+import { withTimeout } from '../context/AuthContext'
+
+// supabase-js's functions.invoke() has no built-in timeout — on a slow/
+// flaky connection a hung request would leave the chat stuck on "thinking"
+// forever (and the one retry below would never even get a chance to run).
+const INVOKE_TIMEOUT_MS = 25_000
 
 export const isCoachChatAvailable = isSupabaseConfigured
 
@@ -70,8 +76,11 @@ export async function sendToCoach(messages: CoachChatMessage[]): Promise<CoachRe
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
         hour: 'numeric', minute: '2-digit',
       })
-      const { data, error } = await supabase!.functions.invoke<InvokeResult>(
-        'chat-coach', { body: { messages: wire, tools: COACH_TOOLS, clientTime } }
+      const { data, error } = await withTimeout(
+        () => supabase!.functions.invoke<InvokeResult>(
+          'chat-coach', { body: { messages: wire, tools: COACH_TOOLS, clientTime } }
+        ),
+        INVOKE_TIMEOUT_MS,
       )
       return error || !data ? null : data
     } catch {

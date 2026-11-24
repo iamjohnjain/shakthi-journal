@@ -1,4 +1,11 @@
 import { supabase, isSupabaseConfigured } from './supabase'
+import { withTimeout } from '../context/AuthContext'
+
+// supabase-js's functions.invoke() has no built-in timeout — on a slow/flaky
+// connection a hung request leaves the caller's "Estimating…" button
+// disabled indefinitely with no way out. Bounding it means a bad connection
+// degrades to the existing soft-failure message instead of a stuck UI.
+const INVOKE_TIMEOUT_MS = 25_000
 
 export interface ParsedMealItem {
   food: string
@@ -38,7 +45,10 @@ function softFailure(note: string): MealParseResult {
 async function invoke(fn: string, body: Record<string, unknown>): Promise<MealParseResult> {
   if (!supabase) return softFailure("AI estimation isn't available in this build — add it yourself below.")
   try {
-    const { data, error } = await supabase.functions.invoke<MealParseResult>(fn, { body })
+    const { data, error } = await withTimeout(
+      () => supabase!.functions.invoke<MealParseResult>(fn, { body }),
+      INVOKE_TIMEOUT_MS,
+    )
     if (error) return softFailure("Couldn't reach the AI estimator — add it yourself below.")
     if (!data) return EMPTY_RESULT
     return data
