@@ -169,6 +169,14 @@ html {
 }
 
 body {
+  /* index.html's inline <style> paints a static flash-prevention gradient
+     on BOTH html and body (so there's no white flash before this
+     stylesheet loads) — but nothing ever told body to let it go once the
+     real stylesheet is in charge. Since body sits on top of html, its old
+     static background was fully covering html's (now-animated)
+     --bg-gradient this whole time; this never showed as a bug while both
+     were static, but it made the drift animation completely invisible. */
+  background: transparent;
   color: var(--text-primary);
   font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
