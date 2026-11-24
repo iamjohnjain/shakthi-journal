@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Mail, Eye, EyeOff, AlertCircle, Loader } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
 import './AuthPage.css'
 
@@ -8,6 +9,7 @@ type View = 'landing' | 'email-signin' | 'email-signup'
 
 export default function AuthPage() {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithApple, continueAsGuest, isSupabaseConfigured } = useAuth()
+  const { theme } = useTheme()
 
   const [view, setView] = useState<View>('landing')
   const [email, setEmail] = useState('')
@@ -58,7 +60,7 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src="/icon.svg" alt="Jeevan" className="auth-logo-img" />
+            <img src={theme === 'dark' ? '/icon-dark.svg' : '/icon.svg'} alt="Jeevan" className="auth-logo-img" />
           </div>
           <h1 className="auth-title">Jeevan</h1>
           <p className="auth-subtitle">Personal health OS — private by default</p>

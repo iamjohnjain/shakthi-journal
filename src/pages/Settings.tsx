@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   Shield, ChevronRight,
   Smartphone, LayoutDashboard, Ruler, RefreshCw,
-  User, Database,
+  User, Database, Sun, Moon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useUnits } from '../hooks/useUnits'
+import { useTheme } from '../context/ThemeContext'
 import './Settings.css'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ export function SettingsRow({
 export default function Settings() {
   const { appVersion } = useApp()
   const { system, setSystem } = useUnits()
+  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [showSetupConfirm, setShowSetupConfirm] = useState(false)
 
@@ -92,6 +94,27 @@ export default function Settings() {
           {system === 'us-hybrid'
             ? 'Weights in lbs · Distance in miles · Height in ft/in · Food in grams'
             : 'Weights in kg · Distance in km · Height in cm · Food in grams'}
+        </div>
+      </SettingsSection>
+
+      {/* ── Appearance ── */}
+      <SettingsSection title="Appearance">
+        <div className="settings-units-row">
+          <span className="settings-row-icon">{theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}</span>
+          <div className="settings-row-text">
+            <span className="settings-row-label">Theme</span>
+          </div>
+          <div className="settings-unit-toggle">
+            <button
+              className={`su-btn ${theme === 'light' ? 'su-btn--on' : ''}`}
+              onClick={() => setTheme('light')}>Light</button>
+            <button
+              className={`su-btn ${theme === 'dark' ? 'su-btn--on' : ''}`}
+              onClick={() => setTheme('dark')}>Dark</button>
+          </div>
+        </div>
+        <div className="settings-units-detail">
+          Follows your device's setting until you pick one here.
         </div>
       </SettingsSection>
 

@@ -4,6 +4,14 @@
       "idiom": "universal",
       "filename": "AppLogo.png",
       "scale": "1x"
+    },
+    {
+      "idiom": "universal",
+      "filename": "AppLogo-dark.png",
+      "scale": "1x",
+      "appearances": [
+        { "appearance": "luminosity", "value": "dark" }
+      ]
     }
   ],
   "info": {

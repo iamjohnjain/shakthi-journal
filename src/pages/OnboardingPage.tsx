@@ -7,6 +7,7 @@ import { setSetting, getSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
 import WheelPicker from '../components/WheelPicker'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
 import { syncEngine } from '../db/syncEngine'
 import type { ProfileData } from '../db'
@@ -171,6 +172,7 @@ function StepWelcomeAuth({ onGuest, onAuthSuccess, dir }: {
 }) {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithApple,
           continueAsGuest, isSupabaseConfigured } = useAuth()
+  const { theme } = useTheme()
 
   const [subView,   setSubView]   = useState<AuthSubView>('choose')
   const [email,     setEmail]     = useState('')
@@ -295,7 +297,7 @@ function StepWelcomeAuth({ onGuest, onAuthSuccess, dir }: {
 
   return (
     <StepShell dir={dir}>
-      <img src="/icon-192.png" alt="Jeevan" className="ob-welcome-mark" />
+      <img src={theme === 'dark' ? '/icon-192-dark.png' : '/icon-192.png'} alt="Jeevan" className="ob-welcome-mark" />
       <h1 className="ob-welcome-title">Jeevan</h1>
       <p className="ob-welcome-sub">Your private health OS. Data stays on your device unless you create an account.</p>
 

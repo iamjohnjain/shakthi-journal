@@ -134,6 +134,87 @@
   --shadow-elevated: 0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
 }
 
+/* ─── Light theme ─────────────────────────────────────────────────────────────
+   This app was dark-only until now — these are the actual neutral/surface
+   tokens for a real light theme, not just an inverted filter. Applies in
+   two situations, matching useTheme()'s 'system' → 'light'/'dark' logic
+   (ThemeContext.tsx):
+   1. The OS/browser itself prefers light AND the user hasn't made an
+      explicit in-app choice (no [data-theme] attribute at all — useTheme
+      only stamps one for an explicit 'light'/'dark' pick, leaving it unset
+      for 'system' so the media query alone decides).
+   2. The user explicitly picked Light in Settings → Appearance, regardless
+      of what the OS/browser prefers (`[data-theme="light"]`, guarded last
+      so it always wins over the media query above).
+   Semantic/accent colors (blue, green, orange, the brand gradient, etc.)
+   are deliberately NOT overridden — they're mid-saturation jewel tones
+   that already read clearly on both a near-black and a warm-white ground,
+   and keeping one accent palette across both themes is what makes this
+   read as "the same app, lighter," not the kind of harsh inverted-filter
+   result where badges and status colors go muddy or disappear. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F7F4EF;
+    --bg-shift-x: 0%;
+    --bg-shift-y: 0%;
+    --bg-gradient:
+      radial-gradient(ellipse 120% 55% at calc(12% + var(--bg-shift-x)) calc(-8% + var(--bg-shift-y)),  rgba(251, 138, 76, 0.16) 0%, transparent 55%),
+      radial-gradient(ellipse 120% 65% at calc(92% - var(--bg-shift-x)) calc(-4% - var(--bg-shift-y)),  rgba(91, 127, 255, 0.16) 0%, transparent 55%),
+      radial-gradient(ellipse 90% 50% at calc(50% + var(--bg-shift-y)) calc(38% - var(--bg-shift-x)),   rgba(166, 107, 245, 0.1) 0%, transparent 60%),
+      radial-gradient(ellipse 100% 55% at calc(50% - var(--bg-shift-y)) calc(105% + var(--bg-shift-x)), rgba(45, 212, 191, 0.12) 0%, transparent 60%),
+      linear-gradient(180deg, #FDFBF8 0%, #F6F3EE 45%, #EFEAE2 100%);
+    --bg-elevated: #FFFFFF;
+    --bg-card: rgba(20, 16, 10, 0.045);
+    --bg-card-hover: rgba(20, 16, 10, 0.075);
+    --bg-sidebar: rgba(255, 255, 255, 0.92);
+
+    --border-subtle: rgba(20, 16, 10, 0.07);
+    --border: rgba(20, 16, 10, 0.12);
+    --border-strong: rgba(20, 16, 10, 0.22);
+
+    --text-primary: #18140F;
+    --text-secondary: rgba(24, 20, 15, 0.64);
+    --text-tertiary: rgba(24, 20, 15, 0.54);
+    --text-quaternary: rgba(24, 20, 15, 0.46);
+
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary:  #F1EDE6;
+
+    --shadow-card: 0 1px 3px rgba(20,16,10,0.08), 0 8px 24px rgba(20,16,10,0.06);
+    --shadow-elevated: 0 4px 16px rgba(20,16,10,0.12), 0 1px 4px rgba(20,16,10,0.08);
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F7F4EF;
+  --bg-shift-x: 0%;
+  --bg-shift-y: 0%;
+  --bg-gradient:
+    radial-gradient(ellipse 120% 55% at calc(12% + var(--bg-shift-x)) calc(-8% + var(--bg-shift-y)),  rgba(251, 138, 76, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 65% at calc(92% - var(--bg-shift-x)) calc(-4% - var(--bg-shift-y)),  rgba(91, 127, 255, 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 50% at calc(50% + var(--bg-shift-y)) calc(38% - var(--bg-shift-x)),   rgba(166, 107, 245, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 55% at calc(50% - var(--bg-shift-y)) calc(105% + var(--bg-shift-x)), rgba(45, 212, 191, 0.12) 0%, transparent 60%),
+    linear-gradient(180deg, #FDFBF8 0%, #F6F3EE 45%, #EFEAE2 100%);
+  --bg-elevated: #FFFFFF;
+  --bg-card: rgba(20, 16, 10, 0.045);
+  --bg-card-hover: rgba(20, 16, 10, 0.075);
+  --bg-sidebar: rgba(255, 255, 255, 0.92);
+
+  --border-subtle: rgba(20, 16, 10, 0.07);
+  --border: rgba(20, 16, 10, 0.12);
+  --border-strong: rgba(20, 16, 10, 0.22);
+
+  --text-primary: #18140F;
+  --text-secondary: rgba(24, 20, 15, 0.64);
+  --text-tertiary: rgba(24, 20, 15, 0.54);
+  --text-quaternary: rgba(24, 20, 15, 0.46);
+
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary:  #F1EDE6;
+
+  --shadow-card: 0 1px 3px rgba(20,16,10,0.08), 0 8px 24px rgba(20,16,10,0.06);
+  --shadow-elevated: 0 4px 16px rgba(20,16,10,0.12), 0 1px 4px rgba(20,16,10,0.08);
+}
+
 html, body, #root {
   height: 100%;
   /* Prevent overscroll bounce on iOS while keeping scroll within content */
