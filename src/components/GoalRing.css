@@ -241,6 +241,14 @@
   justify-content: center;
   animation: fadeIn 0.18s ease;
   padding-bottom: var(--safe-bottom);
+  /* The JS-level scroll lock (.page-content overflow/touch-action + the
+     document touchmove blocker) only stops a drag that STARTS on the
+     background. A drag that starts INSIDE the modal and reaches ITS
+     scroll boundary can still natively SCROLL-CHAIN to the page behind —
+     plain `overflow: hidden` on an ancestor does not reliably stop scroll
+     chaining on iOS WebKit, which is exactly what was still visible.
+     overscroll-behavior: contain/none stops the chain at its source. */
+  overscroll-behavior: none;
 }
 
 @keyframes fadeIn {
@@ -260,6 +268,11 @@
   max-width: 480px;
   max-height: 88vh;
   overflow-y: auto;
+  /* Stops a drag that reaches the top/bottom of THIS element's own scroll
+     range from chaining into the page behind it — see the matching note
+     on .goal-ring-overlay above for why this is the actual fix for the
+     background still being draggable. */
+  overscroll-behavior: contain;
   animation: slideUp 0.26s cubic-bezier(0.4,0,0.2,1);
 }
 
