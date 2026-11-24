@@ -67,20 +67,29 @@
 }
 
 /* One item per row — this used to wrap two-per-line at narrow widths,
-   which read as a messy grid rather than an ordered list of four rules. */
+   which read as a messy grid rather than an ordered list of four rules.
+   A 2-column grid (dot, text) instead of flex — flex centered each row
+   independently, so a row's dot sat wherever THAT row's own text length
+   happened to put it, leaving the four dots zig-zagged instead of lined
+   up. The grid's columns are shared across all rows, so every dot sits in
+   the same column regardless of how long its neighboring label is, while
+   `justify-content: center` still centers the whole aligned block as one
+   unit within the section. */
 .mh-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 7px;
+  row-gap: 6px;
+  justify-content: center;
+  margin: 0 auto;
 }
 .mh-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: contents;
   font-size: 11px;
   color: var(--text-tertiary);
 }
+.mh-legend-item .mh-dot { justify-self: center; }
+.mh-legend-item span.mh-legend-text { text-align: left; }
 .mh-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .mh-dot--none  { background: #9CA3AF; }
 .mh-dot--under { background: var(--yellow); }

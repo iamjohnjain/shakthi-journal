@@ -102,18 +102,28 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSession; onC
 
           {exercises.length > 0 ? (
             <div className="wkh-detail-exercises">
-              {exercises.map((ex, i) => (
-                <div key={i} className="wkh-detail-exercise">
-                  <span className="wkh-detail-exercise-name">{ex.name}</span>
-                  <div className="wkh-detail-sets">
-                    {ex.sets.map((s, j) => (
-                      <span key={j} className={`wkh-detail-set ${s.isWarmup ? 'wkh-detail-set--warmup' : ''}`}>
-                        {s.weightLbs}lb × {s.reps}{s.isPR ? ' 🏆' : ''}
-                      </span>
-                    ))}
+              {exercises.map((ex, i) => {
+                const exRegions = regionsForExerciseNames([ex.name]).map(r => REGION_LABEL[r])
+                return (
+                  <div key={i} className="wkh-detail-exercise">
+                    <div className="wkh-detail-exercise-head">
+                      <span className="wkh-detail-exercise-name">{ex.name}</span>
+                      {exRegions.length > 0 && (
+                        <span className="wkh-detail-exercise-regions">
+                          {exRegions.map(r => <span key={r} className="wkh-region-chip wkh-region-chip--sm">{r}</span>)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="wkh-detail-sets">
+                      {ex.sets.map((s, j) => (
+                        <span key={j} className={`wkh-detail-set ${s.isWarmup ? 'wkh-detail-set--warmup' : ''}`}>
+                          {s.weightLbs}lb × {s.reps}{s.isPR ? ' 🏆' : ''}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <p className="wkh-detail-empty">No exercises logged for this session.</p>

@@ -196,34 +196,11 @@
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
   align-self: center;
-  /* Anchors the always-mounted .goal-ring-sync-btn below, which is taken
-     OUT of normal flow (position: absolute) specifically so it never
-     counts toward this chip's own width — otherwise the chip (an
-     inline-flex box that sizes to its content) reserves room for the
-     button even while it's invisible, and the visible icon+text end up
-     sitting off-center within that wider box. */
-  position: relative;
 }
 
 .goal-ring-sync-icon {
   color: var(--text-quaternary);
   flex-shrink: 0;
-}
-
-.goal-ring-sync-btn {
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-full);
-  padding: 2px 8px;
-  white-space: nowrap;
 }
 
 /* ─── Detail Modal ────────────────────────────────────────────────────────── */
@@ -320,7 +297,7 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* % summary */
@@ -437,7 +414,21 @@
   line-height: 1.4;
 }
 
-/* ── Weight-goal pace panel ── */
+/* ── Weight-goal progress card — pace status + calorie target share one
+   card instead of two separately-colored/bordered blocks, so the modal
+   reads as one coherent "progress" section rather than a stack of
+   unrelated-looking panels. ── */
+
+.goal-ring-progress-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.goal-ring-progress-card > * + * {
+  border-top: 1px solid var(--border-subtle);
+}
 
 .goal-ring-pace {
   display: flex;
@@ -448,26 +439,16 @@
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.4;
-  padding: 12px 14px;
-  border-radius: var(--r-md);
-  margin-top: 4px;
+  padding: 13px 16px;
 }
 
 .goal-ring-pace--on-track,
-.goal-ring-pace--reached {
-  background: var(--green-dim);
-  color: var(--green);
-}
-
-.goal-ring-pace--behind {
-  background: var(--purple-dim);
-  color: var(--accent);
-}
+.goal-ring-pace--reached { color: var(--green); }
+.goal-ring-pace--behind  { color: var(--accent); }
 
 .goal-ring-pace--no-data,
 .goal-ring-pace--no-target,
 .goal-ring-pace--past-due {
-  background: rgba(255,255,255,0.05);
   color: var(--text-tertiary);
   font-weight: 500;
 }
@@ -475,10 +456,7 @@
 /* ── Calorie-target comparison bar ── */
 
 .goal-ring-calorie-target {
-  margin-top: 10px;
-  padding: 12px 14px;
-  border-radius: var(--r-md);
-  background: var(--bg-tertiary);
+  padding: 13px 16px;
 }
 
 .goal-ring-calorie-target-row {

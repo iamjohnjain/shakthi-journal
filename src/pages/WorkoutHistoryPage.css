@@ -78,10 +78,32 @@
   padding: 10px 12px;
 }
 
+.wkh-detail-exercise-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .wkh-detail-exercise-name {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.wkh-detail-exercise-regions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wkh-region-chip--sm {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
 .wkh-detail-sets {

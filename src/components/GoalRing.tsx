@@ -11,7 +11,7 @@ import { calcNutrition } from '../lib/nutritionMath'
 import { DEFAULT_GOALS } from '../hooks/useNutritionSettings'
 import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
-import { isInsideNativeApp, openNativeHealthSync, triggerSilentHealthSync } from '../layout/BottomNav'
+import { isInsideNativeApp, triggerSilentHealthSync } from '../layout/BottomNav'
 import { useLastSynced } from '../hooks/useLastSynced'
 import { useBlockPullToRefresh } from '../hooks/useBlockPullToRefresh'
 import QuickWeightModal from './QuickWeightModal'
@@ -327,12 +327,6 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
     : undefined
   const isStaleWeight = goalType === 'weight' && rawCurrent == null && current != null
   const neverWeighed  = goalType === 'weight' && current == null
-  const isStaleData = goalType === 'weight' ? rawCurrent == null : goalType === 'steps' ? current == null : false
-
-  function triggerSync() {
-    if (isInsideNativeApp()) openNativeHealthSync()
-    else navigate('/import/apple-health')
-  }
   const goalValRaw  = goalType === 'steps' ? stepGoal : cfg.goal(profile, nutritionGoals)
   const startValRaw = cfg.start(profile, snapshot)
   const goalVal  = goalValRaw  != null ? toDisplay(goalValRaw)  : undefined
@@ -355,6 +349,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
         higherIsBetter: cfg.higherIsBetter,
       })
     : null
+  const showPace = !!pace && (pace.status === 'reached' || pace.status === 'on-track' || pace.status === 'behind' || pace.status === 'past-due')
 
   // Calories/day needed to hit the weight goal by the target date — same
   // rate→calorie conversion as the onboarding nutrition step (calcNutrition),
@@ -412,9 +407,8 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   // its tick, which flows back down into this component's props), so
   // "Current"/"Last Synced" update in place instead of showing whatever was
   // last synced before the user even opened the card. Uses the SILENT sync
-  // variant deliberately — this fires on every open, so putting a native
-  // sheet in front of the user every single time would be far more
-  // intrusive than the explicit "Sync Now" button's triggerSync() above.
+  // variant deliberately — a native sheet in front of the user on every
+  // single open would be far more intrusive than this background refresh.
   function openDetail() {
     if (isInsideNativeApp()) triggerSilentHealthSync()
     setShowDetail(true)
@@ -562,22 +556,6 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
           <div className="goal-ring-sync-chip">
             <RefreshCw size={11} className="goal-ring-sync-icon" />
             <span>{lastSyncedAt ? `Synced ${relativeTime(lastSyncedAt)}` : 'Not synced yet'}</span>
-            {/* Always mounted (never conditionally added/removed) — toggling
-                its presence caused the chip, and the "Tap To See Details"
-                hint below it, to visibly reflow/shift right as a sync this
-                card itself triggers (see openDetail()) completes and
-                isStaleData flips. A layout shift happening on the card
-                sitting right behind the modal overlay read as "the
-                background moving." */}
-            <button
-              className="goal-ring-sync-btn"
-              style={{ visibility: isStaleData ? 'visible' : 'hidden' }}
-              tabIndex={isStaleData ? 0 : -1}
-              aria-hidden={!isStaleData}
-              onClick={e => { e.stopPropagation(); if (isStaleData) triggerSync() }}
-            >
-              Sync Now
-            </button>
           </div>
         )}
 
@@ -670,48 +648,52 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                 </p>
               )}
 
-              {/* ── Weight-goal pace: on-track status or a lose/gain-per-week suggestion.
-                     Silent for 'no-data'/'no-target' — nothing useful to say yet, and an
-                     empty state here would just be more text to scan past. ── */}
-              {goalType === 'weight' && !editingGoal && pace &&
-                (pace.status === 'reached' || pace.status === 'on-track' || pace.status === 'behind' || pace.status === 'past-due') && (
-                <div className={`goal-ring-pace goal-ring-pace--${pace.status}`}>
-                  {pace.status === 'reached' && (
-                    <><CheckCircle2 size={16} /> <span>Goal reached — nice work.</span></>
+              {/* ── Weight-goal progress card: pace status + calorie target share
+                     one bordered card instead of two separately-colored panels,
+                     so the modal reads as one coherent section here. Pace is
+                     silent for 'no-data'/'no-target' — nothing useful to say
+                     yet, and an empty state would just be more text to scan
+                     past. ── */}
+              {goalType === 'weight' && !editingGoal && (showPace || calorieTarget != null) && (
+                <div className="goal-ring-progress-card">
+                  {showPace && pace && (
+                    <div className={`goal-ring-pace goal-ring-pace--${pace.status}`}>
+                      {pace.status === 'reached' && (
+                        <><CheckCircle2 size={16} /> <span>Goal reached — nice work.</span></>
+                      )}
+                      {pace.status === 'past-due' && (
+                        <span>Your target date has passed — update it below to keep tracking.</span>
+                      )}
+                      {pace.status === 'on-track' && (
+                        <><CheckCircle2 size={16} /> <span>On track for your goal date.</span></>
+                      )}
+                      {pace.status === 'behind' && pace.requiredPerWeek != null && (
+                        <span>
+                          {cfg.higherIsBetter ? 'Gain' : 'Lose'} ~{cfg.format(Math.abs(pace.requiredPerWeek))} {displayUnit}/week
+                          ({Math.abs(pace.requiredPerWeek / 7).toFixed(2)} {displayUnit}/day)
+                          to reach your goal by {profile?.goalDate ? shortDate(profile.goalDate) : ''}.
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {pace.status === 'past-due' && (
-                    <span>Your target date has passed — update it below to keep tracking.</span>
-                  )}
-                  {pace.status === 'on-track' && (
-                    <><CheckCircle2 size={16} /> <span>On track for your goal date.</span></>
-                  )}
-                  {pace.status === 'behind' && pace.requiredPerWeek != null && (
-                    <span>
-                      {cfg.higherIsBetter ? 'Gain' : 'Lose'} ~{cfg.format(Math.abs(pace.requiredPerWeek))} {displayUnit}/week
-                      ({Math.abs(pace.requiredPerWeek / 7).toFixed(2)} {displayUnit}/day)
-                      to reach your goal by {profile?.goalDate ? shortDate(profile.goalDate) : ''}.
-                    </span>
-                  )}
-                </div>
-              )}
 
-              {/* ── Calories/day needed to hit this goal by the target date,
-                     shown as a simple current-vs-needed comparison bar. ── */}
-              {goalType === 'weight' && !editingGoal && calorieTarget != null && (
-                <div className="goal-ring-calorie-target">
-                  <div className="goal-ring-calorie-target-row">
-                    <span>Current goal: {nutritionGoals.calories} cal</span>
-                    <span>Needed: {calorieTarget} cal</span>
-                  </div>
-                  <div className="goal-ring-calorie-target-track">
-                    <div className="goal-ring-calorie-target-marker goal-ring-calorie-target-marker--current"
-                      style={{ left: `${clamp((nutritionGoals.calories ?? 0) / Math.max(nutritionGoals.calories ?? 0, calorieTarget) * 100)}%` }} />
-                    <div className="goal-ring-calorie-target-marker goal-ring-calorie-target-marker--needed"
-                      style={{ left: `${clamp(calorieTarget / Math.max(nutritionGoals.calories ?? 0, calorieTarget) * 100)}%` }} />
-                  </div>
-                  <p className="goal-ring-calorie-target-note">
-                    ~{calorieTarget} cal/day to hit your goal by {profile?.goalDate ? shortDate(profile.goalDate) : 'your target date'}.
-                  </p>
+                  {calorieTarget != null && (
+                    <div className="goal-ring-calorie-target">
+                      <div className="goal-ring-calorie-target-row">
+                        <span>Current goal: {nutritionGoals.calories} cal</span>
+                        <span>Needed: {calorieTarget} cal</span>
+                      </div>
+                      <div className="goal-ring-calorie-target-track">
+                        <div className="goal-ring-calorie-target-marker goal-ring-calorie-target-marker--current"
+                          style={{ left: `${clamp((nutritionGoals.calories ?? 0) / Math.max(nutritionGoals.calories ?? 0, calorieTarget) * 100)}%` }} />
+                        <div className="goal-ring-calorie-target-marker goal-ring-calorie-target-marker--needed"
+                          style={{ left: `${clamp(calorieTarget / Math.max(nutritionGoals.calories ?? 0, calorieTarget) * 100)}%` }} />
+                      </div>
+                      <p className="goal-ring-calorie-target-note">
+                        ~{calorieTarget} cal/day to hit your goal by {profile?.goalDate ? shortDate(profile.goalDate) : 'your target date'}.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

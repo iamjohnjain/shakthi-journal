@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AVFoundation
 
 /// Full-screen WKWebView that loads the Jeevan web app — hardened to a
 /// single exact trusted origin (`TrustedWebOrigin.production`). See
@@ -440,12 +441,38 @@ struct WebAppView: UIViewRepresentable {
                 decisionHandler(.deny)
                 return
             }
-            // .prompt, not .grant — the user retains control via iOS's own
-            // system permission sheet (driven by NSCameraUsageDescription/
-            // NSMicrophoneUsageDescription); this only tells WKWebView the
-            // request is legitimate enough to forward to that system
-            // prompt at all, for the one trusted origin.
-            decisionHandler(.prompt)
+            // Check iOS's own OWN persistent per-app authorization first
+            // (Settings → Jeevan → Camera/Microphone) instead of always
+            // forwarding to WKWebView's prompt path. Previously this called
+            // .prompt unconditionally on every single getUserMedia request —
+            // once the user had already answered the real system dialog
+            // ("Jeevan Would Like to Access the Camera", driven by
+            // NSCameraUsageDescription) on a prior visit, this still made
+            // WebKit re-evaluate the request as if nothing had been decided,
+            // which is what surfaced as "it keeps asking every time." Now:
+            // already-authorized → grant immediately, no dialog at all;
+            // already-denied/restricted → deny immediately, no repeated
+            // asking; genuinely undecided → .prompt, which triggers that
+            // real system dialog exactly once per media type for the life
+            // of the install (iOS persists the answer itself from there).
+            let avTypes: [AVMediaType] = {
+                switch type {
+                case .microphone: return [.audio]
+                case .cameraAndMicrophone: return [.video, .audio]
+                default: return [.video] // .camera, and any future case
+                }
+            }()
+            let statuses = avTypes.map { AVCaptureDevice.authorizationStatus(for: $0) }
+            if statuses.allSatisfy({ $0 == .authorized }) {
+                decisionHandler(.grant)
+            } else if statuses.contains(where: { $0 == .denied || $0 == .restricted }) {
+                decisionHandler(.deny)
+            } else {
+                // At least one of the requested types is still .notDetermined —
+                // triggers the real system dialog for whichever type(s) haven't
+                // been asked yet.
+                decisionHandler(.prompt)
+            }
         }
 
         private func isTrustedSecurityOrigin(_ origin: WKSecurityOrigin) -> Bool {

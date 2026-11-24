@@ -198,12 +198,14 @@ export default function TrendChart({
               {/* Radial, not linear, for the dot markers — at this diameter a
                   left-to-right linear gradient has no room to blend and
                   just reads as two flat color halves stacked on each other.
-                  A radial sweep with more, closer stops reads as one small
-                  glowing rainbow orb instead of a hard split. */}
-              <radialGradient id="trend-dot-gradient" cx="35%" cy="35%" r="75%">
+                  Centered (not offset) — an off-center radial at this small
+                  a size reads as a distinct orange hotspot sitting inside a
+                  separate purple/blue ring rather than one blended dot, so
+                  this stays a concentric sweep from the center outward. */}
+              <radialGradient id="trend-dot-gradient" cx="50%" cy="50%" r="60%">
                 <stop offset="0%" stopColor="#FB8A4C" />
-                <stop offset="35%" stopColor="#E4849C" />
-                <stop offset="65%" stopColor="#A66BF5" />
+                <stop offset="40%" stopColor="#E4849C" />
+                <stop offset="70%" stopColor="#A66BF5" />
                 <stop offset="100%" stopColor="#5B7FFF" />
               </radialGradient>
             </>
@@ -221,10 +223,15 @@ export default function TrendChart({
             just hollow, so the two read as related but distinct). */}
         {goalY != null && (
           <>
+            {/* Starts after the "Target" label (not underneath it) so the
+                dashed line reads as its own clearly visible stroke running
+                the full remaining width to the right edge, rather than
+                disappearing under the text and registering as just the
+                dot at the far end. */}
             <line
-              x1={padX} y1={goalY} x2={w - padX} y2={goalY}
+              x1={padX + 34} y1={goalY} x2={w - padX} y2={goalY}
               stroke={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'}
-              strokeWidth="1" strokeDasharray="4 4" opacity="0.6"
+              strokeWidth="1.5" strokeDasharray="4 4" opacity="0.85"
             />
             <text x={padX + 2} y={Math.max(9, goalY - 4)} textAnchor="start" fontSize="9"
               fill={gradient ? 'url(#trend-line-gradient)' : 'var(--accent)'} opacity="0.95">Target</text>

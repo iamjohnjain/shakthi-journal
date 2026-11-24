@@ -12,8 +12,8 @@ import { getProfile } from '../db/profileStore'
 import type { ProfileData } from '../db/profileStore'
 import { getOwnedDevices, owns } from '../db/deviceStore'
 import type { DeviceId } from '../db/deviceStore'
-import { getImportedDates } from '../db/healthStore'
-import { getAllLogDates } from '../db/logStore'
+import { getImportedDates, hasImportedData } from '../db/healthStore'
+import { getAllLogDates, getLogCount } from '../db/logStore'
 import GoalRing from '../components/GoalRing'
 import { CardMenu } from '../components/CardMenu'
 import QuickWeightModal from '../components/QuickWeightModal'
@@ -371,6 +371,21 @@ export default function Dashboard() {
   const isEmpty   = dataSource === 'mock' && !mockMode
   const inNative  = isInsideNativeApp()
 
+  // Whether the account has EVER logged/imported anything, anywhere —
+  // distinct from `isEmpty`, which only reflects whether the currently
+  // viewed DATE has data. Without this, "Your starting point" and
+  // "Today's Focus" (the first-time-user onboarding cards) reappeared
+  // every single day a user simply hadn't logged anything *yet that day*,
+  // even after they'd fully onboarded and used the app for weeks —
+  // defaults to true so the cards don't flash in before this resolves.
+  const [hasAnyHistory, setHasAnyHistory] = useState(true)
+  useEffect(() => {
+    Promise.all([hasImportedData(), getLogCount()]).then(([imported, logCount]) => {
+      setHasAnyHistory(imported || logCount > 0)
+    })
+  }, [])
+  const isFirstDayEver = isEmpty && !hasAnyHistory
+
   function menuFor(id: string): React.ComponentProps<typeof CardMenu> {
     const ordered = REORDERABLE_IDS.filter(s => sectionOrder.includes(s))
     const orderIdx = ordered.indexOf(id)
@@ -461,8 +476,8 @@ export default function Dashboard() {
             <GoalRing snapshot={today} dataSource={dataSource} mockMode={mockMode} latestWeight={latestWeight ?? undefined} latestBodyFat={latestBodyFat ?? undefined} latestSleep={latestSleep ?? undefined} />
           )}
 
-          {/* ── Empty state: no data yet ── */}
-          {isEmpty && isVisible('import-status') && (
+          {/* ── Empty state: no data yet, ever — not just not-yet-today ── */}
+          {isFirstDayEver && isVisible('import-status') && (
             <>
               <FirstDayCard profile={profileData} nutritionGoals={nutritionGoals} updateNutritionGoals={updateNutritionGoals} fmtWeight={units.fmtWeight} />
               <TodaysFocus />
