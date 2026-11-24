@@ -667,8 +667,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                       {pace.status === 'behind' && pace.requiredPerWeek != null && (
                         <span>
                           {cfg.higherIsBetter ? 'Gain' : 'Lose'} ~{cfg.format(Math.abs(pace.requiredPerWeek))} {displayUnit}/week
-                          ({Math.abs(pace.requiredPerWeek / 7).toFixed(2)} {displayUnit}/day)
-                          to reach your goal by {profile?.goalDate ? shortDate(profile.goalDate) : ''}.
+                          {' '}to reach your goal by {profile?.goalDate ? shortDate(profile.goalDate) : ''}.
                         </span>
                       )}
                     </div>
