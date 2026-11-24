@@ -82,7 +82,7 @@ function SuggestionCard({ onLog }: { onLog: () => void }) {
         {suggestion.warning && <div className="ws-sugg-warning">⚠️ {suggestion.warning}</div>}
         <div className="ws-sugg-meta">{suggestion.durationMin}min · {suggestion.intensity}</div>
       </div>
-      <button className="ws-sugg-log-btn" onClick={onLog}>
+      <button className="ws-sugg-log-btn" data-no-press-glow onClick={onLog}>
         Log it <ChevronRight size={13} />
       </button>
     </div>
@@ -713,7 +713,7 @@ function TemplateCard({ t, onUse, onEdit, onDelete }: {
           </div>
         )}
 
-        <button className="log-workout-btn" style={{ width: '100%', marginTop: 10, justifyContent: 'center' }} onClick={onUse}>
+        <button className="log-workout-btn" data-no-press-glow style={{ width: '100%', marginTop: 10, justifyContent: 'center' }} onClick={onUse}>
           <Play size={14} /> Use This Template
         </button>
       </div>
@@ -815,7 +815,7 @@ function TemplatePickerSheet({ onPick, onCreateNew, onClose, dayWorkout, dayLabe
             </div>
           )}
 
-          <button className="log-workout-btn" style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }} onClick={onCreateNew}>
+          <button className="log-workout-btn" data-no-press-glow style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }} onClick={onCreateNew}>
             <LayoutTemplate size={15} /> Create Workout Template
           </button>
 
@@ -1027,7 +1027,7 @@ export default function WorkoutsPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               {isToday ? (
-                <button className="start-workout-btn" onClick={() => setShowActiveWorkout(true)}>
+                <button className="start-workout-btn" data-no-press-glow onClick={() => setShowActiveWorkout(true)}>
                   <Play size={15} /> Start
                 </button>
               ) : (
@@ -1036,11 +1036,11 @@ export default function WorkoutsPage() {
                 // (alongside a separate, easy-to-miss little "Today" chip
                 // up by the title) was the confusing part. This slot just
                 // becomes the one obvious way back to today instead.
-                <button className="start-workout-btn" onClick={() => setSelectedDate(todayStr())}>
+                <button className="start-workout-btn" data-no-press-glow onClick={() => setSelectedDate(todayStr())}>
                   <CalendarDays size={15} /> Today
                 </button>
               )}
-              <button className="log-workout-btn" onClick={() => setShowTemplatePicker(true)}>
+              <button className="log-workout-btn" data-no-press-glow onClick={() => setShowTemplatePicker(true)}>
                 <LayoutTemplate size={15} /> Template
               </button>
             </div>

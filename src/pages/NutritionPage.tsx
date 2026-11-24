@@ -543,7 +543,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
             </button>
           )}
         </div>
-        <button className="ai-estimate-btn" onClick={handleEstimate} disabled={!description.trim() || status === 'loading'}>
+        <button className="ai-estimate-btn" data-no-press-glow onClick={handleEstimate} disabled={!description.trim() || status === 'loading'}>
           {status === 'loading'
             ? <><Loader2 size={15} className="ai-spin" /> Estimating…</>
             : <><Calculator size={15} /> Estimate Nutrition</>}
@@ -573,7 +573,7 @@ function AiMealTab({ onLogged, onFallbackToManual }: {
           <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} onRefine={refineItem} />
           <div className="ai-review-actions">
             <button className="ai-describe-back" onClick={reset}>Start Over</button>
-            <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
+            <button className="add-modal-save" data-no-press-glow onClick={() => onLogged(items.map(it => ({
               food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
               quantity: `${it.qtyNum} ${it.qtyUnit}`,
             })))}>
@@ -701,7 +701,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
         <p className="ai-describe-hint">
           Snap a photo of your food, a receipt, or a barcode — it figures out which and estimates nutrition.
         </p>
-        <button className="ai-estimate-btn ai-photo-btn" onClick={() => setShowCamera(true)} disabled={busy}>
+        <button className="ai-estimate-btn ai-photo-btn" data-no-press-glow onClick={() => setShowCamera(true)} disabled={busy}>
           {busy
             ? <><Loader2 size={15} className="ai-spin" /> {status === 'scanning' ? 'Checking for a barcode…' : 'Analyzing photo…'}</>
             : <><Camera size={16} /> Take a Photo</>}
@@ -732,7 +732,7 @@ function PhotoMealTab({ onLogged, onFallbackToManual, autoOpen }: {
           <MealReviewList items={items} onUpdate={updateItem} onRemove={removeItem} onRefine={refineItem} />
           <div className="ai-review-actions">
             <button className="ai-describe-back" onClick={() => { reset(); setShowCamera(true) }}>Retake</button>
-            <button className="add-modal-save" onClick={() => onLogged(items.map(it => ({
+            <button className="add-modal-save" data-no-press-glow onClick={() => onLogged(items.map(it => ({
               food: it.food, calories: it.calories, proteinG: it.proteinG, carbsG: it.carbsG, fatG: it.fatG,
               quantity: `${it.qtyNum} ${it.qtyUnit}`,
             })))}>
@@ -818,7 +818,7 @@ function QuickLogTab({ onLogged }: {
           </div>
         </div>
       </div>
-      <button className="add-modal-save" onClick={handleLog} disabled={!calories}>
+      <button className="add-modal-save" data-no-press-glow onClick={handleLog} disabled={!calories}>
         <Check size={15} /> Log Entry
       </button>
     </div>

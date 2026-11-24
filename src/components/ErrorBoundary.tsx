@@ -23,7 +23,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         <AlertTriangle size={40} className="error-boundary-icon" />
         <h1>Something Went Wrong</h1>
         <p>An unexpected error occurred. Reloading usually fixes it — your data hasn't been lost.</p>
-        <button className="error-boundary-btn" onClick={() => window.location.href = '/'}>
+        <button className="error-boundary-btn" data-no-press-glow onClick={() => window.location.href = '/'}>
           Reload App
         </button>
       </div>

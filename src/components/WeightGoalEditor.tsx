@@ -300,7 +300,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
         {onCancel && (
           <button className="wge-cancel" onClick={onCancel} disabled={saving}>Cancel</button>
         )}
-        <button className="wge-save" disabled={!preview || saving} onClick={handleSave}>
+        <button className="wge-save" data-no-press-glow disabled={!preview || saving} onClick={handleSave}>
           {saving ? 'Saving…' : 'Save Goal'}
         </button>
       </div>

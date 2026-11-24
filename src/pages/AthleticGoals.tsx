@@ -505,6 +505,7 @@ function AddGoalModal({ existing, onSave, onClose }: {
 
           <button
             className="goal-save-btn"
+            data-no-press-glow
             onClick={handleSave}
             disabled={!title.trim()}
           >
@@ -528,7 +529,7 @@ function NoGoalsCard({ onSetup }: { onSetup: () => void }) {
         Complete your profile to set a goal weight and body fat target.
         Your progress goals will appear here once configured.
       </p>
-      <button className="goal-empty-btn" onClick={onSetup}>Set up profile</button>
+      <button className="goal-empty-btn" data-no-press-glow onClick={onSetup}>Set up profile</button>
     </div>
   )
 }

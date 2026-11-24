@@ -76,7 +76,7 @@ export default function VoiceListeningOverlay({ stream, phase, onStop }: {
       </div>
       <p className="voice-overlay-label">{phase === 'recording' ? 'Listening…' : 'Transcribing…'}</p>
       {phase === 'recording' && (
-        <button className="voice-stop-btn" onClick={onStop} aria-label="Stop and use this">
+        <button className="voice-stop-btn" data-no-press-glow onClick={onStop} aria-label="Stop and use this">
           Done
         </button>
       )}

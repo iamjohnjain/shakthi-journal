@@ -263,7 +263,7 @@ export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: 
                     )}
                   </div>
                   {note && <p className="import-note">{note}</p>}
-                  <button className="tmpl-modal-save" onClick={handleParseText} disabled={!text.trim() || status === 'loading'}>
+                  <button className="tmpl-modal-save" data-no-press-glow onClick={handleParseText} disabled={!text.trim() || status === 'loading'}>
                     {status === 'loading' ? <><Loader2 size={15} className="ai-spin" /> Reading plan…</> : <><LayoutTemplate size={15} /> Create Template</>}
                   </button>
                 </div>
@@ -297,7 +297,7 @@ export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: 
                     <div className="import-loading"><Loader2 size={18} className="ai-spin" /> Reading plan…</div>
                   ) : pendingFile ? (
                     <>
-                      <button className="tmpl-modal-save" onClick={confirmPendingFile}>
+                      <button className="tmpl-modal-save" data-no-press-glow onClick={confirmPendingFile}>
                         <Check size={15} /> Use This File
                       </button>
                       <button className="import-secondary-btn" onClick={() => fileRef.current?.click()}>
@@ -306,7 +306,7 @@ export default function CreateTemplateModal({ onClose, onSaved, onOpenManual }: 
                     </>
                   ) : (
                     <>
-                      <button className="tmpl-modal-save" onClick={() => fileRef.current?.click()}>
+                      <button className="tmpl-modal-save" data-no-press-glow onClick={() => fileRef.current?.click()}>
                         <Upload size={15} /> Upload File
                       </button>
                       <button className="import-secondary-btn" onClick={() => setShowCamera(true)}>

@@ -144,7 +144,7 @@ export default function WorkoutCelebration({ session, onDone }: Props) {
           <button className="wc-action-btn" onClick={() => handleDownload()} disabled={sharing}>
             {saved ? <><Check size={16} /> Saved</> : <><Download size={16} /> Download</>}
           </button>
-          <button className="wc-action-btn wc-action-btn--primary" onClick={handleShare} disabled={sharing}>
+          <button className="wc-action-btn wc-action-btn--primary" data-no-press-glow onClick={handleShare} disabled={sharing}>
             <Share2 size={16} /> Share
           </button>
         </div>

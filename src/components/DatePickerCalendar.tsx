@@ -106,6 +106,7 @@ export default function DatePickerCalendar({ value, markedDates, minDate, maxDat
                   key={i}
                   className={`dp-cell ${isSelected ? 'dp-cell--selected' : ''} ${isToday && !isSelected ? 'dp-cell--today' : ''}`}
                   disabled={isOutOfRange}
+                  {...(isSelected ? { 'data-no-press-glow': true } : {})}
                   onClick={() => pick(cell.dateStr)}
                 >
                   <span className="dp-cell-num">{cell.day}</span>

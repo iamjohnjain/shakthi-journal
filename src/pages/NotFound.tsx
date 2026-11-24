@@ -9,7 +9,7 @@ export default function NotFound() {
       <Compass size={40} className="notfound-icon" />
       <h1>Page Not Found</h1>
       <p>This page doesn't exist or may have moved.</p>
-      <button className="notfound-btn" onClick={() => navigate('/')}>Go To Dashboard</button>
+      <button className="notfound-btn" data-no-press-glow onClick={() => navigate('/')}>Go To Dashboard</button>
     </div>
   )
 }

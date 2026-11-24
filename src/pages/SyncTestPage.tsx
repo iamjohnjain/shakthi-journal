@@ -322,7 +322,7 @@ export default function SyncTestPage() {
           <button className="btn btn-secondary" onClick={createTestNutrition} disabled={actionBusy}>
             <Apple size={13} /> Create Test Nutrition Entry
           </button>
-          <button className="btn btn-primary" onClick={forceSync} disabled={actionBusy || !user?.id}>
+          <button className="btn btn-primary" data-no-press-glow onClick={forceSync} disabled={actionBusy || !user?.id}>
             <Zap size={13} /> Force Sync Now
           </button>
           <button className="btn btn-secondary" onClick={pullFromCloud} disabled={actionBusy || !user?.id}>

@@ -160,7 +160,7 @@ function AccountCard({
       {/* Actions */}
       <div className="account-actions">
         {nativeAction && (
-          <button className="btn btn-primary btn-sm" onClick={nativeAction.onClick}>
+          <button className="btn btn-primary btn-sm" data-no-press-glow onClick={nativeAction.onClick}>
             <RefreshCw size={13} /> {nativeAction.label}
           </button>
         )}
@@ -175,7 +175,7 @@ function AccountCard({
           </>
         )}
         {!nativeAction && account.status === 'import_ready' && (
-          <button className="btn btn-primary btn-sm" onClick={() => navigate('/import/apple-health')}>
+          <button className="btn btn-primary btn-sm" data-no-press-glow onClick={() => navigate('/import/apple-health')}>
             Import File
           </button>
         )}

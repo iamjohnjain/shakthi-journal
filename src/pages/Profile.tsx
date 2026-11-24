@@ -288,7 +288,7 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 
         <div className="profile-modal-footer">
           <button className="profile-modal-cancel" onClick={onClose}>Cancel</button>
-          <button className="profile-modal-save" onClick={handleSave} disabled={saving}>
+          <button className="profile-modal-save" data-no-press-glow onClick={handleSave} disabled={saving}>
             <Check size={15} /> {saving ? 'Saving…' : 'Save Profile'}
           </button>
         </div>

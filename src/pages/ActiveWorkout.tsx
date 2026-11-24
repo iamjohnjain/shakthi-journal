@@ -603,6 +603,7 @@ export default function ActiveWorkout({ prMap, profile, onFinish, onClose, initi
           </button>
           <button
             className="aw-finish-btn"
+            data-no-press-glow
             onClick={() => void handleConfirmFinish()}
             disabled={exercises.length === 0 || saving}
           >

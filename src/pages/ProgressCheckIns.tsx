@@ -255,7 +255,7 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
           )}
           <div className="vfc-controls">
             {!recording ? (
-              <button className="vfc-record-btn" onClick={startRecording} disabled={!cameraReady}>
+              <button className="vfc-record-btn" data-no-press-glow onClick={startRecording} disabled={!cameraReady}>
                 {cameraReady ? 'Start Recording' : 'Starting camera…'}
               </button>
             ) : (
@@ -275,7 +275,7 @@ function VideoFrameCapture({ onFrame, onClose }: { onFrame: (blob: Blob) => void
             />
             <div className="vfc-scrub-row">
               <button onClick={() => stepFrame(-1)}>Prev</button>
-              <button className="vfc-capture-btn" onClick={captureCurrentFrame}>
+              <button className="vfc-capture-btn" data-no-press-glow onClick={captureCurrentFrame}>
                 <Camera size={16} /> Save This Frame
               </button>
               <button onClick={() => stepFrame(1)}>Next</button>

@@ -361,6 +361,7 @@ export default function DailyLog() {
         {dirty && <span className="log-dirty-label">Unsaved changes</span>}
         <button
           className={`log-save-btn ${saved ? 'log-save-btn--saved' : ''}`}
+          data-no-press-glow
           onClick={handleSave}
           disabled={saving || !dirty}
         >

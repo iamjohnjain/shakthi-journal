@@ -187,6 +187,7 @@ export default function Settings() {
               </button>
               <button
                 className="settings-confirm-go"
+                data-no-press-glow
                 onClick={() => { setShowSetupConfirm(false); navigate('/onboarding?edit=1') }}
               >
                 Continue Setup

@@ -98,7 +98,7 @@ export default function LiveCamera({ onCapture, onClose }: {
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={e => { const f = e.target.files?.[0]; if (f) onCapture(f) }} />
         <p className="live-camera-fallback-text">Couldn't access the camera — you can still pick a photo instead.</p>
-        <button className="live-camera-choose-btn" onClick={() => fileRef.current?.click()}>Choose Photo</button>
+        <button className="live-camera-choose-btn" data-no-press-glow onClick={() => fileRef.current?.click()}>Choose Photo</button>
         <button className="live-camera-cancel-link" onClick={onClose}>Cancel</button>
       </div>,
       document.body
@@ -129,6 +129,7 @@ export default function LiveCamera({ onCapture, onClose }: {
       <div className="live-camera-top-controls">
         <button
           className={`live-camera-timer-btn ${timerOption > 0 ? 'live-camera-timer-btn--active' : ''}`}
+          {...(timerOption > 0 ? { 'data-no-press-glow': true } : {})}
           onClick={cycleTimer}
           aria-label="Self-timer"
         >

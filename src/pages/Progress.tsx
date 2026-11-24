@@ -173,7 +173,7 @@ export default function Progress() {
             Complete your profile setup to record your starting point.
             Progress is measured by comparing your starting baseline against your current metrics.
           </p>
-          <button className="prog-empty-btn" onClick={() => navigate('/onboarding?edit=1')}>
+          <button className="prog-empty-btn" data-no-press-glow onClick={() => navigate('/onboarding?edit=1')}>
             Set up profile
           </button>
         </div>
@@ -278,7 +278,7 @@ export default function Progress() {
               : 'Set a starting weight in your profile, then log daily to track changes.'}
           </p>
           <div className="prog-no-data-actions">
-            <button className="prog-empty-btn" onClick={() => navigate('/import/apple-health')}>
+            <button className="prog-empty-btn" data-no-press-glow onClick={() => navigate('/import/apple-health')}>
               Import Apple Health
             </button>
             <button className="prog-empty-btn prog-empty-btn--ghost" onClick={() => navigate('/log')}>

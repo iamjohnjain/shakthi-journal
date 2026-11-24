@@ -139,7 +139,7 @@ function PrTrackingSection() {
         <datalist id="progress-exercise-list">
           {allNames.map(n => <option key={n} value={n} />)}
         </datalist>
-        <button className="wpr-search-btn" onClick={() => search()}>Go</button>
+        <button className="wpr-search-btn" data-no-press-glow onClick={() => search()}>Go</button>
       </div>
 
       {!searched && (

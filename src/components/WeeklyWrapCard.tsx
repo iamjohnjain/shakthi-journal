@@ -155,7 +155,7 @@ export default function WeeklyWrapCard({ review, onDone }: Props) {
           <button className="ww-action-btn" onClick={() => handleDownload()} disabled={sharing}>
             {saved ? <><Check size={16} /> Saved</> : <><Download size={16} /> Download</>}
           </button>
-          <button className="ww-action-btn ww-action-btn--primary" onClick={handleShare} disabled={sharing}>
+          <button className="ww-action-btn ww-action-btn--primary" data-no-press-glow onClick={handleShare} disabled={sharing}>
             <Share2 size={16} /> Share
           </button>
         </div>
