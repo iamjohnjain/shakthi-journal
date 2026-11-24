@@ -13,6 +13,7 @@ import type { ProfileData, NutritionGoals } from '../db'
 import type { DailySnapshot } from '../types/health'
 import { isInsideNativeApp, openNativeHealthSync, triggerSilentHealthSync } from '../layout/BottomNav'
 import { useLastSynced } from '../hooks/useLastSynced'
+import { useBlockPullToRefresh } from '../hooks/useBlockPullToRefresh'
 import QuickWeightModal from './QuickWeightModal'
 import WeightGoalEditor from './WeightGoalEditor'
 import './GoalRing.css'
@@ -199,6 +200,16 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   const lastSyncedAt = useLastSynced()
   const [editingGoal,    setEditingGoal]    = useState(false)
 
+  // The most direct, reliable fix for "swiping anywhere while this modal
+  // is open must never trigger a background sync": PullToRefresh itself
+  // refuses to engage at all while this is true, checked at the very top
+  // of its own touch handlers — independent of DOM propagation/portal
+  // boundaries, which the earlier touch-interception approach kept
+  // finding new gaps in (stopPropagation doesn't cross into a separate
+  // portaled subtree; a drag that starts ON the modal itself was never
+  // blocked at all, by design, to preserve the modal's own scrolling).
+  useBlockPullToRefresh(showDetail)
+
   function sourceLabel(sourceId: string): string {
     if (sourceId === 'renpho')      return 'RENPHO via Apple Health'
     if (sourceId === 'apple_watch') return 'Apple Watch'
@@ -368,6 +379,8 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   const touchStartX = useRef<number>(0)
   const touchStartY = useRef<number>(0)
   const didSwipe = useRef<boolean>(false)
+  const overlayTouchStart = useRef<{ x: number; y: number } | null>(null)
+  const overlayDidSwipe = useRef<boolean>(false)
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
@@ -573,7 +586,27 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
 
       {/* ── Detail Modal ── */}
       {showDetail && createPortal(
-        <div className="goal-ring-overlay" onClick={() => setShowDetail(false)}>
+        <div
+          className="goal-ring-overlay"
+          onTouchStart={e => { overlayTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+          onTouchEnd={e => {
+            const start = overlayTouchStart.current
+            if (!start) return
+            const dx = e.changedTouches[0].clientX - start.x
+            const dy = e.changedTouches[0].clientY - start.y
+            if (Math.hypot(dx, dy) > 10) overlayDidSwipe.current = true
+          }}
+          onClick={() => {
+            // A drag/swipe that happens to end with the finger over the
+            // backdrop must not count as a "tap to dismiss" — without
+            // this, swiping on/near the modal could close it, which then
+            // lets a very next tap reopen it (and resync) again,
+            // producing exactly the repeated "sync pops up" loop this is
+            // meant to prevent.
+            if (overlayDidSwipe.current) { overlayDidSwipe.current = false; return }
+            setShowDetail(false)
+          }}
+        >
           <div className="goal-ring-modal" onClick={e => e.stopPropagation()}>
             <div className="goal-ring-modal-header">
               <span className="goal-ring-modal-title">{cfg.label}</span>

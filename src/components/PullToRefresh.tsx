@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
 import { isInsideNativeApp, openNativeHealthSync } from '../layout/BottomNav'
 import { useLastSynced } from '../hooks/useLastSynced'
+import { isPullToRefreshBlocked } from '../hooks/useBlockPullToRefresh'
 import { formatDateTime } from '../data/config'
 import './PullToRefresh.css'
 
@@ -49,7 +50,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   }, [refreshing])
 
   function onTouchStart(e: ReactTouchEvent) {
-    if (refreshing) return
+    if (refreshing || isPullToRefreshBlocked()) return
     const scrollEl = scrollElRef.current
     if (!scrollEl || scrollEl.scrollTop > 0) return
     startYRef.current = e.touches[0].clientY
@@ -57,7 +58,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   }
 
   function onTouchMove(e: ReactTouchEvent) {
-    if (!trackingRef.current) return
+    if (!trackingRef.current || isPullToRefreshBlocked()) return
     const dy = e.touches[0].clientY - startYRef.current
     if (dy <= 0) { setPull(0); trackingRef.current = false; return }
     const resisted = Math.min(MAX_PULL, dy * PULL_RESISTANCE)
@@ -71,7 +72,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   function onTouchEnd() {
     if (!trackingRef.current) return
     trackingRef.current = false
-    if (pull >= PULL_THRESHOLD) {
+    if (pull >= PULL_THRESHOLD && !isPullToRefreshBlocked()) {
       triggerSync()
     } else {
       setPull(0)
@@ -79,6 +80,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   }
 
   function triggerSync() {
+    if (isPullToRefreshBlocked()) return
     if (isInsideNativeApp()) {
       setRefreshing(true)
       setPull(PULL_THRESHOLD)
