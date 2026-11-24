@@ -4,6 +4,18 @@ struct SettingsView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(SyncEngine.self)  private var sync
 
+    // Previously a hardcoded "iOS 2.0" string, completely disconnected from
+    // the actual shipped binary (1.0, build 1 per Info.plist) — confirmed
+    // in APP_STORE_READINESS.md as a real "version lies to the user/
+    // reviewer" bug. Reads the real values straight from the bundle so it
+    // can never drift from what's actually installed again.
+    private static var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(shortVersion) (\(build))"
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -45,7 +57,7 @@ struct SettingsView: View {
                     // App info
                     Section("About") {
                         LabeledRow(label: "App",       icon: "app",         value: "Jeevan")
-                        LabeledRow(label: "Version",   icon: "number",       value: "iOS 2.0")
+                        LabeledRow(label: "Version",   icon: "number",       value: Self.appVersionString)
                         LabeledRow(label: "Platform",  icon: "globe",        value: TrustedWebOrigin.production.host)
                     }
                 }

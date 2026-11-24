@@ -66,8 +66,15 @@ export default function App() {
           <Route path="/settings/data" element={<DataSyncSettings />} />
           <Route path="/settings/backup" element={<BackupRestorePage />} />
           <Route path="/dashboard-settings" element={<DashboardSettings />} />
-          <Route path="/dev" element={<DevDiagnostics />} />
-          <Route path="/dev/sync-test" element={<SyncTestPage />} />
+          {/* Dev-only diagnostics — unconditionally reachable in production
+              was a confirmed App Store readiness gap (anyone who guesses
+              the path gets DB internals/sync-test tooling). import.meta.env.DEV
+              is statically false in a production Vite build, so Rollup
+              dead-code-eliminates both the route AND the lazy-loaded
+              DevDiagnostics/SyncTestPage modules entirely — not just hidden
+              behind a runtime check that still ships the code. */}
+          {import.meta.env.DEV && <Route path="/dev" element={<DevDiagnostics />} />}
+          {import.meta.env.DEV && <Route path="/dev/sync-test" element={<SyncTestPage />} />}
 
           {/* Core health pages */}
           <Route path="/recovery" element={<RecoveryPage />} />

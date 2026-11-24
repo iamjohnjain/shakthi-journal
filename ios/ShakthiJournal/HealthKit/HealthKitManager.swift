@@ -60,14 +60,14 @@ final class HealthKitManager {
         return result
     }
 
-    // Types we request WRITE permission for now; actual writes are Phase iOS 2+.
-    private var typesToShare: Set<HKSampleType> {
-        [
-            HKQuantityType(.bodyMass),
-            HKQuantityType(.bodyFatPercentage),
-            HKWorkoutType.workoutType(),
-        ]
-    }
+    // Read-only in v1 — no write/share request. Previously this requested
+    // write authorization for bodyMass/bodyFatPercentage/workouts "for
+    // future use," paired with an NSHealthUpdateUsageDescription that said
+    // the same thing — Apple review guidance disfavors asking for a
+    // permission the app doesn't actually use yet. When write support
+    // ships, add both the usage-description key back and a real
+    // typesToShare set at the same time, not ahead of it.
+    private var typesToShare: Set<HKSampleType> { [] }
 
     private let dayFormatter: DateFormatter = {
         let f = DateFormatter()

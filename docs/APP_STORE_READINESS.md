@@ -1,6 +1,9 @@
 # Jeevan — App Store Readiness (Living Document)
 
-**Status as of this entry: NOT READY.**
+**Status as of this entry: NOT READY** (real progress this session — see
+"Remediation — Full Re-Audit Pass" near the top of the relevant milestones
+below — but P1-3 multi-account IndexedDB isolation, the live adversarial
+matrix, Apple Distribution signing, and all owner-only items remain open).
 
 This document tracks every requirement in the App Store submission program.
 It is updated at the end of each work session. Do not treat any requirement
@@ -10,6 +13,59 @@ marked 🟡 are partially done or audited-but-not-fixed.
 
 Owner-only actions (Apple Developer portal, vendor dashboards, legal
 decisions) are called out explicitly — Claude cannot perform these.
+
+---
+
+## Remediation — Full Re-Audit Pass (this session)
+
+Triggered by a real crash report (`webViewWebContentProcessDidTerminate` —
+"Jeevan needs to reload"), traced to the glass-surface CSS combining
+`backdrop-filter` with an SVG `feDisplacementMap` filter on an
+animated element — one of the most expensive operations WKWebView can
+run, fixed separately (not an App Store item, a web-side bug). That
+prompted a full re-read of this document and a pass at everything
+fixable without Xcode-GUI-only/owner-portal/legal actions. **This
+session had working `xcodebuild`/simulator access** (prior sessions'
+hedging about CLI-only verification did not apply here) — every native
+change below was both built (`CODE_SIGNING_ALLOWED=NO` Release) and run
+through the full `JeevanTests` suite on `iPhone Duo` (iOS 27.2).
+
+| Item | Fixed | Evidence |
+|---|---|---|
+| Privacy manifest (`PrivacyInfo.xcprivacy`) — confirmed absent (Milestone 0/6) | ✅ Created | `ios/ShakthiJournal/PrivacyInfo.xcprivacy` — declares no tracking, `NSPrivacyAccessedAPICategoryUserDefaults` (C56.1) + `NSPrivacyAccessedAPICategoryFileTimestamp` (C617.1), and Health/Fitness + Email collection (linked, App Functionality, not tracking). `plutil -lint` OK. Wired into the Xcode project (`PBXFileReference`/`PBXBuildFile`/group/Resources-phase entries added by hand, same technique prior sessions used for the test target) — confirmed physically present in the built `.app` bundle after a clean Release build |
+| `/dev`, `/dev/sync-test` reachable in production (Milestone 5) | ✅ Fixed | `src/App.tsx` — both routes now gated behind `import.meta.env.DEV`; confirmed via `npx vite build` that `DevDiagnostics`/`SyncTestPage` no longer appear anywhere in the production bundle at all (tree-shaken, not just hidden) |
+| Security headers missing entirely (Milestone 5) | ✅ Added | `public/_headers` — new `/*` block: `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` (camera/mic scoped to self, everything else denied), and a `Content-Security-Policy` scoped to this app's actual origins (`'self'` + the one Supabase project for `connect-src`, no external fonts/CDNs/analytics exist to allowlist). **Not live-verified in a real browser from this session** — recommend confirming no legitimate request gets blocked once deployed, particularly the CSP |
+| HealthKit usage-description inaccuracy + unimplemented-feature write request (Milestone 4) | ✅ Fixed | `Info.plist`: `NSHealthShareUsageDescription` rewritten (dropped the false "never shared with anyone" claim — Supabase sync + AI processing both exist); `NSHealthUpdateUsageDescription` removed entirely. `HealthKitManager.swift`: `typesToShare` now returns `[]` (read-only v1, no write/share authorization requested). `PermissionsView.swift`: removed the "WRITE PERMISSION (FUTURE USE)" section that now would have described a request the app no longer makes |
+| `CFBundleShortVersionString`/`CFBundleVersion` hardcoded instead of build variables (Milestone 6) | ✅ Fixed | `Info.plist` now reads `$(MARKETING_VERSION)`/`$(CURRENT_PROJECT_VERSION)` — confirmed resolved correctly to `1.0`/`1` in the actual built `Info.plist` via `PlistBuddy` after a clean build |
+| Native Settings "iOS 2.0" vs. binary 1.0 (Milestone 6) | ✅ Fixed | `SettingsView.swift` — was a literal hardcoded string unrelated to the real version; now reads `Bundle.main.infoDictionary` directly, so it can't drift from the shipped binary again |
+| Legacy "Shakthi" user-facing text (Milestone 5, "not yet grepped") | ✅ Grepped, none found | Every remaining "Shakthi" occurrence is internal-only (struct name `ShakthiJournalApp`, code comments, file paths) — `CFBundleURLSchemes` already correctly reads `jeevan.health.fitness`. No user-facing text fix needed; downgrading this row from 🟡 to confirmed-clean |
+| AI function abuse protection (Milestone 2) — doc said "no rate limit, quota, or abuse control currently confirmed in code" | ✅ Already fixed in an earlier session this engagement, doc was stale | `supabase/functions/_shared/http.ts` (CORS now an explicit allowlist, not origin-reflection) + `_shared/rateLimit.ts` (per-caller rate limiting) on all 7 AI functions — confirmed still present and deployed. **Guest-AI-ships-in-v1 product decision and a first-run AI-consent flow are still open** — rate-limiting ≠ the full Milestone 2 scope |
+| `react-router-dom` advisory / `npm audit` | ✅ Still clean | Re-ran `npm audit --omit=dev` this session — 0 vulnerabilities, matches doc's existing ✅ |
+
+**Verification run this pass:** `npx tsc --noEmit` (clean), `npx vitest
+run` (112/112), `npx vite build` (succeeds), `npm audit --omit=dev` (0
+vulnerabilities) — web side. `xcodebuild … CODE_SIGNING_ALLOWED=NO
+clean build` (Release, generic iOS) — **BUILD SUCCEEDED**, both before
+and after every native change. `xcodebuild test` on `iPhone Duo` (iOS
+27.2) — **66/66 tests passing, 0 failures**.
+
+**Not attempted this pass, still open:**
+- The live interactive adversarial matrix (real popups, real media
+  prompts, a real on-screen sign-out/sign-in cycle, forcing an actual
+  process-termination via Simulator's memory-warning tooling to confirm
+  the crash-recovery UI) — this session had simulator access that prior
+  sessions didn't, so this is now genuinely actionable in a focused
+  follow-up, not blocked on tooling.
+- P1-3 (multi-account IndexedDB isolation) — still the largest open
+  launch blocker, still correctly deferred, not attempted here (same
+  multi-day-scope reasoning as before).
+- `THIRD_PARTY_NOTICES.md` — still doesn't exist. Not attempted this
+  pass (needs a dependency-by-dependency license audit, real but
+  separate scope from the fixes above).
+- Everything genuinely owner-only: Apple Distribution signing/
+  provisioning, Sign in with Apple vs. Google decision, legal entity
+  details for a privacy policy, Groq data-retention confirmation,
+  export-compliance determination.
 
 ---
 

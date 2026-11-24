@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- Required-reason API declarations. Scoped to what this app's native
+	     layer actually does, not a boilerplate copy of every possible
+	     reason code:
+	     - UserDefaults: SyncStateStore persists per-user sync bookkeeping
+	       (last-synced timestamps, a one-time legacy-key migration) — this
+	       is the app's own data, read back only by itself. Reason C56.1
+	       ("access info from same app, per-user, on-device only").
+	     - File timestamp: standard Swift/Foundation file-coordination
+	       paths (Keychain/IndexedDB-adjacent on-disk state) touch file
+	       modification dates as a side effect of normal file APIs.
+	       Reason C617.1 (display to the user, or pass to a CommonCrypto-
+	       style API, within the app's own on-device files only). -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Data collection. This app reads HealthKit data (weight, body fat,
+	     workouts, sleep, HRV, etc.) and syncs it to the user's own
+	     Supabase account for the dashboard/AI coach to work — collected
+	     for App Functionality, linked to the user's identity (their
+	     account), never used for tracking, never sold or shared with
+	     third parties for advertising. Health data collection must be
+	     declared even though it's the user's own data going to their own
+	     account — Apple's manifest schema has no "self-storage" exemption. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeHealthFitness</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

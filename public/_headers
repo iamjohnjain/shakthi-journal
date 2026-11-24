@@ -1,5 +1,18 @@
 # Cloudflare Pages HTTP headers
 
+# Security headers — applies to every path. Confirmed missing entirely
+# before this (APP_STORE_READINESS.md Milestone 5) — no CSP, HSTS,
+# Referrer-Policy, X-Content-Type-Options, or Permissions-Policy anywhere.
+# Scoped to what this app actually does: self-hosted assets, one Supabase
+# project for data/auth/AI functions, camera/mic for meal-photo/voice
+# features, no external fonts/CDNs/analytics of any kind.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://pvtsskfnbxeohbtwafah.supabase.co wss://pvtsskfnbxeohbtwafah.supabase.co; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+
 # HTML — never cache so deploys are instant
 /*.html
   Cache-Control: no-cache, no-store, must-revalidate

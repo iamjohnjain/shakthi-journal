@@ -43,21 +43,12 @@ struct PermissionsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .padding(.bottom, 20)
 
-                        // WRITE section
-                        sectionLabel("WRITE PERMISSION (FUTURE USE)")
-                        VStack(spacing: 1) {
-                            PermRow(icon: "scalemass",    color: .blue,  label: "Body Weight",       badge: "future")
-                            PermRow(icon: "figure.stand", color: .orange,label: "Body Fat Percentage",badge: "future")
-                            PermRow(icon: "figure.run",   color: .green, label: "Workouts",           badge: "future")
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                        Text("Jeevan will not write to Apple Health yet. Write permission is established now so a future update can log workouts and body measurements without a second permission dialog.")
-                            .font(.caption)
-                            .foregroundStyle(Color(white: 0.4))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, 10)
-                            .padding(.bottom, 28)
+                        // No WRITE section anymore — HealthKitManager no longer requests
+                        // write/share authorization at all (typesToShare is now empty),
+                        // since the app doesn't write to HealthKit yet and Apple review
+                        // guidance disfavors asking for a permission that isn't used. This
+                        // UI used to promise a write request that, as of this fix, is no
+                        // longer actually made — showing it would be inaccurate.
 
                         // Read-only note
                         HStack(spacing: 6) {

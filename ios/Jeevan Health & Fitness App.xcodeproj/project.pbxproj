@@ -29,6 +29,7 @@
 		A1B2C3D4E5F6A1B2C3D4E545 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E546 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E5A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E5A0 /* Assets.xcassets */; };
+		A1B2C3D4E5F6A1B2C3D4E591 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E590 /* PrivacyInfo.xcprivacy */; };
 		A1B2C3D4E5F6A1B2C3D4E610 /* TrustedWebOrigin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E600 /* TrustedWebOrigin.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E611 /* WebNavigationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E601 /* WebNavigationPolicy.swift */; };
 		A1B2C3D4E5F6A1B2C3D4E612 /* BridgeMessageValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A1B2C3D4E602 /* BridgeMessageValidator.swift */; };
@@ -78,6 +79,7 @@
 		A1B2C3D4E5F6A1B2C3D4E528 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E529 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E5A0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A1B2C3D4E590 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E600 /* TrustedWebOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustedWebOrigin.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E601 /* WebNavigationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebNavigationPolicy.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A1B2C3D4E602 /* BridgeMessageValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeMessageValidator.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 				A1B2C3D4E5F6A1B2C3D4E511 /* ShakthiJournalApp.swift */,
 				A1B2C3D4E5F6A1B2C3D4E5F7 /* DeepLinkManager.swift */,
 				A1B2C3D4E5F6A1B2C3D4E5A0 /* Assets.xcassets */,
+				A1B2C3D4E5F6A1B2C3D4E590 /* PrivacyInfo.xcprivacy */,
 				A1B2C3D4E5F6A1B2C3D4E502 /* Auth */,
 				A1B2C3D4E5F6A1B2C3D4E503 /* Config */,
 				A1B2C3D4E5F6A1B2C3D4E504 /* HealthKit */,
@@ -323,6 +326,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D4E5F6A1B2C3D4E5A1 /* Assets.xcassets in Resources */,
+				A1B2C3D4E5F6A1B2C3D4E591 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

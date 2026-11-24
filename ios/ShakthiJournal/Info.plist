@@ -23,14 +23,21 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Jeevan uses your microphone so you can dictate meals, workouts, and messages to your coach instead of typing them.</string>
 
-	<!-- HealthKit read — required, or App Store will reject the binary -->
+	<!-- HealthKit read — required, or App Store will reject the binary.
+	     Rewritten: the previous text claimed this data is "never shared
+	     with anyone," which is false — it syncs to the user's own
+	     Supabase account (their own cloud storage, not a third party) and
+	     photos/descriptions the user submits may be processed by an AI
+	     provider (Groq) to generate estimates. Neither is "sharing" in the
+	     sense a user would reasonably read that sentence, but the literal
+	     claim of zero data leaving the device was inaccurate and is a real
+	     App Review/compliance risk if found. No NSHealthUpdateUsageDescription
+	     key anymore — the app doesn't write to HealthKit yet, and Apple
+	     review guidance disfavors requesting permission for an
+	     unimplemented feature (see HealthKitManager.swift — the matching
+	     typesToShare write-authorization request was removed alongside this). -->
 	<key>NSHealthShareUsageDescription</key>
-	<string>Jeevan reads your health data from Apple Health to sync it to your personal dashboard. Your data is only uploaded to your own account and is never shared with anyone.</string>
-
-	<!-- HealthKit write — permission requested now for future use (Phase iOS 2+).
-	     The app does not write to Apple Health yet. -->
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>A future update will allow Jeevan to log workouts and body measurements back to Apple Health. Write permission is requested now to avoid a second dialog later.</string>
+	<string>Jeevan reads your health data from Apple Health to sync it to your own personal dashboard and power your AI coach's recommendations. It's stored in your own private account and is never sold or shared with advertisers.</string>
 
 	<!-- Google sign-in redirect — caught by ASWebAuthenticationSession, not app URL
 	     handling, but registered here too so the scheme is reserved and documented. -->
@@ -60,9 +67,9 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
