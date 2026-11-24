@@ -486,43 +486,35 @@
 .copy-meal-item:hover { background: var(--bg-card-hover); }
 
 .meal-empty {
+  /* No background/border of its own — .glass-row (globals.css) owns
+     both now, always-on rather than only on hover/active/current.
+     Previously this was fully transparent by default (`background: none`,
+     just a dashed outline), which let AmbientRipple's waves pass behind it
+     completely undampened — exactly what read as "the wave is on the
+     button" rather than behind it. */
   display: flex; align-items: center; gap: 6px;
-  width: 100%; background: none;
-  border: 1.5px dashed var(--border);
+  width: 100%;
   border-radius: 10px; padding: 10px 14px;
   font-size: 13px; color: var(--text-tertiary);
-  cursor: pointer; transition: border-color .15s, color .15s;
+  cursor: pointer; transition: color .15s;
 }
-/* Same gradient ring as the Workouts tab, instead of a flat accent border.
-   Horizontal variant — this row is full-width, where the default diagonal
-   angle reads inconsistently between the top and bottom edges. */
 .meal-empty:hover, .meal-empty:active, .meal-empty--current {
-  border-style: solid;
-  border-color: transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
   color: var(--text-primary);
 }
 
 /* A meal with entries already showing had no way to log a second item in
-   it at all — same dashed-to-gradient-ring treatment as .meal-empty, just
-   sized down a bit to sit under an existing list instead of standing in
-   for it. */
+   it at all — same treatment as .meal-empty, just sized down a bit to sit
+   under an existing list instead of standing in for it. */
 .meal-add-more-btn {
+  /* No background/border of its own — .glass-row owns both. See the
+     matching note on .meal-empty above. */
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  width: 100%; background: none;
-  border: 1.5px dashed var(--border);
+  width: 100%;
   border-radius: 10px; padding: 8px 14px; margin-top: 2px;
   font-size: 12.5px; font-weight: 600; color: var(--text-tertiary);
-  cursor: pointer; transition: border-color .15s, color .15s;
+  cursor: pointer; transition: color .15s;
 }
 .meal-add-more-btn:hover, .meal-add-more-btn:active, .meal-add-more-btn--current {
-  border-style: solid;
-  border-color: transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
   color: var(--text-primary);
 }
 

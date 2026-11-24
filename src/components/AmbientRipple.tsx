@@ -86,6 +86,21 @@ export default function AmbientRipple() {
     }
     window.addEventListener('pointerdown', onPointerDown, { passive: true })
 
+    // Pause entirely when the app isn't visible (backgrounded, screen
+    // locked, switched away from) — there's no reason to keep a canvas
+    // loop running and draining battery for a screen nobody's looking at.
+    let paused = document.visibilityState === 'hidden'
+    function onVisibility() {
+      paused = document.visibilityState === 'hidden'
+      if (!paused) rafRef.current = requestAnimationFrame(frame)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    let lastDraw = 0
+    const FRAME_INTERVAL_MS = 1000 / 30 // capped at 30fps — this is slow
+    // ambient motion, not an action game; nothing here needs 60fps, and
+    // halving the redraw rate roughly halves this component's CPU/GPU cost.
+
     function drawIdle(c: CanvasRenderingContext2D, w: number, h: number, t: number) {
       c.clearRect(0, 0, w, h)
       for (let i = 0; i < BLOBS.length; i++) {
@@ -106,6 +121,13 @@ export default function AmbientRipple() {
     }
 
     function frame(now: number) {
+      if (paused) return // visibilitychange's handler restarts the loop
+      if (now - lastDraw < FRAME_INTERVAL_MS) {
+        rafRef.current = requestAnimationFrame(frame)
+        return
+      }
+      lastDraw = now
+
       drawIdle(ctx!, width, height, now)
       ripplesRef.current = ripplesRef.current.filter(r => now - r.start < RIPPLE_DURATION_MS)
 
@@ -150,6 +172,7 @@ export default function AmbientRipple() {
     return () => {
       window.removeEventListener('resize', resize)
       window.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('visibilitychange', onVisibility)
       cancelAnimationFrame(rafRef.current)
     }
   }, [])

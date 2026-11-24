@@ -1604,7 +1604,7 @@ export default function NutritionPage() {
                     onDelete={() => handleDelete(e.id)} />
                 ))}
                 <button
-                  className={`meal-add-more-btn ${isCurrentMealTime ? 'meal-add-more-btn--current' : ''}`}
+                  className={`meal-add-more-btn glass-row ${isCurrentMealTime ? 'meal-add-more-btn--current' : ''}`}
                   onClick={() => openAdd(id)}
                 >
                   <Plus size={13} /> Add Item
@@ -1612,7 +1612,7 @@ export default function NutritionPage() {
               </div>
             ) : (
               <button
-                className={`meal-empty ${isCurrentMealTime ? 'meal-empty--current' : ''}`}
+                className={`meal-empty glass-row ${isCurrentMealTime ? 'meal-empty--current' : ''}`}
                 onClick={() => openAdd(id)}
               >
                 <Plus size={13} /> Add {mealLabel}

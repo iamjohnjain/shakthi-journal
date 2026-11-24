@@ -25,6 +25,19 @@
   user-select: none;
 }
 
+/* The generic press-glow ring (globals.css) extends 2px OUTSIDE its
+   element's own box by design — that's what made it invisible here: this
+   card's own `overflow: hidden` (needed to clip its internal content)
+   clipped the ring along with it, which is why pressing the card produced
+   the scale-down "squeeze" but no visible ring, unlike the Quick Action
+   buttons next to it. Pulling the ring fully INSIDE the box for this
+   element only (same color/thickness, just not overflowing) keeps it
+   visible without touching the overflow this card actually needs. */
+.goal-ring-card[role="button"]:active::after {
+  inset: 0;
+  padding: 1.5px;
+}
+
 .goal-ring-card:hover {
   background: var(--bg-card-hover);
   border-color: rgba(166, 107, 245, 0.28);

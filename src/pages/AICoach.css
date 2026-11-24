@@ -49,9 +49,17 @@
   content: '';
   position: absolute;
   inset: -20px;
+  /* The bottom glow was anchored at 100% with only 45% height/reach —
+     short enough that on a mostly-empty chat (just the centered prompt,
+     no message history) it faded to flat black well above the input bar,
+     reading as a visible cutoff right where the thread meets
+     .coach-chat-input-wrap. Pushed its anchor past the true edge (115%)
+     and widened its reach so the wash now unambiguously still has
+     presence all the way down through the input bar, regardless of how
+     little content is above it. */
   background: radial-gradient(ellipse 70% 45% at 15% 0%, rgba(251, 138, 76, 0.12) 0%, transparent 60%),
               radial-gradient(ellipse 70% 45% at 85% 10%, rgba(166, 107, 245, 0.09) 0%, transparent 60%),
-              radial-gradient(ellipse 70% 45% at 50% 100%, rgba(91, 127, 255, 0.09) 0%, transparent 60%);
+              radial-gradient(ellipse 100% 75% at 50% 115%, rgba(91, 127, 255, 0.1) 0%, transparent 65%);
   background-size: 160% 160%;
   animation: coach-aurora 18s ease-in-out infinite;
   pointer-events: none;
