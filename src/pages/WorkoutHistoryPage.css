@@ -177,7 +177,7 @@
      so it reads as one continuous sweep left-to-right. */
   background: var(--gradient-brand-wide);
   color: #fff;
-  border-color: transparent;
+  border: none;
 }
 .wkh-detail-btn--primary:hover { opacity: .88; }
 

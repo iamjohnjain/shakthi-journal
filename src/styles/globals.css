@@ -165,6 +165,18 @@ button {
   outline: none;
   background: none;
   -webkit-tap-highlight-color: transparent;
+  /* Without this, iOS Safari/WKWebView can still paint its own native
+     button chrome (a faint system bezel/highlight) UNDERNEATH whatever
+     custom background a component sets — invisible in desktop devtools,
+     which don't reproduce it, but real on an actual iPhone. On a gradient-
+     filled button this shows up as a thin, differently-colored sliver
+     right at the rounded edges where the native chrome peeks out from
+     under the custom fill — exactly the "edges aren't filled in
+     correctly" reports, which no amount of fixing the gradient itself
+     could have addressed since the gradient was never the actual
+     problem. */
+  -webkit-appearance: none;
+  appearance: none;
   /* A default fallback only — any component with its own border-radius
      overrides this via normal cascade order. Exists purely so the press-
      glow below (a box-shadow, which always follows its own element's
