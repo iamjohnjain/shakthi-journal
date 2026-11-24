@@ -58,7 +58,7 @@ export default function MuscleHeatmapSection() {
 
 
   return (
-    <section className="muscle-heatmap">
+    <section className="muscle-heatmap glass-surface">
       <div className="mh-mode-toggle">
         {(['day', 'week', 'range'] as Mode[]).map(m => (
           <button key={m} className={`mh-mode-btn ${mode === m ? 'mh-mode-btn--on' : ''}`} onClick={() => setMode(m)}>

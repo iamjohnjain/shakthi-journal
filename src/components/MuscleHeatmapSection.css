@@ -1,6 +1,7 @@
 .muscle-heatmap {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  /* No background/border of its own — .glass-surface (globals.css) owns
+     both, so its translucent tint and top specular highlight aren't
+     cancelled out by a second opaque background/full border here. */
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 24px;

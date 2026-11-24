@@ -1532,7 +1532,7 @@ export default function NutritionPage() {
 
       {/* Calorie trend — only once there's enough history to be worth a chart */}
       {calorieHistory.some(p => p.value > 0) && (
-        <div className="nutrition-trend-card">
+        <div className="nutrition-trend-card glass-surface">
           <h2 className="nutrition-trend-title">Calories</h2>
           <TrendChart
             data={calorieHistory}

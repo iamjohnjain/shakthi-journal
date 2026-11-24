@@ -62,7 +62,7 @@ function SyncRow({ entry }: { entry: SyncEntry }) {
     entry.dataMode === 'imported' ? 'imported' : 'mock'
 
   return (
-    <div className={`sync-row ${entry.status === 'failed' ? 'sync-row--failed' : ''}`}>
+    <div className={`sync-row glass-row ${entry.status === 'failed' ? 'sync-row--failed' : ''}`}>
       <div className="sync-row-main" onClick={() => setExpanded(v => !v)}>
         {/* Source */}
         <div className="sync-col sync-col--source">

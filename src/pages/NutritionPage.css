@@ -187,7 +187,10 @@
 
 /* ─── Calorie trend ───────────────────────────────────────────── */
 .nutrition-trend-card {
-  background: var(--bg-secondary); border: 1px solid var(--border);
+  /* No background/border of its own — .glass-surface (globals.css) owns
+     both, since a second opaque background and full border here would
+     cancel the glass treatment (its translucent tint and top-only
+     specular highlight) rather than layering with it. */
   border-radius: 16px; padding: 18px 18px 8px; margin-bottom: 16px;
 }
 

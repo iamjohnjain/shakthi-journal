@@ -279,7 +279,7 @@ export default function WorkoutHistoryPage() {
                 {workouts.map(w => {
                   const regions = trainedRegions(w)
                   return (
-                    <button key={w.id} className="workout-history-card" onClick={() => setSelectedWorkout(w)}>
+                    <button key={w.id} className="workout-history-card glass-row" onClick={() => setSelectedWorkout(w)}>
                       <span className="workout-history-emoji">{workoutEmoji(w)}</span>
                       <div className="workout-history-info">
                         <span className="workout-history-name">{w.title || workoutTypeLabel(w)}</span>

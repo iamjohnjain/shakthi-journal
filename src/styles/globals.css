@@ -4,6 +4,21 @@
   padding: 0;
 }
 
+/* Registered (not just declared) so the browser smoothly TWEENS between
+   keyframe values instead of jumping discretely — a plain custom property
+   has no defined interpolation, so without this the ambient background
+   drift below would snap between positions rather than glide. */
+@property --bg-shift-x {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
+@property --bg-shift-y {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
+
 :root {
   /* Backgrounds — a warm-charcoal base (not flat navy/black) so the app has
      its own temperature instead of reading as generic dark-mode-tool gray.
@@ -12,11 +27,20 @@
      of an energetic mode and a quiet recovery mode) — 2026's "soft gradient"
      treatment: used as ambient lighting, not a loud decorative blend. */
   --bg: #0B0A0E;
+  /* Each ellipse's center is offset by --bg-shift-x/y, which the `bgDrift`
+     keyframe below animates slowly — registered via @property so the
+     browser actually interpolates between values smoothly (a plain custom
+     property jumps discretely at each keyframe instead of tweening). Each
+     gradient mixes the two shift axes with different signs so the blobs
+     drift somewhat independently of each other rather than translating as
+     one rigid block — reads as organic ambient motion, not a pan. */
+  --bg-shift-x: 0%;
+  --bg-shift-y: 0%;
   --bg-gradient:
-    radial-gradient(ellipse 120% 55% at 12% -8%,  rgba(251, 138, 76, 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse 120% 65% at 92% -4%,  rgba(91, 127, 255, 0.24) 0%, transparent 55%),
-    radial-gradient(ellipse 90% 50% at 50% 38%,   rgba(166, 107, 245, 0.11) 0%, transparent 60%),
-    radial-gradient(ellipse 100% 55% at 50% 105%, rgba(45, 212, 191, 0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 120% 55% at calc(12% + var(--bg-shift-x)) calc(-8% + var(--bg-shift-y)),  rgba(251, 138, 76, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 65% at calc(92% - var(--bg-shift-x)) calc(-4% - var(--bg-shift-y)),  rgba(91, 127, 255, 0.24) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 50% at calc(50% + var(--bg-shift-y)) calc(38% - var(--bg-shift-x)),   rgba(166, 107, 245, 0.11) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 55% at calc(50% - var(--bg-shift-y)) calc(105% + var(--bg-shift-x)), rgba(45, 212, 191, 0.13) 0%, transparent 60%),
     linear-gradient(180deg, #181220 0%, #0E0C13 45%, #06050A 100%);
   --bg-elevated: #15121A;
   --bg-card: rgba(255, 248, 242, 0.05);
@@ -131,6 +155,17 @@ html, body, #root {
    element is both simpler and more reliable. */
 html {
   background: var(--bg-gradient);
+  /* Slow, barely-perceptible ambient drift — "living," not "animated." A
+     long duration (70s) and `ease-in-out` keep the motion well below the
+     threshold where it reads as busy or distracting on a screen that's
+     open all day. Disabled under prefers-reduced-motion below. */
+  animation: bgDrift 70s ease-in-out infinite alternate;
+}
+
+@keyframes bgDrift {
+  0%   { --bg-shift-x: -4%; --bg-shift-y: -3%; }
+  50%  { --bg-shift-x: 4%;  --bg-shift-y: 3%; }
+  100% { --bg-shift-x: -4%; --bg-shift-y: -3%; }
 }
 
 body {
@@ -263,6 +298,98 @@ a {
 /* Suppress ring on mouse click (shown on keyboard nav only) */
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ─── Glass surfaces ──────────────────────────────────────────────────────────
+   Shared treatment for graphs/tables: the body's ambient gradient drifts
+   behind these, so a card over it should read as glass the moving color
+   passes THROUGH — not a flat tint. Three layers do that:
+   1. backdrop-filter blurs + bends whatever's behind (feDisplacementMap via
+      #glass-bend, defined once in index.html) — real distortion, not just
+      blur, so the gradient's lines visibly warp passing under the card.
+      Feature-detected: browsers that choke on a url()-filter inside
+      backdrop-filter invalidate the WHOLE property, so the bent version
+      only applies where @supports confirms it works; everything else still
+      gets the plain blur+saturate glass look, just without the bend.
+   2. A ::before sweep with its own gradient, animated on its own timer
+      (22s, opposite direction from the body's 70s bgDrift) and blended via
+      mix-blend-mode — this is the "color moves differently" part: the
+      glass's own tint visibly drifts at a different speed/direction than
+      the blurred body color showing through it, instead of both moving
+      together as one layer.
+   3. A 1px top specular highlight, the same trick used on this app's
+      gradient-ring borders — the thing that reads as "glass" rather than
+      "blurred panel." */
+.glass-surface {
+  position: relative;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  isolation: isolate;
+  overflow: hidden;
+}
+@supports (backdrop-filter: blur(1px) url(#a)) or (-webkit-backdrop-filter: blur(1px) url(#a)) {
+  .glass-surface {
+    backdrop-filter: blur(20px) saturate(1.5) url(#glass-bend);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5) url(#glass-bend);
+  }
+}
+.glass-surface::before {
+  content: '';
+  position: absolute;
+  inset: -40% -10%;
+  background: linear-gradient(115deg,
+    rgba(251, 138, 76, 0.16) 0%,
+    rgba(166, 107, 245, 0.14) 45%,
+    rgba(91, 127, 255, 0.16) 75%,
+    transparent 100%);
+  background-size: 220% 220%;
+  mix-blend-mode: overlay;
+  animation: glassSweep 22s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+.glass-surface > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes glassSweep {
+  0%   { background-position: 15% 85%; }
+  100% { background-position: 85% 15%; }
+}
+
+/* Table rows — same moving-tint idea as .glass-surface, minus the
+   backdrop-filter blur/bend. Those are repeated many times per page (every
+   sync log entry, every workout history row), and backdrop-filter is one
+   of the most expensive CSS effects to run on one element, let alone
+   dozens at once — the blur is dropped here so the "glass" feel scales to
+   a long list without the frame-rate cost, while the independently
+   animated color sweep (the cheap part, a composited gradient tween) is
+   kept so these still read as part of the same glass language. */
+.glass-row {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.glass-row::before {
+  content: '';
+  position: absolute;
+  inset: -60% -20%;
+  background: linear-gradient(115deg,
+    rgba(251, 138, 76, 0.1) 0%,
+    rgba(166, 107, 245, 0.09) 45%,
+    rgba(91, 127, 255, 0.1) 75%,
+    transparent 100%);
+  background-size: 220% 220%;
+  mix-blend-mode: overlay;
+  animation: glassSweep 26s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+.glass-row > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ─── Reduced motion ──────────────────────────────────────────────────────── */
