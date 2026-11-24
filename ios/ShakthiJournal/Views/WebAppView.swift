@@ -50,6 +50,20 @@ struct WebAppView: UIViewRepresentable {
     /// still awaiting a network round-trip.
     var isValidSession: ((String, Int) -> Bool)?
 
+    /// Every load of the trusted web origin goes through this, instead of a
+    /// bare `URLRequest(url:)` — the default `.useProtocolCachePolicy` can
+    /// still serve a WKWebView-cached copy of index.html/the JS bundle
+    /// across app relaunches even when the server's own Cache-Control says
+    /// not to, which is exactly what made a fresh build-and-run from Xcode
+    /// keep showing an old version of the web app. This app is explicitly
+    /// architected to always run whatever is currently deployed at
+    /// TrustedWebOrigin.production (see this file's header) — there's no
+    /// scenario where reusing a stale local cache is the right behavior
+    /// here, so every load forces a real network fetch.
+    static func freshRequest(_ url: URL) -> URLRequest {
+        URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onMessage: onMessage,
@@ -75,7 +89,7 @@ struct WebAppView: UIViewRepresentable {
         wv.allowsBackForwardNavigationGestures = true
         wv.scrollView.contentInsetAdjustmentBehavior = .never
         wv.scrollView.bounces = false
-        wv.load(URLRequest(url: TrustedWebOrigin.productionURL))
+        wv.load(WebAppView.freshRequest(TrustedWebOrigin.productionURL))
         return wv
     }
 
@@ -90,7 +104,7 @@ struct WebAppView: UIViewRepresentable {
 
         if let path = pendingPath?.wrappedValue {
             if let target = DeepLinkValidator.resolve(path) {
-                wv.load(URLRequest(url: target))
+                wv.load(WebAppView.freshRequest(target))
             }
             // Whether or not it resolved, consume it — an invalid deep link
             // should not keep re-attempting on every re-render.
@@ -117,7 +131,7 @@ struct WebAppView: UIViewRepresentable {
     /// Retries by loading only the trusted root — never whatever the
     /// WebView's current (possibly blocked/failed) URL happens to be.
     static func retry(_ wv: WKWebView) {
-        wv.load(URLRequest(url: TrustedWebOrigin.productionURL))
+        wv.load(WebAppView.freshRequest(TrustedWebOrigin.productionURL))
     }
 
     // MARK: - Session injection
@@ -419,7 +433,7 @@ struct WebAppView: UIViewRepresentable {
             case .allow:
                 // Trusted-origin popup target — load it in the existing
                 // privileged view instead of spawning a second one.
-                webView.load(URLRequest(url: url))
+                webView.load(WebAppView.freshRequest(url))
             case .openExternally:
                 UIApplication.shared.open(url)
             case .block, .deny:
