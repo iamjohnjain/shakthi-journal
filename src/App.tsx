@@ -31,14 +31,12 @@ import OnboardingPage from './pages/OnboardingPage'
 import SyncTestPage from './pages/SyncTestPage'
 import NotFound from './pages/NotFound'
 import ErrorBoundary from './components/ErrorBoundary'
-import AmbientRipple from './components/AmbientRipple'
 
 import './styles/globals.css'
 
 export default function App() {
   return (
     <ErrorBoundary>
-    <AmbientRipple />
     <BrowserRouter>
       <AuthProvider>
         <MergeDialog />

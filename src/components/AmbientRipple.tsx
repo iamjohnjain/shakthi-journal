@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 
 // Same four hues as --bg-gradient's radial blobs (globals.css) — ripples are
 // drawn from the same palette so they read as the ambient background itself
@@ -22,15 +21,26 @@ interface Ripple {
   color: string
 }
 
-/** Full-viewport canvas, fixed behind the entire app (portaled to a sibling
-    of #root, z-index -1), that draws an expanding, fading ring wherever the
-    user last touched — this is the actual "background reacts to touch"
-    effect; the slow ambient drift in globals.css (--bg-gradient) is the
-    resting state this layers on top of. Listens at the window level so a
-    touch anywhere — including on a button or card sitting above this
-    canvas — still spawns a ripple; `pointer-events: none` on the canvas
-    itself means it never intercepts or blocks that touch from reaching
-    whatever's actually underneath the finger. */
+/** Full-size canvas drawing an expanding, fading ring wherever the user last
+    touched — the actual "background reacts to touch" effect; the slow
+    ambient drift in globals.css (--bg-gradient) is the resting state this
+    layers on top of.
+
+    Rendered as the FIRST child of `.app-shell` (see Layout.tsx), not
+    portaled behind the whole document — `.app-shell` paints its own
+    opaque copy of --bg-gradient directly (Layout.css; deliberately, to
+    work around a WebKit `background-attachment: fixed` repaint bug), which
+    sits in front of <html>'s own background on every real app page. A
+    canvas positioned behind the entire document was therefore invisible
+    on any page using this layout; living inside `.app-shell` instead,
+    above its background but below `.page-content`, actually puts it where
+    a user can see it.
+
+    Listens at the window level so a touch anywhere — including on a
+    button or card sitting above this canvas — still spawns a ripple;
+    `pointer-events: none` on the canvas itself means it never intercepts
+    or blocks that touch from reaching whatever's actually underneath the
+    finger. */
 export default function AmbientRipple() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ripplesRef = useRef<Ripple[]>([])
@@ -113,19 +123,18 @@ export default function AmbientRipple() {
     }
   }, [])
 
-  return createPortal(
+  return (
     <canvas
       ref={canvasRef}
       aria-hidden="true"
       style={{
-        position: 'fixed',
+        position: 'absolute',
         inset: 0,
-        width: '100vw',
-        height: '100vh',
+        width: '100%',
+        height: '100%',
         pointerEvents: 'none',
-        zIndex: -1,
+        zIndex: 0,
       }}
-    />,
-    document.body
+    />
   )
 }

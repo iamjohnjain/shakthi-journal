@@ -7,6 +7,7 @@ import BottomNav from './BottomNav'
 import Toast from '../components/Toast'
 import WeeklyWrapBanner from '../components/WeeklyWrapBanner'
 import WeeklyWrapCard from '../components/WeeklyWrapCard'
+import AmbientRipple from '../components/AmbientRipple'
 import './Layout.css'
 
 export default function Layout() {
@@ -23,6 +24,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
+      <AmbientRipple />
       <Sidebar />
       <main className="page-content">
         {/* Keying on pathname forces a fresh mount per route, so every
