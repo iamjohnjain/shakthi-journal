@@ -167,11 +167,9 @@ export default function Settings() {
       <SettingsSection title="About">
         <SettingsRow label="App name" value="Jeevan" />
         <SettingsRow label="Version"  value={`v${appVersion}`} />
-        <SettingsRow
-          label="Body Model Credit"
-          description="Muscle heatmap's 3D model: Z-Anatomy / BodyParts3D — CC BY-SA 4.0"
-          onClick={() => window.open('https://creativecommons.org/licenses/by-sa/4.0/', '_blank', 'noopener')}
-        />
+        <div className="settings-privacy-note">
+          Muscle heatmap's 3D model: Z-Anatomy / BodyParts3D — CC BY-SA 4.0
+        </div>
       </SettingsSection>
 
       {/* ── Run Setup Again confirmation ── */}
