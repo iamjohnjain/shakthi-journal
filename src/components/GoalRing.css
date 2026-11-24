@@ -4,6 +4,15 @@
   position: relative;
   overflow: hidden;
   background: var(--bg-card);
+  /* Blurs/saturates whatever's behind (the ambient ripple canvas + drifting
+     gradient) so the card reads as glass the light passes through, rather
+     than a flat tint — added directly here (not the shared .glass-surface
+     class) since this card already manages its own position/overflow and
+     several absolutely-positioned children (nav arrows, dots), and
+     swapping in a utility class with its own z-index-layering rules risked
+     fighting that existing layout rather than just adding the glass look. */
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border: 1px solid rgba(166, 107, 245, 0.16);
   border-radius: var(--r-xl);
   padding: 20px 20px 14px;
