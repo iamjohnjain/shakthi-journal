@@ -43,7 +43,10 @@ struct MainTabView: View {
             .sheet(isPresented: $showHealthSync) {
                 DashboardView()
             }
-            .preferredColorScheme(.dark)
+            // No forced color scheme here: the WebView reports the iPhone's
+            // light/dark setting as `prefers-color-scheme`, so the web app's
+            // Appearance → Auto follows the system. (The native-only sheets
+            // like DashboardView still pin themselves to dark.)
             .task { await runPendingAuthCleanupCheck() }
             .onChange(of: authCleanupState) { _, newValue in
                 if newValue == .ready { autoSync() }
