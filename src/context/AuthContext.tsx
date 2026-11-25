@@ -5,7 +5,7 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured, assertProviderEnabled } from '../lib/supabase'
 import { syncEngine } from '../db/syncEngine'
 import { clearQueueForUser } from '../db/syncQueue'
-import { getSetting, setSetting, getDB } from '../db'
+import { getSetting, setSetting, getDB, setActiveDbIdentity } from '../db'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +145,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const activateSession = useCallback(async (s: Session) => {
     const authUser = toAuthUser(s.user)
 
+    // Switch to this account's own isolated database FIRST, before anything
+    // else touches IndexedDB — every call below (getLocalDataSummary,
+    // getSetting, syncEngine operations) must see this account's data, not
+    // whatever was previously active (guest, or a different account on a
+    // shared device that never fully signed out).
+    await setActiveDbIdentity(authUser.id)
+
     // Check for existing local data that wasn't previously synced
     const savedUserId = await getSetting<string | null>('syncedUserId', null)
     const localData = await getLocalDataSummary()
@@ -185,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
+      void setActiveDbIdentity(null)
       setMode('guest')
       syncEngine.markLocalOnly()
       return
@@ -199,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // No active session → guest mode (existing local data is preserved)
+      await setActiveDbIdentity(null)
       setMode('guest')
     }
 
@@ -224,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
         }
       } else {
+        await setActiveDbIdentity(null)
         setSession(null)
         setUser(null)
         setMode('guest')
@@ -306,6 +316,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     syncEngine.setUser(null)
 
+    // Switch the active database back to guest BEFORE writing the
+    // auth.mode/syncedUserId settings below — otherwise those writes would
+    // land in the outgoing account's own (now-closing) database instead of
+    // the guest database, and the next account to sign in on this device
+    // would still see this account's handle briefly reachable.
+    try {
+      await withTimeout(() => setActiveDbIdentity(null), 3000)
+    } catch {
+      // Best-effort/bounded — if this hangs, getDB()'s own safety-net
+      // timeout still resolves the identity gate shortly after.
+    }
+
     try {
       await withTimeout(() => setSetting('auth.mode', 'guest'), 2000)
     } catch {
@@ -337,8 +359,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   const continueAsGuest = useCallback(() => {
-    setSetting('auth.mode', 'guest')
-    setSetting('auth.choiceMade', true)
+    void setActiveDbIdentity(null).then(() => {
+      setSetting('auth.mode', 'guest')
+      setSetting('auth.choiceMade', true)
+    })
     setMode('guest')
   }, [])
 

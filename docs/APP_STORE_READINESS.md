@@ -1,9 +1,9 @@
 # Jeevan — App Store Readiness (Living Document)
 
 **Status as of this entry: NOT READY** (real progress this session — see
-"Remediation — Full Re-Audit Pass" near the top of the relevant milestones
-below — but P1-3 multi-account IndexedDB isolation, the live adversarial
-matrix, Apple Distribution signing, and all owner-only items remain open).
+"P1-3 Remediation — Dedicated Session" below, which closes multi-account
+IndexedDB isolation — but the live adversarial matrix, Apple Distribution
+signing, and all owner-only items remain open).
 
 This document tracks every requirement in the App Store submission program.
 It is updated at the end of each work session. Do not treat any requirement
@@ -787,7 +787,7 @@ handoff below.
 |---|---|---|---|
 | P1-1 | Ephemeral cleanup fallback navigated to the REAL production URL, giving the live app a window to read the old session before cleanup removed it | ✅ Fixed | `runEphemeralCleanup()` now loads a static, same-origin, zero-script HTML string via `loadHTMLString` — never a real navigation, never real app code. `ephemeralCleanupRunCount` added as an observable test hook. `test_p1_ephemeralFallback_removesAuthKeyFromRealPersistentStoreWithoutRunningProductionCode` seeds a session in one WebView, forces the fallback path, and reads the SAME real persistent partition back to prove the auth key is gone while sentinel IndexedDB + an unrelated localStorage key survive |
 | P1-2 | `sessionRefreshed` concurrently verified the access token and exchanged the refresh token in a disposable `WebAppView.Coordinator`, which could be torn down mid-flight after the exchange already reached Supabase | ✅ Fixed (with one documented residual gap) | Reconciliation moved entirely into `AuthManager.reconcileWebRefreshedSession` (outlives every WebView). Access token verified FIRST; refresh token only exchanged after that succeeds and the live session still matches. Keychain `save()` results are now checked, failing closed on partial writes. `refreshTask`/`webRefreshTask` are scoped to `(userId, epoch)` so they never coalesce across sessions. An injectable `SupabaseSessionExchanging` seam (`LiveSupabaseSessionExchanger` / `MockSupabaseSessionExchanger`) makes this genuinely testable without network. **Residual gap, by design, documented in code and here:** if the exchange rotates the token but a DIFFERENT account is live by the time it returns, the rotated token is discarded rather than overwriting that account's Keychain — the original account's session is not resurrected in that specific case. Avoiding that fully needs per-account Keychain storage, out of scope for this pass |
-| P1-3 | The global `jeevan` IndexedDB database (18 stores) is not partitioned by user at all; the merge-preflight check only covers 6 of them | ❌ **Not implemented this pass — explicitly deferred, not silently dropped.** See the dedicated note below | `hasSignificantLocalData`'s existing bug (see item 8 below) was fixed, narrowing but not closing the gap |
+| P1-3 | The global `jeevan` IndexedDB database (18 stores) is not partitioned by user at all; the merge-preflight check only covers 6 of them | ❌ Not implemented this pass — deferred (see dedicated note below). **✅ Closed in a later dedicated session — see "P1-3 Remediation — Dedicated Session" further down this document** | `hasSignificantLocalData`'s existing bug (see item 8 below) was fixed, narrowing but not closing the gap. Full closure evidence (per-database isolation, 4 new cross-account tests) is in the dedicated section below, not here, to preserve this pass's own historical record |
 | P1/P2-4 | HealthKit sync wasn't session-bound: untracked `Task`s in `MainTabView`/`DashboardView`, a single global `SyncState` UserDefaults key shared by every account | ✅ Fixed | `SyncEngine.startSync(...)` is now the one entry point; it owns the resulting `Task` (`activeSyncTask`), cancelled via a `jeevanSessionWillTerminate` notification `AuthManager.terminateSession()` posts. `SyncState` is now persisted per-user (`SyncStateStore.load(userId:)`/`save(_:userId:)`) with a one-time migration of the legacy global key to whichever user loads first — never silently to a later, different user. `upload(...)` re-checks the live session after a token refresh, before retrying, so a freshly-refreshed token for account A can never retry a request for an account that's no longer live. **Not automated this pass** — no mocked HealthKit/network layer exists for `SyncEngine`; this is code-reviewed, not tested, exactly as stated in the Manual Adversarial Matrix above |
 | P2-5 | Web sign-out notified native over the bridge BEFORE local in-memory/settings cleanup finished, and had no bounded timeouts | ✅ Fixed | `AuthContext.tsx`'s `signOut()` reordered: `clearQueueForUser`/`supabase.auth.signOut()`/both `setSetting` calls now each race a `withTimeout` (2-3s) so a hung call can't block forever; the native bridge `signOut` postMessage is sent LAST, strictly after `setSession(null)`/`setUser(null)`/`setMode('guest')` have already run. `withTimeout` is unit-tested directly (resolves-before-deadline, rejects-on-timeout via fake timers, propagates-a-rejection-immediately) — the full `signOut()` ordering itself is not end-to-end tested (no `@testing-library/react` in this project to render the provider) |
 
@@ -866,3 +866,141 @@ on-screen multi-identity sign-out/sign-in cycle, a real
 HealthKit-sync-in-flight account switch) has still not happened. Do not
 advance this milestone to COMPLETE until P1-3 is actually closed AND
 that live pass runs and is documented.
+
+---
+
+## P1-3 Remediation — Dedicated Session (this session)
+
+Taken on as its own dedicated scope per the plan sketched above: a
+`jeevan_<userId>` database per signed-in account, the existing unscoped
+`jeevan` database's data migrated ONLY to the first account that signs
+in after this ships, and the cross-account isolation tests the earlier
+pass specified as a precondition for calling this closed.
+
+### What changed
+
+**`src/db/index.ts`** — the physical database name is now a function of
+the signed-in identity, not a constant:
+- `dbNameFor(identity)` returns `jeevan_<sanitizedUserId>` for a signed-in
+  account, or the original unscoped `jeevan` for guest mode (`null`) —
+  guest behavior is byte-for-byte unchanged from before this pass.
+- `setActiveDbIdentity(identity: string | null)` is the new integration
+  point. It closes the previously-active database handle, runs the
+  one-time legacy migration if this is the first account ever to sign in
+  post-upgrade, and opens the correct named database. Closing the old
+  handle first (not just swapping which name new calls use) is what
+  makes "account switch" actually atomic — a slow consumer holding a
+  stale reference to the old handle gets a rejected operation, not a
+  silent cross-account write.
+- `getDB()` — called fresh on every single read/write across all 18
+  store modules already (confirmed by re-reading `syncEngine.ts` and
+  `syncQueue.ts` in full before writing this) — now awaits an
+  "identity is known" gate before resolving. This is the mechanism that
+  makes the fix apply everywhere with **zero changes to any of the 18
+  store modules or their consumers**: every existing `const db = await
+  getDB()` call site automatically waits for and receives the correct
+  account's database, because `getDB()` itself now blocks on that
+  resolution. A 4-second safety-net timeout resolves the gate to guest
+  if nothing calls `setActiveDbIdentity` in time, so a stuck/slow auth
+  check can never hang every IndexedDB read in the app indefinitely.
+- `migrateLegacyToFirstAccount(identity)` — copies every record from the
+  legacy unscoped `jeevan` database into the first account's new
+  `jeevan_<userId>` database, exactly once, tracked via a `localStorage`
+  flag (`jeevan.perUserMigrationDone`) rather than a setting inside any
+  one IndexedDB database, since the check has to run before it's known
+  which database (if any) is even being opened. Every account after
+  that first one starts with a clean, empty database — correct, since
+  they never had the unscoped data to begin with.
+
+**`src/context/AuthContext.tsx`** — `setActiveDbIdentity` is now called
+at every point the signed-in identity can change, always BEFORE any
+other IndexedDB access for that transition:
+- `activateSession` — first line, before `getLocalDataSummary()` or any
+  `getSetting` call, so the existing merge-preflight logic (`savedUserId`
+  vs. `authUser.id`, `hasSignificantLocalData`) now runs against the
+  correct account's own database rather than whatever was previously
+  active. That merge-preflight logic itself needed **no changes** — it
+  becomes correct automatically once the underlying database is actually
+  scoped to the account being checked.
+- The init effect's not-configured branch, its no-session branch, and
+  `onAuthStateChange`'s null-session branch — each now calls
+  `setActiveDbIdentity(null)` before entering guest mode.
+- `continueAsGuest()` — switches to the guest database before writing
+  `auth.mode`/`auth.choiceMade`.
+- `signOut()` — switches to the guest database immediately after
+  `clearQueueForUser(user.id)` (which must still run against the
+  outgoing account's own database) and before the `auth.mode`/
+  `syncedUserId` setting writes, so those writes land in the guest
+  database rather than the account that's being signed out of.
+
+### Cross-account isolation tests
+
+`fake-indexeddb` added as a dev dependency (not previously installed;
+the existing 112 tests never touched real IndexedDB at all) specifically
+to make this testable. New file `src/db/index.test.ts`, 4 tests:
+
+1. **Two accounts cannot see each other's records** — account A writes a
+   `workouts` row, switches to B, confirms B's `getDB()` returns no such
+   row; B writes its own row; switching back to A confirms A still sees
+   only its own row, not B's.
+2. **Guest mode stays on the original unscoped database, untouched by
+   any account** — writes a `daily_logs` row as guest, switches to an
+   account and confirms it's invisible there, switches back to guest and
+   confirms the row is still intact.
+3. **Legacy migration reaches only the first post-upgrade account** —
+   seeds data in the legacy unscoped database, confirms the first
+   account to sign in inherits it, confirms a second account afterward
+   does NOT also inherit it.
+4. **Switching identity closes the previous handle** — after switching
+   away from an account, a further write attempt on the stale handle
+   rejects rather than silently succeeding against the database it used
+   to point at.
+
+All 4 pass. Full suite: **116/116 passing** (112 existing + 4 new).
+`npx tsc --noEmit` — clean. `npx vite build` — succeeds, no new
+warnings beyond the pre-existing chunk-size notice.
+
+### Residual gaps — stated honestly, not closed over
+
+- **Not a live, interactive, multi-tab test.** These are unit tests
+  against `fake-indexeddb`, not a real browser with two tabs open on two
+  accounts simultaneously. IndexedDB's own cross-tab behavior (a
+  `versionchange` event firing in a second tab when a first tab's
+  `openDB` call bumps/changes what's open) was not exercised. The design
+  does mean a second tab calling `getDB()` fresh will route to whatever
+  database name the module-level `_activeDbName` in ITS OWN JS context
+  currently holds — tabs do not share in-memory module state, so a tab
+  that hasn't yet run its own `setActiveDbIdentity` call for a given
+  sign-in will not retroactively see another tab's switch. This is a
+  real limitation worth a dedicated multi-tab session if multi-tab usage
+  on the same device becomes a supported scenario; it is not covered by
+  "build it out" as scoped here, which was about per-account data
+  isolation, not cross-tab session synchronization.
+- **`settings` store keys `syncedUserId`/`auth.mode` are now vestigial
+  in the signed-in case.** Once each account has its own database, every
+  setting stored in that database is implicitly "this account's own" —
+  `syncedUserId` recording which account a given database belongs to is
+  no longer load-bearing for isolation (the database name itself is the
+  isolation boundary now), but it was left in place rather than removed:
+  `activateSession`'s `isSameUser` check still reads it, and removing it
+  would be a separate, unnecessary-for-this-task cleanup with its own
+  risk of subtly changing first-sign-in-after-migration behavior.
+  Flagging as known-vestigial-but-harmless rather than silently leaving
+  it undocumented.
+- **No migration path for an account's data if `jeevan_<userId>` naming
+  ever needs to change** (e.g. a future switch to a different identity
+  scheme). Not a concern today — Supabase UUIDs are stable — but worth
+  noting for whoever touches this next.
+- **The live adversarial matrix pass** (real popups, real on-screen
+  sign-out/sign-in cycle between two real accounts, a real
+  HealthKit-sync-in-flight account switch on device) still has not run.
+  This pass closes the data-isolation design-and-test gap specifically;
+  it is not a substitute for that interactive pass.
+
+### Status
+
+**P1-3 is now ✅ closed** under the scope defined above (per-database
+isolation + the specified cross-account tests). The milestone as a whole
+remains **PARTIAL, not COMPLETE** — the live adversarial matrix pass
+and Apple Distribution signing/owner-only items are still open. Do not
+advance this milestone to COMPLETE until those run and are documented.
