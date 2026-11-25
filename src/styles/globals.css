@@ -43,8 +43,11 @@
     radial-gradient(ellipse 100% 55% at calc(50% - var(--bg-shift-y)) calc(105% + var(--bg-shift-x)), rgba(45, 212, 191, 0.13) 0%, transparent 60%),
     linear-gradient(180deg, #181220 0%, #0E0C13 45%, #06050A 100%);
   --bg-elevated: #15121A;
-  --bg-card: rgba(255, 248, 242, 0.05);
-  --bg-card-hover: rgba(255, 248, 242, 0.085);
+  /* Cards/tables: the same near-black as the meals calendar and tracker
+     (--bg-secondary), slightly translucent so the ambient glow still reads
+     at the edges. One value for every card in the app. */
+  --bg-card: rgba(21, 18, 26, 0.92);
+  --bg-card-hover: rgba(30, 26, 37, 0.94);
   --bg-sidebar: rgba(17, 15, 21, 0.92);
 
   /* Borders */
@@ -416,12 +419,12 @@ a {
       panel," read. */
 .glass-surface {
   position: relative;
-  background: rgba(255, 248, 242, 0.1);
+  background: var(--bg-card);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border: 1px solid transparent;
   background-image:
-    linear-gradient(rgba(255, 248, 242, 0.1), rgba(255, 248, 242, 0.1)),
+    linear-gradient(var(--bg-card), var(--bg-card)),
     linear-gradient(var(--gradient-brand-wide));
   background-origin: border-box;
   background-clip: padding-box, border-box;
@@ -463,10 +466,10 @@ a {
    subtle here instead of blurring it. */
 .glass-row {
   position: relative;
-  background: rgba(255, 248, 242, 0.08);
+  background: var(--bg-card);
   border: 1px solid transparent;
   background-image:
-    linear-gradient(rgba(255, 248, 242, 0.08), rgba(255, 248, 242, 0.08)),
+    linear-gradient(var(--bg-card), var(--bg-card)),
     linear-gradient(var(--gradient-brand-wide));
   background-origin: border-box;
   background-clip: padding-box, border-box;

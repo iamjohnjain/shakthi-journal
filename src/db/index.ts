@@ -814,10 +814,21 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
+// Settings that describe the account (not this device) — synced to the
+// cloud so a new device signs straight into the same setup and goals.
+const ACCOUNT_SETTINGS = new Set([
+  'onboarding.completed', 'onboarding.goals', 'nutrition-goals', 'nutrition.targets',
+])
+
 export async function setSetting(key: string, value: unknown): Promise<void> {
   try {
     const db = await getDB()
-    await db.put('settings', { key, value, updatedAt: new Date().toISOString() })
+    const row = { key, value, updatedAt: new Date().toISOString() }
+    await db.put('settings', row)
+    if (ACCOUNT_SETTINGS.has(key)) {
+      // Dynamic import: syncEngine imports this module.
+      void import('./syncEngine').then(m => m.syncEngine.queueWrite('settings', 'upsert', key, row)).catch(() => {})
+    }
   } catch { /* non-critical */ }
 }
 

@@ -169,17 +169,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Same account as before, or nothing local worth protecting — safe to
     // switch to this account's own database now.
     await setActiveDbIdentity(authUser.id)
-    await finalizeSignIn(s, authUser)
 
     // First time this install has ever signed in as this user, and there's
     // nothing local to protect (a fresh install, or a reinstall under a new
     // app/bundle ID after a rebrand) — pull their existing cloud data down
     // rather than silently leaving them "signed in" to an empty app. This
-    // is the one case the merge-prompt above doesn't cover, since it only
-    // fires when local data would otherwise be at risk of being overwritten.
+    // runs BEFORE the mode flips to 'authenticated' so nothing (Layout's
+    // onboarding check in particular) reads the still-empty account
+    // database and sends a returning user back through onboarding.
     if (!isSameUser && !hasLocalData) {
-      await syncEngine.downloadAll(authUser.id)
+      await withTimeout(() => syncEngine.downloadAll(authUser.id), 15000).catch(() => {})
     }
+    await finalizeSignIn(s, authUser)
   }, [])
 
   const finalizeSignIn = useCallback(async (s: Session, authUser: AuthUser) => {

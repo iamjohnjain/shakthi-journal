@@ -349,7 +349,11 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
     // it for a gain goal (higherIsBetter) so calcNutrition adds calories for
     // a surplus instead of subtracting them for a deficit.
     const rateLbsPerWeek = cfg.higherIsBetter ? -pace.requiredPerWeek : pace.requiredPerWeek
-    return calcNutrition(goalWeightLbs, profile?.activityLevel || 'moderate', rateLbsPerWeek).calories
+    return calcNutrition({
+      sex: profile.sex, dob: profile.dob, heightCm: profile.heightCm,
+      currentWeightLbs: currentWeightLbsForEditor,
+      goalWeightLbs, activityLevel: profile.activityLevel, rateLbsPerWeek,
+    }).calories
   })()
 
   function openEditGoal() {

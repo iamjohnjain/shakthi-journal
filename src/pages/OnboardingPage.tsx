@@ -12,18 +12,20 @@ import { AUTH_PROVIDERS } from '../lib/authProviders'
 import { syncEngine } from '../db/syncEngine'
 import type { ProfileData } from '../db'
 import { localDateStr } from '../data/config'
-import { calcNutrition } from '../lib/nutritionMath'
+import { calcNutrition, rebalanceMacros, type MacroGoals } from '../lib/nutritionMath'
 import './OnboardingPage.css'
 
 const WEIGHT_LOSS_RATE_VALUES = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+const WEIGHT_GAIN_RATE_VALUES = [0, 0.25, 0.5, 0.75, 1]
 
-function rateDescription(rate: number): string {
+function rateDescription(rate: number, gaining: boolean): string {
   if (rate === 0) return 'Maintain your current weight'
-  const base = `Lose ${rate} lb${rate === 1 ? '' : 's'}/week`
+  const base = `${gaining ? 'Gain' : 'Lose'} ${rate} lb${rate === 1 ? '' : 's'}/week`
   // The app's own established framing elsewhere (coach commentary) treats
-  // 0.5–1.5 lbs/week as the sustainable range — reuse that same opinion
-  // here instead of inventing a different number.
-  return rate > 1.5 ? `${base} (aggressive pace)` : base
+  // 0.5–1.5 lbs/week as the sustainable loss range; for gaining, anything
+  // above ~0.5 lb/week is mostly fat for most lifters.
+  const aggressive = gaining ? rate > 0.5 : rate > 1.5
+  return aggressive ? `${base} (aggressive pace)` : base
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -62,8 +64,46 @@ interface OBData {
   proteinGoal: string
   carbsGoal: string
   fatGoal: string
+  /** Pace magnitude in lbs/week; direction comes from current vs goal weight. */
   weightLossRateLbsPerWeek: number
+  /** Snapshot of the inputs the nutrition targets were last computed from —
+      when any input changes, the targets are recomputed. */
+  nutritionKey?: string
   importAfterSetup?: boolean
+}
+
+function isGaining(d: OBData): boolean {
+  const cur = parseFloat(d.currentWeightLbs), goal = parseFloat(d.goalWeightLbs)
+  return cur > 0 && goal > cur
+}
+
+function heightCmOf(d: OBData): number | undefined {
+  const ft = parseInt(d.heightFt)
+  return !isNaN(ft) && ft > 0 ? Math.round(ft * 30.48 + (parseInt(d.heightIn) || 0) * 2.54) : undefined
+}
+
+/** Recommended targets from everything answered so far, or null when
+    there's no weight to anchor them to yet. */
+function recommendedNutrition(d: OBData) {
+  const cur = parseFloat(d.currentWeightLbs)
+  const goal = parseFloat(d.goalWeightLbs)
+  const goalLbs = goal > 0 ? goal : cur > 0 ? cur : NaN
+  if (isNaN(goalLbs)) return null
+  const rate = d.weightLossRateLbsPerWeek
+  return calcNutrition({
+    sex: d.sex || undefined,
+    dob: d.dob || undefined,
+    heightCm: heightCmOf(d),
+    currentWeightLbs: cur > 0 ? cur : undefined,
+    goalWeightLbs: goalLbs,
+    activityLevel: d.activityLevel || undefined,
+    rateLbsPerWeek: isGaining(d) ? -rate : rate,
+  })
+}
+
+function nutritionKeyOf(d: OBData): string {
+  return JSON.stringify([d.sex, d.dob, d.heightFt, d.heightIn, d.currentWeightLbs,
+    d.goalWeightLbs, d.activityLevel, d.weightLossRateLbsPerWeek, isGaining(d)])
 }
 
 type AuthSubView = 'choose' | 'email-signup' | 'email-signin'
@@ -603,40 +643,30 @@ function StepPrimaryGoal({ data, patch, onNext, dir }: StepProps) {
 // ─── Step 8: Nutrition Targets ─────────────────────────────────────────────────
 
 function StepNutrition({ data, patch, onNext, dir }: StepProps) {
-  // Seeds all four macros from the rate once, on arrival — same
-  // seed-then-freely-editable pattern the old calories/protein steppers
-  // already used, just covering carbs/fat too now.
-  useEffect(() => {
-    const goalLbs = parseFloat(data.goalWeightLbs)
-    if (!isNaN(goalLbs) && goalLbs > 0 && !data.calorieGoal) {
-      const nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', data.weightLossRateLbsPerWeek)
-      patch({
-        calorieGoal: String(nut.calories), proteinGoal: String(nut.proteinG),
-        carbsGoal: String(nut.carbsG), fatGoal: String(nut.fatG),
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // The page recomputes all four targets whenever any profile answer or the
+  // pace changes (see the nutritionKey effect in OnboardingPage), so this
+  // step only reads them and applies linked edits.
+  const gaining = isGaining(data)
+  const rateValues = gaining ? WEIGHT_GAIN_RATE_VALUES : WEIGHT_LOSS_RATE_VALUES
 
-  const calories = parseInt(data.calorieGoal) || 2200
-  const protein  = parseInt(data.proteinGoal) || 160
-  const carbs    = parseInt(data.carbsGoal)   || 220
-  const fat      = parseInt(data.fatGoal)     || 70
+  const goals: MacroGoals = {
+    calories: parseInt(data.calorieGoal) || 2200,
+    proteinG: parseInt(data.proteinGoal) || 160,
+    carbsG:   parseInt(data.carbsGoal)   || 220,
+    fatG:     parseInt(data.fatGoal)     || 70,
+  }
+  const { calories, proteinG: protein, carbsG: carbs, fatG: fat } = goals
 
-  // Moving the rate recomputes all four from scratch — the rate is the one
-  // input driving everything on this screen; a manual tweak to any single
-  // field sticks until the rate itself is touched again.
+  function edit(field: keyof MacroGoals, v: number) {
+    const next = rebalanceMacros(goals, field, v)
+    patch({
+      calorieGoal: String(next.calories), proteinGoal: String(next.proteinG),
+      carbsGoal: String(next.carbsG), fatGoal: String(next.fatG),
+    })
+  }
+
   function handleRateChange(v: string | number) {
-    const rate = Number(v)
-    patch({ weightLossRateLbsPerWeek: rate })
-    const goalLbs = parseFloat(data.goalWeightLbs)
-    if (!isNaN(goalLbs) && goalLbs > 0) {
-      const nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', rate)
-      patch({
-        calorieGoal: String(nut.calories), proteinGoal: String(nut.proteinG),
-        carbsGoal: String(nut.carbsG), fatGoal: String(nut.fatG),
-      })
-    }
+    patch({ weightLossRateLbsPerWeek: Number(v) })
   }
 
   return (
@@ -649,41 +679,42 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
       <div className="ob-rate-picker">
         <WheelPicker
           direction="horizontal"
-          values={WEIGHT_LOSS_RATE_VALUES}
+          key={gaining ? 'gain' : 'lose'}
+          values={rateValues}
           value={data.weightLossRateLbsPerWeek}
           onChange={handleRateChange}
           itemHeight={64}
           visibleCount={5}
         />
-        <p className="ob-rate-desc">{rateDescription(data.weightLossRateLbsPerWeek)}</p>
+        <p className="ob-rate-desc">{rateDescription(data.weightLossRateLbsPerWeek, gaining)}</p>
       </div>
 
       <div className="ob-nutrition-stack">
         <NumberStepper
           label="Daily calories"
           value={calories}
-          onChange={v => patch({ calorieGoal: String(v) })}
+          onChange={v => edit('calories', v)}
           unit="cal"
           min={1000} max={6000} step={50}
         />
         <NumberStepper
           label="Daily protein"
           value={protein}
-          onChange={v => patch({ proteinGoal: String(v) })}
+          onChange={v => edit('proteinG', v)}
           unit="g"
           min={50} max={400} step={5}
         />
         <NumberStepper
           label="Daily carbs"
           value={carbs}
-          onChange={v => patch({ carbsGoal: String(v) })}
+          onChange={v => edit('carbsG', v)}
           unit="g"
           min={0} max={600} step={5}
         />
         <NumberStepper
           label="Daily fat"
           value={fat}
-          onChange={v => patch({ fatGoal: String(v) })}
+          onChange={v => edit('fatG', v)}
           unit="g"
           min={0} max={250} step={5}
         />
@@ -835,6 +866,7 @@ export default function OnboardingPage() {
 
   function patch(u: Partial<OBData>) { setData(prev => ({ ...prev, ...u })) }
 
+
   // ── Resume an in-progress onboarding after a reload/backgrounded tab ───────
   // `draftReady` gates the autosave effect below so it can't fire (and wipe
   // out a real saved draft with the blank initial state) before this load
@@ -864,10 +896,35 @@ export default function OnboardingPage() {
     return () => clearTimeout(t)
   }, [data, step, isEdit, draftReady])
 
-  function prefillFromProfile(p: ProfileData) {
+  // ── Live nutrition targets ─────────────────────────────────────────────────
+  // Any change to sex, age, height, weights, activity or pace — including
+  // going back to an earlier step — recomputes all four targets. Custom macro
+  // edits stick only until one of those inputs changes again.
+  const nutritionKey = nutritionKeyOf(data)
+  useEffect(() => {
+    if (!draftReady) return
+    setData(prev => {
+      // Gain picker tops out lower than the loss picker — clamp on switch.
+      const maxRate = isGaining(prev) ? WEIGHT_GAIN_RATE_VALUES[WEIGHT_GAIN_RATE_VALUES.length - 1] : WEIGHT_LOSS_RATE_VALUES[WEIGHT_LOSS_RATE_VALUES.length - 1]
+      const clamped = prev.weightLossRateLbsPerWeek > maxRate ? { ...prev, weightLossRateLbsPerWeek: maxRate } : prev
+      const key = nutritionKeyOf(clamped)
+      if (key === prev.nutritionKey) return prev
+      const nut = recommendedNutrition(clamped)
+      if (!nut) return clamped === prev ? prev : clamped
+      return {
+        ...clamped, nutritionKey: key,
+        calorieGoal: String(nut.calories), proteinGoal: String(nut.proteinG),
+        carbsGoal: String(nut.carbsG), fatGoal: String(nut.fatG),
+      }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nutritionKey, draftReady])
+
+  function prefillFromProfile(p: ProfileData, saved?: MacroGoals | null) {
     const ft = p.heightCm ? Math.floor(p.heightCm / 30.48) : undefined
     const inches = p.heightCm && ft !== undefined ? Math.round((p.heightCm - ft * 30.48) / 2.54) : undefined
-    setData(prev => ({
+    setData(prev => {
+      const next: OBData = {
       ...prev,
       name:             p.name                         ?? prev.name,
       dob:              p.dob                          ?? prev.dob,
@@ -879,14 +936,34 @@ export default function OnboardingPage() {
       heightIn:         inches !== undefined ? String(inches) : prev.heightIn,
       currentWeightLbs: p.startWeightKg ? String(Math.round(p.startWeightKg * 2.20462)) : prev.currentWeightLbs,
       goalWeightLbs:    p.goalWeightKg  ? String(Math.round(p.goalWeightKg  * 2.20462)) : prev.goalWeightLbs,
-    }))
+      }
+      // Show the goals already on file, and only recompute once the user
+      // actually changes one of the answers they're based on.
+      if (saved && saved.calories > 0) {
+        next.calorieGoal = String(saved.calories)
+        next.proteinGoal = String(saved.proteinG)
+        next.carbsGoal   = String(saved.carbsG)
+        next.fatGoal     = String(saved.fatG)
+        next.nutritionKey = nutritionKeyOf(next)
+      }
+      return next
+    })
+  }
+
+  async function prefillFromSaved() {
+    const [p, saved] = await Promise.all([
+      getProfile(),
+      getSetting<MacroGoals | null>('nutrition-goals', null),
+    ])
+    if (p) prefillFromProfile(p, saved)
+    return p
   }
 
   // ── Load profile in edit mode ───────────────────────────────────────────────
 
   useEffect(() => {
     if (!isEdit) return
-    getProfile().then(p => { if (p) prefillFromProfile(p) })
+    void prefillFromSaved()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit])
 
@@ -906,8 +983,14 @@ export default function OnboardingPage() {
           new Promise<void>(r => setTimeout(r, 3000)),
         ])
       } catch { /* non-critical */ }
-      const p = await getProfile()
-      if (p) prefillFromProfile(p)
+      const p = await prefillFromSaved()
+      // A returning account that already finished setup goes straight in.
+      if (p?.startDate) {
+        await setSetting('onboarding.completed', true)
+        await setSetting(ONBOARDING_DRAFT_KEY, null)
+        navigate('/', { replace: true })
+        return
+      }
       setSyncingProfile(false)
       setDir('fwd')
       setStep(1)
@@ -971,12 +1054,9 @@ export default function OnboardingPage() {
       const protGoal = parseInt(data.proteinGoal)
       const carbsGoalN = parseInt(data.carbsGoal)
       const fatGoalN = parseInt(data.fatGoal)
-      const goalLbs = parseFloat(data.goalWeightLbs)
-
       let nut = { calories: 2300, proteinG: 160, fatG: 70, carbsG: 220, waterMl: 3785 }
-      if (!isNaN(goalLbs) && goalLbs > 0) {
-        nut = calcNutrition(goalLbs, data.activityLevel || 'moderate', data.weightLossRateLbsPerWeek)
-      }
+      const rec = recommendedNutrition(data)
+      if (rec) nut = rec
       if (!isNaN(calGoal) && calGoal > 0) nut.calories = calGoal
       if (!isNaN(protGoal) && protGoal > 0) nut.proteinG = protGoal
       if (!isNaN(carbsGoalN) && carbsGoalN > 0) nut.carbsG = carbsGoalN

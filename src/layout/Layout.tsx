@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { getSetting } from '../db'
+import { getSetting, setSetting } from '../db'
+import { getProfile } from '../db/profileStore'
+import { useAuth } from '../context/AuthContext'
 import { useWeeklyWrapNotice } from '../hooks/useWeeklyWrapNotice'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
@@ -15,11 +17,47 @@ export default function Layout() {
   const { pendingReview, dismiss } = useWeeklyWrapNotice()
   const [showWrap, setShowWrap] = useState(false)
 
+  const { mode } = useAuth()
+
+  // The Weekly Wrap banner belongs to the Today tab only. Leaving Today, or
+  // tapping any other button/link while it's showing, counts as "not now"
+  // and dismisses it for good.
+  const bannerVisible = !!pendingReview && !showWrap && location.pathname === '/'
   useEffect(() => {
-    getSetting<boolean>('onboarding.completed', false).then(done => {
-      if (!done) navigate('/onboarding', { replace: true })
-    })
-  }, [navigate])
+    if (pendingReview && !showWrap && location.pathname !== '/') dismiss()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname])
+  useEffect(() => {
+    if (!bannerVisible) return
+    function onClick(e: MouseEvent) {
+      const el = e.target as HTMLElement | null
+      if (!el || el.closest('.wwb-banner')) return
+      if (el.closest('button, a, [role="button"], [role="tab"]')) dismiss()
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bannerVisible])
+
+  // Wait until the session (and, for a returning account, its cloud
+  // download) has resolved — checking earlier reads an empty database.
+  // An account that already has a profile has been through setup on some
+  // device, so it never gets sent back to onboarding.
+  useEffect(() => {
+    if (mode === 'initializing') return
+    let cancelled = false
+    ;(async () => {
+      if (await getSetting<boolean>('onboarding.completed', false)) return
+      const profile = await getProfile()
+      if (cancelled) return
+      if (profile?.startDate) {
+        await setSetting('onboarding.completed', true)
+        return
+      }
+      navigate('/onboarding', { replace: true })
+    })()
+    return () => { cancelled = true }
+  }, [navigate, mode])
 
   return (
     <div className="app-shell">
@@ -35,7 +73,7 @@ export default function Layout() {
       </main>
       <BottomNav />
       <Toast />
-      {pendingReview && !showWrap && (
+      {bannerVisible && (
         <WeeklyWrapBanner onOpen={() => setShowWrap(true)} onDismiss={dismiss} />
       )}
       {pendingReview && showWrap && (

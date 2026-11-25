@@ -912,8 +912,10 @@
   flex-direction: column;
   align-items: center;
   gap: 7px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   border-radius: var(--r-lg);
   padding: 14px 8px 12px;
   min-height: 70px;
@@ -923,8 +925,7 @@
 }
 
 .quick-action-btn:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--border);
+  background-image: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)), var(--gradient-brand-wide);
 }
 
 .quick-action-btn:active {
@@ -935,10 +936,10 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  color: var(--text-primary);
-  background: var(--bg-card);
-  border: 1px solid transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  color: #fff;
+  border: none;
+  background: var(--gradient-brand);
+  box-shadow: 0 4px 14px -6px rgba(166, 107, 245, 0.75);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   display: flex;
@@ -950,7 +951,7 @@
 .quick-action-label {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   text-align: center;
   line-height: 1.2;
   letter-spacing: 0.1px;

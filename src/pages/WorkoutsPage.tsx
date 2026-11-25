@@ -1065,7 +1065,7 @@ export default function WorkoutsPage() {
               <div className="workouts-first-empty-icon">
                 <Dumbbell size={44} />
               </div>
-              <h2 className="workouts-first-empty-title">Your training log starts here</h2>
+              <h2 className="workouts-first-empty-title">Start Logging Workouts</h2>
               <p className="workouts-first-empty-desc">
                 Log your first session to start tracking strength, cardio, and personal records.
                 Every workout is saved and your history builds automatically.

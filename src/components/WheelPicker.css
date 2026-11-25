@@ -58,6 +58,16 @@
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   height: 56px;
+  /* Center selection frame drawn as the scroller's own background (which
+     stays put while content scrolls), so it always marks the middle slot. */
+  background-image:
+    linear-gradient(var(--border), var(--border)),
+    linear-gradient(var(--border), var(--border));
+  background-size: 1px calc(100% - 8px), 1px calc(100% - 8px);
+  background-position:
+    calc(50% - var(--wp-item) / 2) center,
+    calc(50% + var(--wp-item) / 2) center;
+  background-repeat: no-repeat;
 }
 
 .wheel-picker--horizontal .wheel-picker-item {

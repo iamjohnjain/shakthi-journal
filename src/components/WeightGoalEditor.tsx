@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FocusEvent } from 'react'
 import { kgToLbs, lbsToKg, localDateStr } from '../data/config'
 import { calcNutrition } from '../lib/nutritionMath'
+import type { ProfileData } from '../db'
 import { getProfile, saveProfile } from '../db/profileStore'
 import DatePickerCalendar from './DatePickerCalendar'
 import './WeightGoalEditor.css'
@@ -73,6 +74,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
   const [rate,          setRate]          = useState('')
   const [targetDate,    setTargetDate]    = useState('')
   const [activityLevel, setActivityLevel] = useState('moderate')
+  const [profile,       setProfile]       = useState<ProfileData | null>(null)
   const [loaded,        setLoaded]        = useState(false)
   const [showCalendar,  setShowCalendar]  = useState(false)
   const [saving,        setSaving]        = useState(false)
@@ -81,6 +83,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
 
   useEffect(() => {
     getProfile().then(profile => {
+      setProfile(profile ?? null)
       const curLbsLoaded = liveCurrentWeightLbs != null && liveCurrentWeightLbs > 0
         ? Math.round(liveCurrentWeightLbs)
         : profile?.startWeightKg ? Math.round(kgToLbs(profile.startWeightKg)) : 0
@@ -103,7 +106,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
       // onXChange handlers already use.
       if (curLbsLoaded > 0 && goalLbsLoaded > 0 && dateLoaded) {
         const days = Math.max(1, daysBetween(today, dateLoaded))
-        setRate(Math.max(0, (curLbsLoaded - goalLbsLoaded) / days * 7).toFixed(1))
+        setRate((Math.abs(curLbsLoaded - goalLbsLoaded) / days * 7).toFixed(1))
       }
 
       setLoaded(true)
@@ -124,7 +127,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
     const g = Number(clean)
     if (curLbs > 0 && g > 0 && targetDate) {
       const days = daysFor(targetDate)
-      setRate(Math.max(0, (curLbs - g) / days * 7).toFixed(1))
+      setRate((Math.abs(curLbs - g) / days * 7).toFixed(1))
     }
   }
 
@@ -134,7 +137,8 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
     const r = Number(clean)
     if (curLbs > 0 && targetDate) {
       const days = daysFor(targetDate)
-      setGoalWeight(String(Math.round(curLbs - r * days / 7)))
+      const dir = Number(goalWeight) > curLbs ? 1 : -1
+      setGoalWeight(String(Math.round(curLbs + dir * r * days / 7)))
     }
   }
 
@@ -143,7 +147,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
     const g = Number(goalWeight)
     if (curLbs > 0 && g > 0) {
       const days = daysFor(date)
-      setRate(Math.max(0, (curLbs - g) / days * 7).toFixed(1))
+      setRate((Math.abs(curLbs - g) / days * 7).toFixed(1))
     }
   }
 
@@ -154,7 +158,7 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
     const g = Number(goalWeight)
     if (c > 0 && g > 0 && targetDate) {
       const days = daysFor(targetDate)
-      setRate(Math.max(0, (c - g) / days * 7).toFixed(1))
+      setRate((Math.abs(c - g) / days * 7).toFixed(1))
     }
   }
 
@@ -162,9 +166,14 @@ export default function WeightGoalEditor({ onSaved, onCancel, liveCurrentWeightL
   const rateNum = Number(rate) || 0
   const daysRemaining = targetDate ? daysBetween(today, targetDate) : 0
   const weeksRemaining = daysRemaining / 7
-  const toLose = Math.max(0, curLbs - goalLbs)
+  const gaining = curLbs > 0 && goalLbs > curLbs
+  const toLose = Math.abs(curLbs - goalLbs)
   const preview = (loaded && goalLbs > 0 && daysRemaining > 0)
-    ? calcNutrition(goalLbs, activityLevel, rateNum)
+    ? calcNutrition({
+        sex: profile?.sex, dob: profile?.dob, heightCm: profile?.heightCm,
+        currentWeightLbs: curLbs || undefined, goalWeightLbs: goalLbs,
+        activityLevel, rateLbsPerWeek: gaining ? -rateNum : rateNum,
+      })
     : null
 
   // The calorie total is the one fixed, non-editable thing this tab

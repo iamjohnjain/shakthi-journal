@@ -180,7 +180,6 @@
    an inconsistent "almost selected" state next to the real rainbow-ring
    active style below — same gradient-ring treatment on hover too, so
    nothing on this row ever shows a plain orange border. */
-.pci-chip:hover,
 .pci-chip--active {
   background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand-wide);
   background-origin: border-box;
@@ -409,4 +408,25 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vfc-recording-dot { animation: none; }
+}
+
+/* Progress-tab selectors (mode toggles + chips): pressing an option shows a
+   white text glow instead of the default rainbow press ring, so there are
+   never two rainbow rings side by side. The rainbow ring only appears once
+   the option is actually selected. */
+.wpr-mode-toggle button:active::after,
+.pci-mode-toggle button:active::after,
+.pci-chip:active::after {
+  content: none !important;
+}
+.wpr-mode-toggle button:not(.wpr-mode-active):active,
+.pci-mode-toggle button:not(.pci-mode-active):active,
+.pci-chip:not(.pci-chip--active):active {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.85), 0 0 18px rgba(255, 255, 255, 0.45);
+}
+.wpr-mode-toggle button:not(.wpr-mode-active):active svg,
+.pci-mode-toggle button:not(.pci-mode-active):active svg,
+.pci-chip:not(.pci-chip--active):active svg {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
 }

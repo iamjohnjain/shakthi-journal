@@ -59,9 +59,13 @@ export default function WheelPicker({
     }, 100)
   }
 
-  const sizeStyle = horizontal ? { width: size } : { height: size }
+  const sizeStyle = horizontal
+    ? { width: size, ['--wp-item' as string]: `${itemSize}px` } as React.CSSProperties
+    : { height: size }
   const itemSizeStyle = horizontal ? { width: itemSize } : { height: itemSize }
-  const padStyle = horizontal ? { width: pad } : { height: pad }
+  // flexShrink 0: in the horizontal (flex) layout the end spacers otherwise
+  // shrink to nothing, and the first/last values can't scroll to the center.
+  const padStyle = horizontal ? { width: pad, flexShrink: 0 } : { height: pad, flexShrink: 0 }
 
   return (
     <div
@@ -83,7 +87,7 @@ export default function WheelPicker({
         </button>
       ))}
       <div style={padStyle} />
-      <div className="wheel-picker-highlight" style={itemSizeStyle} />
+      {!horizontal && <div className="wheel-picker-highlight" style={itemSizeStyle} />}
     </div>
   )
 }

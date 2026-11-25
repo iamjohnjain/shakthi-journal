@@ -13,7 +13,10 @@
      fighting that existing layout rather than just adding the glass look. */
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  border: 1px solid rgba(166, 107, 245, 0.16);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   border-radius: var(--r-xl);
   padding: 20px 20px 14px;
   cursor: pointer;
@@ -39,15 +42,14 @@
 }
 
 .goal-ring-card:hover {
-  background: var(--bg-card-hover);
-  border-color: rgba(166, 107, 245, 0.28);
+  background-image: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)), var(--gradient-brand-wide);
 }
 
-/* A crisp diagonal wash in the app's signature gradient-brand hues — the
-   same "Light Weight / Snap Meal / Sync Data" look, not a blurred glow —
-   dialed brighter or quieter per metric via --goal-glow-op (set inline). */
+/* The diagonal color wash that used to sit here made the card read as a
+   washed-out tint next to the app's other dark cards — removed so every
+   card shares the same dark fill + rainbow ring. */
 .goal-ring-card::before {
-  content: '';
+  content: none;
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg,
