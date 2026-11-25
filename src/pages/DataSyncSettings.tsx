@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Link2, History, Download as DownloadIcon, Upload,
+  History, Download as DownloadIcon, Upload,
   FlaskConical, Database, ShieldCheck, Trash2,
   Cloud, LogOut, User, Heart, ChevronLeft, Activity,
 } from 'lucide-react'
@@ -35,12 +35,6 @@ export default function DataSyncSettings() {
       getHealthDiagnostics().then(setHealthDiag).catch(() => {})
     }
   }, [showHealthDiag, healthDiag])
-
-  function openHealthSync() {
-    const w = window as unknown as Record<string, unknown>
-    const handlers = w.webkit as { messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } } } | undefined
-    handlers?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
-  }
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -124,10 +118,7 @@ export default function DataSyncSettings() {
 
       {/* ── Sources ── */}
       <JSection title="Sources">
-        {native && (
-          <JRow icon={Heart} label="Apple Health Sync" desc="Steps, weight, sleep, heart rate and more" onClick={openHealthSync} />
-        )}
-        <JRow icon={Link2} label="Connected Accounts" desc="Apple Health, RENPHO, MyFitnessPal and more" onClick={() => navigate('/connected-accounts')} />
+        <JRow icon={Heart} label="Apple Health" desc="Status and Sync Now" onClick={() => navigate('/connected-accounts')} />
         <JRow icon={History} label="Sync History" desc="Past imports and sync events" onClick={() => navigate('/sync-history')} />
         <JRow icon={DownloadIcon} label="Import Data" desc="Apple Health export.xml and other formats" onClick={() => navigate('/import')} />
       </JSection>

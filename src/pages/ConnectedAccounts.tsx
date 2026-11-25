@@ -1,543 +1,99 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CheckCircle, AlertCircle, Clock, XCircle, RefreshCw,
-  ChevronRight, Info, Unlink,
+  ChevronLeft, Heart, RefreshCw, Footprints, Scale, Moon, Activity, Dumbbell, FileUp, Settings2,
 } from 'lucide-react'
-import DataBadge from '../components/DataBadge'
-import { getSyncHistory } from '../db'
-import { getImportedSources, getLatestBodyFatRecord, getLatestSleepRecord } from '../db/healthStore'
-import { getOwnedDevices, setOwnedDevices, owns, GATEABLE_DEVICES } from '../db/deviceStore'
-import type { DeviceId } from '../db/deviceStore'
-import { isInsideNativeApp } from '../layout/BottomNav'
-import './ConnectedAccounts.css'
+import { triggerSilentHealthSync } from '../layout/BottomNav'
+import { useAppleHealthStatus, timeAgo } from '../hooks/useAppleHealthStatus'
+import { JSection, JRow } from './Settings'
+import './Settings.css'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type AccountStatus =
-  | 'import_ready'
-  | 'connected'
-  | 'needs_setup'
-  | 'no_api'
-  | 'coming_soon'
-
-interface Account {
-  id: string
-  name: string
-  shortName: string
-  icon: string
-  status: AccountStatus
-  method: string
-  dataTypes: string[]
-  description: string
-  lastSync?: string
-  recordCount?: number
-  accountName?: string
-  permissions?: string[]
-  setupInstructions?: string[]
-  importNote?: string
-  availability: 'now' | 'phase2' | 'phase6' | 'coming_soon'
+function openNativeHealthSheet() {
+  const w = window as unknown as { webkit?: { messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } } } }
+  w.webkit?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: AccountStatus }) {
-  const cfg: Record<AccountStatus, { label: string; color: string }> = {
-    import_ready: { label: 'Import Ready', color: 'var(--pink)' },
-    connected:    { label: 'Connected',    color: 'var(--green)' },
-    needs_setup:  { label: 'Needs Setup',  color: 'var(--orange)' },
-    no_api:       { label: 'No API',       color: 'var(--text-tertiary)' },
-    coming_soon:  { label: 'Coming Soon',  color: 'var(--purple)' },
-  }
-  const { label, color } = cfg[status]
-  return (
-    <span className="account-status-badge" style={{ color, borderColor: color + '44', background: color + '14' }}>
-      {label}
-    </span>
-  )
-}
-
-// ─── Account card ─────────────────────────────────────────────────────────────
-
-function AccountCard({
-  account,
-  lastSync,
-  onSync,
-  onDisconnect,
-  nativeAction,
-}: {
-  account: Account
-  lastSync?: { at: string; count: number }
-  onSync: (id: string) => void
-  onDisconnect: (id: string) => void
-  nativeAction?: { label: string; onClick: () => void }
-}) {
-  const [showSetup, setShowSetup] = useState(false)
-  const navigate = useNavigate()
-
-  const StatusIcon =
-    account.status === 'connected' ? CheckCircle :
-    account.status === 'import_ready' ? Clock :
-    account.status === 'needs_setup' ? AlertCircle :
-    XCircle
-
-  const iconColor =
-    account.status === 'connected' ? 'var(--green)' :
-    account.status === 'import_ready' ? 'var(--pink)' :
-    account.status === 'needs_setup' ? 'var(--orange)' :
-    'var(--text-tertiary)'
-
-  return (
-    <div className={`account-card ${account.status === 'coming_soon' ? 'account-card--dim' : ''}`}>
-      <div className="account-card-header">
-        <div className="account-card-left">
-          <div className="account-icon-wrap">
-            <span className="account-icon">{account.icon}</span>
-            <StatusIcon size={14} className="account-status-icon" style={{ color: iconColor }} />
-          </div>
-          <div className="account-card-info">
-            <div className="account-card-title-row">
-              <span className="account-name">{account.name}</span>
-              <StatusBadge status={account.status} />
-            </div>
-            {account.accountName && (
-              <span className="account-connected-as">Connected as: {account.accountName}</span>
-            )}
-            <span className="account-method">{account.method}</span>
-          </div>
-        </div>
-
-        {(account.status === 'connected' || account.status === 'import_ready') && (
-          <DataBadge mode={account.status === 'connected' ? 'live' : 'imported'} />
-        )}
-      </div>
-
-      <p className="account-description">{account.description}</p>
-
-      {/* Data types / permissions */}
-      <div className="account-chips-row">
-        {account.dataTypes.map(t => (
-          <span key={t} className="account-chip">{t}</span>
-        ))}
-      </div>
-
-      {/* Last sync row — from real IDB sync history */}
-      {lastSync && (
-        <div className="account-sync-row">
-          <RefreshCw size={11} />
-          <span>Last synced: {timeAgo(lastSync.at)}</span>
-          <span className="account-record-count">{lastSync.count.toLocaleString()} records</span>
-          <button className="account-link-btn" onClick={() => navigate('/sync-history')}>
-            View history <ChevronRight size={11} />
-          </button>
-        </div>
-      )}
-
-      {/* Setup instructions (expandable) */}
-      {account.setupInstructions && (
-        <div className="account-setup-wrap">
-          <button className="account-setup-toggle" onClick={() => setShowSetup(v => !v)}>
-            <Info size={12} />
-            {showSetup ? 'Hide setup steps' : 'How to set up'}
-          </button>
-          {showSetup && (
-            <ol className="account-setup-steps">
-              {account.setupInstructions.map((step, i) => (
-                <li key={i}>{step}</li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
-
-      {/* Import note */}
-      {account.importNote && (
-        <p className="account-import-note">
-          <Info size={11} /> {account.importNote}
-        </p>
-      )}
-
-      {/* Actions */}
-      <div className="account-actions">
-        {nativeAction && (
-          <button className="btn btn-primary btn-sm" data-no-press-glow onClick={nativeAction.onClick}>
-            <RefreshCw size={13} /> {nativeAction.label}
-          </button>
-        )}
-        {!nativeAction && account.status === 'connected' && (
-          <>
-            <button className="btn btn-secondary btn-sm" onClick={() => onSync(account.id)}>
-              <RefreshCw size={13} /> Sync Now
-            </button>
-            <button className="btn btn-danger btn-sm" onClick={() => onDisconnect(account.id)}>
-              <Unlink size={13} /> Disconnect
-            </button>
-          </>
-        )}
-        {!nativeAction && account.status === 'import_ready' && (
-          <button className="btn btn-primary btn-sm" data-no-press-glow onClick={() => navigate('/import/apple-health')}>
-            Import File
-          </button>
-        )}
-        {!nativeAction && account.status === 'needs_setup' && account.setupInstructions && (
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowSetup(true)}>
-            <Info size={13} /> View Setup
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
-
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(ms / 60_000)
-  const hours = Math.floor(ms / 3_600_000)
-  const days = Math.floor(ms / 86_400_000)
-  if (mins < 2) return 'Just Now'
-  if (mins < 60) return `${mins}m ago`
-  if (hours < 24) return `${hours}h ago`
-  return `${days}d ago`
-}
-
-function openNativeHealthSync() {
-  const w = window as unknown as Record<string, unknown>
-  const handlers = w.webkit as { messageHandlers?: { jeevanNative?: { postMessage: (m: unknown) => void } } } | undefined
-  handlers?.messageHandlers?.jeevanNative?.postMessage({ type: 'openHealthSync' })
-}
-
-const PRIMARY_IDS = ['apple_health', 'apple_watch', 'renpho', 'ringconn']
-
-const COMING_SOON_PROVIDERS = [
-  { id: 'myfitnesspal', icon: '🥗', name: 'MyFitnessPal',   method: 'Via Apple Health · or CSV from myfitnesspal.com' },
-  { id: 'strava',       icon: '🏃', name: 'Strava',         method: 'CSV export · Settings → Download Your Data' },
-  { id: 'garmin',       icon: '⌚', name: 'Garmin Connect', method: 'Via Apple Health · enable in Garmin Connect app' },
-  { id: 'whoop',        icon: '⚡', name: 'WHOOP',          method: 'Via Apple Health · enable in WHOOP app' },
-  { id: 'oura',         icon: '💍', name: 'Oura Ring',      method: 'Via Apple Health · enable in Oura app' },
+const SYNCED = [
+  { icon: Footprints, label: 'Steps & Activity',   desc: 'Steps, active calories, exercise minutes' },
+  { icon: Scale,      label: 'Weight & Body Fat',  desc: 'From any smart scale that writes to Health' },
+  { icon: Moon,       label: 'Sleep',              desc: 'Time asleep and sleep stages' },
+  { icon: Activity,   label: 'Heart Rate & HRV',   desc: 'Resting heart rate and variability' },
+  { icon: Dumbbell,   label: 'Workouts',           desc: 'Sessions recorded by your watch or apps' },
 ]
 
+/** Apple Health is the only data source the app connects to — watches,
+    scales, rings and other apps all reach Jeevan through it — so this page
+    is just its status and a Sync button. */
 export default function ConnectedAccounts() {
   const navigate = useNavigate()
-
-  const inNativeApp = isInsideNativeApp()
-
-  const [lastSyncs, setLastSyncs] = useState<Map<string, { at: string; count: number }>>(new Map())
-  const [detectedSources, setDetectedSources] = useState<string[]>([])
-  const [latestBodyFat, setLatestBodyFat] = useState<{ valuePct: number; date: string; sourceId: string; sourceName: string } | null>(null)
-  const [latestSleep, setLatestSleep] = useState<{ valueH: number; date: string; sourceId: string; sourceName: string } | null>(null)
-  const [ownedDevices, setOwnedDevicesState] = useState<DeviceId[] | null>(null)
-
-  const loadData = useCallback(function loadData() {
-    getSyncHistory(200).then(entries => {
-      const map = new Map<string, { at: string; count: number }>()
-      for (const e of entries) {
-        if (e.status === 'success' && e.completedAt) {
-          const existing = map.get(e.sourceId)
-          if (!existing || e.completedAt > existing.at) {
-            map.set(e.sourceId, { at: e.completedAt, count: e.recordCount })
-          }
-        }
-      }
-      setLastSyncs(map)
-    })
-    getImportedSources().then(setDetectedSources)
-    getLatestBodyFatRecord().then(setLatestBodyFat)
-    getLatestSleepRecord().then(setLatestSleep)
-    getOwnedDevices().then(setOwnedDevicesState)
-  }, [])
-
-  async function toggleOwnedDevice(id: DeviceId) {
-    const current = ownedDevices ?? []
-    const next = current.includes(id) ? current.filter(d => d !== id) : [...current, id]
-    setOwnedDevicesState(next)
-    await setOwnedDevices(next)
-  }
+  const { inNativeApp, connected, lastSyncedAt, loading } = useAppleHealthStatus()
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
-    loadData()
-    window.addEventListener('native-health-sync-complete', loadData)
-    return () => window.removeEventListener('native-health-sync-complete', loadData)
-  }, [])
+    if (!syncing) return
+    const done = () => setSyncing(false)
+    window.addEventListener('native-health-sync-complete', done)
+    const t = setTimeout(done, 20_000) // never spin forever if native doesn't answer
+    return () => { window.removeEventListener('native-health-sync-complete', done); clearTimeout(t) }
+  }, [syncing])
 
-  const renphoDetected    = detectedSources.includes('renpho')
-  const ringconnDetected  = detectedSources.includes('ringconn')
-
-  const accounts = useMemo<Account[]>(() => [
-    {
-      id: 'apple_health',
-      name: 'Apple Health',
-      shortName: 'Apple Health',
-      icon: '🍎',
-      status: inNativeApp ? 'connected' : 'import_ready',
-      method: inNativeApp ? 'Via HealthKit · auto-sync' : 'XML export · manual import',
-      dataTypes: ['Steps', 'Heart Rate', 'HRV', 'Sleep', 'Calories', 'Workouts'],
-      description: inNativeApp
-        ? 'Connected via HealthKit. Steps, heart rate, HRV, sleep, weight, and calories sync automatically. Tap "Sync Now" to pull the latest data immediately.'
-        : 'Acts as the central hub. Apple Watch, RingConn, and RENPHO all sync into Apple Health, so importing a single Apple Health export gives you everything.',
-      availability: 'now',
-      setupInstructions: inNativeApp ? undefined : [
-        'Open Health app on iPhone',
-        'Tap your profile photo → Export All Health Data',
-        'Share the export.zip to your Mac',
-        'Unzip and import the export.xml file here',
-      ],
-    },
-    {
-      id: 'apple_watch',
-      name: 'Apple Watch',
-      shortName: 'Watch',
-      icon: '⌚',
-      status: inNativeApp ? 'connected' : 'needs_setup',
-      method: inNativeApp ? 'Via HealthKit · included automatically' : 'Via Apple Health hub',
-      dataTypes: ['Heart Rate', 'HRV', 'Activity', 'Workouts', 'ECG'],
-      description: inNativeApp
-        ? 'Apple Watch data flows through HealthKit automatically. No separate action needed — it\'s included every time you sync Apple Health.'
-        : 'Apple Watch syncs all data to Apple Health automatically. No separate import needed — import Apple Health and Watch data is included.',
-      availability: 'now',
-      setupInstructions: inNativeApp ? undefined : [
-        'Ensure Apple Watch is paired with your iPhone',
-        'Open Watch app → Health → turn on all data sharing',
-        'Then export Apple Health to get Watch data',
-      ],
-    },
-    {
-      id: 'renpho',
-      name: 'RENPHO',
-      shortName: 'RENPHO',
-      icon: '⚖️',
-      status: inNativeApp
-        ? (renphoDetected ? 'connected' : 'needs_setup')
-        : 'import_ready',
-      method: inNativeApp
-        ? (renphoDetected ? 'Connected via Apple Health' : 'Via Apple Health · setup needed')
-        : 'CSV export · or via Apple Health',
-      dataTypes: ['Weight', 'Body Fat', 'Muscle Mass', 'BMI', 'Water %'],
-      description: inNativeApp
-        ? (renphoDetected
-          ? 'RENPHO body composition data is syncing through Apple Health — weight, body fat %, and more appear automatically after each sync.'
-          : 'Open RENPHO app → Settings → Connect to → Health App → enable Weight and Body Fat. Then return here and tap "Sync Now" on Apple Health.')
-        : 'RENPHO syncs to Apple Health if enabled, or you can export a CSV from the RENPHO app. Body composition data only — not available via any public API.',
-      availability: 'now',
-      importNote: (() => {
-        if (!inNativeApp) return 'No public RENPHO API exists. Apple Health sync or CSV export are the only options.'
-        if (!renphoDetected) return undefined
-        if (!latestBodyFat) return 'No RENPHO body fat found in Apple Health yet. Open RENPHO → confirm Apple Health sync is enabled for Body Fat → return and tap Sync.'
-        if (latestBodyFat.sourceId === 'renpho') return `Body Fat synced from RENPHO via Apple Health · ${latestBodyFat.valuePct.toFixed(1)}% · ${latestBodyFat.date}`
-        return `No RENPHO body fat found. Latest body fat (${latestBodyFat.date}) is from another source. Open RENPHO app and enable Apple Health sync for Body Fat.`
-      })(),
-      setupInstructions: inNativeApp ? (renphoDetected ? undefined : [
-        'Open RENPHO app on your iPhone',
-        'Go to Settings → Connect to → Health App',
-        'Enable Weight, Body Fat %, Muscle Mass, and other metrics',
-        'Return here and tap "Sync Now" on the Apple Health card',
-      ]) : [
-        'Open RENPHO app → More → Apple Health',
-        'Enable body composition sharing, OR',
-        'Go to RENPHO app → Profile → Export Data → select CSV',
-      ],
-    },
-    {
-      id: 'ringconn',
-      name: 'RingConn',
-      shortName: 'RingConn',
-      icon: '💍',
-      status: inNativeApp
-        ? (ringconnDetected ? 'connected' : 'needs_setup')
-        : 'needs_setup',
-      method: inNativeApp
-        ? (ringconnDetected ? 'Connected via Apple Health' : 'Via Apple Health · setup needed')
-        : 'Via Apple Health · no direct API',
-      dataTypes: ['Sleep', 'HRV', 'Resting HR', 'SpO2', 'Respiratory Rate'],
-      description: inNativeApp
-        ? (ringconnDetected
-          ? 'RingConn sleep, HRV, heart rate, SpO2, and respiratory rate are syncing through Apple Health. Data appears automatically after each Sync.'
-          : 'Open RingConn app → Settings → Apple Health → enable Sleep, Heart Rate, HRV, Blood Oxygen, and Respiratory Rate. Then return and Sync Apple Health.')
-        : 'RingConn syncs all biometric data to Apple Health if enabled in the RingConn app. No direct public API exists — Apple Health sync is the only path.',
-      importNote: (() => {
-        if (!inNativeApp) return 'No public RingConn API exists. Enable Apple Health sync in the RingConn app, then import an Apple Health export.'
-        if (!ringconnDetected) return undefined
-        if (!latestSleep) return 'RingConn detected in Apple Health. No sleep data found yet — open RingConn → verify Apple Health sync includes Sleep.'
-        if (latestSleep.sourceId === 'ringconn') return `Sleep synced from RingConn via Apple Health · ${latestSleep.valueH.toFixed(1)}h · ${latestSleep.date}`
-        return `No RingConn sleep found. Latest sleep (${latestSleep.date}) is from another source. Open RingConn → enable Apple Health sync for Sleep.`
-      })(),
-      availability: 'now',
-      setupInstructions: inNativeApp && !ringconnDetected ? [
-        'Open RingConn app on your iPhone',
-        'Go to Settings → Apple Health (or Health Sync)',
-        'Enable: Sleep, Heart Rate, HRV, Blood Oxygen, Respiratory Rate',
-        'Return here and tap "Sync Now" on the Apple Health card',
-        'Note: Sleep Score, Stress, and Recovery Score are not exposed to Apple Health',
-      ] : undefined,
-    },
-  ], [inNativeApp, renphoDetected, ringconnDetected, latestBodyFat, latestSleep])
-
-  const [syncing, setSyncing] = useState<string | null>(null)
-  const [disconnectMsg, setDisconnectMsg] = useState('')
-
-  function handleSync(id: string) {
-    const account = accounts.find(a => a.id === id)
-    if (account?.status === 'import_ready') {
-      navigate('/import/apple-health')
-      return
-    }
-    setSyncing(id)
-    setTimeout(() => setSyncing(null), 800)
+  function handleSync() {
+    if (!inNativeApp) { navigate('/import/apple-health'); return }
+    if (!connected) { openNativeHealthSheet(); return } // first time: shows the permission prompt
+    setSyncing(true)
+    triggerSilentHealthSync()
   }
 
-  function handleDisconnect(_id: string) {
-    setDisconnectMsg('No live connections to disconnect — data is stored locally only.')
-    setTimeout(() => setDisconnectMsg(''), 4000)
-  }
-
-  const primaryAccounts = accounts.filter(a =>
-    PRIMARY_IDS.includes(a.id) &&
-    (a.id === 'apple_health' || owns(ownedDevices, a.id as DeviceId))
-  )
-  const connectedCount  = primaryAccounts.filter(a => a.status === 'connected').length
-  const importReadyCount = primaryAccounts.filter(a => a.status === 'import_ready').length
-  const needsSetupCount  = primaryAccounts.filter(a => a.status === 'needs_setup').length
-
-  const deviceHint = useMemo(() => {
-    if (inNativeApp) return { emoji: '✅', text: 'Apple Health is connected via HealthKit. Tap "Sync Now" on any card to pull the latest data.' }
-    if (typeof navigator === 'undefined') return null
-    const ua = navigator.userAgent
-    if (/iPad|iPhone|iPod/.test(ua)) return { emoji: '📱', text: 'You\'re on iPhone — use the native app for automatic Apple Health sync, no file exports needed.' }
-    if (/Android/.test(ua)) return { emoji: '🤖', text: 'You\'re on Android — Google Fit or Strava are your best starting points.' }
-    return { emoji: '💻', text: 'On desktop, file imports work great. For live wearable sync, visit from your phone.' }
-  }, [inNativeApp])
+  const statusLabel = loading ? '' : connected ? 'Connected' : 'Not Connected'
+  const sub = !connected
+    ? (inNativeApp ? 'Allow access once and Jeevan keeps your data up to date.' : 'Open Jeevan on your iPhone to connect, or import an export.')
+    : lastSyncedAt ? `Last synced ${timeAgo(lastSyncedAt)}` : 'Up to date'
+  const cta = syncing ? 'Syncing…'
+    : !inNativeApp ? 'Import Apple Health Export'
+    : connected ? 'Sync Now' : 'Connect Apple Health'
 
   return (
-    <div className="connected-accounts-page">
-      <header className="page-header">
-        <h1 className="page-title">Data Sources</h1>
-        <p className="page-subtitle">
-          What's connected, what needs your action, and what's coming soon.
-        </p>
+    <div className="jset-page">
+      <header className="jset-title-block">
+        <button type="button" className="jset-back" data-no-press-glow onClick={() => navigate('/settings')}>
+          <ChevronLeft size={16} /> Settings
+        </button>
+        <h1 className="page-title">Apple Health</h1>
+        <p className="jset-subtitle">Your watch, scale, ring and other apps all sync through Apple Health.</p>
       </header>
 
-      {deviceHint && (
-        <div className="accounts-device-hint">
-          <span>{deviceHint.emoji}</span>
-          <span>{deviceHint.text}</span>
-        </div>
-      )}
-
-      {disconnectMsg && (
-        <div className="settings-notice" style={{ marginBottom: 0 }}>{disconnectMsg}</div>
-      )}
-
-      {/* Status summary bar */}
-      <div className="accounts-summary">
-        <div className="accounts-summary-stat">
-          <span className="accounts-summary-num" style={{ color: 'var(--green)' }}>{connectedCount}</span>
-          <span className="accounts-summary-label">Connected</span>
-        </div>
-        <div className="accounts-summary-divider" />
-        <div className="accounts-summary-stat">
-          <span className="accounts-summary-num" style={{ color: 'var(--pink)' }}>{importReadyCount}</span>
-          <span className="accounts-summary-label">Import Ready</span>
-        </div>
-        <div className="accounts-summary-divider" />
-        <div className="accounts-summary-stat">
-          <span className="accounts-summary-num" style={{ color: 'var(--orange)' }}>{needsSetupCount}</span>
-          <span className="accounts-summary-label">Needs Setup</span>
-        </div>
-      </div>
-
-      {/* Your equipment — what's shown elsewhere in the app is gated on this */}
-      <div className="accounts-coming-soon">
-        <h3 className="accounts-cs-heading">Your equipment</h3>
-        <p className="accounts-cs-sub">
-          Check anything you own — only checked equipment shows up in Recovery, Profile, and the dashboard.
-        </p>
-        {GATEABLE_DEVICES.map(d => {
-          const checked = owns(ownedDevices, d.id)
-          return (
-            <button
-              key={d.id}
-              type="button"
-              className="accounts-cs-row accounts-cs-row--toggle"
-              onClick={() => toggleOwnedDevice(d.id)}
-              aria-pressed={checked}
-            >
-              <span className="accounts-cs-icon">{d.icon}</span>
-              <span className="accounts-cs-name">{d.name}</span>
-              <span className={`accounts-device-check ${checked ? 'accounts-device-check--on' : ''}`}>
-                {checked ? 'I have this' : "I don't have this"}
+      <div className="jset-card jah-hero">
+        <div className="jah-hero-top">
+          <span className="jah-heart" aria-hidden="true"><Heart size={26} fill="#fff" strokeWidth={0} /></span>
+          <div className="jah-hero-text">
+            <span className="jah-hero-title">Apple Health</span>
+            {statusLabel && (
+              <span className={`jset-chip ${connected ? 'jset-chip--ok' : 'jset-chip--muted'}`}>
+                <span className="jset-chip-dot" />{statusLabel}
               </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Primary accounts list */}
-      <div className="accounts-list">
-        {primaryAccounts.map(account => (
-          <div key={account.id} className="account-wrap">
-            {syncing === account.id && (
-              <div className="account-syncing-overlay">
-                <RefreshCw size={14} className="spin" />
-                <span>Syncing {account.shortName}…</span>
-              </div>
             )}
-            <AccountCard
-              account={account}
-              lastSync={lastSyncs.get(account.id)}
-              onSync={handleSync}
-              onDisconnect={handleDisconnect}
-              nativeAction={
-                inNativeApp && (account.id === 'apple_health' || account.id === 'apple_watch')
-                  ? { label: 'Sync Now', onClick: openNativeHealthSync }
-                  : undefined
-              }
-            />
           </div>
-        ))}
-      </div>
-
-      {/* Coming Soon — compact list */}
-      <div className="accounts-coming-soon">
-        <h3 className="accounts-cs-heading">More sources coming soon</h3>
-        <p className="accounts-cs-sub">These devices sync via Apple Health today. Direct integrations are planned for a future update.</p>
-        {COMING_SOON_PROVIDERS.map(p => (
-          <div key={p.id} className="accounts-cs-row">
-            <span className="accounts-cs-icon">{p.icon}</span>
-            <span className="accounts-cs-name">{p.name}</span>
-            <span className="accounts-cs-method">{p.method}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* What's real callout */}
-      <div className="accounts-honesty-box">
-        <h3>What's actually connected right now?</h3>
-        <div className="honesty-grid">
-          {inNativeApp ? (
-            <>
-              <div className="honesty-item honesty-item--yes">
-                <strong>Real today (native app):</strong> Apple Health and Apple Watch via HealthKit — steps, heart rate, HRV, sleep, weight, calories, and body fat sync automatically. RENPHO data appears here automatically if you've enabled Apple Health sync in the RENPHO app.
-              </div>
-              <div className="honesty-item honesty-item--no">
-                <strong>Not yet real:</strong> Background auto-sync (you tap Sync Now to pull fresh data). RingConn/WHOOP/Oura direct APIs (don't exist publicly — Apple Health is the only path). RingConn Sleep Score, Stress, and Recovery Score are not exposed to Apple Health by RingConn.
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="honesty-item honesty-item--yes">
-                <strong>Real today:</strong> Manual file import from Apple Health XML, RENPHO CSV, MFP CSV, or Strava CSV.
-              </div>
-              <div className="honesty-item honesty-item--no">
-                <strong>Not yet real:</strong> Automatic background sync, live API polling, Apple Watch direct access, RingConn API (doesn't exist publicly).
-              </div>
-              <div className="honesty-item honesty-item--future">
-                <strong>Best experience:</strong> Use the native iOS app — Apple Health connects automatically via HealthKit with no file exports needed.
-              </div>
-            </>
-          )}
         </div>
+        <p className="jset-row-desc jah-sub">{sub}</p>
+        <button type="button" className="jset-cta jah-cta" onClick={handleSync} disabled={syncing}>
+          {inNativeApp ? <RefreshCw size={16} className={syncing ? 'spin' : undefined} /> : <FileUp size={16} />}
+          {cta}
+        </button>
       </div>
+
+      <JSection title="What Syncs">
+        {SYNCED.map(s => <JRow key={s.label} icon={s.icon} label={s.label} desc={s.desc} />)}
+      </JSection>
+
+      {inNativeApp && connected && (
+        <JSection title="Permissions">
+          <JRow icon={Settings2} label="Health Access" desc="Review what Jeevan can read from Apple Health" onClick={openNativeHealthSheet} />
+        </JSection>
+      )}
+
+      <p className="jah-footnote">
+        Using an Apple Watch, smart scale or ring? Turn on its Apple Health sharing in that device's app — Jeevan picks it up automatically on the next sync.
+      </p>
     </div>
   )
 }

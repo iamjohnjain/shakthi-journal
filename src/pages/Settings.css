@@ -535,3 +535,21 @@
 }
 .jset-diag-row span:first-child { color: var(--text-primary); }
 .jset-diag-row span:last-child { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* Apple Health page */
+.jah-hero { padding: 18px; gap: 16px; }
+.jah-hero-top { display: flex; align-items: center; gap: 14px; }
+.jah-heart {
+  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #FF5E7E 0%, #FF2D55 100%);
+  box-shadow: 0 8px 20px -10px rgba(255, 45, 85, 0.8);
+}
+.jah-hero-text { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.jah-hero-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.jah-cta { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 16px; font-size: 15px; }
+.jah-cta:disabled { opacity: 0.75; cursor: default; }
+.jah-footnote { margin: 0 4px; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.jah-cta .spin { animation: jahSpin 0.9s linear infinite; }
+@keyframes jahSpin { to { transform: rotate(360deg); } }
+.jah-sub { margin: -4px 0 0; }

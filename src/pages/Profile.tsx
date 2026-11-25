@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Watch, Radio, Scale, X, Camera, Check, Calendar, Settings, LogIn, LogOut } from 'lucide-react'
+import { X, Camera, Check, Calendar, Settings, LogIn, LogOut } from 'lucide-react'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -13,8 +13,6 @@ import { getAllWeeklyReviews } from '../db/reviewStore'
 import { AvatarDisplay, AvatarPicker } from '../components/Avatar'
 import WeeklyWrapCard from '../components/WeeklyWrapCard'
 import { useAuth } from '../context/AuthContext'
-import { getOwnedDevices, owns } from '../db/deviceStore'
-import type { DeviceId } from '../db/deviceStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { PRIMARY_GOALS } from './OnboardingPage'
@@ -24,14 +22,6 @@ import './Profile.css'
 
 const GOAL_LABEL: Record<string, string> = Object.fromEntries(PRIMARY_GOALS.map(g => [g.id, g.label]))
 function goalLabel(id: string): string { return GOAL_LABEL[id] ?? id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const DEVICES: Array<{ id: DeviceId; name: string; sub: string; icon: typeof Watch; status: string }> = [
-  { id: 'apple_watch', name: 'Apple Watch', sub: 'Heart rate · steps · workouts · sleep', icon: Watch, status: 'via Apple Health' },
-  { id: 'ringconn',    name: 'RingConn',    sub: 'HRV · sleep stages · recovery',         icon: Radio, status: 'via Apple Health' },
-  { id: 'renpho',      name: 'Renpho Smart Scale', sub: 'Weight · body composition',      icon: Scale, status: 'via Apple Health' },
-]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -307,18 +297,14 @@ export default function Profile() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [editing,     setEditing]     = useState(false)
   const [dbStats,     setDbStats]     = useState<{ workoutCount: number; logCount: number } | null>(null)
-  const [ownedDevices, setOwnedDevicesState] = useState<DeviceId[] | null>(null)
   const [weeklyWraps, setWeeklyWraps] = useState<WeeklyReview[]>([])
   const [openWrap,    setOpenWrap]    = useState<WeeklyReview | null>(null)
 
   useEffect(() => {
     getProfile().then(setProfileData)
     getDBStats().then(s => setDbStats({ workoutCount: s.workoutCount, logCount: s.logCount }))
-    getOwnedDevices().then(setOwnedDevicesState)
     getAllWeeklyReviews().then(setWeeklyWraps)
   }, [])
-
-  const ownedDeviceRows = DEVICES.filter(d => owns(ownedDevices, d.id))
 
   async function handleSave(data: Omit<ProfileData, 'id' | 'updatedAt'>) {
     await saveProfile(data)
@@ -462,25 +448,6 @@ export default function Profile() {
         </JSection>
       )}
 
-      <section className="jset-section">
-        <div className="jpro-section-head">
-          <h2 className="jset-section-title">Devices</h2>
-          <button type="button" className="jpro-link" data-no-press-glow onClick={() => navigate('/connected-accounts')}>Manage</button>
-        </div>
-        <div className="jset-card jset-card--rows">
-          {ownedDeviceRows.length > 0 ? ownedDeviceRows.map(d => (
-            <JRow
-              key={d.id}
-              icon={d.icon}
-              label={d.name}
-              desc={d.sub}
-              trailing={<span className="jset-chip jset-chip--ok"><span className="jset-chip-dot" />Via Apple Health</span>}
-            />
-          )) : (
-            <p className="jpro-empty jpro-devices-empty">No equipment added yet. Tap Manage to tell us what you have.</p>
-          )}
-        </div>
-      </section>
 
       {openWrap && <WeeklyWrapCard review={openWrap} onDone={() => setOpenWrap(null)} />}
     </div>

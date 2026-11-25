@@ -21,6 +21,14 @@ export default function Layout() {
 
   // .page-content is one scroll box shared by every route, so without this a
   // new page opens at whatever scroll offset the previous one was left at.
+  // Remember when Apple Health last synced (native syncs don't write
+  // sync_history), for the Apple Health page and Settings status.
+  useEffect(() => {
+    function onNativeSync() { setSetting('apple-health.lastSyncedAt', new Date().toISOString()).catch(() => {}) }
+    window.addEventListener('native-health-sync-complete', onNativeSync)
+    return () => window.removeEventListener('native-health-sync-complete', onNativeSync)
+  }, [])
+
   useEffect(() => {
     document.querySelector('.page-content')?.scrollTo(0, 0)
   }, [location.pathname])

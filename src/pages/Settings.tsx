@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
-  Shield, ChevronRight, Smartphone, LayoutDashboard, Ruler, RefreshCw, Moon, Cloud,
+  Shield, ChevronRight, Smartphone, LayoutDashboard, Ruler, RefreshCw, Moon, Cloud, Heart,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useUnits } from '../hooks/useUnits'
@@ -13,6 +13,7 @@ import { getProfile } from '../db/profileStore'
 import { AvatarDisplay } from '../components/Avatar'
 import type { ProfileData } from '../db'
 import type { SyncStatus } from '../db/syncEngine'
+import { useAppleHealthStatus, timeAgo } from '../hooks/useAppleHealthStatus'
 import './Settings.css'
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ function syncChip(status: SyncStatus): { label: string; tone: 'ok' | 'busy' | 'w
 }
 
 export default function Settings() {
+  const ah = useAppleHealthStatus()
   const { appVersion } = useApp()
   const { system, setSystem } = useUnits()
   const { theme, isExplicit, setTheme, clearTheme } = useTheme()
@@ -237,11 +239,25 @@ export default function Settings() {
             <ChevronRight size={18} className="jset-chev" />
           </button>
           <div className="jset-divider" />
+          <button type="button" className="jset-row" onClick={() => navigate('/connected-accounts')}>
+            <Tile icon={Heart} />
+            <span className="jset-row-text">
+              <span className="jset-row-label">Apple Health</span>
+              <span className="jset-row-desc">{ah.connected && ah.lastSyncedAt ? `Synced ${timeAgo(ah.lastSyncedAt)}` : 'Watch, scale and app data'}</span>
+            </span>
+            {!ah.loading && (
+              <span className={`jset-chip ${ah.connected ? 'jset-chip--ok' : 'jset-chip--muted'}`}>
+                <span className="jset-chip-dot" />{ah.connected ? 'Connected' : 'Not Connected'}
+              </span>
+            )}
+            <ChevronRight size={18} className="jset-chev" />
+          </button>
+          <div className="jset-divider" />
           <button type="button" className="jset-row" onClick={() => navigate('/settings/data')}>
             <Tile icon={Cloud} />
             <span className="jset-row-text">
               <span className="jset-row-label">Data &amp; Sync</span>
-              <span className="jset-row-desc">Account, backups, connected sources</span>
+              <span className="jset-row-desc">Account, backups, storage</span>
             </span>
             <span className={`jset-chip jset-chip--${chip.tone}`}><span className="jset-chip-dot" />{chip.label}</span>
             <ChevronRight size={18} className="jset-chev" />
