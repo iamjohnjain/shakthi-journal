@@ -252,9 +252,8 @@ export default function WorkoutHistoryPage() {
       {!loading && groups.length === 0 && (
         <div className="workout-history-empty">
           <Dumbbell size={32} style={{ opacity: 0.25, marginBottom: 12 }} />
-          <p>No workouts logged yet.</p>
-          <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-            Head to <NavLink to="/workouts" style={{ color: 'var(--accent)' }}>Today</NavLink> to log your first session.
+          <p>
+            No <NavLink to="/workouts" className="wkh-rainbow-link" aria-label="Workouts — go log a workout">Workouts</NavLink> Logged Yet
           </p>
         </div>
       )}

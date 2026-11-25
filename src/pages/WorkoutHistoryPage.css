@@ -220,3 +220,15 @@
   font-size: 13.5px;
   font-weight: 600;
 }
+
+/* Empty state: "Workouts" links back to the log-workout screen, in the
+   same orange → violet → blue gradient as the rest of the app's accents. */
+.wkh-rainbow-link {
+  font-weight: 700;
+  text-decoration: none;
+  background: var(--gradient-brand-wide);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.wkh-rainbow-link:active { opacity: 0.7; }
