@@ -1,0 +1,156 @@
+/* ─── Ruler dial ─────────────────────────────────────────────────────────── */
+
+.dial {
+  --dial-tick: rgba(255, 255, 255, 0.34);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Readout — the biggest thing on screen. */
+.dial-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  min-height: 64px;
+}
+.dial-readout-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.dial-readout-btn:disabled { cursor: default; opacity: 1; }
+.dial-readout-btn:active { transform: none; }
+.dial-number {
+  display: inline-flex;
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  padding: 4px 0;
+}
+.dial-digit {
+  display: inline-block;
+  will-change: transform, filter;
+}
+.dial-digit--up   { animation: dialRollUp 0.18s cubic-bezier(.2, .8, .2, 1); }
+.dial-digit--down { animation: dialRollDown 0.18s cubic-bezier(.2, .8, .2, 1); }
+@keyframes dialRollUp {
+  from { transform: translateY(55%); filter: blur(2.5px); opacity: 0.2; }
+  to   { transform: none; filter: none; opacity: 1; }
+}
+@keyframes dialRollDown {
+  from { transform: translateY(-55%); filter: blur(2.5px); opacity: 0.2; }
+  to   { transform: none; filter: none; opacity: 1; }
+}
+.dial-unit {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.dial-input {
+  width: 4.5ch;
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid var(--border);
+  outline: none;
+  padding: 0;
+}
+
+/* Track — the whole width drags. */
+.dial-track-wrap {
+  position: relative;
+  width: 100%;
+  height: 76px;
+  border-radius: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  outline: none;
+}
+.dial-track-wrap:hover,
+.dial-track-wrap:focus-visible,
+.dial-track-wrap:focus-within {
+  border-color: rgba(166, 107, 245, 0.45);
+  box-shadow: 0 0 0 4px rgba(166, 107, 245, 0.12), 0 0 28px -6px rgba(166, 107, 245, 0.55);
+}
+.dial:hover { --dial-tick: rgba(255, 255, 255, 0.5); }
+
+.dial-scroller {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  border-radius: inherit;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+}
+.dial-scroller::-webkit-scrollbar { display: none; }
+
+/* % padding resolves against the scroller's width, so the ruler's first
+   tick sits exactly under the centered needle at scrollLeft 0. */
+.dial-track {
+  display: inline-block;
+  height: 100%;
+  padding: 0 50%;
+  box-sizing: content-box;
+}
+.dial-ruler {
+  position: relative;
+  height: 100%;
+  margin-left: -0.75px;
+}
+.dial-label {
+  position: absolute;
+  bottom: 4px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Needle — the one accent color in the control. */
+.dial-needle {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 24px; /* stops above the labels so it never covers one */
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: var(--gradient-brand);
+  box-shadow: 0 0 10px rgba(166, 107, 245, 0.8), 0 0 2px rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+}
+
+:root[data-theme='light'] .dial,
+.theme-light .dial { --dial-tick: rgba(20, 16, 10, 0.32); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dial-digit--up, .dial-digit--down { animation: none; }
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .dial { --dial-tick: rgba(20, 16, 10, 0.32); }
+}

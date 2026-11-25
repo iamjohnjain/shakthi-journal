@@ -52,7 +52,8 @@
 
 .qw-save {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: var(--accent); color: #fff; border: none;
+  background: var(--gradient-brand); color: #fff; border: none;
+  box-shadow: 0 8px 24px -10px rgba(166, 107, 245, 0.75);
   border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer;
 }
 .qw-save:disabled { opacity: .5; cursor: default; }

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { setSetting, getSetting } from '../db'
 import { saveProfile, getProfile } from '../db/profileStore'
-import WheelPicker from '../components/WheelPicker'
+import Dial from '../components/Dial'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { AUTH_PROVIDERS } from '../lib/authProviders'
@@ -474,32 +474,14 @@ function StepHeight({ data, patch, onNext, dir }: StepProps) {
         <h1 className="ob-q-title">How Tall<br/>Are You?</h1>
       </div>
       <div className="ob-input-zone">
-        <div className="ob-height-pickers">
-          <div className="ob-picker-col">
-            <select
-              className="ob-drum-select"
-              value={data.heightFt}
-              onChange={e => patch({ heightFt: e.target.value })}
-            >
-              {[4, 5, 6, 7].map(f => (
-                <option key={f} value={String(f)}>{f}</option>
-              ))}
-            </select>
-            <span className="ob-picker-unit">ft</span>
-          </div>
-          <div className="ob-picker-col">
-            <select
-              className="ob-drum-select"
-              value={data.heightIn}
-              onChange={e => patch({ heightIn: e.target.value })}
-            >
-              {Array.from({ length: 12 }, (_, i) => i).map(i => (
-                <option key={i} value={String(i)}>{i}</option>
-              ))}
-            </select>
-            <span className="ob-picker-unit">in</span>
-          </div>
-        </div>
+        <Dial
+          min={48} max={90} step={1}
+          value={(parseInt(data.heightFt) || 5) * 12 + (parseInt(data.heightIn) || (data.heightFt ? 0 : 10))}
+          onChange={v => patch({ heightFt: String(Math.floor(v / 12)), heightIn: String(v % 12) })}
+          format={v => `${Math.floor(v / 12)}′${v % 12}″`}
+          labelEvery={6} midEvery={3} gap={16}
+          ariaLabel="Height"
+        />
       </div>
       <div className="ob-footer">
         <button className="ob-cta ob-cta--full" onClick={onNext}>Continue</button>
@@ -522,11 +504,14 @@ function StepCurrentWeight({ data, patch, onNext, dir }: StepProps) {
         <p className="ob-q-sub">Your starting point for tracking progress.</p>
       </div>
       <div className="ob-input-zone">
-        <NumberStepper
+        <Dial
+          min={80} max={500} step={1}
           value={val}
           onChange={v => patch({ currentWeightLbs: String(v) })}
           unit="lbs"
-          min={80} max={500} step={1}
+          labelEvery={10} midEvery={5} gap={12}
+          editable
+          ariaLabel="Current weight"
         />
       </div>
       <div className="ob-footer">
@@ -553,11 +538,14 @@ function StepGoalWeight({ data, patch, onNext, dir }: StepProps) {
         <p className="ob-q-sub">Where you want to be. You can always change this.</p>
       </div>
       <div className="ob-input-zone">
-        <NumberStepper
+        <Dial
+          min={80} max={500} step={1}
           value={val}
           onChange={v => patch({ goalWeightLbs: String(v) })}
           unit="lbs"
-          min={80} max={500} step={1}
+          labelEvery={10} midEvery={5} gap={12}
+          editable
+          ariaLabel="Goal weight"
         />
       </div>
       <div className="ob-footer">
@@ -677,14 +665,15 @@ function StepNutrition({ data, patch, onNext, dir }: StepProps) {
       </div>
 
       <div className="ob-rate-picker">
-        <WheelPicker
-          direction="horizontal"
+        <Dial
           key={gaining ? 'gain' : 'lose'}
-          values={rateValues}
+          min={0} max={rateValues[rateValues.length - 1]} step={0.25}
           value={data.weightLossRateLbsPerWeek}
           onChange={handleRateChange}
-          itemHeight={64}
-          visibleCount={5}
+          format={v => String(v)}
+          unit="lbs/wk"
+          labelEvery={2} midEvery={0} gap={34}
+          ariaLabel={gaining ? 'Weight gain pace' : 'Weight loss pace'}
         />
         <p className="ob-rate-desc">{rateDescription(data.weightLossRateLbsPerWeek, gaining)}</p>
       </div>
