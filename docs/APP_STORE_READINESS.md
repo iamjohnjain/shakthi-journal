@@ -1004,3 +1004,69 @@ isolation + the specified cross-account tests). The milestone as a whole
 remains **PARTIAL, not COMPLETE** — the live adversarial matrix pass
 and Apple Distribution signing/owner-only items are still open. Do not
 advance this milestone to COMPLETE until those run and are documented.
+
+---
+
+## P1-3 Follow-up — Guest-to-Account Data Transfer (this session)
+
+Flagged in review, before it shipped anywhere: the initial P1-3 design
+gated `getDB()` on an async "identity known" promise, and
+`activateSession` called `setActiveDbIdentity(authUser.id)` as its
+first line — BEFORE reading `getLocalDataSummary()`/`syncedUserId` to
+decide whether the merge prompt should appear. Once an account has its
+own physically separate (and, for a brand-new signup, empty) database,
+switching to it first makes a real guest dataset invisible to that
+check, silently skipping the merge prompt instead of offering to carry
+guest data over — the opposite of "easy transfer." Caught and fixed in
+this same session before any of it reached production.
+
+**Fix, two parts:**
+
+1. **Reordered `activateSession`** (`AuthContext.tsx`) to read local
+   data from whichever database is currently active — guest, in the
+   normal case — BEFORE calling `setActiveDbIdentity`. The actual
+   database switch now happens either immediately after (same account,
+   or nothing local to protect) or inside `resolveMerge`, once the user
+   has made a choice on the merge dialog.
+2. **`resolveMerge`** now performs real guest→account data transfer
+   instead of relying on there being only one shared database (true
+   before this pass, no longer true after it): `'merge'` and
+   `'replace-cloud'` both call a new `importGuestDataIntoAccount(userId)`
+   (copies every record from every store in the guest database into the
+   account's own, via `put` — never clears either side) before syncing
+   with the cloud; `'replace-local'` skips the copy and, to honor the
+   dialog's own promise that local data "will be permanently deleted,"
+   calls a new `clearGuestDatabase()` after the cloud download succeeds.
+   `MergeDialog.tsx`'s existing copy ("Add cloud records not found
+   locally. Upload local records to cloud." / "Erase all local data...")
+   needed no changes — it was already describing the intended behavior
+   correctly; the implementation just didn't deliver on it yet for the
+   per-account-database world.
+
+**Also simplified away the async "identity known" gate entirely**
+(the mechanism that caused the ordering bug above to be a real deadlock
+risk, not just a logic bug): `getDB()` no longer blocks on anything —
+it defaults to opening the guest database immediately, exactly as this
+app behaved before per-account isolation existed, and
+`setActiveDbIdentity` switches away from that default the moment a real
+session is found. This removes the 4-second safety-net timeout that was
+previously needed to protect against that gate stalling forever, because
+there is no longer a gate to stall.
+
+**New tests** (`src/db/index.test.ts`, 3 added, 7 total in the file):
+`importGuestDataIntoAccount` copies guest records into an account
+database without clearing the guest side; it never lets an unrelated
+guest record overwrite an account's own existing data under a different
+key; `clearGuestDatabase` actually erases guest data. All pass.
+
+**Verification:** `npx tsc --noEmit` clean, `npx vitest run` —
+**119/119 passing** (115 existing + 4 new), `npx vite build` succeeds.
+
+**Residual gap, stated honestly:** `clearGuestDatabase()` in the
+`'replace-local'` branch assumes the local data being discarded was
+guest-mode data — true for this app's normal flow (sign-out always
+switches to guest before a different account can sign in), but not
+necessarily true in the pre-existing, separately-documented edge case
+of a device where a different account's session is still live when a
+new sign-in happens without a clean sign-out in between. That edge case
+is unchanged by this follow-up, not newly introduced by it.

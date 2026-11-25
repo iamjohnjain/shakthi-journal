@@ -5,7 +5,7 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured, assertProviderEnabled } from '../lib/supabase'
 import { syncEngine } from '../db/syncEngine'
 import { clearQueueForUser } from '../db/syncQueue'
-import { getSetting, setSetting, getDB, setActiveDbIdentity } from '../db'
+import { getSetting, setSetting, getDB, setActiveDbIdentity, importGuestDataIntoAccount, clearGuestDatabase } from '../db'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,14 +145,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const activateSession = useCallback(async (s: Session) => {
     const authUser = toAuthUser(s.user)
 
-    // Switch to this account's own isolated database FIRST, before anything
-    // else touches IndexedDB — every call below (getLocalDataSummary,
-    // getSetting, syncEngine operations) must see this account's data, not
-    // whatever was previously active (guest, or a different account on a
-    // shared device that never fully signed out).
-    await setActiveDbIdentity(authUser.id)
-
-    // Check for existing local data that wasn't previously synced
+    // Check for existing local data BEFORE switching databases — this has
+    // to run against whichever database is currently active (guest mode's
+    // unscoped database, most commonly) rather than this account's own,
+    // likely-empty one. Switching first would make a real guest dataset
+    // invisible to this check and silently skip the merge prompt below
+    // instead of offering to carry it over.
     const savedUserId = await getSetting<string | null>('syncedUserId', null)
     const localData = await getLocalDataSummary()
     const isSameUser = savedUserId === authUser.id
@@ -161,10 +159,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isSameUser && hasLocalData) {
       // Different account (or first sign-in) with real local data already
       // present — let the user decide how to reconcile the two.
+      // `resolveMerge` performs the actual database switch once they
+      // choose, since the choice determines whether that local/guest data
+      // gets carried into the account's own database or left behind.
       setPendingMerge({ user: authUser, session: s, localData })
       return
     }
 
+    // Same account as before, or nothing local worth protecting — safe to
+    // switch to this account's own database now.
+    await setActiveDbIdentity(authUser.id)
     await finalizeSignIn(s, authUser)
 
     // First time this install has ever signed in as this user, and there's
@@ -372,20 +376,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!pendingMerge) return
     const { session: s, user: u } = pendingMerge
 
+    // Only now — once the user has actually chosen — do we switch away
+    // from whichever database was active (almost always guest) to this
+    // account's own. 'merge' and 'replace-cloud' both mean "keep my local
+    // data," so both copy it across before anything else touches the new
+    // database; 'replace-local' means "discard it," so the copy is skipped
+    // and the guest database itself is left untouched (not cleared) in
+    // case the user didn't mean it and wants to try again later.
     switch (choice) {
       case 'merge':
+        await setActiveDbIdentity(u.id)
+        await importGuestDataIntoAccount(u.id)
         await finalizeSignIn(s, u)
         await syncEngine.mergeFromCloud(u.id)
         break
 
       case 'replace-cloud':
+        await setActiveDbIdentity(u.id)
+        await importGuestDataIntoAccount(u.id)
         await finalizeSignIn(s, u)
         await syncEngine.uploadAll(u.id)
         break
 
       case 'replace-local':
+        await setActiveDbIdentity(u.id)
         await finalizeSignIn(s, u)
         await syncEngine.downloadAll(u.id)
+        // The dialog explicitly tells the user this data "will be
+        // permanently deleted" — honor that. Assumes the local data being
+        // discarded was guest-mode data, true for the normal sign-out-
+        // before-sign-in flow this app requires; a device that still has
+        // a different account's session live when this one signs in (no
+        // clean sign-out in between) is a pre-existing, separately
+        // documented edge case this does not additionally fix.
+        await clearGuestDatabase().catch(() => {
+          // Best-effort — a failure here leaves stale guest data behind
+          // but must not block the sign-in that already succeeded.
+        })
         break
     }
   }, [pendingMerge, finalizeSignIn])

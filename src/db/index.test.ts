@@ -140,3 +140,69 @@ describe('per-account IndexedDB isolation', () => {
     ).rejects.toBeDefined()
   })
 })
+
+describe('guest-to-account data transfer', () => {
+  beforeEach(async () => {
+    localStorage.clear()
+    localStorage.setItem('jeevan.perUserMigrationDone', '1')
+    const { vi } = await import('vitest')
+    vi.resetModules()
+  })
+
+  it('importGuestDataIntoAccount copies guest records into the account database without clearing guest data', async () => {
+    const { setActiveDbIdentity, getDB, importGuestDataIntoAccount } = await freshDb()
+
+    await setActiveDbIdentity(null)
+    const guestDb = await getDB()
+    await guestDb.put('workouts', workout({ id: 'guest-w1' }))
+
+    const copied = await importGuestDataIntoAccount('new-user')
+    expect(copied).toBeGreaterThan(0)
+
+    await setActiveDbIdentity('new-user')
+    const accountDb = await getDB()
+    const transferred = await accountDb.get('workouts', 'guest-w1')
+    expect(transferred?.id).toBe('guest-w1')
+
+    // Guest data must still be intact — this path never clears it.
+    await setActiveDbIdentity(null)
+    const guestDb2 = await getDB()
+    const stillInGuest = await guestDb2.get('workouts', 'guest-w1')
+    expect(stillInGuest?.id).toBe('guest-w1')
+  })
+
+  it('importGuestDataIntoAccount never overwrites an account\'s own existing records with unrelated guest records', async () => {
+    const { setActiveDbIdentity, getDB, importGuestDataIntoAccount } = await freshDb()
+
+    await setActiveDbIdentity('existing-user')
+    const accountDb = await getDB()
+    await accountDb.put('workouts', workout({ id: 'own-w1', title: 'Own session' }))
+
+    await setActiveDbIdentity(null)
+    const guestDb = await getDB()
+    await guestDb.put('workouts', workout({ id: 'guest-w2', title: 'Guest session' }))
+
+    await importGuestDataIntoAccount('existing-user')
+
+    await setActiveDbIdentity('existing-user')
+    const accountDb2 = await getDB()
+    const own = await accountDb2.get('workouts', 'own-w1')
+    const imported = await accountDb2.get('workouts', 'guest-w2')
+    expect(own?.title).toBe('Own session')
+    expect(imported?.title).toBe('Guest session')
+  })
+
+  it('clearGuestDatabase erases guest data, honoring the "replace local with cloud" promise', async () => {
+    const { setActiveDbIdentity, getDB, clearGuestDatabase } = await freshDb()
+
+    await setActiveDbIdentity(null)
+    const guestDb = await getDB()
+    await guestDb.put('workouts', workout({ id: 'to-be-erased' }))
+
+    await clearGuestDatabase()
+
+    const guestDb2 = await getDB()
+    const gone = await guestDb2.get('workouts', 'to-be-erased')
+    expect(gone).toBeUndefined()
+  })
+})

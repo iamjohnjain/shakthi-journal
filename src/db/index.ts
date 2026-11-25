@@ -641,12 +641,18 @@ async function migrateFromLegacyDatabase(): Promise<void> {
 // `setActiveDbIdentity()` is called by AuthContext whenever the signed-in
 // identity changes (sign-in, sign-out, guest). Every existing consumer in
 // this codebase already does `const db = await getDB()` fresh on every call
-// (never caches the handle) — so gating `getDB()` itself on an "identity is
-// now known" promise makes every one of those call sites automatically wait
-// for and use the correct account's database, with zero changes required to
-// any of the 18 store modules that call it.
+// (never caches the handle) — so every one of those call sites automatically
+// picks up whichever database is currently active, with zero changes
+// required to any of the 18 store modules that call it. `getDB()` itself
+// never blocks waiting for a decision: it defaults to the guest database
+// immediately (identical to this app's behavior before per-account
+// isolation existed), and `setActiveDbIdentity` switches it afterward if a
+// real session is found. This deliberately avoids an "identity resolution
+// gate" — a gate would have to block `getDB()` until a decision is made,
+// but `AuthContext` itself needs to read the CURRENT (pre-decision, often
+// guest) database first to know whether there's local data to ask the user
+// about, which would deadlock against its own gate.
 const LEGACY_MIGRATION_FLAG = 'jeevan.perUserMigrationDone'
-const IDENTITY_RESOLUTION_TIMEOUT_MS = 4_000
 
 function sanitizeIdentity(identity: string): string {
   // Supabase user ids are UUIDs, but sanitize defensively since this becomes
@@ -658,40 +664,93 @@ function dbNameFor(identity: string | null): string {
   return identity ? `jeevan_${sanitizeIdentity(identity)}` : DB_NAME
 }
 
+function openNamed(name: string): Promise<IDBPDatabase<JeevanDB>> {
+  return openDB<JeevanDB>(name, DB_VERSION, { upgrade: runUpgrade })
+}
+
+/** Copies every record from every store in `sourceDbName` into
+    `targetDbName`, via a plain `put` per record (so an existing record in
+    the target sharing the same key is overwritten by the source's version,
+    same semantics as every other write in this app — never a destructive
+    `clear()` first). Returns the number of records copied. A no-op,
+    returning 0, if the source database doesn't exist at all. */
+async function copyAllStores(sourceDbName: string, targetDbName: string): Promise<number> {
+  if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return 0
+  const existing = await indexedDB.databases()
+  if (!existing.some(d => d.name === sourceDbName)) return 0
+
+  const sourceDb = await openDB<JeevanDB>(sourceDbName, DB_VERSION, { upgrade: runUpgrade })
+  const targetDb = await openDB<JeevanDB>(targetDbName, DB_VERSION, { upgrade: runUpgrade })
+  let copied = 0
+  try {
+    for (const storeName of sourceDb.objectStoreNames) {
+      const records = await sourceDb.getAll(storeName)
+      if (records.length === 0) continue
+      const tx = targetDb.transaction(storeName, 'readwrite')
+      await Promise.all([...records.map(r => tx.store.put(r)), tx.done])
+      copied += records.length
+    }
+  } finally {
+    sourceDb.close()
+    targetDb.close()
+  }
+  return copied
+}
+
 /** One-time copy of the legacy unscoped `jeevan` database's data into the
     FIRST account that ever signs in after this change ships — it has no
     other owner to belong to, so handing it to the first real account is the
     only choice that doesn't just discard it. Every account after that first
-    one starts with a clean, empty database, which is correct: they never
-    had the unscoped data to begin with. Tracked via localStorage (not a
-    setting inside any one database) because the check needs to run before
-    we know which per-user database, if any, we're even opening. */
+    one starts with a clean, empty database (this is unrelated to, and runs
+    before, the explicit per-sign-up guest-data transfer a user can choose
+    via the merge prompt — see `importGuestDataIntoAccount` below). Tracked
+    via localStorage (not a setting inside any one database) because the
+    check needs to run before we know which per-user database, if any,
+    we're even opening. */
 async function migrateLegacyToFirstAccount(identity: string): Promise<void> {
   if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return
   try {
     if (localStorage.getItem(LEGACY_MIGRATION_FLAG)) return
-
-    const existing = await indexedDB.databases()
-    const hasLegacy = existing.some(d => d.name === DB_NAME)
-    if (!hasLegacy) {
-      localStorage.setItem(LEGACY_MIGRATION_FLAG, '1')
-      return
-    }
-
-    const legacyDb = await openDB<JeevanDB>(DB_NAME, DB_VERSION, { upgrade: runUpgrade })
-    const targetName = dbNameFor(identity)
-    const targetDb = await openDB<JeevanDB>(targetName, DB_VERSION, { upgrade: runUpgrade })
-    for (const storeName of legacyDb.objectStoreNames) {
-      const records = await legacyDb.getAll(storeName)
-      const tx = targetDb.transaction(storeName, 'readwrite')
-      await Promise.all([...records.map(r => tx.store.put(r)), tx.done])
-    }
-    legacyDb.close()
-    targetDb.close()
+    await copyAllStores(DB_NAME, dbNameFor(identity))
     localStorage.setItem(LEGACY_MIGRATION_FLAG, '1')
   } catch {
     // Best-effort — if this fails, the new account just starts empty instead
     // of inheriting the old guest data; it does not block sign-in.
+  }
+}
+
+/** Explicit, user-chosen copy of every record currently in the guest
+    (unscoped `jeevan`) database into a signed-in account's own database.
+    Unlike `migrateLegacyToFirstAccount` above (which runs automatically,
+    once, for whichever account happens to be first), this runs on demand
+    — called from the merge-choice flow whenever someone who built up data
+    in guest mode then creates or signs into an account and chooses to keep
+    that data. Safe to call more than once or for any account, not just the
+    first: it never clears the guest database, so guest data survives for
+    this call to run again if needed, and it never clears the target
+    database either, so it can't destroy an account's own existing data. */
+export async function importGuestDataIntoAccount(identity: string): Promise<number> {
+  return copyAllStores(DB_NAME, dbNameFor(identity))
+}
+
+/** Clears every store in the guest (unscoped `jeevan`) database — used
+    only when a user explicitly chose "replace local with cloud" on the
+    merge prompt (`MergeDialog.tsx`), which tells them this data "will be
+    permanently deleted." Must not be called as a side effect of anything
+    else: this is the one path in this file that destroys data rather than
+    only ever adding it. A no-op if the guest database doesn't exist. */
+export async function clearGuestDatabase(): Promise<void> {
+  if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return
+  const existing = await indexedDB.databases()
+  if (!existing.some(d => d.name === DB_NAME)) return
+
+  const guestDb = await openDB<JeevanDB>(DB_NAME, DB_VERSION, { upgrade: runUpgrade })
+  try {
+    await Promise.all(
+      Array.from(guestDb.objectStoreNames).map(storeName => guestDb.clear(storeName))
+    )
+  } finally {
+    guestDb.close()
   }
 }
 
@@ -702,37 +761,16 @@ async function migrateLegacyToFirstAccount(identity: string): Promise<void> {
 let _dbPromise: Promise<IDBPDatabase<JeevanDB>> | null = null
 let _activeDbName: string | null = null
 
-// Gate on "do we know who's signed in yet", not on any particular identity —
-// resolves exactly once per identity change, so every `getDB()` call made
-// while AuthContext is still resolving the initial session waits for the
-// real answer instead of racing it on the guest database.
-let _identityKnown: Promise<void> | null = null
-let _resolveIdentityKnown: (() => void) | null = null
-
-function armIdentityGate(): void {
-  _identityKnown = new Promise(resolve => { _resolveIdentityKnown = resolve })
-  // Safety net: never let a slow/stuck auth check hang every IndexedDB read
-  // in the app forever — fall back to treating this as guest if nothing
-  // calls setActiveDbIdentity within a few seconds.
-  setTimeout(() => _resolveIdentityKnown?.(), IDENTITY_RESOLUTION_TIMEOUT_MS)
-}
-armIdentityGate()
-
-function openNamed(name: string): Promise<IDBPDatabase<JeevanDB>> {
-  return openDB<JeevanDB>(name, DB_VERSION, { upgrade: runUpgrade })
-}
-
 /** Called by AuthContext whenever the signed-in identity changes: on initial
     session resolution, sign-in, sign-out, and guest-mode entry. Switches the
     active database to the correct one for that identity, closing the
     previous handle first so a slow consumer can't keep writing to the old
-    account's database after the switch. Pass `null` for guest mode. */
+    account's database after the switch. Pass `null` for guest mode. Safe to
+    call redundantly (e.g. from both `activateSession` and `resolveMerge`
+    for the same account) — a no-op once already active. */
 export async function setActiveDbIdentity(identity: string | null): Promise<void> {
   const name = dbNameFor(identity)
-  if (_activeDbName === name && _dbPromise) {
-    _resolveIdentityKnown?.()
-    return
-  }
+  if (_activeDbName === name && _dbPromise) return
 
   const previous = _dbPromise
   _activeDbName = name
@@ -748,19 +786,17 @@ export async function setActiveDbIdentity(identity: string | null): Promise<void
     return openNamed(name)
   })()
 
-  // Let callers already awaiting getDB() resolve against the new handle.
   await _dbPromise
-  _resolveIdentityKnown?.()
 }
 
 export async function getDB(): Promise<IDBPDatabase<JeevanDB>> {
-  if (_identityKnown) await _identityKnown
-
   if (_dbPromise) return _dbPromise
 
-  // No identity has ever been set (e.g. a store module running before
-  // AuthContext mounts, or Supabase not configured at all) — default to the
-  // guest database, same behavior as before per-user isolation existed.
+  // No identity has ever been set yet (e.g. a store module running before
+  // AuthContext has decided guest-vs-signed-in, or Supabase not configured
+  // at all) — default to the guest database immediately, same behavior as
+  // before per-account isolation existed. `setActiveDbIdentity` switches
+  // away from this the moment a real session is found.
   _activeDbName = DB_NAME
   _dbPromise = migrateFromLegacyDatabase().then(() => openNamed(DB_NAME))
   return _dbPromise
