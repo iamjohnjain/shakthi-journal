@@ -70,6 +70,17 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+
+	<!-- Export compliance — confirmed this session, not assumed: grepped the
+	     entire Swift codebase for CryptoKit/CommonCrypto/CCCrypt/AES/RSA
+	     usage (none found) and the linked frameworks (HealthKit, Security —
+	     Security.framework here is Keychain storage, a system service, not
+	     app-implemented encryption). The only encryption in this app is
+	     standard HTTPS/TLS to Supabase, which qualifies for the "exempt"
+	     category. Declaring this also stops the App Store Connect export-
+	     compliance prompt from reappearing on every single build upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

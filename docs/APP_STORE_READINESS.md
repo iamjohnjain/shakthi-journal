@@ -59,13 +59,67 @@ and after every native change. `xcodebuild test` on `iPhone Duo` (iOS
 - P1-3 (multi-account IndexedDB isolation) — still the largest open
   launch blocker, still correctly deferred, not attempted here (same
   multi-day-scope reasoning as before).
-- `THIRD_PARTY_NOTICES.md` — still doesn't exist. Not attempted this
-  pass (needs a dependency-by-dependency license audit, real but
-  separate scope from the fixes above).
-- Everything genuinely owner-only: Apple Distribution signing/
-  provisioning, Sign in with Apple vs. Google decision, legal entity
-  details for a privacy policy, Groq data-retention confirmation,
-  export-compliance determination.
+
+---
+
+## Remediation — Second Pass (this session, continued)
+
+1. **Export compliance (`ITSAppUsesNonExemptEncryption`) — ✅ Determined
+   and fixed**, not left unknown. Grepped the entire Swift codebase for
+   `CryptoKit`/`CommonCrypto`/`CCCrypt`/`AES.`/`RSA.` — zero matches.
+   Confirmed linked frameworks are only `HealthKit` and `Security`
+   (Keychain storage, a system service — not app-implemented
+   encryption). The only encryption this app does is standard HTTPS/TLS
+   to Supabase, which qualifies for the export-compliance exemption.
+   Added `ITSAppUsesNonExemptEncryption = false` to `Info.plist` — also
+   stops the App Store Connect encryption-compliance prompt from
+   reappearing on every build upload.
+
+2. **`THIRD_PARTY_NOTICES.md` — ✅ Created**, not left absent. Generated
+   from the web app's actual installed `package.json`/`node_modules`
+   tree (17 direct dependencies), each license/version/repo pulled from
+   that package's own `package.json` — not asserted from memory. All 17
+   are MIT/ISC/BSD-2-Clause/Apache-2.0 (confirmed via the license field
+   itself, not assumed) — no copyleft licenses present. Confirmed the
+   native iOS app has zero third-party dependencies at all (no
+   `Podfile`/`Package.resolved`/`Package.swift` anywhere in `ios/`) — it
+   uses only Apple's own frameworks. Points to the pre-existing
+   `public/models/CREDITS.md` for the 3D muscle-model asset's separate
+   CC BY-SA attribution rather than duplicating it.
+
+3. **Live adversarial matrix — attempted, partially completed.** Built
+   a real simulator binary (`xcodebuild … -destination "platform=iOS
+   Simulator,name=iPhone Duo"`), installed it (`xcrun simctl install`),
+   launched it (`xcrun simctl launch`), and screenshotted the result
+   (`xcrun simctl io … screenshot`) — this is genuine interactive
+   verification, not code review. **Confirmed:** the app installs and
+   cold-launches cleanly to the native sign-in screen with no crash: the
+   new logo renders correctly on-device (incidental confirmation of the
+   separate logo-update work), the sign-in form is fully interactive.
+   **Not reached:** actually driving a WKWebView-level scenario (forcing
+   `webViewWebContentProcessDidTerminate` to confirm the exact crash-
+   recovery UI the triggering report described, offline launch, a real
+   popup, a real media-permission prompt) — all of those require a
+   signed-in session, and this session has no test account credentials
+   for the real Supabase project. Did not create one — that would mean
+   writing real rows into the production project without being asked
+   to. The app and the test target were uninstalled from the simulator
+   and the temporary simulator build directory removed after this
+   check; nothing was left behind.
+
+**What would unblock the rest of the live matrix:** either a dedicated
+test/guest account's credentials (so this harness can sign in without
+touching real user data), or a native debug affordance that reaches
+`WebAppView` without authentication in non-Release builds. Neither
+exists today — flagging as a concrete, actionable next step rather than
+a vague "needs more testing."
+
+**Verification run this continuation:** `npx tsc --noEmit` (clean),
+`npx vitest run` (112/112), `xcodebuild … CODE_SIGNING_ALLOWED=NO clean
+build` (Release, generic iOS) — BUILD SUCCEEDED, re-confirmed after the
+`Info.plist` export-compliance addition. `xcodebuild test` on `iPhone
+Duo` (iOS 27.2) — 66/66 passing, 0 failures, re-confirmed after the
+same change.
 
 ---
 
