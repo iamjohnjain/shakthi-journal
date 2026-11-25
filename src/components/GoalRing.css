@@ -227,12 +227,15 @@
    action rather than quiet status text. Tapping it is just tapping the
    card (which already triggers a sync on open), not a separate control. */
 .goal-ring-sync-chip--cta {
-  color: #C9B8FF;
-  border-color: rgba(166, 107, 245, 0.45);
-  background: rgba(166, 107, 245, 0.14);
+  color: #fff;
+  border-color: transparent;
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-ring);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 4px 14px -8px rgba(166, 107, 245, 0.8);
   font-weight: 700;
 }
-.goal-ring-sync-chip--cta .goal-ring-sync-icon { color: #C9B8FF; }
+.goal-ring-sync-chip--cta .goal-ring-sync-icon { color: #fff; }
 
 .goal-ring-sync-icon {
   color: var(--text-quaternary);

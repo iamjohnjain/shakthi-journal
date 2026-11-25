@@ -91,12 +91,9 @@
      → cool focus), for primary CTAs and hero accents. Used sparingly. */
   --gradient-brand: linear-gradient(135deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
-  /* Card/button ring — matches how the avatar ring actually reads (soft
-     rose → lavender → periwinkle). The avatar uses --gradient-brand, but on a
-     circle the orange corner falls outside the ring; on wide cards it
-     doesn't, so this version starts past the orange. Horizontal for the
-     same top/bottom-edge consistency reason as --gradient-brand-wide. */
-  --gradient-ring: linear-gradient(90deg, #D58BB8 0%, #A66BF5 45%, #6F7BFF 100%);
+  /* Card/button ring — the exact same gradient as the avatar ring
+     (orange → violet → blue), so every ring in the app matches it. */
+  --gradient-ring: linear-gradient(135deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
   /* Same blend, horizontal instead of diagonal — for the gradient-ring
      border technique (background-clip: padding-box, border-box) on wide
