@@ -913,7 +913,7 @@
   align-items: center;
   gap: 7px;
   border: 1px solid transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-ring);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   border-radius: var(--r-lg);
@@ -925,7 +925,7 @@
 }
 
 .quick-action-btn:hover {
-  background-image: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)), var(--gradient-brand-wide);
+  background-image: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)), var(--gradient-ring);
 }
 
 .quick-action-btn:active {
@@ -938,7 +938,7 @@
   border-radius: 10px;
   color: #fff;
   border: none;
-  background: var(--gradient-brand);
+  background: var(--gradient-ring);
   box-shadow: 0 4px 14px -6px rgba(166, 107, 245, 0.75);
   background-origin: border-box;
   background-clip: padding-box, border-box;

@@ -14,7 +14,7 @@
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border: 1px solid transparent;
-  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand-wide);
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-ring);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   border-radius: var(--r-xl);
@@ -42,7 +42,7 @@
 }
 
 .goal-ring-card:hover {
-  background-image: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)), var(--gradient-brand-wide);
+  background-image: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)), var(--gradient-ring);
 }
 
 /* The diagonal color wash that used to sit here made the card read as a
@@ -139,7 +139,7 @@
   padding: 8px 18px;
   border-radius: 20px;
   border: none;
-  background: var(--gradient-brand);
+  background: var(--gradient-ring);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -227,12 +227,12 @@
    action rather than quiet status text. Tapping it is just tapping the
    card (which already triggers a sync on open), not a separate control. */
 .goal-ring-sync-chip--cta {
-  color: var(--accent);
-  border-color: rgba(251, 122, 60, 0.35);
-  background: var(--orange-dim);
+  color: #C9B8FF;
+  border-color: rgba(166, 107, 245, 0.45);
+  background: rgba(166, 107, 245, 0.14);
   font-weight: 700;
 }
-.goal-ring-sync-chip--cta .goal-ring-sync-icon { color: var(--accent); }
+.goal-ring-sync-chip--cta .goal-ring-sync-icon { color: #C9B8FF; }
 
 .goal-ring-sync-icon {
   color: var(--text-quaternary);

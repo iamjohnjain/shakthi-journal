@@ -91,6 +91,13 @@
      → cool focus), for primary CTAs and hero accents. Used sparingly. */
   --gradient-brand: linear-gradient(135deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
+  /* Card/button ring — matches how the avatar ring actually reads (soft
+     rose → lavender → periwinkle). The avatar uses --gradient-brand, but on a
+     circle the orange corner falls outside the ring; on wide cards it
+     doesn't, so this version starts past the orange. Horizontal for the
+     same top/bottom-edge consistency reason as --gradient-brand-wide. */
+  --gradient-ring: linear-gradient(90deg, #D58BB8 0%, #A66BF5 45%, #6F7BFF 100%);
+
   /* Same blend, horizontal instead of diagonal — for the gradient-ring
      border technique (background-clip: padding-box, border-box) on wide
      pill buttons. A 135deg diagonal is fine on a roughly square element
@@ -425,7 +432,7 @@ a {
   border: 1px solid transparent;
   background-image:
     linear-gradient(var(--bg-card), var(--bg-card)),
-    linear-gradient(var(--gradient-brand-wide));
+    var(--gradient-ring);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -470,7 +477,7 @@ a {
   border: 1px solid transparent;
   background-image:
     linear-gradient(var(--bg-card), var(--bg-card)),
-    linear-gradient(var(--gradient-brand-wide));
+    var(--gradient-ring);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   isolation: isolate;
