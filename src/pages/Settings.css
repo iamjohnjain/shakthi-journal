@@ -490,7 +490,9 @@
   background-origin: border-box; background-clip: padding-box, border-box;
 }
 .jset-title-block { display: flex; flex-direction: column; gap: 6px; }
-.jset-title-block .page-title { margin: 0; }
+.jset-title-block .page-title { margin: 0; line-height: 1.15; }
+.jset-title-block .jset-back { margin-bottom: 14px; }
+.jset-title-block .jset-subtitle { line-height: 1.45; }
 .jset-subtitle { margin: 0; font-size: 14px; color: var(--text-secondary); }
 
 .jset-notice {
