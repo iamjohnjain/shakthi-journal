@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import {
-  Watch, Radio, Scale, CheckCircle2, Pencil, X, Camera, Check,
-  TrendingDown, Target, Flame, Calendar, Dumbbell, Settings, LogIn, LogOut,
-} from 'lucide-react'
+import { Watch, Radio, Scale, X, Camera, Check, Calendar, Settings, LogIn, LogOut } from 'lucide-react'
 import { kgToLbs, localDateStr } from '../data/config'
 import { useUnits } from '../hooks/useUnits'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -21,6 +18,8 @@ import type { DeviceId } from '../db/deviceStore'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useSwipeToClose } from '../hooks/useSwipeToClose'
 import { PRIMARY_GOALS } from './OnboardingPage'
+import { JSection, JRow } from './Settings'
+import './Settings.css'
 import './Profile.css'
 
 const GOAL_LABEL: Record<string, string> = Object.fromEntries(PRIMARY_GOALS.map(g => [g.id, g.label]))
@@ -52,33 +51,25 @@ function clamp(v: number, lo = 0, hi = 100) { return Math.min(hi, Math.max(lo, v
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
-function ProgressBar({
-  label, from, to, current, unit, colorGood = 'var(--green)', lowerIsBetter = false,
-}: {
-  label: string; from: number; to: number; current?: number
-  unit: string; colorGood?: string; lowerIsBetter?: boolean
+function ProgressBar({ label, from, to, current, unit, fmt = (n: number) => String(n) }: {
+  label: string; from: number; to: number; current: number; unit: string; fmt?: (n: number) => string
 }) {
-  if (current == null) return null
-  const pctToGoal = lowerIsBetter
-    ? clamp(Math.round((from - current) / (from - to) * 100))
-    : clamp(Math.round((current - from) / (to - from) * 100))
-
+  const span = to - from
+  const pct = span === 0 ? 100 : clamp(Math.round((current - from) / span * 100))
   return (
-    <div className="profile-progress-bar">
-      <div className="profile-progress-labels">
-        <span className="profile-progress-label">{label}</span>
-        <span className="profile-progress-value" style={{ color: colorGood }}>{current}{unit}</span>
+    <div className="jpro-bar">
+      <div className="jpro-bar-head">
+        <span className="jpro-bar-label">{label}</span>
+        <span className="jpro-bar-pct">{pct}% to goal</span>
       </div>
-      <div className="profile-progress-track">
-        <div
-          className="profile-progress-fill"
-          style={{ width: `${pctToGoal}%`, background: colorGood }}
-        />
+      <div className="jpro-bar-track" role="progressbar" aria-label={`${label} progress`}
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <div className="jpro-bar-fill" style={{ width: `${pct}%` }} />
       </div>
-      <div className="profile-progress-from-to">
-        <span>Start: {from}{unit}</span>
-        <span className="profile-progress-pct">{pctToGoal}% to goal</span>
-        <span>Goal: {to}{unit}</span>
+      <div className="jpro-bar-foot">
+        <span>Start {fmt(from)}{unit}</span>
+        <strong>Now {fmt(current)}{unit}</strong>
+        <span>Goal {fmt(to)}{unit}</span>
       </div>
     </div>
   )
@@ -300,6 +291,11 @@ function EditModal({ initial, onClose, onSave }: EditModalProps) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function titleCase(s: string) { return s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }
+function shortDate(d: string) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export default function Profile() {
   const navigate = useNavigate()
   const { mode, signOut } = useAuth()
@@ -310,14 +306,14 @@ export default function Profile() {
   const toW = (kg: number) => isMetric ? +kg.toFixed(1) : kgToLbs(kg)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [editing,     setEditing]     = useState(false)
-  const [dbStats,     setDbStats]     = useState<{ workoutCount: number; logCount: number; nutritionCount: number } | null>(null)
+  const [dbStats,     setDbStats]     = useState<{ workoutCount: number; logCount: number } | null>(null)
   const [ownedDevices, setOwnedDevicesState] = useState<DeviceId[] | null>(null)
   const [weeklyWraps, setWeeklyWraps] = useState<WeeklyReview[]>([])
   const [openWrap,    setOpenWrap]    = useState<WeeklyReview | null>(null)
 
   useEffect(() => {
     getProfile().then(setProfileData)
-    getDBStats().then(s => setDbStats({ workoutCount: s.workoutCount, logCount: s.logCount, nutritionCount: s.nutritionCount }))
+    getDBStats().then(s => setDbStats({ workoutCount: s.workoutCount, logCount: s.logCount }))
     getOwnedDevices().then(setOwnedDevicesState)
     getAllWeeklyReviews().then(setWeeklyWraps)
   }, [])
@@ -326,295 +322,165 @@ export default function Profile() {
 
   async function handleSave(data: Omit<ProfileData, 'id' | 'updatedAt'>) {
     await saveProfile(data)
-    const updated = await getProfile()
-    setProfileData(updated)
+    setProfileData(await getProfile())
   }
 
   const name     = profileData?.name || 'Guest'
   const bio      = profileData?.bio ?? ''
   const heightCm = profileData?.heightCm
-  const photo    = profileData?.photoDataUrl
-  const avatarId = profileData?.avatarId
   const days     = daysSince(profileData?.startDate)
+  const activity = profileData?.activityLevel ? titleCase(profileData.activityLevel) : null
 
-  const startWeightLbs = profileData?.startWeightKg ? toW(profileData.startWeightKg) : null
-  const startBF        = profileData?.startBodyFatPct ?? null
-  const goalWeightLbs  = profileData?.goalWeightKg ? toW(profileData.goalWeightKg) : null
-  const goalBF         = profileData?.goalBodyFatPct ?? null
-  const goalNotes      = profileData?.goalNotes
+  const startW  = profileData?.startWeightKg ? toW(profileData.startWeightKg) : null
+  const goalW   = profileData?.goalWeightKg ? toW(profileData.goalWeightKg) : null
+  const startBF = profileData?.startBodyFatPct ?? null
+  const goalBF  = profileData?.goalBodyFatPct ?? null
+  const goals   = (profileData?.goalNotes ?? '').split(',').map(g => g.trim()).filter(Boolean)
 
-  const currentWeightLbs = today.weight ? toW(today.weight) : undefined
-  const currentBF        = today.bodyFatPct
+  const currentW  = today.weight ? toW(today.weight) : undefined
+  const currentBF = today.bodyFatPct != null ? +today.bodyFatPct.toFixed(1) : undefined
 
-  const weightLost = (currentWeightLbs != null && startWeightLbs != null) ? +(startWeightLbs - currentWeightLbs).toFixed(1) : null
-  const bfLost     = (currentBF != null && startBF != null) ? +(startBF - currentBF).toFixed(1) : null
+  const weightChange = currentW != null && startW != null ? +(currentW - startW).toFixed(1) : null
+  const losing = startW != null && goalW != null ? goalW < startW : true
 
-  const milestones = [
-    ...(days != null ? [{
-      icon: Calendar,
-      color: 'var(--teal)',
-      label: `${days} days tracked`,
-      sub: `Since ${new Date(profileData!.startDate! + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
-    }] : []),
-    ...(weightLost != null && weightLost > 0 ? [{
-      icon: TrendingDown,
-      color: 'var(--green)',
-      label: `-${weightLost} ${wUnit} lost`,
-      sub: `${startWeightLbs} → ${currentWeightLbs} ${wUnit}`,
-    }] : []),
-    ...(bfLost != null && bfLost > 0 ? [{
-      icon: Target,
-      color: 'var(--accent)',
-      label: `-${bfLost}% body fat`,
-      sub: `${startBF}% → ${currentBF?.toFixed(1)}%`,
-    }] : []),
-    ...(dbStats?.workoutCount ? [{
-      icon: Dumbbell,
-      color: 'var(--purple)',
-      label: `${dbStats.workoutCount} workouts`,
-      sub: 'Logged in Jeevan',
-    }] : []),
-    ...(dbStats?.logCount ? [{
-      icon: Flame,
-      color: 'var(--red)',
-      label: `${dbStats.logCount} daily logs`,
-      sub: 'Consistency is everything',
-    }] : []),
-  ]
+  // Two headline tiles: days tracked + weight change toward the goal, with
+  // workouts / daily logs filling in when either of those isn't known yet.
+  const stats: Array<{ num: string; lbl: string }> = []
+  if (days != null) stats.push({ num: days.toLocaleString(), lbl: days === 1 ? 'Day tracked' : 'Days tracked' })
+  if (weightChange != null && weightChange !== 0) {
+    stats.push({
+      num: `${weightChange > 0 ? '+' : '−'}${Math.abs(weightChange)} ${wUnit}`,
+      lbl: weightChange < 0 ? 'Lost since start' : (losing ? 'Up since start' : 'Gained since start'),
+    })
+  }
+  if (stats.length < 2 && dbStats?.workoutCount) stats.push({ num: dbStats.workoutCount.toLocaleString(), lbl: dbStats.workoutCount === 1 ? 'Workout logged' : 'Workouts logged' })
+  if (stats.length < 2 && dbStats?.logCount) stats.push({ num: dbStats.logCount.toLocaleString(), lbl: dbStats.logCount === 1 ? 'Daily log' : 'Daily logs' })
+
+  const showWeightBar = currentW != null && startW != null && goalW != null
+  const showBFBar     = currentBF != null && startBF != null && goalBF != null
 
   return (
-    <div className="profile-page">
+    <div className="jpro-page">
 
       {editing && (
-        <EditModal
-          initial={profileData ?? {}}
-          onClose={() => setEditing(false)}
-          onSave={handleSave}
-        />
+        <EditModal initial={profileData ?? {}} onClose={() => setEditing(false)} onSave={handleSave} />
       )}
 
-      {/* ── Mobile header bar: Settings + auth (hidden on desktop where sidebar has it) ── */}
-      <div className="profile-mobile-header">
-        <button className="profile-settings-btn" onClick={() => navigate('/settings')} aria-label="Settings">
-          <Settings size={20} />
-          <span>Settings</span>
+      <div className="jpro-top">
+        <button type="button" className="jpro-pill jpro-pill--ring" data-no-press-glow onClick={() => navigate('/settings')}>
+          <Settings size={17} /> Settings
         </button>
         {mode === 'guest' ? (
-          <button className="profile-settings-btn profile-auth-btn" onClick={() => navigate('/auth')} aria-label="Sign in">
-            <LogIn size={20} />
-            <span>Sign in</span>
+          <button type="button" className="jpro-pill" onClick={() => navigate('/auth')}>
+            <LogIn size={17} /> Sign In
           </button>
         ) : mode === 'authenticated' ? (
-          <button className="profile-settings-btn profile-auth-btn profile-auth-btn--out" onClick={() => signOut()} aria-label="Sign out">
-            <LogOut size={20} />
-            <span>Sign out</span>
+          <button type="button" className="jpro-pill" onClick={() => signOut()}>
+            <LogOut size={17} /> Sign Out
           </button>
         ) : null}
       </div>
 
-      {/* ── Hero ── */}
-      <section className="profile-hero">
-        <div className="profile-hero-bg" />
-        <div className="profile-hero-content">
-          <div className="profile-avatar-wrap">
-            <AvatarDisplay name={name} avatarId={avatarId} photoDataUrl={photo} size="lg" />
-            <button className="profile-avatar-edit-btn" onClick={() => setEditing(true)}>
-              <Camera size={14} />
-            </button>
+      <section className="jpro-hero">
+        <div className="jpro-avatar-wrap">
+          <div className="jpro-avatar">
+            <AvatarDisplay name={name} avatarId={profileData?.avatarId} photoDataUrl={profileData?.photoDataUrl} size="lg" />
           </div>
-          <h1 className="profile-name">{name}</h1>
-          {bio && <p className="profile-bio">{bio}</p>}
-          <div className="profile-meta-row">
-            {heightCm && <span className="profile-meta-chip">{cmToFeet(heightCm)}</span>}
-            {currentWeightLbs && <span className="profile-meta-chip">{currentWeightLbs} {wUnit}</span>}
-          </div>
+          <button type="button" className="jpro-camera" data-no-press-glow aria-label="Change photo" onClick={() => setEditing(true)}>
+            <Camera size={15} strokeWidth={2.2} />
+          </button>
         </div>
-        <button className="profile-edit-btn" onClick={() => setEditing(true)}>
-          <Pencil size={13} /> Edit
-        </button>
+        <h1 className="jpro-name">{name}</h1>
+        {bio && <p className="jpro-bio">{bio}</p>}
+        {(heightCm || currentW || activity) && (
+          <div className="jpro-chips">
+            {heightCm && <span className="jpro-chip">{units.height === 'cm' ? `${Math.round(heightCm)} cm` : cmToFeet(heightCm)}</span>}
+            {currentW != null && <span className="jpro-chip">{currentW} {wUnit}</span>}
+            {activity && <span className="jpro-chip">{activity}</span>}
+          </div>
+        )}
+        <button type="button" className="jpro-edit" data-no-press-glow onClick={() => setEditing(true)}>Edit Profile</button>
       </section>
 
-      {/* ── Milestone strip ── */}
-      {milestones.length > 0 && (
-        <div className="profile-milestones">
-          {milestones.map((m, i) => (
-            <div key={i} className="profile-milestone">
-              <div className="profile-milestone-icon" style={{ background: `color-mix(in srgb, ${m.color} 15%, transparent)`, color: m.color }}>
-                <m.icon size={16} />
-              </div>
-              <div className="profile-milestone-text">
-                <span className="profile-milestone-label">{m.label}</span>
-                <span className="profile-milestone-sub">{m.sub}</span>
-              </div>
+      {stats.length > 0 && (
+        <div className="jpro-stats">
+          {stats.slice(0, 2).map(s => (
+            <div key={s.lbl} className="jpro-stat">
+              <span className="jpro-stat-num">{s.num}</span>
+              <span className="jpro-stat-lbl">{s.lbl}</span>
             </div>
           ))}
         </div>
       )}
 
-      <div className="profile-content">
-
-        {/* ── Progress toward goals ── */}
-        <section className="profile-card">
-          <div className="profile-card-title-row">
-            <h2 className="profile-card-title">Progress Toward Goals</h2>
-          </div>
-          {currentWeightLbs != null && startWeightLbs != null && goalWeightLbs != null && (
-            <ProgressBar
-              label="Weight"
-              from={startWeightLbs}
-              to={goalWeightLbs}
-              current={currentWeightLbs}
-              unit={` ${wUnit}`}
-              lowerIsBetter={startWeightLbs > goalWeightLbs}
-              colorGood="var(--accent)"
-            />
+      <section className="jset-section">
+        <h2 className="jset-section-title">Progress</h2>
+        <div className="jset-card jpro-progress">
+          {showWeightBar && (
+            <ProgressBar label="Weight" from={startW!} to={goalW!} current={currentW!} unit={` ${wUnit}`} />
           )}
-          {currentBF != null && startBF != null && goalBF != null && (
-            <ProgressBar
-              label="Body Fat"
-              from={startBF}
-              to={goalBF}
-              current={parseFloat(currentBF.toFixed(1))}
-              unit="%"
-              lowerIsBetter
-              colorGood="var(--green)"
-            />
+          {showBFBar && (
+            <ProgressBar label="Body Fat" from={startBF!} to={goalBF!} current={currentBF!} unit="%" />
           )}
-          {currentWeightLbs == null && currentBF == null && (
-            <p className="profile-no-data">Import Apple Health data or log your weight to see progress.</p>
-          )}
-          {goalNotes && (
-            <p className="profile-goal-notes">
-              🎯 {goalNotes.split(',').map(g => g.trim()).filter(Boolean).map(goalLabel).join(', ')}
+          {!showWeightBar && !showBFBar && (
+            <p className="jpro-empty">
+              {startW == null || goalW == null
+                ? 'Add a starting and goal weight in Edit Profile to track progress.'
+                : 'Log your weight or import Apple Health data to see progress.'}
             </p>
           )}
-        </section>
+        </div>
+      </section>
 
-        {/* ── Baseline ── */}
-        {(startWeightLbs != null || startBF != null || goalWeightLbs != null || goalBF != null) && (
-        <section className="profile-card">
-          <h2 className="profile-card-title">Starting Baseline</h2>
-          <div className="profile-baseline-grid">
-            {startWeightLbs != null && (
-              <div className="profile-baseline-item">
-                <span className="profile-baseline-val">{startWeightLbs} {wUnit}</span>
-                <span className="profile-baseline-label">Start weight</span>
+      {(goals.length > 0 || activity) && (
+        <section className="jset-section">
+          <h2 className="jset-section-title">Training For</h2>
+          <div className="jset-card jpro-goals">
+            {goals.length > 0 && (
+              <div className="jpro-goal-chips">
+                {goals.map(g => <span key={g} className="jpro-goal-chip">{goalLabel(g)}</span>)}
               </div>
             )}
-            {startBF != null && (
-              <div className="profile-baseline-item">
-                <span className="profile-baseline-val">{startBF}%</span>
-                <span className="profile-baseline-label">Start body fat</span>
-              </div>
-            )}
-            {goalWeightLbs != null && (
-              <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--accent)' }}>{goalWeightLbs} {wUnit}</span>
-                <span className="profile-baseline-label">Goal weight</span>
-              </div>
-            )}
-            {goalBF != null && (
-              <div className="profile-baseline-item">
-                <span className="profile-baseline-val" style={{ color: 'var(--accent)' }}>{goalBF}%</span>
-                <span className="profile-baseline-label">Goal body fat</span>
-              </div>
+            {activity && (
+              <div className="jpro-kv"><span>Activity level</span><span>{activity}</span></div>
             )}
           </div>
         </section>
-        )}
+      )}
 
-        {/* ── Primary Goals ── */}
-        {(goalNotes || profileData?.activityLevel) && (
-          <section className="profile-card">
-            <h2 className="profile-card-title">Goals &amp; Activity</h2>
-            {goalNotes && (
-              <ul className="profile-goals-list">
-                {goalNotes.split(',').map(g => g.trim()).filter(Boolean).map(g => (
-                  <li key={g} className="profile-goal-item">
-                    <CheckCircle2 size={15} className="profile-goal-icon" />
-                    <span>{goalLabel(g)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {profileData?.activityLevel && (
-              <p className="profile-no-data" style={{ marginTop: goalNotes ? 10 : 0 }}>
-                Activity level: <strong style={{ color: 'var(--text-primary)' }}>
-                  {profileData.activityLevel.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                </strong>
-              </p>
-            )}
-          </section>
-        )}
+      {weeklyWraps.length > 0 && (
+        <JSection title="Weekly Wraps">
+          {weeklyWraps.map(w => (
+            <JRow
+              key={w.id}
+              icon={Calendar}
+              label={`${shortDate(w.weekStart)} – ${shortDate(w.weekEnd)}`}
+              desc={w.biggestWin ?? w.summary}
+              onClick={() => setOpenWrap(w)}
+            />
+          ))}
+        </JSection>
+      )}
 
-        {/* ── Setup ── */}
-        <section className="profile-card">
-          <button
-            className="profile-setup-again-btn"
-            onClick={() => navigate('/onboarding?edit=1')}
-          >
-            <Settings size={16} />
-            Run Setup Again
-          </button>
-        </section>
-
-        {/* ── Weekly Wraps ── */}
-        {weeklyWraps.length > 0 && (
-          <section className="profile-card">
-            <div className="profile-card-title-row">
-              <h2 className="profile-card-title">Weekly Wraps</h2>
-            </div>
-            <div className="profile-devices-list">
-              {weeklyWraps.map(w => (
-                <button key={w.id} className="profile-device-row profile-wrap-row" onClick={() => setOpenWrap(w)}>
-                  <div className="profile-device-icon-wrap">
-                    <Calendar size={18} />
-                  </div>
-                  <div className="profile-device-info">
-                    <span className="profile-device-name">
-                      {new Date(w.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      {' – '}
-                      {new Date(w.weekEnd + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                    <span className="profile-device-sub">{w.biggestWin ?? w.summary}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── Connected Devices ── */}
-        <section className="profile-card">
-          <div className="profile-card-title-row">
-            <h2 className="profile-card-title">Connected Devices</h2>
-            <button className="profile-devices-manage-btn" onClick={() => navigate('/connected-accounts')}>
-              Manage
-            </button>
-          </div>
-          {ownedDeviceRows.length > 0 ? (
-            <div className="profile-devices-list">
-              {ownedDeviceRows.map(d => (
-                <div key={d.name} className="profile-device-row">
-                  <div className="profile-device-icon-wrap">
-                    <d.icon size={18} />
-                  </div>
-                  <div className="profile-device-info">
-                    <span className="profile-device-name">{d.name}</span>
-                    <span className="profile-device-sub">{d.sub}</span>
-                  </div>
-                  <span className="profile-device-status">{d.status}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="profile-devices-empty">
-              No equipment added yet. Tap Manage to tell us what you have.
-            </p>
+      <section className="jset-section">
+        <div className="jpro-section-head">
+          <h2 className="jset-section-title">Devices</h2>
+          <button type="button" className="jpro-link" data-no-press-glow onClick={() => navigate('/connected-accounts')}>Manage</button>
+        </div>
+        <div className="jset-card jset-card--rows">
+          {ownedDeviceRows.length > 0 ? ownedDeviceRows.map(d => (
+            <JRow
+              key={d.id}
+              icon={d.icon}
+              label={d.name}
+              desc={d.sub}
+              trailing={<span className="jset-chip jset-chip--ok"><span className="jset-chip-dot" />Via Apple Health</span>}
+            />
+          )) : (
+            <p className="jpro-empty jpro-devices-empty">No equipment added yet. Tap Manage to tell us what you have.</p>
           )}
-        </section>
-
-      </div>
+        </div>
+      </section>
 
       {openWrap && <WeeklyWrapCard review={openWrap} onDone={() => setOpenWrap(null)} />}
     </div>
