@@ -459,7 +459,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
               </defs>
               {/* Track */}
               <circle cx="104" cy="104" r={R} fill="none"
-                stroke="rgba(255,255,255,0.07)" strokeWidth="14" />
+                style={{ stroke: 'var(--ring-track)' }} strokeWidth="14" />
               {/* Progress arc */}
               <circle cx="104" cy="104" r={R} fill="none"
                 stroke="url(#gr-ring-gradient)" strokeWidth="14" strokeLinecap="round"
@@ -473,25 +473,25 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
               {hasData ? (
                 <>
                   <text x="104" y="88" textAnchor="middle" dominantBaseline="middle"
-                    fill="#fff" fontSize="36" fontWeight="700"
+                    fontSize="36" fontWeight="700"
                     fontFamily="-apple-system,'SF Pro Display',sans-serif"
-                    style={{ letterSpacing: '-1px' }}>
+                    style={{ fill: 'var(--text-primary)', letterSpacing: '-1px' }}>
                     {cfg.format(current!)}
                   </text>
                   <text x="104" y="114" textAnchor="middle"
-                    fill="rgba(255,255,255,0.38)" fontSize="12"
+                    style={{ fill: 'var(--text-secondary)' }} fontSize="12"
                     fontFamily="-apple-system,sans-serif">
                     {displayUnit}
                   </text>
                   <text x="104" y="132" textAnchor="middle"
-                    fill="rgba(255,255,255,0.26)" fontSize="10"
+                    style={{ fill: 'var(--text-tertiary)' }} fontSize="10"
                     fontFamily="-apple-system,sans-serif">
                     {isStaleWeight && latestWeight ? `Last entered ${shortDate(latestWeight.date)}` : `${Math.round(pct)}% of goal`}
                   </text>
                 </>
               ) : (
                 <text x="104" y="104" textAnchor="middle" dominantBaseline="middle"
-                  fill="rgba(255,255,255,0.25)" fontSize="14"
+                  style={{ fill: 'var(--text-tertiary)' }} fontSize="14"
                   fontFamily="-apple-system,sans-serif">
                   {neverWeighed ? 'No weigh-ins yet' : 'No data yet'}
                 </text>

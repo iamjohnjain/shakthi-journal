@@ -438,14 +438,14 @@
 .jset-row-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .jset-row-label { font-size: 16px; font-weight: 600; color: var(--text-primary); }
 .jset-row-desc { font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
-.jset-row-link { font-size: 13px; font-weight: 600; color: #C9B8FF; }
+.jset-row-link { font-size: 13px; font-weight: 600; color: var(--link); }
 .jset-chev { color: var(--text-tertiary); flex-shrink: 0; }
 
 .jset-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .jset-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.jset-chip--ok    { color: #5EE0C2; }
-.jset-chip--busy  { color: #C9B8FF; }
-.jset-chip--warn  { color: #FFB27A; }
+.jset-chip--ok    { color: var(--status-ok); }
+.jset-chip--busy  { color: var(--link); }
+.jset-chip--warn  { color: var(--status-warn); }
 .jset-chip--muted { color: var(--text-secondary); }
 
 .jset-steps {
@@ -453,7 +453,7 @@
   display: flex; flex-direction: column; gap: 10px;
 }
 .jset-steps li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; color: var(--text-secondary); }
-.jset-steps li span { font-size: 12px; font-weight: 700; color: #C9B8FF; }
+.jset-steps li span { font-size: 12px; font-weight: 700; color: var(--link); }
 
 .jset-privacy { flex-direction: row; align-items: flex-start; gap: 12px; padding: 16px; }
 
@@ -503,7 +503,7 @@
   position: relative; display: flex; gap: 12px; align-items: flex-start;
   padding: 14px 16px; font-size: 13px; line-height: 1.5; color: var(--text-secondary);
 }
-.jset-sub svg { flex-shrink: 0; margin-top: 2px; color: #C9B8FF; }
+.jset-sub svg { flex-shrink: 0; margin-top: 2px; color: var(--link); }
 .jset-sub code {
   font-family: 'SF Mono', ui-monospace, monospace; font-size: 12px;
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
@@ -525,8 +525,8 @@
 }
 .jset-card--rows .sync-row > svg:first-child { position: absolute; left: 26px; }
 .jset-card--rows .sync-row-label { flex: 1 1 auto; font-weight: 600; }
-.jset-card--rows .sync-row-action { font-size: 13px; font-weight: 600; color: #C9B8FF; }
-.jset-card--rows .sync-row-action--warn { color: #FFB27A; }
+.jset-card--rows .sync-row-action { font-size: 13px; font-weight: 600; color: var(--link); }
+.jset-card--rows .sync-row-action--warn { color: var(--status-warn); }
 
 .jset-diag { display: flex; flex-direction: column; padding: 0 16px 10px 62px; }
 .jset-diag-row {

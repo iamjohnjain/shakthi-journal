@@ -223,7 +223,7 @@
     linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
     var(--gradient-brand) border-box;
   border: 1.5px solid transparent;
-  color: #fff;
+  color: var(--text-primary);
   box-shadow: 0 8px 28px -10px rgba(166, 107, 245, 0.55);
 }
 .workouts-first-empty-cta {

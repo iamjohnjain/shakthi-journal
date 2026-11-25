@@ -104,6 +104,11 @@
      the same corner) — a visibly inconsistent ring, not a deliberate
      diagonal look. A horizontal gradient keeps the color aligned with x
      position only, so the top and bottom edges always match. */
+  /* Inline-action ink + status colors (light mode deepens these). */
+  --link: var(--link);
+  --status-ok: var(--status-ok);
+  --status-warn: var(--status-warn);
+  --on-surface-shadow: none;
   --gradient-brand-wide: linear-gradient(90deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
   /* Layout */
@@ -171,23 +176,39 @@
       radial-gradient(ellipse 100% 55% at calc(50% - var(--bg-shift-y)) calc(105% + var(--bg-shift-x)), rgba(45, 212, 191, 0.12) 0%, transparent 60%),
       linear-gradient(180deg, #FDFBF8 0%, #F6F3EE 45%, #EFEAE2 100%);
     --bg-elevated: #FFFFFF;
-    --bg-card: rgba(20, 16, 10, 0.045);
-    --bg-card-hover: rgba(20, 16, 10, 0.075);
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #FBF9F6;
     --bg-sidebar: rgba(255, 255, 255, 0.92);
 
-    --border-subtle: rgba(20, 16, 10, 0.07);
-    --border: rgba(20, 16, 10, 0.12);
+    --border-subtle: rgba(28, 23, 34, 0.08);
+    --border: rgba(28, 23, 34, 0.12);
     --border-strong: rgba(20, 16, 10, 0.22);
 
-    --text-primary: #18140F;
-    --text-secondary: rgba(24, 20, 15, 0.64);
-    --text-tertiary: rgba(24, 20, 15, 0.54);
-    --text-quaternary: rgba(24, 20, 15, 0.46);
+    --text-primary: #1C1722;
+    --text-secondary: #5F5868;
+    --text-tertiary: #7A7381;
+    --text-quaternary: #8E8794;
 
     --bg-secondary: #FFFFFF;
-    --bg-tertiary:  #F1EDE6;
+    --bg-tertiary:  #EFEAE3;
 
-    --shadow-card: 0 1px 3px rgba(20,16,10,0.08), 0 8px 24px rgba(20,16,10,0.06);
+    --shadow-card: 0 1px 2px rgba(28,23,34,0.05), 0 10px 28px -14px rgba(28,23,34,0.18);
+    --on-surface-shadow: var(--shadow-card);
+    /* Deeper fill so white button labels read on a light ground; rings
+       keep the bright avatar gradient (--gradient-ring). */
+    --gradient-brand: linear-gradient(135deg, #D9611F 0%, #8B4CE0 55%, #4560EC 100%);
+    --ring-track: #EEE8F2;
+    --blue: #3D5BE0;
+    --green: #0F8F64;
+    --yellow: #A86B0C;
+    --orange: #CF5A1C;
+    --red: #D43A42;
+    --purple: #7B45D8;
+    --teal: #0B8577;
+    --pink: #CF3F66;
+    --link: #6A3DD1;
+    --status-ok: #0A7D67;
+    --status-warn: #B4500F;
     --shadow-elevated: 0 4px 16px rgba(20,16,10,0.12), 0 1px 4px rgba(20,16,10,0.08);
   }
 }
@@ -202,23 +223,39 @@
     radial-gradient(ellipse 100% 55% at calc(50% - var(--bg-shift-y)) calc(105% + var(--bg-shift-x)), rgba(45, 212, 191, 0.12) 0%, transparent 60%),
     linear-gradient(180deg, #FDFBF8 0%, #F6F3EE 45%, #EFEAE2 100%);
   --bg-elevated: #FFFFFF;
-  --bg-card: rgba(20, 16, 10, 0.045);
-  --bg-card-hover: rgba(20, 16, 10, 0.075);
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FBF9F6;
   --bg-sidebar: rgba(255, 255, 255, 0.92);
 
-  --border-subtle: rgba(20, 16, 10, 0.07);
-  --border: rgba(20, 16, 10, 0.12);
+  --border-subtle: rgba(28, 23, 34, 0.08);
+  --border: rgba(28, 23, 34, 0.12);
   --border-strong: rgba(20, 16, 10, 0.22);
 
-  --text-primary: #18140F;
-  --text-secondary: rgba(24, 20, 15, 0.64);
-  --text-tertiary: rgba(24, 20, 15, 0.54);
-  --text-quaternary: rgba(24, 20, 15, 0.46);
+  --text-primary: #1C1722;
+  --text-secondary: #5F5868;
+  --text-tertiary: #7A7381;
+  --text-quaternary: #8E8794;
 
   --bg-secondary: #FFFFFF;
-  --bg-tertiary:  #F1EDE6;
+  --bg-tertiary:  #EFEAE3;
 
-  --shadow-card: 0 1px 3px rgba(20,16,10,0.08), 0 8px 24px rgba(20,16,10,0.06);
+  --shadow-card: 0 1px 2px rgba(28,23,34,0.05), 0 10px 28px -14px rgba(28,23,34,0.18);
+    --on-surface-shadow: var(--shadow-card);
+    /* Deeper fill so white button labels read on a light ground; rings
+       keep the bright avatar gradient (--gradient-ring). */
+    --gradient-brand: linear-gradient(135deg, #D9611F 0%, #8B4CE0 55%, #4560EC 100%);
+    --ring-track: #EEE8F2;
+    --blue: #3D5BE0;
+    --green: #0F8F64;
+    --yellow: #A86B0C;
+    --orange: #CF5A1C;
+    --red: #D43A42;
+    --purple: #7B45D8;
+    --teal: #0B8577;
+    --pink: #CF3F66;
+    --link: #6A3DD1;
+    --status-ok: #0A7D67;
+    --status-warn: #B4500F;
   --shadow-elevated: 0 4px 16px rgba(20,16,10,0.12), 0 1px 4px rgba(20,16,10,0.08);
 }
 
@@ -596,4 +633,55 @@ a {
   input, textarea, select {
     font-size: 16px !important;
   }
+}
+
+
+/* ─── Light-mode component overrides ─────────────────────────────────────
+   Solid white surfaces with soft shadows, a frosted-white tab bar, and
+   dark labels on ring buttons. Same two scopes as the light tokens. */
+:root[data-theme="light"] .bottom-nav {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(28, 23, 34, 0.07);
+  box-shadow: 0 12px 32px -12px rgba(28, 23, 34, 0.28), inset 0 1px 0 #fff;
+}
+:root[data-theme="light"] .bottom-tab { color: #6E6776; }
+:root[data-theme="light"] .bottom-tab.active { color: #fff; }
+:root[data-theme="light"] .bottom-tab.active::before {
+  background: var(--gradient-brand);
+  border: none;
+  box-shadow: 0 6px 16px -8px rgba(139, 76, 224, 0.7);
+}
+:root[data-theme="light"] .goal-ring-sync-chip--cta { color: var(--text-primary); background-image: linear-gradient(#fff, #fff), var(--gradient-ring); }
+:root[data-theme="light"] .goal-ring-sync-chip--cta .goal-ring-sync-icon { color: #7A45D6; }
+:root[data-theme="light"] .glass-surface, :root[data-theme="light"] .glass-row, :root[data-theme="light"] .jset-card, :root[data-theme="light"] .goal-ring-card, :root[data-theme="light"] .quick-action-btn, :root[data-theme="light"] .jpro-stat, :root[data-theme="light"] .jpro-pill, :root[data-theme="light"] .jset-profile { box-shadow: var(--shadow-card); }
+:root[data-theme="light"] .goal-ring-card, :root[data-theme="light"] .jset-profile { box-shadow: 0 1px 2px rgba(28, 23, 34, 0.05), 0 14px 34px -16px rgba(139, 76, 224, 0.35); }
+:root[data-theme="light"] .jset-seg { background: #EFEAE3; }
+:root[data-theme="light"] .jset-seg-btn--on { box-shadow: 0 2px 8px -3px rgba(139, 76, 224, 0.35); }
+:root[data-theme="light"] .jset-profile-edit { background: #F1EBFC; color: var(--link); font-weight: 700; }
+:root[data-theme="light"] .jpro-chip { background: rgba(28, 23, 34, 0.06); }
+:root[data-theme="light"] .jpro-bar-track { background: #EEE8F2; }
+:root[data-theme="light"] .jpro-pill--ring .lucide, :root[data-theme="light"] .jpro-pill--ring svg { color: #7A45D6; }
+@media (prefers-color-scheme: light) {
+:root:not([data-theme="dark"]) .bottom-nav {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(28, 23, 34, 0.07);
+  box-shadow: 0 12px 32px -12px rgba(28, 23, 34, 0.28), inset 0 1px 0 #fff;
+}
+:root:not([data-theme="dark"]) .bottom-tab { color: #6E6776; }
+:root:not([data-theme="dark"]) .bottom-tab.active { color: #fff; }
+:root:not([data-theme="dark"]) .bottom-tab.active::before {
+  background: var(--gradient-brand);
+  border: none;
+  box-shadow: 0 6px 16px -8px rgba(139, 76, 224, 0.7);
+}
+:root:not([data-theme="dark"]) .goal-ring-sync-chip--cta { color: var(--text-primary); background-image: linear-gradient(#fff, #fff), var(--gradient-ring); }
+:root:not([data-theme="dark"]) .goal-ring-sync-chip--cta .goal-ring-sync-icon { color: #7A45D6; }
+:root:not([data-theme="dark"]) .glass-surface, :root:not([data-theme="dark"]) .glass-row, :root:not([data-theme="dark"]) .jset-card, :root:not([data-theme="dark"]) .goal-ring-card, :root:not([data-theme="dark"]) .quick-action-btn, :root:not([data-theme="dark"]) .jpro-stat, :root:not([data-theme="dark"]) .jpro-pill, :root:not([data-theme="dark"]) .jset-profile { box-shadow: var(--shadow-card); }
+:root:not([data-theme="dark"]) .goal-ring-card, :root:not([data-theme="dark"]) .jset-profile { box-shadow: 0 1px 2px rgba(28, 23, 34, 0.05), 0 14px 34px -16px rgba(139, 76, 224, 0.35); }
+:root:not([data-theme="dark"]) .jset-seg { background: #EFEAE3; }
+:root:not([data-theme="dark"]) .jset-seg-btn--on { box-shadow: 0 2px 8px -3px rgba(139, 76, 224, 0.35); }
+:root:not([data-theme="dark"]) .jset-profile-edit { background: #F1EBFC; color: var(--link); font-weight: 700; }
+:root:not([data-theme="dark"]) .jpro-chip { background: rgba(28, 23, 34, 0.06); }
+:root:not([data-theme="dark"]) .jpro-bar-track { background: #EEE8F2; }
+:root:not([data-theme="dark"]) .jpro-pill--ring .lucide, :root:not([data-theme="dark"]) .jpro-pill--ring svg { color: #7A45D6; }
 }

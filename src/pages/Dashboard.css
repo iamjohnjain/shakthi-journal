@@ -938,7 +938,7 @@
   border-radius: 10px;
   color: #fff;
   border: none;
-  background: var(--gradient-ring);
+  background: var(--gradient-brand);
   box-shadow: 0 4px 14px -6px rgba(166, 107, 245, 0.75);
   background-origin: border-box;
   background-clip: padding-box, border-box;
