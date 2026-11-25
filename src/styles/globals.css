@@ -685,3 +685,11 @@ a {
 :root:not([data-theme="dark"]) .jpro-bar-track { background: #EEE8F2; }
 :root:not([data-theme="dark"]) .jpro-pill--ring .lucide, :root:not([data-theme="dark"]) .jpro-pill--ring svg { color: #7A45D6; }
 }
+
+/* Muscle map (Workouts → History / Progress) in light mode */
+:root[data-theme="light"] .bh3d-spin-arrow { background: rgba(255, 255, 255, 0.9); color: var(--text-secondary); border-color: rgba(28, 23, 34, 0.08); box-shadow: 0 4px 12px -6px rgba(28, 23, 34, 0.3); }
+:root[data-theme="light"] .mh-dot--none { background: #CFC7D8; }
+@media (prefers-color-scheme: light) {
+:root:not([data-theme="dark"]) .bh3d-spin-arrow { background: rgba(255, 255, 255, 0.9); color: var(--text-secondary); border-color: rgba(28, 23, 34, 0.08); box-shadow: 0 4px 12px -6px rgba(28, 23, 34, 0.3); }
+:root:not([data-theme="dark"]) .mh-dot--none { background: #CFC7D8; }
+}

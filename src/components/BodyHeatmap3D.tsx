@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { REGION_LABEL, type VisualRegion } from '../lib/muscleMap'
 import type { RegionLoad } from '../hooks/useMuscleLoad'
+import { useTheme } from '../context/ThemeContext'
 import './BodyHeatmap3D.css'
 
 // Reuses the app's existing palette (globals.css) — mirrored as hex since
@@ -16,14 +17,18 @@ const STATUS_COLOR: Record<RegionLoad['status'], string> = {
   over:     '#F2545B', // red (possibly overtrained)
 }
 const NEUTRAL = new THREE.Color(STATUS_COLOR.none)
+/** Untrained tone on a light page: the dark-mode grey reads as a heavy,
+    concrete-like figure on white, so light mode uses a soft porcelain
+    lavender that still shows the model's baked shading. */
+const NEUTRAL_LIGHT = new THREE.Color('#E6E0EC')
 
 /** Yellow → green within the "under target" band so a deeper shade still
     reads as more-trained progress; flat color for onTarget/over. No blend
     toward a flesh tone here (unlike the old primitive figure) — this mesh
     already has real anatomical shape and baked ambient occlusion, so status
     colors stay fully saturated for maximum before/after contrast. */
-function colorFor(load: RegionLoad | undefined): THREE.Color {
-  if (!load || load.status === 'none') return NEUTRAL.clone()
+function colorFor(load: RegionLoad | undefined, neutral: THREE.Color): THREE.Color {
+  if (!load || load.status === 'none') return neutral.clone()
   if (load.status === 'under') {
     const t = Math.min(1, load.pct / 0.5)
     return new THREE.Color(STATUS_COLOR.under).lerp(new THREE.Color(STATUS_COLOR.onTarget), t)
@@ -123,9 +128,10 @@ interface FigureProps {
   selectedRegion: VisualRegion | null
   rotationY: number
   onPick: (region: VisualRegion) => void
+  neutral: THREE.Color
 }
 
-function Figure({ regions, selectedRegion, rotationY, onPick }: FigureProps) {
+function Figure({ regions, selectedRegion, rotationY, onPick, neutral }: FigureProps) {
   const gltf = useLoader(GLTFLoader, MODEL_URL)
 
   // Clone the object graph per-mount (geometries/buffers stay shared with
@@ -211,7 +217,7 @@ function Figure({ regions, selectedRegion, rotationY, onPick }: FigureProps) {
     for (const [nodeName, region] of Object.entries(NODE_REGION)) {
       const meshes = meshesByNode.get(nodeName)
       if (!meshes) continue
-      const color = region ? colorFor(regions[region]) : NEUTRAL
+      const color = region ? colorFor(regions[region], neutral) : neutral
       const selected = region != null && region === selectedRegion
       for (const mesh of meshes) {
         const mat = mesh.material as THREE.MeshStandardMaterial
@@ -224,7 +230,7 @@ function Figure({ regions, selectedRegion, rotationY, onPick }: FigureProps) {
         }
       }
     }
-  }, [regions, selectedRegion, meshesByNode])
+  }, [regions, selectedRegion, meshesByNode, neutral])
 
   const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()
@@ -269,6 +275,8 @@ const HOLD_SPIN_SPEED = 0.028 // rad/frame while a hold-to-spin arrow is pressed
 const TARGET_EASE = 0.12 // fraction of remaining distance closed per frame when turning to face a region
 
 export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion }: BodyHeatmap3DProps) {
+  const { theme } = useTheme()
+  const isLight = theme === 'light'
   const [rotationY, setRotationY] = useState(0) // start facing the camera head-on
   const [contextLost, setContextLost] = useState(false)
   const dragging = useRef(false)
@@ -448,11 +456,11 @@ export default function BodyHeatmap3D({ regions, selectedRegion, onSelectRegion 
           onCreated={handleCreated}
         >
           <FitCamera viewHeight={3.0} />
-          <ambientLight intensity={1.4} />
-          <directionalLight position={[2, 3, 4]} intensity={2.0} />
+          <ambientLight intensity={isLight ? 1.6 : 1.4} />
+          <directionalLight position={[2, 3, 4]} intensity={isLight ? 1.6 : 2.0} />
           <directionalLight position={[-2.5, 0.5, -2]} intensity={0.9} />
           <directionalLight position={[0, -2, 2]} intensity={0.3} />
-          <Figure regions={regions} selectedRegion={selectedRegion} rotationY={rotationY} onPick={handlePick} />
+          <Figure regions={regions} selectedRegion={selectedRegion} rotationY={rotationY} onPick={handlePick} neutral={isLight ? NEUTRAL_LIGHT : NEUTRAL} />
         </Canvas>
       </div>
 
