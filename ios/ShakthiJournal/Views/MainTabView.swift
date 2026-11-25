@@ -160,7 +160,9 @@ struct MainTabView: View {
                     isValidSession: { userId, epoch in auth.isCurrentSession(userId: userId, epoch: epoch) }
                 )
                 .id(webViewGeneration)
-                .ignoresSafeArea(edges: .top)
+                // Full-bleed: the web app pads for the safe areas itself, so
+                // nothing native (a white/black strip) shows under the tab bar.
+                .ignoresSafeArea()
 
                 // A blocked navigation only ever shows its own small banner
                 // — the real page underneath is untouched (the navigation

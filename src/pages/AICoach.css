@@ -46,6 +46,10 @@
    them, reading as a visible seam/darker band right at that line. One
    continuous gradient behind everything removes the seam entirely. */
 .ai-page::before {
+  /* Off: this box-bounded wash showed hard edges under the status bar and
+     above the tab bar. The app-wide --bg-gradient already provides the
+     ambient glow edge to edge. */
+  display: none;
   content: '';
   position: absolute;
   inset: -20px;
