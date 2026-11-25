@@ -414,7 +414,10 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
   // not "just getting started" — floor the drawn arc (never the displayed
   // percentage text) at a small sliver whenever there's an actual value to
   // show, so the ring itself always looks like progress is underway.
-  const displayPct = hasData ? Math.max(pct, 4) : pct
+  // Only when there's a goal to measure against — with no start/goal the
+  // sliver is just a glowing blob that means nothing.
+  const hasGoal = goalVal != null && startVal != null
+  const displayPct = hasData && hasGoal ? Math.max(pct, 4) : pct
   const strokeOffset = C - (displayPct / 100) * C
 
   function prev() { setTypeIdx(i => (i - 1 + GOAL_TYPES.length) % GOAL_TYPES.length) }
@@ -486,7 +489,7 @@ export default function GoalRing({ snapshot, latestWeight, latestBodyFat, latest
                   <text x="104" y="132" textAnchor="middle"
                     style={{ fill: 'var(--text-tertiary)' }} fontSize="10"
                     fontFamily="-apple-system,sans-serif">
-                    {isStaleWeight && latestWeight ? `Last entered ${shortDate(latestWeight.date)}` : `${Math.round(pct)}% of goal`}
+                    {goalVal == null ? 'Set a goal to see progress' : `${Math.round(pct)}% of goal${isStaleWeight && latestWeight ? ` · ${shortDate(latestWeight.date)}` : ''}`}
                   </text>
                 </>
               ) : (

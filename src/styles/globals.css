@@ -105,6 +105,7 @@
      diagonal look. A horizontal gradient keeps the color aligned with x
      position only, so the top and bottom edges always match. */
   /* Inline-action ink + status colors (light mode deepens these). */
+  --ring-track: rgba(255, 255, 255, 0.10);
   --link: #C9B8FF;
   --status-ok: #5EE0C2;
   --status-warn: #FFB27A;
