@@ -105,9 +105,9 @@
      diagonal look. A horizontal gradient keeps the color aligned with x
      position only, so the top and bottom edges always match. */
   /* Inline-action ink + status colors (light mode deepens these). */
-  --link: var(--link);
-  --status-ok: var(--status-ok);
-  --status-warn: var(--status-warn);
+  --link: #C9B8FF;
+  --status-ok: #5EE0C2;
+  --status-warn: #FFB27A;
   --on-surface-shadow: none;
   --gradient-brand-wide: linear-gradient(90deg, #FB8A4C 0%, #A66BF5 55%, #5B7FFF 100%);
 
