@@ -248,7 +248,6 @@
 @media (max-width: 900px) {
   .jpro-page {
     padding: var(--page-padding-mobile);
-    padding-top: max(12px, var(--safe-top));
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   }
 }
