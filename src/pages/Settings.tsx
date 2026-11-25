@@ -1,14 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
-  Shield, ChevronRight,
-  Smartphone, LayoutDashboard, Ruler, RefreshCw,
-  User, Database, Sun, Moon,
+  Shield, ChevronRight, Smartphone, LayoutDashboard, Ruler, RefreshCw, Moon, Cloud,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useUnits } from '../hooks/useUnits'
 import { useTheme } from '../context/ThemeContext'
+import { useNutritionSettings } from '../hooks/useNutritionSettings'
+import { useSync } from '../hooks/useSync'
+import { getProfile } from '../db/profileStore'
+import { AvatarDisplay } from '../components/Avatar'
+import type { ProfileData } from '../db'
+import type { SyncStatus } from '../db/syncEngine'
 import './Settings.css'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -61,139 +65,242 @@ export function SettingsRow({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const isNativeApp = typeof window !== 'undefined'
+  && !!(window as unknown as { __jeevanNativeApp?: boolean }).__jeevanNativeApp
+
+function Segmented<T extends string>({ options, value, onChange, label }: {
+  options: { id: T; label: string }[]
+  value: T
+  onChange: (v: T) => void
+  label: string
+}) {
+  return (
+    <div className="jset-seg" role="radiogroup" aria-label={label}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map(o => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          data-no-press-glow
+          className={`jset-seg-btn ${value === o.id ? 'jset-seg-btn--on' : ''}`}
+          onClick={() => onChange(o.id)}
+        >{o.label}</button>
+      ))}
+    </div>
+  )
+}
+
+function Tile({ icon: Icon }: { icon: React.ElementType }) {
+  return <span className="jset-tile" aria-hidden="true"><Icon size={17} strokeWidth={2} /></span>
+}
+
+function syncChip(status: SyncStatus): { label: string; tone: 'ok' | 'busy' | 'warn' | 'muted' } {
+  switch (status.type) {
+    case 'synced':          return { label: 'Synced', tone: 'ok' }
+    case 'syncing':         return { label: 'Syncing', tone: 'busy' }
+    case 'error':
+    case 'needs_attention': return { label: 'Needs attention', tone: 'warn' }
+    case 'offline':         return { label: 'Offline', tone: 'muted' }
+    case 'local_only':
+    case 'unauthenticated': return { label: 'On device', tone: 'muted' }
+    default:                return { label: 'Not synced', tone: 'muted' }
+  }
+}
+
 export default function Settings() {
   const { appVersion } = useApp()
   const { system, setSystem } = useUnits()
-  const { theme, setTheme } = useTheme()
+  const { theme, isExplicit, setTheme, clearTheme } = useTheme()
+  const { goals } = useNutritionSettings()
+  const { status } = useSync()
   const navigate = useNavigate()
   const [showSetupConfirm, setShowSetupConfirm] = useState(false)
+  const [installOpen, setInstallOpen] = useState(false)
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+
+  useEffect(() => {
+    getProfile().then(setProfile)
+    function onUpdate(e: Event) { setProfile((e as CustomEvent<ProfileData>).detail) }
+    window.addEventListener('profile-updated', onUpdate)
+    return () => window.removeEventListener('profile-updated', onUpdate)
+  }, [])
+
+  const isMetric = system === 'metric'
+  const statsLine = (() => {
+    if (!profile) return 'Set up your profile'
+    const parts: string[] = []
+    if (profile.heightCm) {
+      if (isMetric) parts.push(`${Math.round(profile.heightCm)} cm`)
+      else {
+        const totalIn = Math.round(profile.heightCm / 2.54)
+        parts.push(`${Math.floor(totalIn / 12)}′${totalIn % 12}″`)
+      }
+    }
+    const w = (kg?: number) => kg == null ? null
+      : isMetric ? `${Math.round(kg)} kg` : `${Math.round(kg * 2.20462)} lbs`
+    const start = w(profile.startWeightKg)
+    const goal = w(profile.goalWeightKg)
+    if (start) parts.push(start)
+    if (goal) parts.push(`Goal ${goal}`)
+    return parts.length ? parts.join(' · ') : 'Add your height and weight'
+  })()
+
+  const macroCals = goals.proteinG * 4 + goals.carbsG * 4 + goals.fatG * 9 || 1
+  const split = {
+    protein: (goals.proteinG * 4) / macroCals,
+    carbs: (goals.carbsG * 4) / macroCals,
+    fat: (goals.fatG * 9) / macroCals,
+  }
+  const chip = syncChip(status)
+  const themeChoice: 'auto' | 'light' | 'dark' = isExplicit ? theme : 'auto'
 
   return (
-    <div className="settings-page">
+    <div className="settings-page jset-page">
       <header className="page-header">
         <h1 className="page-title">Settings</h1>
       </header>
 
-      {/* ── Units ── */}
-      <SettingsSection title="Units">
-        <div className="settings-units-row">
-          <span className="settings-row-icon"><Ruler size={15} /></span>
-          <div className="settings-row-text">
-            <span className="settings-row-label">Unit System</span>
-          </div>
-          <div className="settings-unit-toggle">
-            <button
-              className={`su-btn ${system === 'us-hybrid' ? 'su-btn--on' : ''}`}
-              onClick={() => setSystem('us-hybrid')}>US</button>
-            <button
-              className={`su-btn ${system === 'metric' ? 'su-btn--on' : ''}`}
-              onClick={() => setSystem('metric')}>Metric</button>
-          </div>
-        </div>
-        <div className="settings-units-detail">
-          {system === 'us-hybrid'
-            ? 'Weights in lbs · Distance in miles · Height in ft/in · Food in grams'
-            : 'Weights in kg · Distance in km · Height in cm · Food in grams'}
-        </div>
-      </SettingsSection>
-
-      {/* ── Appearance ── */}
-      <SettingsSection title="Appearance">
-        <div className="settings-units-row">
-          <span className="settings-row-icon">{theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}</span>
-          <div className="settings-row-text">
-            <span className="settings-row-label">Theme</span>
-          </div>
-          <div className="settings-unit-toggle">
-            <button
-              className={`su-btn ${theme === 'light' ? 'su-btn--on' : ''}`}
-              onClick={() => setTheme('light')}>Light</button>
-            <button
-              className={`su-btn ${theme === 'dark' ? 'su-btn--on' : ''}`}
-              onClick={() => setTheme('dark')}>Dark</button>
-          </div>
-        </div>
-        <div className="settings-units-detail">
-          Follows your device's setting until you pick one here.
-        </div>
-      </SettingsSection>
-
       {/* ── Profile ── */}
-      <SettingsSection title="Profile">
-        <SettingsRow
-          icon={User}
-          label="Edit Profile"
-          description="Update name, avatar, height, weight, and goals"
-          onClick={() => navigate('/profile')}
-        />
-        <SettingsRow
-          icon={RefreshCw}
-          label="Run Setup Again"
-          description="Re-run the full setup wizard to update your profile and targets"
-          onClick={() => setShowSetupConfirm(true)}
-        />
-      </SettingsSection>
+      <button type="button" className="jset-profile" onClick={() => navigate('/profile')}>
+        <span className="jset-profile-avatar">
+          <AvatarDisplay
+            name={profile?.name || 'Guest'}
+            avatarId={profile?.avatarId}
+            photoDataUrl={profile?.photoDataUrl}
+            size="md"
+          />
+        </span>
+        <span className="jset-profile-text">
+          <span className="jset-profile-name">{profile?.name || 'Your Profile'}</span>
+          <span className="jset-profile-stats">{statsLine}</span>
+        </span>
+        <span className="jset-profile-edit">Edit</span>
+      </button>
 
-      {/* ── Customize ── */}
-      <SettingsSection title="Customize">
-        <SettingsRow
-          icon={LayoutDashboard}
-          label="Dashboard Layout"
-          description="Show or hide cards on the main screen"
-          value="Cards on/off"
-          onClick={() => navigate('/dashboard-settings')}
-        />
-      </SettingsSection>
-
-      {/* ── Data & Sync ── */}
-      <SettingsSection title="Data & Sync">
-        <SettingsRow
-          icon={Database}
-          label="Data & Sync"
-          description="Cloud account, backups, connected sources, storage"
-          onClick={() => navigate('/settings/data')}
-        />
-      </SettingsSection>
-
-      {/* ── Install as App ── */}
-      <SettingsSection title="Install as App">
-        <SettingsRow
-          icon={Smartphone}
-          label="Add to iPhone Home Screen"
-        />
-        <div className="settings-install-guide">
-          <p className="settings-install-title">To install on iOS Safari:</p>
-          <ol className="settings-install-steps">
-            <li>Open this page in <strong>Safari</strong> on your iPhone.</li>
-            <li>Tap the <strong>Share button</strong> (box with arrow) at the bottom.</li>
-            <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
-            <li>Tap <strong>Add</strong> — the app will appear on your home screen.</li>
-          </ol>
-          <p className="settings-install-note">
-            Once installed it runs fullscreen, with no browser chrome.
-          </p>
+      {/* ── Daily targets ── */}
+      <section className="jset-section">
+        <h2 className="jset-section-title">Daily Targets</h2>
+        <div className="jset-card jset-targets">
+          <div className="jset-targets-grid">
+            <div className="jset-target"><span className="jset-target-num">{goals.calories.toLocaleString()}</span><span className="jset-target-lbl">Calories</span></div>
+            <div className="jset-target"><span className="jset-target-num">{goals.proteinG}g</span><span className="jset-target-lbl">Protein</span></div>
+            <div className="jset-target"><span className="jset-target-num">{goals.carbsG}g</span><span className="jset-target-lbl">Carbs</span></div>
+            <div className="jset-target"><span className="jset-target-num">{goals.fatG}g</span><span className="jset-target-lbl">Fat</span></div>
+          </div>
+          <div className="jset-split" aria-hidden="true">
+            <span style={{ flexGrow: split.protein, background: '#FB8A4C' }} />
+            <span style={{ flexGrow: split.carbs, background: '#A66BF5' }} />
+            <span style={{ flexGrow: split.fat, background: '#5B7FFF' }} />
+          </div>
+          <button type="button" className="jset-cta" onClick={() => navigate('/nutrition?goals=1')}>
+            Adjust Targets
+          </button>
         </div>
-      </SettingsSection>
+      </section>
+
+      {/* ── Preferences ── */}
+      <section className="jset-section">
+        <h2 className="jset-section-title">Preferences</h2>
+        <div className="jset-card">
+          <div className="jset-pref">
+            <div className="jset-pref-head"><Tile icon={Ruler} /><span className="jset-row-label">Units</span></div>
+            <Segmented
+              label="Units"
+              value={system}
+              onChange={setSystem}
+              options={[{ id: 'us-hybrid', label: 'US' }, { id: 'metric', label: 'Metric' }]}
+            />
+            <span className="jset-row-desc">
+              {isMetric ? 'kg · km · cm · food in grams' : 'lbs · miles · ft/in · food in grams'}
+            </span>
+          </div>
+          <div className="jset-divider" />
+          <div className="jset-pref">
+            <div className="jset-pref-head"><Tile icon={Moon} /><span className="jset-row-label">Appearance</span></div>
+            <Segmented
+              label="Appearance"
+              value={themeChoice}
+              onChange={v => (v === 'auto' ? clearTheme() : setTheme(v))}
+              options={[{ id: 'auto', label: 'Auto' }, { id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── App ── */}
+      <section className="jset-section">
+        <h2 className="jset-section-title">App</h2>
+        <div className="jset-card">
+          <button type="button" className="jset-row" onClick={() => navigate('/dashboard-settings')}>
+            <Tile icon={LayoutDashboard} />
+            <span className="jset-row-text">
+              <span className="jset-row-label">Dashboard Layout</span>
+              <span className="jset-row-desc">Choose and reorder Today's cards</span>
+            </span>
+            <ChevronRight size={18} className="jset-chev" />
+          </button>
+          <div className="jset-divider" />
+          <button type="button" className="jset-row" onClick={() => navigate('/settings/data')}>
+            <Tile icon={Cloud} />
+            <span className="jset-row-text">
+              <span className="jset-row-label">Data &amp; Sync</span>
+              <span className="jset-row-desc">Account, backups, connected sources</span>
+            </span>
+            <span className={`jset-chip jset-chip--${chip.tone}`}><span className="jset-chip-dot" />{chip.label}</span>
+            <ChevronRight size={18} className="jset-chev" />
+          </button>
+          <div className="jset-divider" />
+          <button type="button" className="jset-row" onClick={() => setShowSetupConfirm(true)}>
+            <Tile icon={RefreshCw} />
+            <span className="jset-row-text">
+              <span className="jset-row-label">Run Setup Again</span>
+              <span className="jset-row-desc">Update your profile and targets</span>
+            </span>
+            <ChevronRight size={18} className="jset-chev" />
+          </button>
+          {!isNativeApp && (
+            <>
+              <div className="jset-divider" />
+              <button type="button" className="jset-row" aria-expanded={installOpen} onClick={() => setInstallOpen(o => !o)}>
+                <Tile icon={Smartphone} />
+                <span className="jset-row-text">
+                  <span className="jset-row-label">Add to Home Screen</span>
+                  <span className="jset-row-desc">Run Jeevan full screen from Safari</span>
+                </span>
+                <span className="jset-row-link">{installOpen ? 'Hide' : 'How'}</span>
+              </button>
+              {installOpen && (
+                <ol className="jset-steps">
+                  <li><span>1</span>Open Jeevan in Safari</li>
+                  <li><span>2</span>Tap Share, then Add to Home Screen</li>
+                  <li><span>3</span>Tap Add — it opens full screen</li>
+                </ol>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
       {/* ── Privacy ── */}
-      <SettingsSection title="Privacy">
-        <SettingsRow
-          icon={Shield}
-          label="Where is my data stored?"
-        />
-        <div className="settings-privacy-note">
-          Stored locally on this device, synced only to your own account if you sign in — never to third parties.
+      <section className="jset-section">
+        <h2 className="jset-section-title">Privacy</h2>
+        <div className="jset-card jset-privacy">
+          <Tile icon={Shield} />
+          <span className="jset-row-text">
+            <span className="jset-row-label">Your data stays yours</span>
+            <span className="jset-row-desc">Stored on this device and synced only to your own account. Never shared with third parties.</span>
+          </span>
         </div>
-      </SettingsSection>
+      </section>
 
       {/* ── About ── */}
-      <SettingsSection title="About">
-        <SettingsRow label="App name" value="Jeevan" />
-        <SettingsRow label="Version"  value={`v${appVersion}`} />
-        <div className="settings-privacy-note">
-          Muscle heatmap's 3D model: Z-Anatomy / BodyParts3D — CC BY-SA 4.0
-        </div>
-      </SettingsSection>
+      <footer className="jset-about">
+        <span className="jset-about-name">Jeevan</span>
+        <span>Version {appVersion}</span>
+        <span>3D muscle model: Z-Anatomy / BodyParts3D — CC BY-SA 4.0</span>
+      </footer>
 
       {/* ── Run Setup Again confirmation ── */}
       {showSetupConfirm && createPortal(

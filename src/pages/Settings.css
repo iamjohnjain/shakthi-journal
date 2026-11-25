@@ -321,3 +321,136 @@
 }
 
 .settings-confirm-go:hover { opacity: 0.88; }
+
+/* ═══ Settings revamp (design A: grouped cards) ═══════════════════════════
+   Dark cards, avatar-gradient icon tiles, rainbow-ring selected segments.
+   The older .settings-section / .settings-row classes above stay for the
+   Data & Sync sub-page, which still uses them. */
+
+.jset-page { display: flex; flex-direction: column; gap: 22px; padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+.jset-page .page-header { margin-bottom: 0; }
+
+/* Profile */
+.jset-profile {
+  display: flex; align-items: center; gap: 16px;
+  width: 100%; padding: 18px; border-radius: 22px;
+  text-align: left; font: inherit; color: var(--text-primary); cursor: pointer;
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.jset-profile-avatar {
+  flex-shrink: 0; border-radius: 50%; padding: 2px;
+  background: var(--gradient-brand); display: flex;
+}
+.jset-profile-avatar .avatar { border: 2px solid var(--bg-elevated); }
+.jset-profile-text { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.jset-profile-name { font-size: 19px; font-weight: 700; }
+.jset-profile-stats { font-size: 13px; color: var(--text-secondary); }
+.jset-profile-edit {
+  font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+
+/* Sections + cards */
+.jset-section { display: flex; flex-direction: column; gap: 10px; }
+.jset-section-title {
+  margin: 0 4px; font-size: 13px; font-weight: 600; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--text-secondary);
+}
+.jset-card {
+  border-radius: 20px; background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.jset-divider { height: 1px; margin-left: 62px; background: var(--border-subtle); }
+
+/* Icon tile — same gradient as the avatar ring and quick actions */
+.jset-tile {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gradient-brand); color: #fff;
+  box-shadow: 0 4px 12px -6px rgba(166, 107, 245, 0.7);
+}
+
+/* Daily targets */
+.jset-targets { padding: 18px; gap: 16px; }
+.jset-targets-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.jset-target { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.jset-target-num { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.jset-target-lbl { font-size: 12px; color: var(--text-secondary); }
+.jset-split { height: 6px; border-radius: 3px; display: flex; gap: 2px; overflow: hidden; }
+.jset-split span { flex-basis: 0; min-width: 2px; }
+.jset-cta {
+  align-self: flex-start; font: inherit; font-size: 14px; font-weight: 600; color: #fff;
+  padding: 10px 16px; border-radius: 12px; border: none; cursor: pointer;
+  background: var(--gradient-brand);
+  box-shadow: 0 6px 18px -8px rgba(166, 107, 245, 0.75);
+}
+
+/* Preferences */
+.jset-pref { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.jset-pref-head { display: flex; align-items: center; gap: 12px; }
+.jset-seg {
+  display: grid; gap: 4px; padding: 4px; border-radius: 14px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.jset-seg-btn {
+  height: 40px; border-radius: 11px; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--text-secondary); cursor: pointer;
+  border: 1.5px solid transparent; background: transparent;
+  transition: color .15s, text-shadow .15s;
+}
+.jset-seg-btn:not(.jset-seg-btn--on):active {
+  color: var(--text-primary);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.85), 0 0 18px rgba(255, 255, 255, 0.45);
+}
+.jset-seg-btn--on {
+  color: var(--text-primary); font-weight: 700;
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--gradient-brand);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* Rows */
+.jset-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 64px; padding: 14px 16px; box-sizing: border-box;
+  background: none; border: none; border-radius: 0; text-align: left;
+  font: inherit; color: var(--text-primary); cursor: pointer;
+}
+.jset-row:hover { background: var(--bg-card-hover); }
+.jset-row:active::after { inset: 0; padding: 1.5px; border-radius: 0; }
+.jset-row-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.jset-row-label { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.jset-row-desc { font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
+.jset-row-link { font-size: 13px; font-weight: 600; color: #C9B8FF; }
+.jset-chev { color: var(--text-tertiary); flex-shrink: 0; }
+
+.jset-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.jset-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.jset-chip--ok    { color: #5EE0C2; }
+.jset-chip--busy  { color: #C9B8FF; }
+.jset-chip--warn  { color: #FFB27A; }
+.jset-chip--muted { color: var(--text-secondary); }
+
+.jset-steps {
+  margin: 0 16px 16px 62px; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.jset-steps li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; color: var(--text-secondary); }
+.jset-steps li span { font-size: 12px; font-weight: 700; color: #C9B8FF; }
+
+.jset-privacy { flex-direction: row; align-items: flex-start; gap: 12px; padding: 16px; }
+
+/* About */
+.jset-about {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding-top: 8px; font-size: 12px; color: var(--text-secondary); text-align: center;
+}
+.jset-about-name {
+  font-size: 14px; font-weight: 700;
+  background: var(--gradient-brand-wide);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}

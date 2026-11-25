@@ -1305,7 +1305,8 @@ function GoalEditModal({ goals, onSave, onClose }: {
 export default function NutritionPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { mealIds, activeMealLabels, goals, loaded, updateGoals } = useNutritionSettings()
-  const [showGoalModal, setShowGoalModal] = useState(false)
+  // Settings → Daily Targets → "Adjust Targets" links here with ?goals=1.
+  const [showGoalModal, setShowGoalModal] = useState(searchParams.get('goals') === '1')
   const [entries,       setEntries]      = useState<NutritionEntry[]>([])
   const [totals,        setTotals]       = useState({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, entryCount: 0 })
   // "Snap Meal" dashboard quick action links here with ?quick=photo — jump
