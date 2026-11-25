@@ -467,3 +467,71 @@
   background: var(--gradient-brand-wide);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
+
+/* Shared row-list cards (JSection / JRow) */
+.jset-card--rows > .jset-row:not(:first-child)::before,
+.jset-card--rows > .jset-sub:not(:first-child)::before {
+  content: ''; position: absolute; top: 0; left: 62px; right: 0;
+  height: 1px; background: var(--border-subtle);
+}
+.jset-row--static { cursor: default; }
+.jset-row--static:hover { background: none; }
+.jset-row-value { font-size: 13px; color: var(--text-secondary); text-align: right; max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jset-tile--danger { background: rgba(255, 99, 99, 0.16); color: #FF7A7A; box-shadow: none; }
+.jset-row-label--danger { color: #FF7A7A; }
+
+/* ─── Data & Sync page ─────────────────────────────────────────────── */
+.jset-back {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--text-primary);
+  padding: 7px 14px 7px 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box; background-clip: padding-box, border-box;
+}
+.jset-title-block { display: flex; flex-direction: column; gap: 6px; }
+.jset-title-block .page-title { margin: 0; }
+.jset-subtitle { margin: 0; font-size: 14px; color: var(--text-secondary); }
+
+.jset-notice {
+  padding: 12px 16px; border-radius: 14px; font-size: 14px; color: var(--text-primary);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-card), var(--bg-card)), var(--gradient-brand);
+  background-origin: border-box; background-clip: padding-box, border-box;
+}
+.jset-sub {
+  position: relative; display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px; font-size: 13px; line-height: 1.5; color: var(--text-secondary);
+}
+.jset-sub svg { flex-shrink: 0; margin-top: 2px; color: #C9B8FF; }
+.jset-sub code {
+  font-family: 'SF Mono', ui-monospace, monospace; font-size: 12px;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  padding: 1px 5px; border-radius: 5px;
+}
+.jset-signin { display: flex; flex-direction: column; gap: 14px; padding: 18px; }
+.jset-signin p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
+
+/* The shared SyncStatusRow, dressed as one of these rows */
+.jset-card--rows .sync-row {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 56px; padding: 14px 16px 14px 62px; box-sizing: border-box;
+  background: none; border: none; border-radius: 0; text-align: left;
+  font: inherit; font-size: 14px; color: var(--text-primary); cursor: pointer;
+}
+.jset-card--rows .sync-row::before {
+  content: ''; position: absolute; top: 0; left: 62px; right: 0;
+  height: 1px; background: var(--border-subtle);
+}
+.jset-card--rows .sync-row > svg:first-child { position: absolute; left: 26px; }
+.jset-card--rows .sync-row-label { flex: 1 1 auto; font-weight: 600; }
+.jset-card--rows .sync-row-action { font-size: 13px; font-weight: 600; color: #C9B8FF; }
+.jset-card--rows .sync-row-action--warn { color: #FFB27A; }
+
+.jset-diag { display: flex; flex-direction: column; padding: 0 16px 10px 62px; }
+.jset-diag-row {
+  display: flex; justify-content: space-between; gap: 12px; padding: 9px 0;
+  font-size: 13px; border-top: 1px solid var(--border-subtle);
+}
+.jset-diag-row span:first-child { color: var(--text-primary); }
+.jset-diag-row span:last-child { color: var(--text-secondary); font-variant-numeric: tabular-nums; }

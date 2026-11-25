@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Link2, History, Download as DownloadIcon, Upload,
   FlaskConical, Database, ShieldCheck, Trash2,
-  Cloud, LogOut, User, Heart, ChevronDown, ChevronUp, ChevronLeft,
+  Cloud, LogOut, User, Heart, ChevronLeft, Activity,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
@@ -12,7 +12,7 @@ import { clearSyncHistory } from '../db'
 import { clearImportedMetrics, getHealthDiagnostics } from '../db/healthStore'
 import type { HealthDiagnosticEntry } from '../db/healthStore'
 import { isInsideNativeApp } from '../layout/BottomNav'
-import { SettingsSection, SettingsRow } from './Settings'
+import { JSection, JRow } from './Settings'
 import './Settings.css'
 
 /** Everything sync/data/storage-related, split out of the main Settings
@@ -65,186 +65,121 @@ export default function DataSyncSettings() {
     }
   }
 
+  const storageValue = dbStatus === 'ready' ? 'On this device' : dbStatus === 'loading' ? 'Loading…' : 'Error'
+  const native = isInsideNativeApp()
+
   return (
-    <div className="settings-page">
-      <header className="page-header">
-        <div>
-          <button className="ds-back-btn" onClick={() => navigate('/settings')}>
-            <ChevronLeft size={16} /> Settings
-          </button>
-          <h1 className="page-title">Data & Sync</h1>
-          <p className="page-subtitle">Cloud account, backups, connected sources</p>
-        </div>
+    <div className="settings-page jset-page">
+      <header className="jset-title-block">
+        <button type="button" className="jset-back" data-no-press-glow onClick={() => navigate('/settings')}>
+          <ChevronLeft size={16} /> Settings
+        </button>
+        <h1 className="page-title">Data &amp; Sync</h1>
+        <p className="jset-subtitle">Account, backups, connected sources</p>
       </header>
 
-      {exportNote && (
-        <div className="settings-notice">{exportNote}</div>
+      {exportNote && <div className="jset-notice" role="status">{exportNote}</div>}
+
+      {/* ── Account ── */}
+      {!sbConfigured ? (
+        <JSection title="Account">
+          <div className="jset-sub">
+            <Cloud size={16} />
+            <span>Cloud sync isn't configured — add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable it.</span>
+          </div>
+        </JSection>
+      ) : authMode === 'authenticated' && user ? (
+        <JSection title="Account">
+          <JRow icon={User} label="Signed in" desc={user.email ?? user.displayName ?? 'Account'} />
+          <SyncStatusRow />
+          <JRow
+            icon={LogOut}
+            label={signingOut ? 'Signing out…' : 'Sign Out'}
+            onClick={handleSignOut}
+            destructive
+            chevron={false}
+          />
+        </JSection>
+      ) : (
+        <section className="jset-section">
+          <h2 className="jset-section-title">Account</h2>
+          <div className="jset-card jset-signin">
+            <p>Sign in to back up your data and sync it across your devices automatically.</p>
+            <button type="button" className="jset-cta" onClick={() => navigate('/auth')}>
+              Sign In or Create Account
+            </button>
+          </div>
+        </section>
       )}
 
-      {/* ── Cloud Account ── */}
-      <SettingsSection title="Cloud Account">
-        {!sbConfigured ? (
-          <div className="settings-cloud-notice">
-            Cloud sync is not configured — add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable.
-          </div>
-        ) : authMode === 'authenticated' && user ? (
-          <>
-            <SettingsRow
-              icon={User}
-              label="Signed in as"
-              value={user.email ?? user.displayName ?? 'Account'}
-            />
-            <SyncStatusRow />
-            <SettingsRow
-              icon={LogOut}
-              label={signingOut ? 'Signing out…' : 'Sign out'}
-              onClick={handleSignOut}
-              destructive
-            />
-          </>
-        ) : (
-          <>
-            <div className="settings-cloud-notice">
-              Sign in to sync your data across devices automatically.
-            </div>
-            <SettingsRow
-              icon={Cloud}
-              label="Sign in / Create account"
-              onClick={() => navigate('/auth')}
-            />
-          </>
-        )}
-      </SettingsSection>
-
-      {/* ── Data Safety ── */}
-      <SettingsSection title="Data Safety">
-        <div className="settings-safety-notice">
-          <ShieldCheck size={14} />
-          <span>All data is stored locally in this browser. Export backups before switching browsers, devices, or domains.</span>
+      {/* ── Backups ── */}
+      <JSection title="Backups">
+        <div className="jset-sub">
+          <ShieldCheck size={16} />
+          <span>Your data lives on this device. Export a backup before switching phones or browsers.</span>
         </div>
-        <SettingsRow
-          icon={DownloadIcon}
-          label="Export Backup"
-          description="Download all your data as a JSON file"
-          value="All data → JSON"
-          onClick={() => navigate('/settings/backup')}
-        />
-        <SettingsRow
-          icon={Upload}
-          label="Restore from Backup"
-          description="Import a previously exported JSON backup"
-          value="Import .json"
-          onClick={() => navigate('/settings/backup')}
-        />
-      </SettingsSection>
+        <JRow icon={DownloadIcon} label="Export Backup" desc="Save all your data as a JSON file" onClick={() => navigate('/settings/backup')} />
+        <JRow icon={Upload} label="Restore From Backup" desc="Bring back a JSON backup you exported" onClick={() => navigate('/settings/backup')} />
+      </JSection>
 
-      {/* ── Data Storage ── */}
-      <SettingsSection title="Data Storage">
-        <SettingsRow
-          icon={Database}
-          label="Storage mode"
-          value={dbStatus === 'ready' ? 'IndexedDB · Local' : dbStatus === 'loading' ? 'Loading…' : 'Error'}
-        />
-        <SettingsRow
-          icon={Trash2}
-          label={deleteConfirm ? 'Tap again to confirm' : 'Delete Imported Health Data'}
-          description="Removes imported Apple Health metrics and sync history. Does not delete workouts, meals, profile, or account data."
-          onClick={handleDeleteImported}
-          destructive
-        />
-        {deleting && <p className="settings-inline-note">Deleting…</p>}
-      </SettingsSection>
-
-      {/* ── Integrations ── */}
-      <SettingsSection title="Integrations">
-        {isInsideNativeApp() && (
-          <SettingsRow
-            icon={Heart}
-            label="Apple Health Sync"
-            description="Sync steps, weight, sleep, heart rate, and more from Apple Health"
-            onClick={openHealthSync}
-          />
+      {/* ── Sources ── */}
+      <JSection title="Sources">
+        {native && (
+          <JRow icon={Heart} label="Apple Health Sync" desc="Steps, weight, sleep, heart rate and more" onClick={openHealthSync} />
         )}
-        <SettingsRow
-          icon={Link2}
-          label="Connected Accounts"
-          description="Manage Apple Health, RENPHO, MyFitnessPal, and more"
-          onClick={() => navigate('/connected-accounts')}
-        />
-        <SettingsRow
-          icon={History}
-          label="Sync History"
-          description="View past imports and sync events"
-          onClick={() => navigate('/sync-history')}
-        />
-        <SettingsRow
-          icon={DownloadIcon}
-          label="Import Data"
-          description="Import Apple Health export.xml or other formats"
-          onClick={() => navigate('/import')}
-        />
-      </SettingsSection>
+        <JRow icon={Link2} label="Connected Accounts" desc="Apple Health, RENPHO, MyFitnessPal and more" onClick={() => navigate('/connected-accounts')} />
+        <JRow icon={History} label="Sync History" desc="Past imports and sync events" onClick={() => navigate('/sync-history')} />
+        <JRow icon={DownloadIcon} label="Import Data" desc="Apple Health export.xml and other formats" onClick={() => navigate('/import')} />
+      </JSection>
 
-      {/* ── Health Diagnostics (only inside iOS native app) ── */}
-      {isInsideNativeApp() && (
-        <SettingsSection title="Health Diagnostics">
-          <button
-            className="settings-row settings-row--clickable"
+      {/* ── Health diagnostics (native app only) ── */}
+      {native && (
+        <JSection title="Health Diagnostics">
+          <JRow
+            icon={Activity}
+            label="HealthKit Data Freshness"
+            desc="Latest data per health type"
             onClick={() => setShowHealthDiag(v => !v)}
-          >
-            <span className="settings-row-icon"><Heart size={15} /></span>
-            <span className="settings-row-label">HealthKit Data Freshness</span>
-            <span className="settings-row-value" style={{ color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
-              {showHealthDiag ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </span>
-          </button>
+            chevron={false}
+            trailing={<span className="jset-row-link">{showHealthDiag ? 'Hide' : 'Show'}</span>}
+          />
           {showHealthDiag && (
-            <div style={{ padding: '4px 0 8px' }}>
+            <div className="jset-diag">
               {!healthDiag ? (
-                <p className="settings-inline-note">Loading…</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  {healthDiag.map(entry => (
-                    <div
-                      key={entry.typeId}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 16px',
-                        borderBottom: '0.5px solid var(--border-subtle)',
-                        fontSize: 13,
-                      }}
-                    >
-                      <span style={{ color: 'var(--text-secondary)' }}>{entry.displayName}</span>
-                      <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
-                        {entry.recordCount === 0
-                          ? 'No data'
-                          : entry.daysAgo === 0
-                          ? `${entry.recordCount} records · today`
-                          : entry.daysAgo === 1
-                          ? `${entry.recordCount} records · yesterday`
-                          : `${entry.recordCount} records · ${entry.daysAgo}d ago`}
-                      </span>
-                    </div>
-                  ))}
+                <div className="jset-diag-row"><span>Loading…</span><span /></div>
+              ) : healthDiag.map(entry => (
+                <div key={entry.typeId} className="jset-diag-row">
+                  <span>{entry.displayName}</span>
+                  <span>
+                    {entry.recordCount === 0
+                      ? 'No data'
+                      : `${entry.recordCount} · ${entry.daysAgo === 0 ? 'today' : entry.daysAgo === 1 ? 'yesterday' : `${entry.daysAgo}d ago`}`}
+                  </span>
                 </div>
-              )}
+              ))}
             </div>
           )}
-        </SettingsSection>
+        </JSection>
       )}
+
+      {/* ── Storage ── */}
+      <JSection title="Storage">
+        <JRow icon={Database} label="Storage" trailing={<span className="jset-row-value">{storageValue}</span>} />
+        <JRow
+          icon={Trash2}
+          label={deleting ? 'Deleting…' : deleteConfirm ? 'Tap Again to Confirm' : 'Delete Imported Health Data'}
+          desc="Removes imported Apple Health metrics and sync history. Workouts, meals, profile and account stay."
+          onClick={handleDeleteImported}
+          destructive
+          chevron={false}
+        />
+      </JSection>
 
       {/* ── Developer (dev builds only — never shipped to real users) ── */}
       {import.meta.env.DEV && (
-        <SettingsSection title="Developer">
-          <SettingsRow
-            icon={FlaskConical}
-            label="Developer Diagnostics"
-            description="DB status, mock mode, sync queue inspection"
-            onClick={() => navigate('/dev')}
-          />
-        </SettingsSection>
+        <JSection title="Developer">
+          <JRow icon={FlaskConical} label="Developer Diagnostics" desc="DB status, mock mode, sync queue" onClick={() => navigate('/dev')} />
+        </JSection>
       )}
     </div>
   )

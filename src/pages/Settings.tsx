@@ -15,54 +15,6 @@ import type { ProfileData } from '../db'
 import type { SyncStatus } from '../db/syncEngine'
 import './Settings.css'
 
-// ─── Section wrapper ──────────────────────────────────────────────────────────
-
-export function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="settings-section">
-      <h2 className="settings-section-title">{title}</h2>
-      <div className="settings-section-body">{children}</div>
-    </div>
-  )
-}
-
-// ─── Row types ────────────────────────────────────────────────────────────────
-
-export function SettingsRow({
-  icon: Icon, label, description, value, onClick, destructive,
-}: {
-  icon?: React.ElementType
-  label: string
-  description?: string
-  value?: string
-  onClick?: () => void
-  destructive?: boolean
-}) {
-  return (
-    <button
-      className={`settings-row ${destructive ? 'settings-row--destructive' : ''} ${onClick ? 'settings-row--clickable' : ''}`}
-      onClick={onClick}
-      disabled={!onClick}
-    >
-      {Icon && (
-        <span className="settings-row-icon">
-          <Icon size={15} />
-        </span>
-      )}
-      {description ? (
-        <span className="settings-row-text">
-          <span className="settings-row-label">{label}</span>
-          <span className="settings-row-description">{description}</span>
-        </span>
-      ) : (
-        <span className="settings-row-label">{label}</span>
-      )}
-      {value && <span className="settings-row-value">{value}</span>}
-      {onClick && <ChevronRight size={14} className="settings-row-chevron" />}
-    </button>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const isNativeApp = typeof window !== 'undefined'
@@ -92,8 +44,51 @@ function Segmented<T extends string>({ options, value, onChange, label }: {
   )
 }
 
-function Tile({ icon: Icon }: { icon: React.ElementType }) {
-  return <span className="jset-tile" aria-hidden="true"><Icon size={17} strokeWidth={2} /></span>
+export function Tile({ icon: Icon, destructive }: { icon: React.ElementType; destructive?: boolean }) {
+  return (
+    <span className={`jset-tile ${destructive ? 'jset-tile--danger' : ''}`} aria-hidden="true">
+      <Icon size={17} strokeWidth={2} />
+    </span>
+  )
+}
+
+/** A titled group of rows on one dark card (shared with Data & Sync). */
+export function JSection({ title, children, className = '' }: {
+  title: string; children: React.ReactNode; className?: string
+}) {
+  return (
+    <section className="jset-section">
+      <h2 className="jset-section-title">{title}</h2>
+      <div className={`jset-card jset-card--rows ${className}`}>{children}</div>
+    </section>
+  )
+}
+
+/** One settings row: gradient icon tile, label, optional description and
+    trailing content. A button when it does something, a plain row if not. */
+export function JRow({ icon, label, desc, trailing, onClick, destructive, chevron = true }: {
+  icon: React.ElementType
+  label: string
+  desc?: string
+  trailing?: React.ReactNode
+  onClick?: () => void
+  destructive?: boolean
+  chevron?: boolean
+}) {
+  const body = (
+    <>
+      <Tile icon={icon} destructive={destructive} />
+      <span className="jset-row-text">
+        <span className={`jset-row-label ${destructive ? 'jset-row-label--danger' : ''}`}>{label}</span>
+        {desc && <span className="jset-row-desc">{desc}</span>}
+      </span>
+      {trailing}
+      {onClick && chevron && <ChevronRight size={18} className="jset-chev" />}
+    </>
+  )
+  return onClick
+    ? <button type="button" className="jset-row" onClick={onClick}>{body}</button>
+    : <div className="jset-row jset-row--static">{body}</div>
 }
 
 function syncChip(status: SyncStatus): { label: string; tone: 'ok' | 'busy' | 'warn' | 'muted' } {
