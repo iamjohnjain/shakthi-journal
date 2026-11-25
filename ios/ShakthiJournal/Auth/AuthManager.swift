@@ -103,6 +103,28 @@ final class AuthManager {
 
     init(sessionExchanger: SupabaseSessionExchanging = LiveSupabaseSessionExchanger()) {
         self.sessionExchanger = sessionExchanger
+        #if DEBUG
+        // Lets this session's own interactive QA (xcrun simctl launch with
+        // this env var set) reach WebAppView/the WKWebView boundary without
+        // real account credentials — the native app otherwise has no guest
+        // mode at all (unlike the web app's own "Continue as Guest"), so
+        // there was no way to drive the live adversarial-matrix scenarios
+        // (forced process termination, offline launch, popups) without
+        // either real credentials or this. Stripped entirely from Release
+        // builds by the #if DEBUG compile-time check — cannot ship, and
+        // does nothing unless this specific env var is explicitly set,
+        // which normal Xcode Run/Debug sessions never do on their own.
+        if ProcessInfo.processInfo.environment["JEEVAN_UITEST_BYPASS_AUTH"] == "1" {
+            // MainTabView also requires a refresh token to be sitting in
+            // Keychain before it will mount WebAppView at all — a real
+            // sign-in writes one via persist(session); this path has no
+            // real session to persist, so it writes a placeholder directly.
+            _ = KeychainHelper.save("uitest-debug-refresh-token", key: KeychainHelper.refreshTokenKey)
+            authState = .signedIn(userId: "uitest-debug-user", email: "uitest@debug.local", accessToken: "uitest-debug-token")
+            restoreTask = nil
+            return
+        }
+        #endif
         restoreTask = Task { await restoreSession() }
     }
 

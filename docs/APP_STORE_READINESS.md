@@ -123,6 +123,48 @@ same change.
 
 ---
 
+## Remediation — Third Pass: the live-matrix blocker is now closed
+
+Built exactly the debug affordance proposed above. `AuthManager.init()`
+now has a `#if DEBUG` branch: if the environment variable
+`JEEVAN_UITEST_BYPASS_AUTH=1` is set, it writes a placeholder refresh
+token to Keychain and sets `authState = .signedIn(...)` directly with
+synthetic identity values, skipping `restoreSession()` entirely.
+Nothing else changes — no normal Xcode Run/Debug session sets this
+variable, and the `#if DEBUG` compile-time check means the code (and
+the env-var string itself) **does not exist in a Release build at
+all** — confirmed via `strings` on the built Release binary returning
+zero matches for `JEEVAN_UITEST_BYPASS_AUTH` or the synthetic
+credential values, in addition to the Release build/test suite both
+still passing clean.
+
+**What this actually let this session verify, interactively, for the
+first time:**
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| App launches the bypass path and reaches the real WKWebView | ✅ Confirmed | `SIMCTL_CHILD_JEEVAN_UITEST_BYPASS_AUTH=1 xcrun simctl launch …` → screenshot shows the real production web app (`jeevan-health-fitness-app.pages.dev`) rendering its onboarding flow ("What's Your Name?") — the synthetic userId had no prior onboarding state, so this is the correct, expected behavior, not a bug. Incidentally also confirms the onboarding visual redesign from earlier this engagement renders correctly on an actual device/simulator, not just in theory |
+| **Web-content process termination/recovery** (previously 🟡 "Logic reviewed; not forced via Simulator's memory-warning tooling") | ✅ **Now genuinely verified** | Found the real, separate `com.apple.WebKit.WebContent` OS process (`ps aux`) and sent it `kill -9` directly — this is what a real OS-level OOM kill looks like from `webViewWebContentProcessDidTerminate`'s point of view, not a simulation. Screenshot taken ~2s later shows exactly `.processTerminated`'s UI: "Jeevan needs to reload" / "The app's content view stopped unexpectedly." / a Retry button — this is the literal screen from the bug report that triggered this whole re-audit, now confirmed to be the correct, designed recovery behavior rather than an unhandled crash. (Tapping Retry itself was not driven — `simctl` has no synthetic-touch primitive without XCUITest — but the state detection and recovery UI, which was the actual open question, is now confirmed working) |
+
+Cleaned up identically to the prior pass: app and build artifacts
+uninstalled/removed from the simulator and `/tmp` afterward.
+
+**Still not driven this pass** (the bypass only gets as far as the
+WebView being *reachable* — these need either more simulator time or
+XCUITest scripting, not blocked on credentials anymore): offline
+launch, a real popup/`window.open`, a real camera/microphone
+permission prompt, an interactive sign-out → sign-in cycle. The
+account-isolation (P1-3) design work remains entirely out of this
+session's scope for the reasons already stated above.
+
+**Verification run this pass:** `strings` check on the Release binary
+(0 matches for the bypass string), `xcodebuild … CODE_SIGNING_ALLOWED=NO
+clean build` (Release) — BUILD SUCCEEDED, re-confirmed after adding the
+bypass. `xcodebuild test` on `iPhone Duo` (iOS 27.2) — 66/66 passing, 0
+failures, re-confirmed after the same change.
+
+---
+
 ## 0. Baseline (this session)
 
 | Check | Result | Evidence |
@@ -430,7 +472,7 @@ link, submit a real form, etc.). Marked accordingly.
 | Pending refresh followed by sign-out / account switch (native-refresh + web-refresh races) | A `sessionRefreshed` reconciliation in flight when sign-out (or a second account signing in) happens must not repopulate Keychain afterward, and must never exchange a refresh token before the access token is verified; `restoreSession()`/`refreshAndGetToken()`'s own completions must behave the same way | **Pass 3 redesign (P1-2):** `WebAppView.Coordinator` no longer does its own access/refresh verification at all — it forwards the bridge's CLAIMED values unverified to `AuthManager.reconcileWebRefreshedSession`, the one authoritative owner (outlives every WebView, unlike the disposable Coordinator). Ordering is enforced in code: the access token is verified FIRST; the refresh token is only exchanged (the point Supabase may rotate/consume it) after that succeeds and the live session still matches. `restoreSession()`/`refreshAndGetToken()` carry the identical `isCurrentSession(userId:epoch:)` guard after their own network awaits, and now also check every Keychain `save()` call's result, failing closed (never presenting a signed-in state atop a partial write). `AuthManagerRaceTests` injects a `MockSupabaseSessionExchanger` to test the REAL `reconcileWebRefreshedSession` method end-to-end with no network: access-validation-failure-never-exchanges, sign-out-during-exchange, account-B-signs-in-during-exchange, unrelated-refresh-token-exchanges-to-a-different-user, and matching-session-persists-canonical-tokens — 5 tests, all exercising production code, not just a predicate. `restoreSession()`/`refreshAndGetToken()` themselves are still tested only via the `isCurrentSession` guard predicate (3 tests, via `setSignedInForTesting`), since mocking their own network calls would require the same injectable-exchanger treatment, applied here only to the bridge-reconciliation path. **Documented residual gap:** if the refresh exchange reaches Supabase (rotating the token) but a DIFFERENT account is live by the time it returns, the rotated token is intentionally discarded rather than overwriting that account's Keychain — avoiding that fully would need per-account Keychain storage, out of scope for this pass. | 🟡 `reconcileWebRefreshedSession` ✅ automated end-to-end (mocked network); `restoreSession()`/`refreshAndGetToken()` guard predicate ✅ automated; their own live network race, and the documented residual gap, remain code-review-only |
 | Account switch while a HealthKit sync is in flight | `SyncEngine.sync()` captures `(userId, epoch)` at start and re-checks after HealthKit fetch and after upload/refresh (also re-checked before retrying an upload with a freshly-refreshed token, Pass 3); `SyncEngine` now owns the sync `Task` itself (`startSync(...)`, Pass 3 — `MainTabView`/`DashboardView` no longer spawn their own untracked `Task {}`), cancelled via a `jeevanSessionWillTerminate` notification `AuthManager.terminateSession()` posts; `SyncState` is now persisted per-user (Pass 3 — previously one global UserDefaults key shared by every account, with a one-time migration of the legacy key to whichever user loads first); the completion notification carries `(userId, epoch)`, and `WebAppView.Coordinator.handleNativeSyncComplete` requires both to match its own expected session before ever injecting into IndexedDB | Not automated — reproducing a real HealthKit fetch + Supabase upload race deterministically would need a mocked HealthKit/network layer, which this codebase does not have for `SyncEngine`/`HealthKitManager` (unlike `AuthManager`, which gained an injectable `SupabaseSessionExchanging` seam in Pass 3 specifically so ITS races could be tested without network — the same treatment was not extended to `SyncEngine`/`HealthKitManager` in this pass); the guarding logic mirrors the already-tested `isCurrentSession`/epoch pattern exactly but is not independently exercised under a live race | 🟡 Code review only — explicitly NOT claimed as tested |
 | Offline launch/retry | `.offline` state (NSURLErrorNotConnectedToInternet et al.), Retry reloads trusted root | Logic reviewed; not run with the simulator's network actually disabled | 🟡 Code review only |
-| Web-content process termination/recovery | `.processTerminated` state shown, Retry available | Logic reviewed; not forced via Simulator's "Simulate Memory Warning"/process-kill tooling | 🟡 Code review only |
+| Web-content process termination/recovery | `.processTerminated` state shown, Retry available | **Updated, third continuation pass:** genuinely forced via `kill -9` on the real `com.apple.WebKit.WebContent` OS process in a running simulator (not code review) — screenshot confirms the exact "Jeevan needs to reload" / Retry UI, matching the bug report that triggered this re-audit. Retry's own tap was not driven (no `simctl` synthetic-touch primitive) — see "Remediation — Third Pass" above for full detail | ✅ Genuinely verified (state detection + recovery UI); 🟡 the Retry tap itself still code-review only |
 | Blocked-navigation banner timer vs. a later genuine failure (new this pass) | The 3-second auto-dismiss timer on the blocked-navigation banner must not fire AFTER a real offline/serverError/sessionExpired/processTerminated state and silently reset it back to `.ready` | `invalidateBlockedBannerTimer()` is now called from `didFail`, `didFailProvisionalNavigation`, `webViewWebContentProcessDidTerminate`, the `didCommit` serverError branch, and `invalidate()` — not independently unit-tested (the prior bug and its fix are both about WebKit delegate-callback ordering, which this test suite doesn't simulate) | 🟡 Code review only |
 
 **Honest summary (updated, Pass 3):** the parts of this matrix expressible
