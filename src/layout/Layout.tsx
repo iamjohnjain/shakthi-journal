@@ -19,6 +19,12 @@ export default function Layout() {
 
   const { mode } = useAuth()
 
+  // .page-content is one scroll box shared by every route, so without this a
+  // new page opens at whatever scroll offset the previous one was left at.
+  useEffect(() => {
+    document.querySelector('.page-content')?.scrollTo(0, 0)
+  }, [location.pathname])
+
   // The Weekly Wrap banner belongs to the Today tab only. Leaving Today, or
   // tapping any other button/link while it's showing, counts as "not now"
   // and dismisses it for good.
