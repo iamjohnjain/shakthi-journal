@@ -327,7 +327,20 @@
    The older .settings-section / .settings-row classes above stay for the
    Data & Sync sub-page, which still uses them. */
 
-.jset-page { display: flex; flex-direction: column; gap: 22px; padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+.jset-page {
+  display: flex; flex-direction: column; gap: 22px;
+  padding: var(--page-padding);
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+}
+/* AthleticGoals.css has an unscoped `section + section` margin that leaks
+   app-wide; the flex gap above already spaces these. */
+.jset-section + .jset-section { margin-top: 0; }
+@media (max-width: 900px) {
+  .jset-page {
+    padding: var(--page-padding-mobile);
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  }
+}
 .jset-page .page-header { margin-bottom: 0; }
 
 /* Profile */
